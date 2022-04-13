@@ -129,7 +129,7 @@ def return_train_val_functions_hg(model,
                                  axis=0) * (1. / global_batch_size)
 
             metric_dict["hg_val"].update_state(loss)
-
+        """
             return outputs, target, tss_tokens
 
         ta_pred = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
@@ -157,6 +157,7 @@ def return_train_val_functions_hg(model,
         tss_all = tf.reshape(ta_tss.gather(np.arange(val_steps)), [-1])
 
         metric_dict["hg_corr_stats"].update_state(targets_all, preds_all, tss_all) # compute corr stats
+        """
     return dist_train_step, dist_val_step, metric_dict
 
 def return_train_val_functions_hg_mm(model,
@@ -263,7 +264,7 @@ def return_train_val_functions_hg_mm(model,
 
             metric_dict["mm_val"].update_state(loss)
             return outputs,target,tss_tokens
-
+        """
         ta_pred_h = tf.TensorArray(tf.float32,size=0, dynamic_size=True, clear_after_read=True)
         ta_true_h = tf.TensorArray(tf.float32,size=0, dynamic_size=True, clear_after_read=True)
         ta_tss_h = tf.TensorArray(tf.int32,size=0, dynamic_size=True, clear_after_read=True)
@@ -271,10 +272,13 @@ def return_train_val_functions_hg_mm(model,
         ta_pred_m = tf.TensorArray(tf.float32,size=0, dynamic_size=True, clear_after_read=True)
         ta_true_m = tf.TensorArray(tf.float32,size=0, dynamic_size=True, clear_after_read=True)
         ta_tss_m = tf.TensorArray(tf.int32,size=0, dynamic_size=True, clear_after_read=True)
-
+        """
         for _ in tf.range(val_steps): ## for loop within @tf.fuction for improved TPU performance
             outputs_rep_h,targets_rep_h,tss_tokens_rep_h = strategy.run(val_step_hg,
                                                                    args=(next(hg_iterator),))
+            outputs_rep_m,targets_rep_m,tss_tokens_rep_m = strategy.run(val_step_mm,
+                                                       args=(next(mm_iterator),))
+            """
             outputs_reshape_h = tf.reshape(strategy.gather(outputs_rep_h, axis=0), [-1])
             targets_reshape_h = tf.reshape(strategy.gather(targets_rep_h, axis=0), [-1])
             tss_reshape_h = tf.reshape(strategy.gather(tss_tokens_rep_h, axis=0), [-1])
@@ -283,8 +287,7 @@ def return_train_val_functions_hg_mm(model,
             ta_true_h = ta_true_h.write(_, targets_reshape_h)
             ta_tss_h = ta_tss_h.write(_, tss_reshape_h)
             
-            outputs_rep_m,targets_rep_m,tss_tokens_rep_m = strategy.run(val_step_mm,
-                                                                   args=(next(mm_iterator),))
+
 
             ## all the mouse tensors
             outputs_reshape_m = tf.reshape(strategy.gather(outputs_rep_m, axis=0), [-1])
@@ -294,7 +297,8 @@ def return_train_val_functions_hg_mm(model,
             ta_pred_m = ta_pred_m.write(_, outputs_reshape_m)
             ta_true_m = ta_true_m.write(_, targets_reshape_m)
             ta_tss_m = ta_tss_m.write(_, tss_reshape_m)
-
+            """
+        """
         preds_all_h = tf.reshape(ta_pred_h.gather(np.arange(val_steps)), [-1])
         targets_all_h = tf.reshape(ta_true_h.gather(np.arange(val_steps)), [-1])
         tss_all_h = tf.reshape(ta_tss_h.gather(np.arange(val_steps)), [-1])
@@ -306,7 +310,7 @@ def return_train_val_functions_hg_mm(model,
 
         metric_dict["hg_corr_stats"].update_state(targets_all_h, preds_all_h, tss_all_h)
         metric_dict["mm_corr_stats"].update_state(targets_all_m, preds_all_m, tss_all_m)
-
+        """
     return dist_train_step, dist_val_step, metric_dict
         #else:
         #    raise ValueError('input a proper organism dictionary')
