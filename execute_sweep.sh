@@ -1,0 +1,39 @@
+#!/bin/bash -l
+
+python train_model.py \
+            --tpu_name="" \
+            --tpu_zone="" \
+            --wandb_project="" \
+            --wandb_user="" \
+            --wandb_sweep_name="test" \
+	    --gcs_project = ""\
+	    --gcs_path = ""\
+            --output_heads="hg,mm" \
+            --input_length=409600 \
+            --output_res=4096 \
+            --output_length=50 \
+            --batch_size=16 \
+            --num_epochs=50 \
+            --train_steps=4880 \
+            --num_warmup_steps=4880 \
+            --val_steps=226 \
+            --patience=30 \
+            --min_delta=0.025 \
+            --model_save_dir="" \
+            --model_save_basename="test" \
+            --lr_schedule="cosine_decay_w_warmup" \
+            --lr_base="0.01" \
+            --warmup_lr="1.0e-04" \
+            --optimizer="adafactor" \
+            --gradient_clip="1.0" \
+            --precision="mixed_bfloat16" \
+            --weight_decay="1.0e-06" \
+            --conv_channel_list="36,36,48,48,64" \
+            --conv_filter_size="15" \
+            --dropout="0.20" \
+            --num_transformer_layers="4" \
+            --num_heads="4" \
+            --momentum="0.90" \
+            --num_random_features="256" \
+            --hidden_size="64" \
+            --kernel_transformation="softmax_kernel_transformation"
