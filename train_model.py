@@ -130,8 +130,7 @@ def main():
             ### log training parameters
             wandb.init(config=config_defaults, 
                        project= args.wandb_project, 
-                       entity=args.wandb_user, 
-                       sync_tensorboard=True)
+                       entity=args.wandb_user)
             #wandb.init(mode="disabled")
             wandb.config.tpu=args.tpu_name
             wandb.config.gcs_path=args.gcs_path
@@ -232,7 +231,7 @@ def main():
 
             #optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
             elif wandb.config.optimizer == 'adafactor':
-                optimizer = optimizers.AdafactorOptimizer(multiply_by_parameter_scale=False)
+                optimizer = optimizers.AdafactorOptimizer(multiply_by_parameter_scale=True)
             else:
                 ValueError('optimizer not implemented')
             
@@ -270,10 +269,10 @@ def main():
                     train_step(data_dict_tr['hg'])
                     val_step(data_dict_tr['hg'])
                     wandb.log({'hg_train_loss': metric_dict['hg_tr'].result().numpy(),
-                               'hg_val_loss': metric_dict['hg_val'].result().numpy()},
-                               #'hg_val_pearson': metric_dict['hg_corr_stats'].result()['pearsonR'].numpy(),
-                               #'hg_val_R2': metric_dict['hg_corr_stats'].result()['R2'].numpy(),
-                               #'hg_tss_mse': metric_dict['hg_corr_stats'].result()['tss_mse'].numpy()},
+                               'hg_val_loss': metric_dict['hg_val'].result().numpy(),
+                               'hg_val_pearson': metric_dict['hg_corr_stats'].result()['pearsonR'].numpy(),
+                               'hg_val_R2': metric_dict['hg_corr_stats'].result()['R2'].numpy(),
+                               'hg_tss_mse': metric_dict['hg_corr_stats'].result()['tss_mse'].numpy()},
                               step=epoch_i)
                 else:
                     train_step(data_dict_tr['hg'],
@@ -281,17 +280,17 @@ def main():
                     val_step(data_dict_tr['hg'],
                              data_dict_tr['mm'])
                     wandb.log({'hg_train_loss': metric_dict['hg_tr'].result().numpy(),
-                               'hg_val_loss': metric_dict['hg_val'].result().numpy()},
-                               #'hg_val_pearson': metric_dict['hg_corr_stats'].result()['pearsonR'].numpy(),
-                               #'hg_val_R2': metric_dict['hg_corr_stats'].result()['R2'].numpy(),
-                               #'hg_tss_mse': metric_dict['hg_corr_stats'].result()['tss_mse'].numpy()},
+                               'hg_val_loss': metric_dict['hg_val'].result().numpy(),
+                               'hg_val_pearson': metric_dict['hg_corr_stats'].result()['pearsonR'].numpy(),
+                               'hg_val_R2': metric_dict['hg_corr_stats'].result()['R2'].numpy(),
+                               'hg_tss_mse': metric_dict['hg_corr_stats'].result()['tss_mse'].numpy()},
                               step=epoch_i)
                                 
                     wandb.log({'mm_train_loss': metric_dict['mm_tr'].result().numpy(),
-                               'mm_val_loss': metric_dict['mm_val'].result().numpy()},
-                               #'mm_val_pearson': metric_dict['mm_corr_stats'].result()['pearsonR'].numpy(),
-                               #'mm_val_R2': metric_dict['mm_corr_stats'].result()['R2'].numpy(),
-                               #'mm_tss_mse': metric_dict['mm_corr_stats'].result()['tss_mse'].numpy()},
+                               'mm_val_loss': metric_dict['mm_val'].result().numpy(),
+                               'mm_val_pearson': metric_dict['mm_corr_stats'].result()['pearsonR'].numpy(),
+                               'mm_val_R2': metric_dict['mm_corr_stats'].result()['R2'].numpy(),
+                               'mm_tss_mse': metric_dict['mm_corr_stats'].result()['tss_mse'].numpy()},
                               step=epoch_i)
                 
                 val_losses.append(metric_dict['hg_val'].result().numpy())
@@ -311,16 +310,17 @@ def main():
                                                                                               model=model,
                                                                                               save_directory=wandb.config.model_save_dir,
                                                                                               saved_model_basename=wandb.config.model_save_basename)
-                print('completed epoch:' + str(epoch_i))
-                print('duration:' + str(duration))
-                print('hg_train_loss:' + str(metric_dict['hg_tr'].result().numpy()))
-                print('hg_val_loss:' + str(metric_dict['hg_val'].result().numpy()))
-                print('patience counter at :' + str(patience_counter))
-                #print('hg_val_pearson:' + str(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy()))
+                print('completed epoch ' + str(epoch_i))
+                print('duration(mins): ' + str(duration))
+                print('hg_train_loss: ' + str(metric_dict['hg_tr'].result().numpy()))
+                print('hg_val_loss: ' + str(metric_dict['hg_val'].result().numpy()))
+                print('patience counter at: ' + str(patience_counter))
+                print('hg_val_pearson: ' + str(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy()))
+                print('hg_val_R2: ' + str(metric_dict['hg_corr_stats'].result()['R2'].numpy()))
                 for key, item in metric_dict.items():
                     item.reset_state()
                 if stop_criteria:
-                    print('early stopping at:' + str(epoch_i))
+                    print('early stopping at: epoch ' + str(epoch_i))
                     break
                     
             print('saving model at: epoch ' + str(epoch_i))

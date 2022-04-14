@@ -108,7 +108,7 @@ def return_train_val_functions_hg(model,
                                      axis=0) * (1. / global_batch_size)
 
             gradients = tape.gradient(loss, model.trainable_variables)
-            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) comment this back in if using adam or adamw
+            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) comment this back in if using adam or adamW
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
             metric_dict["hg_tr"].update_state(loss)
@@ -129,40 +129,42 @@ def return_train_val_functions_hg(model,
                                  axis=0) * (1. / global_batch_size)
 
             metric_dict["hg_val"].update_state(loss)
-        
-            return outputs, target, tss_tokens
-        """
-        ta_pred = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
-        ta_true = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
-        ta_tss = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store TSS indices
-        """
-        for _ in tf.range(val_steps): ## for loop within @tf.fuction for improved TPU performance
-            outputs_rep, targets_rep,tss_tokens_rep = strategy.run(val_step_hg,
-                                                                   args=(next(iterator),))
-            """
-            outputs_reshape = tf.reshape(strategy.gather(outputs_rep, axis=0), [-1]) # reshape to 1D
-            targets_reshape = tf.reshape(strategy.gather(targets_rep, axis=0), [-1])
-            tss_reshape = tf.reshape(strategy.gather(tss_tokens_rep, axis=0), [-1])
-
+            
+            outputs_reshape = tf.reshape(outputs, [-1]) # reshape to 1D
+            targets_reshape = tf.reshape(target, [-1])
+            tss_reshape = tf.reshape(tss_tokens, [-1])
+            
             keep_indices = tf.reshape(tf.where(tf.equal(tss_reshape, 1)), [-1]) # figure out where TSS are
             targets_sub = tf.gather(targets_reshape, indices=keep_indices)
             outputs_sub = tf.gather(outputs_reshape, indices=keep_indices)
             tss_sub = tf.gather(tss_reshape, indices=keep_indices)
+        
+            return outputs_sub, targets_sub, tss_sub
+        
+    
+        ta_pred = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_true = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
+        ta_tss = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store TSS indices
+        
+        for _ in tf.range(val_steps): ## for loop within @tf.fuction for improved TPU performance
+            outputs_rep, targets_rep,tss_tokens_rep = strategy.run(val_step_hg,
+                                                                   args=(next(iterator),))
+            
+            outputs_reshape = tf.reshape(strategy.gather(outputs_rep, axis=0), [-1]) # reshape to 1D
+            targets_reshape = tf.reshape(strategy.gather(targets_rep, axis=0), [-1])
+            tss_reshape = tf.reshape(strategy.gather(tss_tokens_rep, axis=0), [-1])
 
             ta_pred = ta_pred.write(_, outputs_reshape)
             ta_true = ta_true.write(_, targets_reshape)
             ta_tss = ta_tss.write(_, tss_reshape)
 
-
-        preds_all = tf.reshape(ta_pred.gather(np.arange(val_steps)), [-1])
-        targets_all = tf.reshape(ta_true.gather(np.arange(val_steps)), [-1])
-        tss_all = tf.reshape(ta_tss.gather(np.arange(val_steps)), [-1])
+        metric_dict["hg_corr_stats"].update_state(ta_pred.concat(), 
+                                                  ta_true.concat(), 
+                                                  ta_tss.concat()) # compute corr stats
         ta_pred.close()
         ta_true.close()
         ta_tss.close()
-
-        metric_dict["hg_corr_stats"].update_state(targets_all, preds_all, tss_all) # compute corr stats
-        """
+        
     return dist_train_step, dist_val_step, metric_dict
 
 def return_train_val_functions_hg_mm(model,
@@ -243,7 +245,8 @@ def return_train_val_functions_hg_mm(model,
             strategy.run(train_step_mm, args=(next(mm_iterator),))
 
     @tf.function
-    def dist_val_step(hg_iterator, mm_iterator):
+    def dist_val_step(hg_iterator,
+                      mm_iterator):
         def val_step_hg(inputs):
             target=inputs['target']
             tss_tokens = inputs['tss_tokens']
@@ -255,7 +258,17 @@ def return_train_val_functions_hg_mm(model,
                                  axis=0) * (1. / global_batch_size)
 
             metric_dict["hg_val"].update_state(loss)
-            return outputs,target,tss_tokens
+
+            outputs_reshape = tf.reshape(outputs, [-1]) # reshape to 1D
+            targets_reshape = tf.reshape(target, [-1])
+            tss_reshape = tf.reshape(tss_tokens, [-1])
+            
+            keep_indices = tf.reshape(tf.where(tf.equal(tss_reshape, 1)), [-1]) # figure out where TSS are
+            targets_sub = tf.gather(targets_reshape, indices=keep_indices)
+            outputs_sub = tf.gather(outputs_reshape, indices=keep_indices)
+            tss_sub = tf.gather(tss_reshape, indices=keep_indices)
+        
+            return outputs_sub, targets_sub, tss_sub
 
         def val_step_mm(inputs):
             target=inputs['target']
@@ -268,8 +281,18 @@ def return_train_val_functions_hg_mm(model,
                                  axis=0) * (1. / global_batch_size)
 
             metric_dict["mm_val"].update_state(loss)
-            return outputs,target,tss_tokens
-        """
+
+            outputs_reshape = tf.reshape(outputs, [-1]) # reshape to 1D
+            targets_reshape = tf.reshape(target, [-1])
+            tss_reshape = tf.reshape(tss_tokens, [-1])
+            
+            keep_indices = tf.reshape(tf.where(tf.equal(tss_reshape, 1)), [-1]) # figure out where TSS are
+            targets_sub = tf.gather(targets_reshape, indices=keep_indices)
+            outputs_sub = tf.gather(outputs_reshape, indices=keep_indices)
+            tss_sub = tf.gather(tss_reshape, indices=keep_indices)
+        
+            return outputs_sub, targets_sub, tss_sub
+
         ta_pred_h = tf.TensorArray(tf.float32,size=0, dynamic_size=True, clear_after_read=True)
         ta_true_h = tf.TensorArray(tf.float32,size=0, dynamic_size=True, clear_after_read=True)
         ta_tss_h = tf.TensorArray(tf.int32,size=0, dynamic_size=True, clear_after_read=True)
@@ -277,48 +300,42 @@ def return_train_val_functions_hg_mm(model,
         ta_pred_m = tf.TensorArray(tf.float32,size=0, dynamic_size=True, clear_after_read=True)
         ta_true_m = tf.TensorArray(tf.float32,size=0, dynamic_size=True, clear_after_read=True)
         ta_tss_m = tf.TensorArray(tf.int32,size=0, dynamic_size=True, clear_after_read=True)
-        """
+
         for _ in tf.range(val_steps): ## for loop within @tf.fuction for improved TPU performance
+            ### all human tensors
             outputs_rep_h,targets_rep_h,tss_tokens_rep_h = strategy.run(val_step_hg,
-                                                                   args=(next(hg_iterator),))
-            outputs_rep_m,targets_rep_m,tss_tokens_rep_m = strategy.run(val_step_mm,
-                                                       args=(next(mm_iterator),))
-            """
-            outputs_reshape_h = tf.reshape(strategy.gather(outputs_rep_h, axis=0), [-1])
+                                                                        args=(next(hg_iterator),))
+            outputs_reshape_h = tf.reshape(strategy.gather(outputs_rep_h, axis=0), [-1]) # reshape to 1D
             targets_reshape_h = tf.reshape(strategy.gather(targets_rep_h, axis=0), [-1])
             tss_reshape_h = tf.reshape(strategy.gather(tss_tokens_rep_h, axis=0), [-1])
 
             ta_pred_h = ta_pred_h.write(_, outputs_reshape_h)
             ta_true_h = ta_true_h.write(_, targets_reshape_h)
             ta_tss_h = ta_tss_h.write(_, tss_reshape_h)
-            
 
-
-            ## all the mouse tensors
-            outputs_reshape_m = tf.reshape(strategy.gather(outputs_rep_m, axis=0), [-1])
+            ### all mouse tensors
+            outputs_rep_m,targets_rep_m,tss_tokens_rep_m = strategy.run(val_step_mm,
+                                                                        args=(next(mm_iterator),))
+            outputs_reshape_m = tf.reshape(strategy.gather(outputs_rep_m, axis=0), [-1]) # reshape to 1D
             targets_reshape_m = tf.reshape(strategy.gather(targets_rep_m, axis=0), [-1])
             tss_reshape_m = tf.reshape(strategy.gather(tss_tokens_rep_m, axis=0), [-1])
 
             ta_pred_m = ta_pred_m.write(_, outputs_reshape_m)
             ta_true_m = ta_true_m.write(_, targets_reshape_m)
             ta_tss_m = ta_tss_m.write(_, tss_reshape_m)
-            """
-        """
-        preds_all_h = tf.reshape(ta_pred_h.gather(np.arange(val_steps)), [-1])
-        targets_all_h = tf.reshape(ta_true_h.gather(np.arange(val_steps)), [-1])
-        tss_all_h = tf.reshape(ta_tss_h.gather(np.arange(val_steps)), [-1])
-
-        preds_all_m = tf.reshape(ta_pred_m.gather(np.arange(val_steps)), [-1])
-        targets_all_m = tf.reshape(ta_true_m.gather(np.arange(val_steps)), [-1])
-        tss_all_m = tf.reshape(ta_tss_m.gather(np.arange(val_steps)), [-1])
-
-
-        metric_dict["hg_corr_stats"].update_state(targets_all_h, preds_all_h, tss_all_h)
-        metric_dict["mm_corr_stats"].update_state(targets_all_m, preds_all_m, tss_all_m)
-        """
+        metric_dict["hg_corr_stats"].update_state(ta_pred_h.concat(), 
+                                                  ta_true_h.concat(), 
+                                                  ta_tss_h.concat()) # compute corr stats
+        metric_dict["mm_corr_stats"].update_state(ta_pred_m.concat(), 
+                                                  ta_true_m.concat(), 
+                                                  ta_tss_m.concat()) # compute corr stats
+        ta_pred_h.close()
+        ta_true_h.close()
+        ta_tss_h.close()
+        ta_pred_m.close()
+        ta_true_m.close()
+        ta_tss_m.close()
     return dist_train_step, dist_val_step, metric_dict
-        #else:
-        #    raise ValueError('input a proper organism dictionary')
 
 
     
@@ -462,7 +479,7 @@ def early_stopping(current_val_loss,
         if (current_epoch % save_freq) == 0:
             print('Saving model...')
             model_name = save_directory + "/" + \
-                            save_model_base_name + "/iteration_" + \
+                            saved_model_basename + "/iteration_" + \
                                 str(currrent_epoch)
             model.save(model_name)
             ### write to logging file in saved model dir to model parameters and current epoch info
