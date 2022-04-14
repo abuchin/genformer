@@ -172,7 +172,7 @@ class genformer(tf.keras.Model):
         x = self.stem_pool(x)
         x = self.conv_stack(x,training=training)
         x = self.sin_pe(x,training=training)
-    
+        att_matrices = {}
         for idx, k in enumerate(self.transformer_stack.layers):
             att, k_prime, q_prime = k.return_attention_weights(x,training=False)
             att_matrices['layer_' + str(idx)] = (k_prime, q_prime)

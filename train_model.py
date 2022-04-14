@@ -263,7 +263,7 @@ def main():
             val_R2 = []
             patience_counter = 0
             stop_criteria = False
-                                      
+            best_epoch = 0
             for epoch_i in range(1, wandb.config.num_epochs):
                 start = time.time()
                 if orgs == ["hg"]:
@@ -297,34 +297,35 @@ def main():
                 val_losses.append(metric_dict['hg_val'].result().numpy())
                 end = time.time()
                 duration = (end - start) / 60.
+
                 
+                if (epoch_i > 2):
+                    stop_criteria,patience_counter,best_epoch = training_utils.early_stopping(current_val_loss=val_losses[-1],
+                                                                                              logged_val_losses=val_losses,
+                                                                                              current_epoch=epoch_i,
+                                                                                              best_epoch=best_epoch,
+                                                                                              save_freq=5,
+                                                                                              patience=wandb.config.patience,
+                                                                                              patience_counter=patience_counter,
+                                                                                              min_delta=0.01,
+                                                                                              model=model,
+                                                                                              save_directory=wandb.config.model_save_dir,
+                                                                                              saved_model_basename=wandb.config.model_save_basename)
                 print('completed epoch:' + str(epoch_i))
                 print('duration:' + str(duration))
                 print('hg_train_loss:' + str(metric_dict['hg_tr'].result().numpy()))
-                #print('hg_val_loss:' + str(metric_dict['hg_val'].result().numpy()))
+                print('hg_val_loss:' + str(metric_dict['hg_val'].result().numpy()))
+                print('patience counter at :' + str(patience_counter))
                 #print('hg_val_pearson:' + str(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy()))
                 for key, item in metric_dict.items():
                     item.reset_state()
-                """
-                if (epoch_i > 2):
-                    stop_criteria,patience_counter,best_epoch = training_utils.early_stopping(current_val_loss=val_losses[-1],
-                                                                               logged_val_losses=val_losses,
-                                                                               current_epoch=epoch_i,
-                                                                               save_freq=10,
-                                                                               patience=20,
-                                                                               patience_counter=patience_counter,
-                                                                               min_delta=0.01,
-                                                                               model=model,
-                                                                               save_directory=wandb.config.model_save_dir,
-                                                                               saved_model_basename=wandb.config.model_save_basename)
-                                
                 if stop_criteria:
+                    print('early stopping at:' + str(epoch_i))
                     break
-                """
                     
-            print('saving model at epoch:' + str(epoch_i))
-            print('best model was at:' + best_epoch)
-            tf.saved_model.save(model,wandb.config.model_save_dir +"_"+wandb.config.model_save_basename + "_" + sweep_name)
+            print('saving model at: epoch ' + str(epoch_i))
+            print('best model was at: epoch ' + str(best_epoch))
+            tf.saved_model.save(model,wandb.config.model_save_dir + wandb.config.model_save_basename + "_" + wandb.run.name)
     sweep_id = wandb.sweep(sweep_config, project=args.wandb_project)
     wandb.agent(sweep_id, function=sweep_train)
     #sweep_train()

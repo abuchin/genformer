@@ -129,15 +129,17 @@ def return_train_val_functions_hg(model,
                                  axis=0) * (1. / global_batch_size)
 
             metric_dict["hg_val"].update_state(loss)
-        """
+        
             return outputs, target, tss_tokens
-
+        """
         ta_pred = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
         ta_true = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
         ta_tss = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store TSS indices
+        """
         for _ in tf.range(val_steps): ## for loop within @tf.fuction for improved TPU performance
             outputs_rep, targets_rep,tss_tokens_rep = strategy.run(val_step_hg,
                                                                    args=(next(iterator),))
+            """
             outputs_reshape = tf.reshape(strategy.gather(outputs_rep, axis=0), [-1]) # reshape to 1D
             targets_reshape = tf.reshape(strategy.gather(targets_rep, axis=0), [-1])
             tss_reshape = tf.reshape(strategy.gather(tss_tokens_rep, axis=0), [-1])
@@ -155,6 +157,9 @@ def return_train_val_functions_hg(model,
         preds_all = tf.reshape(ta_pred.gather(np.arange(val_steps)), [-1])
         targets_all = tf.reshape(ta_true.gather(np.arange(val_steps)), [-1])
         tss_all = tf.reshape(ta_tss.gather(np.arange(val_steps)), [-1])
+        ta_pred.close()
+        ta_true.close()
+        ta_tss.close()
 
         metric_dict["hg_corr_stats"].update_state(targets_all, preds_all, tss_all) # compute corr stats
         """
@@ -419,14 +424,14 @@ def return_distributed_iterators(heads_dict,
 def early_stopping(current_val_loss,
                    logged_val_losses,
                    current_epoch,
+                   best_epoch,
                    save_freq,
                    patience,
                    patience_counter,
                    min_delta,
                    model,
                    save_directory,
-                   saved_model_basename,
-                   strategy):
+                   saved_model_basename):
     """early stopping function
     Args:
         current_val_loss: current epoch val loss
@@ -448,17 +453,17 @@ def early_stopping(current_val_loss,
         best_epoch: best epoch so far 
     """
     ### check if min_delta satisfied
-    previous_loss = logged_val_losses[-1]
-    
+    previous_loss = logged_val_losses[-2]
+    stop_criteria = False
     ## if min delta satisfied then log loss 
-    if previous_loss - current_val_loss > min_delta:
+    if (previous_loss - current_val_loss) > min_delta:
         best_epoch = np.argmin(logged_val_losses)
         ## save current model
         if (current_epoch % save_freq) == 0:
             print('Saving model...')
             model_name = save_directory + "/" + \
-                            save_model_base_name + "/" + \
-                                iteration + "_" + str(currrent_epoch)
+                            save_model_base_name + "/iteration_" + \
+                                str(currrent_epoch)
             model.save(model_name)
             ### write to logging file in saved model dir to model parameters and current epoch info
             
