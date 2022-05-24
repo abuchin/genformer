@@ -24,7 +24,7 @@ from tensorflow import strings as tfs
 from tensorflow.keras import mixed_precision
 
 ## custom modules
-import src.genformer as genformer
+import src.genformer1 as genformer
 import src.metrics as metrics
 import src.optimizers as optimizers
 import src.schedulers as schedulers
@@ -66,8 +66,8 @@ def main():
                 'lr_base': {
                     'values':[float(x) for x in args.lr_base.split(',')]
                 },
-                'warmup_lr': {
-                    'values':[float(x) for x in args.warmup_lr.split(',')]
+                'min_lr': {
+                    'values':[float(x) for x in args.min_lr.split(',')]
                 },
                 'optimizer': {
                     'values': [args.optimizer]
@@ -78,8 +78,8 @@ def main():
                 'precision': {
                     'values': [args.precision]
                 },
-                'weight_decay': {
-                    'values': [float(x) for x in args.weight_decay.split(',')]
+                'weight_decay_frac': {
+                    'values': [float(x) for x in args.weight_decay_frac.split(',')]
                 },
                 'conv_channel_list':{
                     'values': [[int(x) for x in args.conv_channel_list.split(',')]]
@@ -108,6 +108,21 @@ def main():
                 'organisms': {
                     'values':[args.output_heads]
                 },
+                'dim': {
+                    'values':[args.dim]
+                },
+                'max_seq_length': {
+                    'values':[args.max_seq_length]
+                },
+                'rel_pos_bins': {
+                    'values':[args.rel_pos_bins]
+                },
+                'epsilon': {
+                    'values':[args.epsilon]
+                },
+                'rectify': {
+                    'values':[args.rectify]
+                }
             }
     }
 
@@ -124,7 +139,7 @@ def main():
         ## rest must be w/in strategy scope
         with strategy.scope():
             config_defaults = {
-                "learning_rate": 0.01 ### will be overwritten
+                "lr_base": 0.01 ### will be overwritten
             }
             
             ### log training parameters
@@ -142,12 +157,18 @@ def main():
             wandb.config.train_steps=args.train_steps
             wandb.config.val_steps=args.val_steps
             wandb.config.batch_size=args.batch_size
-            wandb.config.num_warmup_steps=args.num_warmup_steps
+            wandb.config.warmup_frac=args.warmup_frac
             wandb.config.patience=args.patience
             wandb.config.min_delta=args.min_delta
             wandb.config.model_save_dir=args.model_save_dir
             wandb.config.model_save_basename=args.model_save_basename
             wandb.config.precision=args.precision
+            wandb.config.sync_period=args.sync_period
+            wandb.config.slow_step_frac=args.slow_step_frac
+
+            wandb.config.dim=args.dim
+            wandb.config.rel_pos_bins=args.rel_pos_bins
+            wandb.config.max_seq_length=args.max_seq_length
             
             num_convs = len(wandb.config.conv_channel_list) + 1
             wandb.run.name = '_'.join([str(wandb.config.model_save_basename),
@@ -164,9 +185,10 @@ def main():
             '''
             TPU init options
             '''
-            options = tf.data.experimental.DistributeOptions()
-            options.auto_shard_policy = tf.data.experimental.AutoShardPolicy.OFF
-            options.num_devices = args.num_parallel
+            options = tf.data.Options()
+            options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.OFF
+            options.deterministic=False
+            options.experimental_threading.max_intra_op_parallelism = 1
 
             BATCH_SIZE_PER_REPLICA = args.batch_size
             NUM_REPLICAS = strategy.num_replicas_in_sync
@@ -186,7 +208,9 @@ def main():
                                                                                       wandb.config.input_length,
                                                                                       wandb.config.output_length,
                                                                                       args.num_parallel,
-                                                                                      strategy)
+                                                                                      args.num_epochs,
+                                                                                      strategy,
+                                                                                      options)
             
 
                     
@@ -196,42 +220,62 @@ def main():
                                         final_out_length=wandb.config.output_length,
                                         num_heads=wandb.config.num_heads,
                                         numerical_stabilizer=0.0000001,
-                                        causal=False,
                                         nb_random_features=wandb.config.num_random_features,
                                         hidden_size=wandb.config.hidden_size,
+                                        d_model=wandb.config.hidden_size,
+                                        dim=wandb.config.dim,
+                                        rel_pos_bins=wandb.config.rel_pos_bins,
+                                        max_seq_length=wandb.config.max_seq_length,
                                         widening = 2, ## ratio between first and second dense layer units in transformer block
                                         conv_filter_size=wandb.config.conv_filter_size,
                                         transformer_depth=wandb.config.num_transformer_layers,
                                         momentum=wandb.config.momentum,
                                         channels_list=wandb.config.conv_channel_list,
                                         kernel_regularizer=0.001,
-                                        positional_encoding_type = 'abs_sin_PE',
-                                        positional_dropout_rate=wandb.config.dropout,
                                         heads_dict=heads_dict)
+    
             
             ## choose an optimizer
         
             #### create distributed train + val steps
-            if wandb.config.optimizer in ['adamW', 'adam']:
-                if args.lr_schedule == 'cosine_decay_w_warmup':
-                    learning_rate = schedulers.cosine_decay_with_warmup(0,
-                                                        wandb.config.lr_base,
-                                                        wandb.config.train_steps * wandb.config.num_epochs,
-                                                        wandb.config.warmup_lr,
-                                                        wandb.config.num_warmup_steps,
-                                                        wandb.config.train_steps)
-                else:
-                    ValueError('schedule not implemented yet')
-                if wandb.config.optimizer == 'adamW':
-                    optimizer = tfa.optimizers.AdamW(learning_rate=learning_rate,
-                                                     weight_decay=wandb.config.weight_decay)
-                elif wandb.config.optimizer == 'adam':
-                    optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+            #if wandb.config.optimizer in ['adamW', 'adam']:
+            if args.lr_schedule == 'cosine_decay_w_warmup':
+                learning_rate_fn = schedulers.cosine_decay_w_warmup(peak_lr = wandb.config.lr_base,
+                                                                    initial_learning_rate=wandb.config.min_lr,
+                                                                    total_steps=wandb.config.train_steps * wandb.config.num_epochs,
+                                                                    warmup_steps=wandb.config.warmup_frac * wandb.config.train_steps * wandb.config.num_epochs,
+                                                                    hold_peak_rate_steps=wandb.config.train_steps)
+                weight_decay_fn = schedulers.cosine_decay_w_warmup(peak_lr = wandb.config.lr_base * wandb.config.weight_decay_frac,
+                                                                   initial_learning_rate=wandb.config.min_lr * wandb.config.weight_decay_frac,
+                                                                   total_steps=wandb.config.train_steps * wandb.config.num_epochs,
+                                                                   warmup_steps=wandb.config.warmup_frac * wandb.config.train_steps * wandb.config.num_epochs,
+                                                                   hold_peak_rate_steps=wandb.config.train_steps)
+            else:
+                ValueError('schedule not implemented yet')
+                
+            if wandb.config.optimizer == 'adamW':
+                optimizer = tfa.optimizers.AdamW(learning_rate=learning_rate_fn,
+                                                 weight_decay=weight_decay_fn)
+            elif wandb.config.optimizer == 'adam':
+                optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate_fn)
+            elif wandb.config.optimizer == 'adabelief':
+                optimizer = tfa.optimizers.AdaBelief(learning_rate=wandb.config.lr_base,
+                                                     weight_decay=wandb.config.weight_decay_frac,
+                                                     warmup_proportion=wandb.config.warmup_frac,
+                                                     epsilon=wandb.config.epsilon,
+                                                     rectify=wandb.config.rectify,
+                                                     min_lr=wandb.config.min_lr,
+                                                     total_steps=wandb.config.train_steps*wandb.config.num_epochs)
+                
+                optimizer = tfa.optimizers.Lookahead(optimizer, 
+                                                     sync_period=wandb.config.sync_period, 
+                                                     slow_step_size=wandb.config.slow_step_frac)
 
 
             #optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
             elif wandb.config.optimizer == 'adafactor':
-                optimizer = optimizers.AdafactorOptimizer(multiply_by_parameter_scale=True)
+                optimizer = optimizers.AdafactorOptimizer(multiply_by_parameter_scale=False,
+                                                          learning_rate = learning_rate_fn)
             else:
                 ValueError('optimizer not implemented')
             
@@ -267,18 +311,20 @@ def main():
                 start = time.time()
                 if orgs == ["hg"]:
                     train_step(data_dict_tr['hg'])
-                    val_step(data_dict_tr['hg'])
+                    val_step(data_dict_val['hg'])
                     wandb.log({'hg_train_loss': metric_dict['hg_tr'].result().numpy(),
                                'hg_val_loss': metric_dict['hg_val'].result().numpy(),
                                'hg_val_pearson': metric_dict['hg_corr_stats'].result()['pearsonR'].numpy(),
                                'hg_val_R2': metric_dict['hg_corr_stats'].result()['R2'].numpy(),
                                'hg_tss_mse': metric_dict['hg_corr_stats'].result()['tss_mse'].numpy()},
                               step=epoch_i)
+                    val_losses.append(metric_dict['hg_val'].result().numpy())
+                    val_pearsons.append(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy())
                 else:
                     train_step(data_dict_tr['hg'],
                                data_dict_tr['mm'])
-                    val_step(data_dict_tr['hg'],
-                             data_dict_tr['mm'])
+                    val_step(data_dict_val['hg'],
+                             data_dict_val['mm'])
                     wandb.log({'hg_train_loss': metric_dict['hg_tr'].result().numpy(),
                                'hg_val_loss': metric_dict['hg_val'].result().numpy(),
                                'hg_val_pearson': metric_dict['hg_corr_stats'].result()['pearsonR'].numpy(),
@@ -292,8 +338,8 @@ def main():
                                'mm_val_R2': metric_dict['mm_corr_stats'].result()['R2'].numpy(),
                                'mm_tss_mse': metric_dict['mm_corr_stats'].result()['tss_mse'].numpy()},
                               step=epoch_i)
-                
-                val_losses.append(metric_dict['hg_val'].result().numpy())
+                    val_losses.append(metric_dict['hg_val'].result().numpy())
+                    val_pearsons.append(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy())
                 end = time.time()
                 duration = (end - start) / 60.
 
@@ -301,22 +347,29 @@ def main():
                 if (epoch_i > 2):
                     stop_criteria,patience_counter,best_epoch = training_utils.early_stopping(current_val_loss=val_losses[-1],
                                                                                               logged_val_losses=val_losses,
+                                                                                              current_pearsons=val_pearsons[-1],
+                                                                                              logged_pearsons=val_pearsons,
                                                                                               current_epoch=epoch_i,
                                                                                               best_epoch=best_epoch,
-                                                                                              save_freq=5,
+                                                                                              save_freq=3,
                                                                                               patience=wandb.config.patience,
                                                                                               patience_counter=patience_counter,
-                                                                                              min_delta=0.01,
+                                                                                              min_delta=wandb.config.min_delta,
                                                                                               model=model,
                                                                                               save_directory=wandb.config.model_save_dir,
                                                                                               saved_model_basename=wandb.config.model_save_basename)
                 print('completed epoch ' + str(epoch_i))
                 print('duration(mins): ' + str(duration))
                 print('hg_train_loss: ' + str(metric_dict['hg_tr'].result().numpy()))
+                print('mm_train_loss: ' + str(metric_dict['mm_tr'].result().numpy()))
                 print('hg_val_loss: ' + str(metric_dict['hg_val'].result().numpy()))
-                print('patience counter at: ' + str(patience_counter))
                 print('hg_val_pearson: ' + str(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy()))
                 print('hg_val_R2: ' + str(metric_dict['hg_corr_stats'].result()['R2'].numpy()))
+                print('mm_val_loss: ' + str(metric_dict['mm_val'].result().numpy()))
+                print('mm_val_pearson: ' + str(metric_dict['mm_corr_stats'].result()['pearsonR'].numpy()))
+                print('mm_val_R2: ' + str(metric_dict['mm_corr_stats'].result()['R2'].numpy()))
+                print('patience counter at: ' + str(patience_counter))
+
                 for key, item in metric_dict.items():
                     item.reset_state()
                 if stop_criteria:

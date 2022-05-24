@@ -90,11 +90,11 @@ def return_train_val_functions_hg(model,
     """
     #print('parsing_metric_dict')
     ## define the dictionary of metrics
-    metric_dict["hg_tr"] = tf.keras.metrics.Mean("hg_tr_loss", 
-                                                     dtype=tf.float32)
-    metric_dict["hg_val"] = tf.keras.metrics.Mean("hg_val_loss", 
-                                                      dtype=tf.float32)
-    metric_dict["hg_corr_stats"] = metrics.correlation_stats()
+    metric_dict["hg_tr"] = tf.keras.metrics.Mean("hg_tr_loss",
+                                                 dtype=tf.float32)
+    metric_dict["hg_val"] = tf.keras.metrics.Mean("hg_val_loss",
+                                                  dtype=tf.float32)
+    metric_dict["hg_corr_stats"] = metrics.correlation_stats(name='hg_corr_stats')
 
     @tf.function
     def dist_train_step(iterator):
@@ -102,13 +102,13 @@ def return_train_val_functions_hg(model,
             target=inputs['target']
             model_inputs=inputs['inputs']
             with tf.GradientTape() as tape:
-                outputs = tf.cast(model(model_inputs,training=True)["hg"],
+                outputs = tf.cast(model(model_inputs,training=True)[0]["hg"],
                                   dtype=tf.float32)
                 loss = tf.reduce_sum(regular_mse(outputs,target), 
                                      axis=0) * (1. / global_batch_size)
 
             gradients = tape.gradient(loss, model.trainable_variables)
-            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) comment this back in if using adam or adamW
+            gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamW
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
             metric_dict["hg_tr"].update_state(loss)
@@ -122,7 +122,7 @@ def return_train_val_functions_hg(model,
             target=inputs['target']
             tss_tokens = inputs['tss_tokens']
             model_inputs=inputs['inputs']          
-            outputs = tf.cast(model(model_inputs,training=False)["hg"],
+            outputs = tf.cast(model(model_inputs,training=False)[0]["hg"],
                               dtype=tf.float32)
 
             loss = tf.reduce_sum(regular_mse(outputs, target), 
@@ -215,12 +215,12 @@ def return_train_val_functions_hg_mm(model,
             target=inputs['target']
             model_inputs=inputs['inputs']
             with tf.GradientTape() as tape:
-                outputs = tf.cast(model(model_inputs,training=True)["hg"],
+                outputs = tf.cast(model(model_inputs,training=True)[0]["hg"],
                                   dtype=tf.float32)
                 loss = tf.reduce_sum(regular_mse(outputs,target), 
                                      axis=0) * (1. / global_batch_size)
             gradients = tape.gradient(loss, model.trainable_variables)
-            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) comment this back in if using adam or adamw
+            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamw
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
             metric_dict["hg_tr"].update_state(loss)
@@ -229,13 +229,13 @@ def return_train_val_functions_hg_mm(model,
             target=inputs['target']
             model_inputs=inputs['inputs']
             with tf.GradientTape() as tape:
-                outputs = tf.cast(model(model_inputs,training=True)["mm"],
+                outputs = tf.cast(model(model_inputs,training=True)[0]["mm"],
                                   dtype=tf.float32)
                 loss = tf.reduce_sum(regular_mse(outputs,target), 
                                      axis=0) * (1. / global_batch_size)
 
             gradients = tape.gradient(loss, model.trainable_variables)
-            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) comment this back in if using adam or adamw
+            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamw
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
             metric_dict["mm_tr"].update_state(loss)
@@ -251,7 +251,7 @@ def return_train_val_functions_hg_mm(model,
             target=inputs['target']
             tss_tokens = inputs['tss_tokens']
             model_inputs=inputs['inputs']          
-            outputs = tf.cast(model(model_inputs,training=False)["hg"],
+            outputs = tf.cast(model(model_inputs,training=False)[0]["hg"],
                               dtype=tf.float32)
 
             loss = tf.reduce_sum(regular_mse(outputs, target), 
@@ -274,7 +274,7 @@ def return_train_val_functions_hg_mm(model,
             target=inputs['target']
             tss_tokens = inputs['tss_tokens']
             model_inputs=inputs['inputs']          
-            outputs = tf.cast(model(model_inputs,training=False)["mm"],
+            outputs = tf.cast(model(model_inputs,training=False)[0]["mm"],
                               dtype=tf.float32)
 
             loss = tf.reduce_sum(regular_mse(outputs, target), 
@@ -367,6 +367,43 @@ def deserialize(serialized_example, input_length, output_length):
                                   [output_length,])
     }
 
+def deserialize_validation(serialized_example, input_length, output_length,
+                           output_length_pre,crop_size,out_length):
+    """
+    Deserialize bytes stored in TFRecordFile.
+    """
+    feature_map = {
+        'sequence': tf.io.FixedLenFeature([], tf.string),
+        'atac': tf.io.FixedLenFeature([],tf.string),
+        'target': tf.io.FixedLenFeature([],tf.string),
+        'tss_tokens': tf.io.FixedLenFeature([],tf.string),
+        'interval': tf.io.FixedLenFeature([],tf.string),
+        'genes_list': tf.io.FixedLenFeature([],tf.string),
+        'name': tf.io.FixedLenFeature([],tf.string)
+    }
+
+    data = tf.io.parse_example(serialized_example, feature_map)
+
+    return {
+        'inputs': tf.concat([tf.expand_dims(tf.ensure_shape(tf.io.parse_tensor(data['atac'],
+                                                                              out_type=tf.float32), 
+                                                           [input_length,]), 1),
+                                    one_hot(data['sequence'])], axis=1),
+        'target': tf.slice(tf.ensure_shape(tf.io.parse_tensor(data['target'],
+                                                                      out_type=tf.float32), 
+                                                   [output_length_pre,]),
+                           [crop_size],
+                           [out_length]),
+        'tss_tokens': tf.slice(tf.ensure_shape(tf.io.parse_tensor(data['tss_tokens'],
+                                                                  out_type=tf.int32),
+                                               [output_length_pre,]),
+                               [crop_size],
+                               [out_length]),
+        'genes_list': data['genes_list'],
+        'interval': data['interval'],
+        'name': data['name']
+    }
+
                     
 def return_dataset(gcs_path,
                    split,
@@ -374,26 +411,87 @@ def return_dataset(gcs_path,
                    batch,
                    input_length,
                    output_length,
-                   num_parallel=8):
+                   options,
+                   num_parallel,
+                   num_epoch):
     """
     return a tf dataset object for given gcs path
     """
+    if organism == 'mm':
+        num_epoch = num_epoch + 30
     wc = str(organism) + "*.tfrecords"
     list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
                                                 split,
                                                 wc)))
     random.shuffle(list_files)
     files = tf.data.Dataset.list_files(list_files)
-
+    
+    #dataset = files.interleave(lambda x: tf.data.TFRecordDataset(x, 
+    ##                                                             compression_type='ZLIB',
+    #                                                             buffer_size=10000000,
+    #                                                             num_parallel_reads=num_parallel),
+    #                            num_parallel_calls=num_parallel,
+    #                            deterministic=False,
+    #                            cycle_length=num_parallel,
+    #                            block_length=1)
     dataset = tf.data.TFRecordDataset(files,
                                       compression_type='ZLIB',
+                                      buffer_size=10000000,
                                       num_parallel_reads=num_parallel)
+    dataset = dataset.with_options(options)
 
-    dataset=dataset.map(lambda record: deserialize(record,input_length,output_length),
-                        num_parallel_calls=num_parallel)
+    dataset = dataset.map(lambda record: deserialize(record,
+                                                     input_length,
+                                                     output_length),
+                          deterministic=False,
+                          num_parallel_calls=num_parallel)
 
-    return dataset.repeat().batch(batch).prefetch(tf.data.experimental.AUTOTUNE)
 
+    return dataset.repeat(num_epoch).batch(batch,drop_remainder=True).prefetch(1)
+
+
+def return_dataset_validation(gcs_path,
+                   organism,
+                   batch,
+                   input_length,
+                   output_length_pre,
+                   output_length,
+                    crop_size,
+                   options,
+                   num_parallel,
+                   num_epoch):
+    """
+    return a tf dataset object for given gcs path
+    """
+    list_files = (tf.io.gfile.glob(os.path.join(gcs_path)))
+    random.shuffle(list_files)
+    files = tf.data.Dataset.list_files(list_files)
+    
+    #dataset = files.interleave(lambda x: tf.data.TFRecordDataset(x, 
+    ##                                                             compression_type='ZLIB',
+    #                                                             buffer_size=10000000,
+    #                                                             num_parallel_reads=num_parallel),
+    #                            num_parallel_calls=num_parallel,
+    #                            deterministic=False,
+    #                            cycle_length=num_parallel,
+    #                            block_length=1)
+    dataset = tf.data.TFRecordDataset(files,
+                                      compression_type='ZLIB',
+                                      buffer_size=10000000,
+                                      num_parallel_reads=num_parallel)
+    dataset = dataset.with_options(options)
+
+    dataset = dataset.map(lambda record: deserialize_validation(record,
+                                                     input_length,
+                                                     output_length,
+                                                                output_length_pre,
+                                                                crop_size,
+                                                               output_length),
+                          deterministic=False,
+                          num_parallel_calls=num_parallel)
+
+
+    return dataset.repeat(num_epoch).batch(batch,drop_remainder=True).prefetch(1)
 
 def return_distributed_iterators(heads_dict,
                                  gcs_path,
@@ -401,7 +499,9 @@ def return_distributed_iterators(heads_dict,
                                  input_length,
                                  output_length,
                                  num_parallel_calls,
-                                 strategy):
+                                 num_epoch,
+                                 strategy,
+                                 options):
     """ 
     returns train + val dictionaries of distributed iterators
     for given heads_dictionary
@@ -416,16 +516,22 @@ def return_distributed_iterators(heads_dict,
                                      global_batch_size,
                                      input_length,
                                      output_length,
-                                     num_parallel=num_parallel_calls)
+                                     options,
+                                     num_parallel_calls,
+                                     num_epoch)
             val_data = return_dataset(gcs_path,
                                      "val",org, 
                                      global_batch_size,
                                      input_length,
                                      output_length,
-                                     num_parallel=num_parallel_calls)
+                                     options,
+                                     num_parallel_calls,
+                                     num_epoch)
 
             train_dist = strategy.experimental_distribute_dataset(tr_data)
+            #train_dist = train_dist.with_options(options)
             val_dist= strategy.experimental_distribute_dataset(val_data)
+            #val_dist=val_dist.with_options(options)
 
             tr_data_it = iter(train_dist)
             val_data_it = iter(val_dist)
@@ -440,6 +546,8 @@ def return_distributed_iterators(heads_dict,
 
 def early_stopping(current_val_loss,
                    logged_val_losses,
+                   current_pearsons,
+                   logged_pearsons,
                    current_epoch,
                    best_epoch,
                    save_freq,
@@ -470,27 +578,30 @@ def early_stopping(current_val_loss,
         best_epoch: best epoch so far 
     """
     ### check if min_delta satisfied
-    previous_loss = logged_val_losses[-2]
+    best_loss = min(logged_val_losses[:-1])
+    best_pearsons=max(logged_pearsons[:-1])
     stop_criteria = False
-    ## if min delta satisfied then log loss 
-    if (previous_loss - current_val_loss) > min_delta:
+    
+    ## if min delta satisfied then log loss
+    
+    if (current_val_loss >= (best_loss - min_delta)) and (current_pearsons <= best_pearsons):
+        patience_counter += 1
+        if patience_counter >= patience:
+            stop_criteria=True
+    else:
+
         best_epoch = np.argmin(logged_val_losses)
         ## save current model
         if (current_epoch % save_freq) == 0:
             print('Saving model...')
             model_name = save_directory + "/" + \
                             saved_model_basename + "/iteration_" + \
-                                str(currrent_epoch)
+                                str(current_epoch)
             model.save(model_name)
             ### write to logging file in saved model dir to model parameters and current epoch info
             
         patience_counter = 0
         stop_criteria = False
-    
-    else:
-        patience_counter += 1
-        if patience_counter >= patience:
-            stop_criteria = True
     
     return stop_criteria, patience_counter, best_epoch
         
@@ -544,8 +655,8 @@ def parse_args(parser):
                         type=int, help='batch_size')
     parser.add_argument('--num_epochs', dest = 'num_epochs',
                         type=int, help='num_epochs')
-    parser.add_argument('--num_warmup_steps', dest = 'num_warmup_steps',
-                        type=int, help='num_warmup_steps')
+    parser.add_argument('--warmup_frac', dest = 'warmup_frac',
+                        type=float, help='warmup_frac')
     parser.add_argument('--train_steps', dest = 'train_steps',
                         type=int, help='train_steps')
     parser.add_argument('--val_steps', dest = 'val_steps',
@@ -567,9 +678,18 @@ def parse_args(parser):
     parser.add_argument('--lr_base',
                         dest='lr_base',
                         help='lr_base')
-    parser.add_argument('--warmup_lr',
-                        dest='warmup_lr',
-                        help= 'warmup_lr')
+    parser.add_argument('--min_lr',
+                        dest='min_lr',
+                        help= 'min_lr')
+    parser.add_argument('--epsilon',
+                        dest='epsilon',
+                        default=1.0e-08,
+                        type=float,
+                        help= 'epsilon')
+    parser.add_argument('--rectify',
+                        dest='rectify',
+                        default=True,
+                        help= 'rectify')
     parser.add_argument('--optimizer',
                         dest='optimizer',
                         help= 'optimizer, one of adafactor, adam, or adamW')
@@ -581,10 +701,18 @@ def parse_args(parser):
                         dest='precision',
                         type=str,
                         help= 'bfloat16 or float32') ### need to implement this actually
-    parser.add_argument('--weight_decay',
-                        dest='weight_decay',
+    parser.add_argument('--weight_decay_frac',
+                        dest='weight_decay_frac',
                         type=str,
-                        help= 'weight_decay')
+                        help= 'weight_decay_frac')
+    parser.add_argument('--sync_period',
+                        type=int,
+                        dest='sync_period',
+                        help= 'sync_period')
+    parser.add_argument('--slow_step_frac',
+                        type=float,
+                        dest='slow_step_frac',
+                        help= 'slow_step_frac')
     
     
     # network hyperparameters
@@ -619,6 +747,18 @@ def parse_args(parser):
     parser.add_argument('--conv_filter_size',
                         dest='conv_filter_size',
                         help= 'conv_filter_size')
+    parser.add_argument('--dim',
+                        dest='dim',
+                        type=int,
+                        help= 'mask_pos_dim')
+    parser.add_argument('--max_seq_length',
+                        dest='max_seq_length',
+                        type=int,
+                        help= 'max_seq_length')
+    parser.add_argument('--rel_pos_bins',
+                        dest='rel_pos_bins',
+                        type=int,
+                        help= 'rel_pos_bins')
 
 
 
@@ -627,3 +767,21 @@ def parse_args(parser):
     
     
     
+def one_hot(sequence):
+    '''
+    convert input string tensor to one hot encoded
+    will replace all N character with 0 0 0 0
+    '''
+    vocabulary = tf.constant(['A', 'T', 'C', 'G', 'N'])
+    mapping = tf.constant([0, 1, 2, 3, 4])
+
+    init = tf.lookup.KeyValueTensorInitializer(keys=vocabulary,
+                                               values=mapping)
+    table = tf.lookup.StaticHashTable(init, default_value=0)
+
+    input_characters = tfs.upper(tfs.unicode_split(sequence, 'UTF-8'))
+
+    out = tf.one_hot(table.lookup(input_characters), 
+                      depth = 4, 
+                      dtype=tf.float32)
+    return out
