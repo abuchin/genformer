@@ -597,7 +597,7 @@ def early_stopping(current_val_loss,
             model_name = save_directory + "/" + \
                             saved_model_basename + "/iteration_" + \
                                 str(current_epoch)
-            model.save(model_name)
+            model.save_weights(model_name)
             ### write to logging file in saved model dir to model parameters and current epoch info
             
         patience_counter = 0

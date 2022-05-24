@@ -378,7 +378,7 @@ def main():
                     
             print('saving model at: epoch ' + str(epoch_i))
             print('best model was at: epoch ' + str(best_epoch))
-            tf.saved_model.save(model,wandb.config.model_save_dir + wandb.config.model_save_basename + "_" + wandb.run.name)
+            model.save_weights(wandb.config.model_save_dir + wandb.config.model_save_basename + "_" + wandb.run.name)
     sweep_id = wandb.sweep(sweep_config, project=args.wandb_project)
     wandb.agent(sweep_id, function=sweep_train)
     #sweep_train()
