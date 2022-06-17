@@ -14,7 +14,6 @@ import numpy as np
 import time
 from datetime import datetime
 import random
-from wandb.keras import WandbCallback
 
 
 import tensorflow as tf
@@ -31,6 +30,9 @@ import src.schedulers as schedulers
 import src.utils as utils
 
 import training_utils
+import seaborn as sns
+from scipy.stats.stats import pearsonr  
+from scipy import stats
 
  ## reformat 
 # ===========================================================================#
@@ -84,8 +86,11 @@ def main():
                 'conv_channel_list':{
                     'values': [[int(x) for x in args.conv_channel_list.split(',')]]
                 },
-                'conv_filter_size':{
-                    'values': [int(x) for x in args.conv_filter_size.split(',')]
+                'conv_filter_size_1':{
+                    'values': [int(x) for x in args.conv_filter_size_1.split(',')]
+                },
+                'conv_filter_size_2':{
+                    'values': [int(x) for x in args.conv_filter_size_2.split(',')]
                 },
                 'num_transformer_layers':{
                     'values': [int(x) for x in args.num_transformer_layers.split(',')]
@@ -122,6 +127,9 @@ def main():
                 },
                 'rectify': {
                     'values':[args.rectify]
+                },
+                'kernel_regularizer': {
+                    'values':[args.kernel_regularizer]
                 }
             }
     }
@@ -165,6 +173,7 @@ def main():
             wandb.config.precision=args.precision
             wandb.config.sync_period=args.sync_period
             wandb.config.slow_step_frac=args.slow_step_frac
+            wandb.config.quant_type=args.quant_type
 
             wandb.config.dim=args.dim
             wandb.config.rel_pos_bins=args.rel_pos_bins
@@ -178,7 +187,8 @@ def main():
                                       'T' + str(wandb.config.num_transformer_layers),
                                       'H' + str(wandb.config.num_heads),
                                       'C' + str(num_convs),
-                                      'F' + str(wandb.config.conv_filter_size),
+                                      'F.1' + str(wandb.config.conv_filter_size_1),
+                                      'F.2' + str(wandb.config.conv_filter_size_2),
                                       'D' + str(wandb.config.dropout),
                                       'HS' + str(wandb.config.hidden_size)])
             
@@ -202,6 +212,7 @@ def main():
             orgs = wandb.config.organisms.split(',')
             for k, org in enumerate(orgs):
                 heads_dict[org] = int(k)
+            print(heads_dict)
             data_dict_tr, data_dict_val = training_utils.return_distributed_iterators(heads_dict,
                                                                                       wandb.config.gcs_path,
                                                                                       GLOBAL_BATCH_SIZE,
@@ -210,7 +221,10 @@ def main():
                                                                                       args.num_parallel,
                                                                                       args.num_epochs,
                                                                                       strategy,
-                                                                                      options)
+                                                                                      options,
+                                                                                      wandb.config.quant_type,
+                                                                                      args.input_dim)
+
             
 
                     
@@ -226,13 +240,15 @@ def main():
                                         dim=wandb.config.dim,
                                         rel_pos_bins=wandb.config.rel_pos_bins,
                                         max_seq_length=wandb.config.max_seq_length,
-                                        widening = 2, ## ratio between first and second dense layer units in transformer block
-                                        conv_filter_size=wandb.config.conv_filter_size,
+                                        widening = 2, 
+                                        conv_filter_size=wandb.config.conv_filter_size_1,
+                                        #conv_filter_size_2=wandb.config.conv_filter_size_2,
                                         transformer_depth=wandb.config.num_transformer_layers,
                                         momentum=wandb.config.momentum,
                                         channels_list=wandb.config.conv_channel_list,
-                                        kernel_regularizer=0.001,
+                                        kernel_regularizer=wandb.config.kernel_regularizer,
                                         heads_dict=heads_dict)
+                                        #input_dim=args.input_dim)
     
             
             ## choose an optimizer
@@ -288,8 +304,9 @@ def main():
                                                                                               wandb.config.train_steps,
                                                                                               wandb.config.val_steps,
                                                                                               GLOBAL_BATCH_SIZE,
-                                                                                              wandb.config.gradient_clip)
-            else:
+                                                                                              wandb.config.gradient_clip, 
+                                                                                                 args.quant_type)
+            elif (("hg" in orgs) and ("mm" in orgs)):
                 train_step, val_step, metric_dict = training_utils.return_train_val_functions_hg_mm(model,
                                                                                               optimizer,
                                                                                               strategy,
@@ -297,7 +314,19 @@ def main():
                                                                                               wandb.config.train_steps,
                                                                                               wandb.config.val_steps,
                                                                                               GLOBAL_BATCH_SIZE,
-                                                                                              wandb.config.gradient_clip)
+                                                                                              wandb.config.gradient_clip,
+                                                                                              wandb.config.quant_type)
+                
+            elif (("hg" in orgs) and ("mm" in orgs) and ("rm" in orgs)):
+                train_step, val_step, metric_dict = training_utils.return_train_val_functions_hg_mm_rm(model,
+                                                                                              optimizer,
+                                                                                              strategy,
+                                                                                              metric_dict, 
+                                                                                              wandb.config.train_steps,
+                                                                                              wandb.config.val_steps,
+                                                                                              GLOBAL_BATCH_SIZE,
+                                                                                              wandb.config.gradient_clip,
+                                                                                              wandb.config.quant_type)
             
             ### main training loop
             global_step = 0
@@ -312,34 +341,166 @@ def main():
                 if orgs == ["hg"]:
                     train_step(data_dict_tr['hg'])
                     val_step(data_dict_val['hg'])
-                    wandb.log({'hg_train_loss': metric_dict['hg_tr'].result().numpy(),
-                               'hg_val_loss': metric_dict['hg_val'].result().numpy(),
-                               'hg_val_pearson': metric_dict['hg_corr_stats'].result()['pearsonR'].numpy(),
-                               'hg_val_R2': metric_dict['hg_corr_stats'].result()['R2'].numpy(),
-                               'hg_tss_mse': metric_dict['hg_corr_stats'].result()['tss_mse'].numpy()},
-                              step=epoch_i)
+                    y_trues = metric_dict['hg_corr_stats'].result()['y_trues'].numpy()
+                    y_preds = metric_dict['hg_corr_stats'].result()['y_preds'].numpy()
+                    cell_types = metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
+                    gene_map = metric_dict['hg_corr_stats'].result()['gene_map'].numpy()
+                    
                     val_losses.append(metric_dict['hg_val'].result().numpy())
                     val_pearsons.append(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy())
-                else:
+
+                    overall_corr, cell_corr, gene_corr, overall_fig,cell_fig,gene_fig = training_utils.make_plots(y_trues,y_preds, cell_types,gene_map, 'hg')
+                    
+                    wandb.log({'hg_train_loss': metric_dict['hg_tr'].result().numpy(),
+                               'hg_val_loss': metric_dict['hg_val'].result().numpy(),
+                               'hg_bin_level_rho': metric_dict['hg_corr_stats'].result()['pearsonR'].numpy(),
+                               'hg_gene_level_rho': overall_corr,
+                               'hg_mean_cell_rho': cell_corr,
+                               'hg_mean_gene_rho': gene_corr},
+                              step=epoch_i)
+                    wandb.log({"overall_gene_level":overall_fig},step=epoch_i)
+                    wandb.log({"cell level corr":cell_fig},step=epoch_i)
+                    wandb.log({"gene level corrs/var":gene_fig},step=epoch_i)
+                    
+                    
+                elif (("hg" in orgs) and ("mm" in orgs)):
                     train_step(data_dict_tr['hg'],
                                data_dict_tr['mm'])
                     val_step(data_dict_val['hg'],
                              data_dict_val['mm'])
-                    wandb.log({'hg_train_loss': metric_dict['hg_tr'].result().numpy(),
-                               'hg_val_loss': metric_dict['hg_val'].result().numpy(),
-                               'hg_val_pearson': metric_dict['hg_corr_stats'].result()['pearsonR'].numpy(),
-                               'hg_val_R2': metric_dict['hg_corr_stats'].result()['R2'].numpy(),
-                               'hg_tss_mse': metric_dict['hg_corr_stats'].result()['tss_mse'].numpy()},
-                              step=epoch_i)
-                                
-                    wandb.log({'mm_train_loss': metric_dict['mm_tr'].result().numpy(),
-                               'mm_val_loss': metric_dict['mm_val'].result().numpy(),
-                               'mm_val_pearson': metric_dict['mm_corr_stats'].result()['pearsonR'].numpy(),
-                               'mm_val_R2': metric_dict['mm_corr_stats'].result()['R2'].numpy(),
-                               'mm_tss_mse': metric_dict['mm_corr_stats'].result()['tss_mse'].numpy()},
-                              step=epoch_i)
+                    y_trues = metric_dict['hg_corr_stats'].result()['y_trues'].numpy()
+                    y_preds = metric_dict['hg_corr_stats'].result()['y_preds'].numpy()
+                    cell_types = metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
+                    gene_map = metric_dict['hg_corr_stats'].result()['gene_map'].numpy()
+                    
                     val_losses.append(metric_dict['hg_val'].result().numpy())
                     val_pearsons.append(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy())
+
+                    overall_corr, cell_corr, gene_corr, overall_fig,cell_fig,gene_fig = training_utils.make_plots(y_trues, 
+                                                                                                                  y_preds, 
+                                                                                                                  cell_types,
+                                                                                                                  gene_map, 'hg')
+                    
+                    wandb.log({'hg_train_loss': metric_dict['hg_tr'].result().numpy(),
+                               'hg_val_loss': metric_dict['hg_val'].result().numpy(),
+                               'hg_bin_level_rho': metric_dict['hg_corr_stats'].result()['pearsonR'].numpy(),
+                               'hg_gene_level_rho': overall_corr,
+                               'hg_mean_cell_rho': cell_corr,
+                               'hg_mean_gene_rho': gene_corr},
+                              step=epoch_i)
+                    wandb.log({"hg_overall_gene_level":overall_fig},step=epoch_i)
+                    wandb.log({"hg_cell_level_corr":cell_fig},step=epoch_i)
+                    wandb.log({"hg_gene_level_corrs/var":gene_fig},step=epoch_i)
+                    
+                    y_trues = metric_dict['mm_corr_stats'].result()['y_trues'].numpy()
+                    y_preds = metric_dict['mm_corr_stats'].result()['y_preds'].numpy()
+                    cell_types = metric_dict['mm_corr_stats'].result()['cell_types'].numpy()
+                    gene_map = metric_dict['mm_corr_stats'].result()['gene_map'].numpy()
+                    
+                    val_losses.append(metric_dict['mm_val'].result().numpy())
+                    val_pearsons.append(metric_dict['mm_corr_stats'].result()['pearsonR'].numpy())
+
+                    overall_corr, cell_corr, gene_corr, overall_fig,cell_fig,gene_fig = training_utils.make_plots(y_trues,
+                                                                                                                  y_preds, 
+                                                                                                                  cell_types,
+                                                                                                                  gene_map, 'mm')
+                    
+                    wandb.log({'mm_train_loss': metric_dict['mm_tr'].result().numpy(),
+                               'mm_val_loss': metric_dict['mm_val'].result().numpy(),
+                               'mm_bin_level_rho': metric_dict['mm_corr_stats'].result()['pearsonR'].numpy(),
+                               'mm_gene_level_rho': overall_corr,
+                               'mm_mean_cell_rho': cell_corr,
+                               'mm_mean_gene_rho': gene_corr},
+                              step=epoch_i)
+                    wandb.log({"mm_overall_gene_level":overall_fig},step=epoch_i)
+                    wandb.log({"mm_cell_level_corr":cell_fig},step=epoch_i)
+                    wandb.log({"mm_gene_level_corrs/var":gene_fig},step=epoch_i)
+                    
+                elif (("hg" in orgs) and ("mm" in orgs) and ("rm" in orgs)):
+                    train_step(data_dict_tr['hg'],
+                               data_dict_tr['mm'],
+                               data_dict_tr['rm'])
+                    val_step(data_dict_val['hg'],
+                             data_dict_val['mm'],
+                             data+dict_val['rm'])
+                    y_trues = metric_dict['hg_corr_stats'].result()['y_trues'].numpy()
+                    y_preds = metric_dict['hg_corr_stats'].result()['y_preds'].numpy()
+                    cell_types = metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
+                    gene_map = metric_dict['hg_corr_stats'].result()['gene_map'].numpy()
+                    
+                    val_losses.append(metric_dict['hg_val'].result().numpy())
+                    val_pearsons.append(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy())
+                    
+                    overall_corr, cell_corr, gene_corr, overall_fig,cell_fig,gene_fig = training_utils.make_plots(y_trues, 
+                                                                                                                  y_preds, 
+                                                                                                                  cell_types,
+                                                                                                                  gene_map, 'hg')
+                    
+                    wandb.log({'hg_train_loss': metric_dict['hg_tr'].result().numpy(),
+                               'hg_val_loss': metric_dict['hg_val'].result().numpy(),
+                               'hg_bin_level_rho_overall': metric_dict['hg_corr_stats'].result()['pearsonR'].numpy(),
+                               'hg_gene_level_rho_overall': overall_corr,
+                               'hg_mean_cell_rho': cell_corr,
+                               'hg_mean_gene_rho': gene_corr},
+                              step=epoch_i)
+                    wandb.log({"hg_overall_gene_level":overall_fig},step=epoch_i)
+                    wandb.log({"hg_cell_level_corr":cell_fig},step=epoch_i)
+                    wandb.log({"hg_gene_level_corrs/var":gene_fig},step=epoch_i)
+                    print('hg_tr', metric_dict['hg_tr'].result().numpy())
+                    print('hg_val', metric_dict['hg_val'].result().numpy())
+                    print('hg_pearsonR_bin', metric_dict['hg_corr_stats'].result()['pearsonR'].numpy())
+                    
+                    y_trues = metric_dict['mm_corr_stats'].result()['y_trues'].numpy()
+                    y_preds = metric_dict['mm_corr_stats'].result()['y_preds'].numpy()
+                    cell_types = metric_dict['mm_corr_stats'].result()['cell_types'].numpy()
+                    gene_map = metric_dict['mm_corr_stats'].result()['gene_map'].numpy()
+                
+
+                    overall_corr, cell_corr, gene_corr, overall_fig,cell_fig,gene_fig = training_utils.make_plots(y_trues,
+                                                                                                                  y_preds, 
+                                                                                                                  cell_types,
+                                                                                                                  gene_map, 'mm')
+                    
+                    wandb.log({'mm_train_loss': metric_dict['mm_tr'].result().numpy(),
+                               'mm_val_loss': metric_dict['mm_val'].result().numpy(),
+                               'mm_bin_level_rho_overall': metric_dict['mm_corr_stats'].result()['pearsonR'].numpy(),
+                               'mm_gene_level_rho_overall': overall_corr,
+                               'mm_mean_cell_rho': cell_corr,
+                               'mm_mean_gene_rho': gene_corr},
+                              step=epoch_i)
+                    wandb.log({"mm_overall_gene_level":overall_fig},step=epoch_i)
+                    wandb.log({"mm_cell_level_corr":cell_fig},step=epoch_i)
+                    wandb.log({"mm_gene_level_corrs/var":gene_fig},step=epoch_i)
+                    
+                    print('mm_tr', metric_dict['mm_tr'].result().numpy())
+                    print('mm_val', metric_dict['mm_val'].result().numpy())
+                    print('mm_pearsonR_bin', metric_dict['mm_corr_stats'].result()['pearsonR'].numpy())
+                      
+                    y_trues = metric_dict['rm_corr_stats'].result()['y_trues'].numpy()
+                    y_preds = metric_dict['rm_corr_stats'].result()['y_preds'].numpy()
+                    cell_types = metric_dict['rm_corr_stats'].result()['cell_types'].numpy()
+                    gene_map = metric_dict['rm_corr_stats'].result()['gene_map'].numpy()
+                
+
+                    overall_corr, cell_corr, gene_corr, overall_fig,cell_fig,gene_fig = training_utils.make_plots(y_trues,
+                                                                                                                  y_preds, 
+                                                                                                                  cell_types,
+                                                                                                                  gene_map, 'rm')
+                    
+                    wandb.log({'rm_train_loss': metric_dict['rm_tr'].result().numpy(),
+                               'rm_val_loss': metric_dict['rm_val'].result().numpy(),
+                               'rm_bin_level_rho_overall': metric_dict['rm_corr_stats'].result()['pearsonR'].numpy(),
+                               'rm_gene_level_rho_overall': overall_corr,
+                               'rm_mean_cell_rho': cell_corr,
+                               'rm_mean_gene_rho': gene_corr},
+                              step=epoch_i)
+                    wandb.log({"rm_overall_gene_level":overall_fig},step=epoch_i)
+                    wandb.log({"rm_cell_level_corr":cell_fig},step=epoch_i)
+                    wandb.log({"rm_gene_level_corrs/var":gene_fig},step=epoch_i)
+                    print('rm_tr', metric_dict['rm_tr'].result().numpy())
+                    print('rm_val', metric_dict['rm_val'].result().numpy())
+                    print('rm_pearsonR_bin', metric_dict['rm_corr_stats'].result()['pearsonR'].numpy())
+                    
                 end = time.time()
                 duration = (end - start) / 60.
 
@@ -351,7 +512,7 @@ def main():
                                                                                               logged_pearsons=val_pearsons,
                                                                                               current_epoch=epoch_i,
                                                                                               best_epoch=best_epoch,
-                                                                                              save_freq=3,
+                                                                                              save_freq=args.savefreq,
                                                                                               patience=wandb.config.patience,
                                                                                               patience_counter=patience_counter,
                                                                                               min_delta=wandb.config.min_delta,
@@ -361,13 +522,9 @@ def main():
                 print('completed epoch ' + str(epoch_i))
                 print('duration(mins): ' + str(duration))
                 print('hg_train_loss: ' + str(metric_dict['hg_tr'].result().numpy()))
-                print('mm_train_loss: ' + str(metric_dict['mm_tr'].result().numpy()))
                 print('hg_val_loss: ' + str(metric_dict['hg_val'].result().numpy()))
                 print('hg_val_pearson: ' + str(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy()))
                 print('hg_val_R2: ' + str(metric_dict['hg_corr_stats'].result()['R2'].numpy()))
-                print('mm_val_loss: ' + str(metric_dict['mm_val'].result().numpy()))
-                print('mm_val_pearson: ' + str(metric_dict['mm_corr_stats'].result()['pearsonR'].numpy()))
-                print('mm_val_R2: ' + str(metric_dict['mm_corr_stats'].result()['R2'].numpy()))
                 print('patience counter at: ' + str(patience_counter))
 
                 for key, item in metric_dict.items():
@@ -378,7 +535,7 @@ def main():
                     
             print('saving model at: epoch ' + str(epoch_i))
             print('best model was at: epoch ' + str(best_epoch))
-            model.save_weights(wandb.config.model_save_dir + wandb.config.model_save_basename + "_" + wandb.run.name)
+            model.save_weights(wandb.config.model_save_dir + "/" + wandb.config.model_save_basename + "_" + wandb.run.name + "/final/saved_model")
     sweep_id = wandb.sweep(sweep_config, project=args.wandb_project)
     wandb.agent(sweep_id, function=sweep_train)
     #sweep_train()
@@ -386,5 +543,4 @@ def main():
 ##########################################################################
 if __name__ == '__main__':
     main()
-    
         

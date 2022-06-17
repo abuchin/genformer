@@ -21,15 +21,21 @@ class correlation_stats(tf.keras.metrics.Metric):
     def _initialize(self):
         self._tss_count = self.add_weight(name='tss_count', initializer=None, dtype=tf.int32)
 
-        self._tss_mse = self.add_weight(name='tss_mse', initializer='zeros')
+        self._tss_abs = self.add_weight(name='tss_abs', initializer='zeros')
         self._y_trues = tf.Variable([], shape=(None,), validate_shape=False)
-        self._y_preds = tf.Variable([], shape=(None,), validate_shape=False) #tf.TensorArray(tf.float32, size=0, dynamic_size=True) 
+        self._y_preds = tf.Variable([], shape=(None,), validate_shape=False)
+        self._cell_types = tf.Variable([], shape=(None,), validate_shape=False,dtype=tf.int32)
+        self._gene_map = tf.Variable([], shape=(None,), validate_shape=False,dtype=tf.float32)
+        #self._feature_maps = tf.Variable([], shape=(None,), validate_shape=False,dtype=tf.int32)
+        #self._feature_map_sub = tf.Variable([], shape=(None,), validate_shape=False)
+        #tf.TensorArray(tf.float32, size=0, dynamic_size=True) 
+
         """
         originally wanted to compute over each actual val step but having 
         trouble w/ keeping track of values in tensorarray within tf keras metrics subclass
         """
 
-    def update_state(self, y_true, y_pred, tss):
+    def update_state(self, y_true, y_pred, tss, cell_type,gene_map):
         if self._init is None:
             # initialization check.
             self._initialize()
@@ -43,24 +49,35 @@ class correlation_stats(tf.keras.metrics.Metric):
         y_true = tf.reshape(y_true, [-1])
         y_pred = tf.reshape(y_pred, [-1])
         tss = tf.reshape(tss, [-1])
-        
+        cell_type=tf.reshape(cell_type,[-1])
+        gene_map=tf.reshape(gene_map,[-1])
+
         keep_indices = tf.reshape(tf.where(tf.equal(tss, 1)), [-1])
-            
+        
         y_true_sub = tf.gather(y_true, indices=keep_indices)
         y_pred_sub = tf.gather(y_pred, indices=keep_indices)
         tss_sub = tf.gather(tss, indices=keep_indices)
+        cell_type_sub=tf.gather(cell_type,indices=keep_indices)
+        gene_map_sub=tf.gather(gene_map,indices=keep_indices)
+
         
         self._y_trues.assign(y_true_sub)
         self._y_preds.assign(y_pred_sub)
-
-        self._tss_count.assign_add(tf.reduce_sum(tss_sub))
-        self._tss_mse.assign_add(tf.reduce_mean(tf.math.square(y_true_sub - y_pred_sub),axis=0))
+        
+        self._cell_types.assign(cell_type_sub)
+        self._gene_map.assign(gene_map_sub)
+        
 
     def result(self):
         return {'pearsonR': pearsons(self._y_trues, self._y_preds),
                 'R2': r2(self._y_trues, self._y_preds),
-                'tss_mse': self._tss_mse,
-                'tss_count': self._tss_count}
+                'tss_abs': self._tss_abs,
+                'tss_count': self._tss_count,
+                'y_trues': self._y_trues,
+                'y_preds': self._y_preds,
+                'cell_types': self._cell_types,
+                'gene_map': self._gene_map
+               }
     #@tf.function
     def reset_state(self):
         tf.keras.backend.batch_set_value([(v, 0) for v in self.variables])
@@ -70,9 +87,6 @@ def pearsons(y_true, y_pred):
     '''
     Helper function to compute pearsons correlation for 1D inputs
     '''
-    y_true.shape.assert_is_compatible_with(y_pred.shape)
-    y_true = tf.cast(y_true, 'float32')
-    y_pred = tf.cast(y_pred, 'float32')
 
     count = y_true.shape[0]
     product_sum = tf.reduce_sum(y_true * y_pred)
@@ -88,6 +102,8 @@ def pearsons(y_true, y_pred):
     denominator = stdev_pred * stdev_true * tf.constant(count,dtype=tf.float32)
     
     pearsons = (numerator / denominator)
+    
+    #print(pearsons)
 
     return pearsons
 
@@ -104,7 +120,6 @@ def r2(y_true, y_pred):
     residual = tf.reduce_sum(tf.square(y_true - y_pred))
     total = tf.reduce_sum(tf.square(y_true -  tf.reduce_mean(y_true))) + tf.constant(1.0e-06,dtype=tf.float32)
     r2 = tf.constant(1.0,dtype=tf.float32) - residual / total
-
     return r2
 
 def pearsons_batch(y_true, y_pred):
@@ -128,10 +143,8 @@ def pearsons_batch(y_true, y_pred):
 
     denominator = stdev_pred * stdev_true * tf.constant(count,dtype=tf.float32)
     
-    pearsons = (numerator / denominator)[:,0]
-    return tf.where(tf.math.is_nan(pearsons), 
-                       tf.zeros_like(pearsons), 
-                       pearsons)
+    pearsons = (numerator / denominator)#[:,0]
+    return pearsons
 
 
 def r2_batch(y_true, y_pred):
@@ -145,7 +158,11 @@ def r2_batch(y_true, y_pred):
     residual = tf.reduce_sum(tf.square(y_true - y_pred),axis=1,keepdims=True)
     total = tf.reduce_sum(tf.square(y_true -  tf.reduce_mean(y_true)),axis=1,keepdims=True) + tf.constant(1.0e-06,dtype=tf.float32)
     r2 = tf.constant(1.0,dtype=tf.float32) - residual / total
-    return r2[:,0]
+    return r2#[:,0]
+
+
+
+#def plot_att(
 
 
 '''
@@ -294,3 +311,36 @@ class MetricDict:
         return {k: metric.result() for k, metric in self._metrics.items()}
 '''
 
+
+class correlation_stats_aformer(tf.keras.metrics.Metric):
+    def __init__(self, reduce_axis=None, name='correlation_stats'):
+        super(correlation_stats_aformer, self).__init__(name=name)
+        self._init = None
+
+    def _initialize(self):
+        self._pearsonsr = tf.Variable([], shape=(None,), validate_shape=False)
+        self._r2 = tf.Variable([], shape=(None,1), validate_shape=False)
+        #self._pearsonsr = self.add_weight(name='pearsonsr', initializer=None, dtype=tf.float32)
+        #self._r2= self.add_weight(name='r2', initializer=None, dtype=tf.float32)
+    def update_state(self, y_true, y_pred):
+        if self._init is None:
+            # initialization check.
+            self._initialize()
+        self._init = 1.0
+        
+        y_true.shape.assert_is_compatible_with(y_pred.shape)
+        y_true = tf.cast(y_true, 'float32')
+        y_pred = tf.cast(y_pred, 'float32')
+
+        self._pearsonsr.assign(pearsons_batch(y_true,y_pred))
+        self._r2.assign(r2_batch(y_true,y_pred))
+        
+    def result(self):
+        return {'pearsonR': self._pearsonsr,
+                'R2': self._r2
+               }
+    #@tf.function
+    def reset_state(self):
+        tf.keras.backend.batch_set_value([(v, 0) for v in self.variables])
+            
+            

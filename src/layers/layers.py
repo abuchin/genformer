@@ -127,6 +127,68 @@ class conv1Dblock(kl.Layer):
         return x
 
 @tf.keras.utils.register_keras_serializable()
+class seperable_conv1Dblock(kl.Layer):
+    def __init__(self,
+                 num_channels: int , 
+                 conv_filter_size: int,
+                 momentum: float,
+                 stride: int = 1,
+                 kernel_regularizer: float = 0.01,
+                 name: str = 'conv1Dblock',
+                 **kwargs):
+        """Enformer style conv block
+        Args:
+            num_channels
+            conv_filter_size
+            momentum: batch norm momentum
+            stride: default 1 for no dim reduction
+            name: Module name.
+        """
+        super().__init__(name=name, **kwargs)
+        self.num_channels = num_channels
+        self.conv_filter_size = conv_filter_size
+        self.momentum = momentum
+        self.stride=stride
+        self.kernel_regularizer=kernel_regularizer
+        
+        self.conv = kl.SeparableConv1D(filters = self.num_channels,
+                              kernel_size = self.conv_filter_size,
+                              strides=self.stride,
+                              padding='same',
+                              kernel_initializer=tf.keras.initializers.GlorotUniform(),
+                              kernel_regularizer=tf.keras.regularizers.L2(self.kernel_regularizer))
+        self.gelu = tfa.layers.GELU()
+        self.batch_norm = kl.BatchNormalization(axis=-1,
+                                                momentum=self.momentum,
+                                                center=True,
+                                                scale=True,
+                                                beta_initializer="zeros",
+                                                gamma_initializer="ones",
+                                                **kwargs)
+
+    def get_config(self):
+        config = {
+            "num_channels":self.num_channels,
+            "conv_filter_size":self.conv_filter_size,
+            "momentum":self.momentum,
+            "stride":self.stride,
+            "kernel_regularizer":self.kernel_regularizer
+        }
+        base_config = super().get_config()
+        return {**base_config, **config}
+    
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+    
+    def call(self, inputs, training=None):
+        x = self.conv(inputs)
+        x = self.gelu(x)
+        x = self.batch_norm(x, training=training) 
+        # todo: try switch order conv/batch norm for conventional conv block style
+        return x
+
+@tf.keras.utils.register_keras_serializable()
 class FFN(kl.Layer):
     def __init__(self, 
                  num_channels: int, 
@@ -153,13 +215,13 @@ class FFN(kl.Layer):
                                                   beta_initializer="zeros",
                                                   gamma_initializer="ones")
         self.FFN_dense_wide = kl.Dense(self.ffn_channels*self.ffn_widening,
-                                  activation='linear',
-                                  use_bias=True)
+                                       activation='linear',
+                                       use_bias=True)
         self.dropout = kl.Dropout(rate=self.ffn_dropout,**kwargs)
         self.relu = kl.ReLU()
         self.FFN_dense_narrow = kl.Dense(self.ffn_channels,
-                                     activation='linear',
-                                     use_bias=True)
+                                         activation='linear',
+                                         use_bias=True)
     
     def get_config(self):
         config = {
@@ -473,8 +535,6 @@ class Performer_Encoder(kl.Layer):
         self.kernel_transformation=kernel_transformation
         self.seed=seed
         
-
-            
         self.layers = [Performer(d_model=self.d_model, 
                                  normalize=self.normalize,
                                  hidden_size=self.hidden_size,
@@ -492,12 +552,19 @@ class Performer_Encoder(kl.Layer):
                                  use_rot_emb=self.use_rot_emb,
                                  **kwargs) for i in range(self.num_layers)]
         
+        self.layer_norm = kl.LayerNormalization(axis=-1,
+                                                  scale=True,
+                                                  center=True,
+                                                  beta_initializer="zeros",
+                                                  gamma_initializer="ones")
+        
         
     def build(self, input_shape):
         N = input_shape[0]
         L = input_shape[1]
         
-        self.relative_positional_bias = tf.constant(tf.random.uniform((self.num_heads, 2 * self.rel_pos_bins - 1)))
+        self.relative_positional_bias = tf.constant(tf.random.uniform((self.num_heads, 
+                                                                       2 * self.rel_pos_bins - 1)))
         
         if L <= self.rel_pos_bins:
             self.rpe = tf.concat((tf.expand_dims(self.relative_positional_bias[:,0], axis=1), 
@@ -544,6 +611,7 @@ class Performer_Encoder(kl.Layer):
         for idx,layer in enumerate(self.layers):
             x,k_prime,q_prime = layer(x, rpe=self.rpe, training=training)
             att_matrices['layer_' + str(idx)] = (k_prime,q_prime)
+        #x = self.layer_norm(x)
         #if self.norm is not None:
         #    x = self.norm(x)
         return x,att_matrices

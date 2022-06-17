@@ -13,7 +13,7 @@ import wandb
 import numpy as np
 from datetime import datetime
 import random
-from wandb.keras import WandbCallback
+
 import multiprocessing
 
 import tensorflow as tf
@@ -23,10 +23,16 @@ from tensorflow import strings as tfs
 from tensorflow.keras import mixed_precision
 import src.metrics as metrics ## switch to src 
 import src.schedulers
-from src.losses import regular_mse
+from src.losses import regular_mse,abs_mse
 import src.optimizers
 import src.schedulers
+import pandas as pd
 import src.utils
+import seaborn as sns
+
+from scipy.stats.stats import pearsonr
+from scipy.stats import linregress
+from scipy import stats
 
 
 
@@ -66,7 +72,8 @@ def return_train_val_functions_hg(model,
                                    train_steps, 
                                    val_steps, 
                                    global_batch_size,
-                                   gradient_clip):
+                                   gradient_clip,
+                                   quant_type):
     """Returns distributed train and validation functions for
     a given list of organisms
     Args:
@@ -95,20 +102,43 @@ def return_train_val_functions_hg(model,
     metric_dict["hg_val"] = tf.keras.metrics.Mean("hg_val_loss",
                                                   dtype=tf.float32)
     metric_dict["hg_corr_stats"] = metrics.correlation_stats(name='hg_corr_stats')
+    
 
     @tf.function
     def dist_train_step(iterator):
         def train_step_hg(inputs):
             target=inputs['target']
             model_inputs=inputs['inputs']
+            tss_tokens = inputs['tss_tokens']
+            
             with tf.GradientTape() as tape:
                 outputs = tf.cast(model(model_inputs,training=True)[0]["hg"],
                                   dtype=tf.float32)
-                loss = tf.reduce_sum(regular_mse(outputs,target), 
-                                     axis=0) * (1. / global_batch_size)
-
+                """"
+                outputs_reshape = tf.reshape(outputs, [-1]) # reshape to 1D
+                targets_reshape = tf.reshape(target, [-1])
+                tss_reshape = tf.reshape(tss_tokens, [-1])
+                
+                keep_indices = tf.reshape(tf.where(tf.equal(tss_reshape, 1)), [-1]) # figure out where TSS are
+                
+                outputs_tss = tf.squeeze(outputs) * tf.cast(tss_tokens,dtype=tf.float32)
+                target_tss = tf.squeeze(target) * tf.cast(tss_tokens,dtype=tf.float32)
+                
+                outputs_nontss = tf.squeeze(outputs) * nontss_tokens
+                target_nontss = tf.squeeze(target) * nontss_tokens
+                
+                loss_tss = 1.0 * tf.reduce_sum(regular_mse(outputs_tss,
+                                                           target_tss),axis=0) * (1. / global_batch_size)
+                loss_nontss = 1.0 * tf.reduce_sum(regular_mse(outputs_nontss,
+                                                           target_nontss),axis=0) * (1. / global_batch_size)
+                loss = loss_tss + loss_nontss
+                """
+                loss = tf.reduce_sum(regular_mse(outputs, target), 
+                     axis=0) * (1. / global_batch_size)
+                
+                
             gradients = tape.gradient(loss, model.trainable_variables)
-            gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamW
+            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamW
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
             metric_dict["hg_tr"].update_state(loss)
@@ -121,10 +151,18 @@ def return_train_val_functions_hg(model,
         def val_step_hg(inputs):
             target=inputs['target']
             tss_tokens = inputs['tss_tokens']
-            model_inputs=inputs['inputs']          
+            nontss_tokens=tf.cast(tf.add(-1, tss_tokens)*-1,dtype=tf.float32)
+            
+            model_inputs=inputs['inputs']
+            cell_type = tf.cast(inputs['cell_type'],dtype=tf.int32)
+            gene_map = tf.cast(inputs['genes_map'], dtype=tf.float32)
+
             outputs = tf.cast(model(model_inputs,training=False)[0]["hg"],
                               dtype=tf.float32)
-
+            
+            print(outputs.shape)
+            print(target.shape)
+            
             loss = tf.reduce_sum(regular_mse(outputs, target), 
                                  axis=0) * (1. / global_batch_size)
 
@@ -133,37 +171,54 @@ def return_train_val_functions_hg(model,
             outputs_reshape = tf.reshape(outputs, [-1]) # reshape to 1D
             targets_reshape = tf.reshape(target, [-1])
             tss_reshape = tf.reshape(tss_tokens, [-1])
+            cell_type_reshape=tf.reshape(cell_type,[-1])
+            gene_map_reshape=tf.reshape(gene_map,[-1])
+            #feature_map_reshape = tf.reshape(feature_map,[-1])
+            #feature_map_reshape = tf.reshape(feature_map, [-1])
             
             keep_indices = tf.reshape(tf.where(tf.equal(tss_reshape, 1)), [-1]) # figure out where TSS are
             targets_sub = tf.gather(targets_reshape, indices=keep_indices)
             outputs_sub = tf.gather(outputs_reshape, indices=keep_indices)
             tss_sub = tf.gather(tss_reshape, indices=keep_indices)
-        
-            return outputs_sub, targets_sub, tss_sub
-        
+            cell_type_sub = tf.gather(cell_type_reshape, indices=keep_indices)
+            gene_map_sub=tf.gather(gene_map_reshape, indices=keep_indices)
+
+            return outputs_sub, targets_sub, tss_sub,cell_type_sub, gene_map_sub
     
         ta_pred = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
         ta_true = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
         ta_tss = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store TSS indices
+        ta_celltype = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_genemap = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
         
         for _ in tf.range(val_steps): ## for loop within @tf.fuction for improved TPU performance
-            outputs_rep, targets_rep,tss_tokens_rep = strategy.run(val_step_hg,
+            outputs_rep, targets_rep,tss_tokens_rep,cell_type_rep,gene_map_rep = strategy.run(val_step_hg,
                                                                    args=(next(iterator),))
             
             outputs_reshape = tf.reshape(strategy.gather(outputs_rep, axis=0), [-1]) # reshape to 1D
             targets_reshape = tf.reshape(strategy.gather(targets_rep, axis=0), [-1])
             tss_reshape = tf.reshape(strategy.gather(tss_tokens_rep, axis=0), [-1])
+            cell_type_reshape = tf.reshape(strategy.gather(cell_type_rep, axis=0), [-1])
+            gene_map_reshape=tf.reshape(strategy.gather(gene_map_rep, axis=0), [-1]) 
 
             ta_pred = ta_pred.write(_, outputs_reshape)
             ta_true = ta_true.write(_, targets_reshape)
             ta_tss = ta_tss.write(_, tss_reshape)
+            ta_celltype = ta_celltype.write(_, cell_type_reshape)
+            ta_genemap=ta_genemap.write(_,gene_map_reshape)
 
-        metric_dict["hg_corr_stats"].update_state(ta_pred.concat(), 
-                                                  ta_true.concat(), 
-                                                  ta_tss.concat()) # compute corr stats
+        metric_dict["hg_corr_stats"].update_state(ta_true.concat(),
+                                                  ta_pred.concat(),
+                                                  ta_tss.concat(),
+                                                  ta_celltype.concat(),
+                                                  ta_genemap.concat())
         ta_pred.close()
         ta_true.close()
         ta_tss.close()
+        ta_celltype.close()
+        ta_genemap.close()
+        #ta_featuremap.close()
+        #ta_feature_map.close()
         
     return dist_train_step, dist_val_step, metric_dict
 
@@ -174,7 +229,8 @@ def return_train_val_functions_hg_mm(model,
                                    train_steps, 
                                    val_steps, 
                                    global_batch_size,
-                                   gradient_clip):
+                                   gradient_clip,
+                                     quant_type):
     """Returns distributed train and validation functions for
     a given list of organisms
     Args:
@@ -214,35 +270,41 @@ def return_train_val_functions_hg_mm(model,
         def train_step_hg(inputs):
             target=inputs['target']
             model_inputs=inputs['inputs']
+            tss_tokens = inputs['tss_tokens']
+            
             with tf.GradientTape() as tape:
                 outputs = tf.cast(model(model_inputs,training=True)[0]["hg"],
                                   dtype=tf.float32)
-                loss = tf.reduce_sum(regular_mse(outputs,target), 
+                
+                loss = tf.reduce_sum(regular_mse(outputs, target), 
                                      axis=0) * (1. / global_batch_size)
-            gradients = tape.gradient(loss, model.trainable_variables)
-            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamw
-            optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
+            gradients = tape.gradient(loss, model.trainable_variables)
+            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamW
+            optimizer.apply_gradients(zip(gradients, model.trainable_variables))
             metric_dict["hg_tr"].update_state(loss)
 
         def train_step_mm(inputs):
             target=inputs['target']
             model_inputs=inputs['inputs']
+            tss_tokens = inputs['tss_tokens']
+            
             with tf.GradientTape() as tape:
                 outputs = tf.cast(model(model_inputs,training=True)[0]["mm"],
                                   dtype=tf.float32)
-                loss = tf.reduce_sum(regular_mse(outputs,target), 
+                loss = tf.reduce_sum(regular_mse(outputs, target), 
                                      axis=0) * (1. / global_batch_size)
 
             gradients = tape.gradient(loss, model.trainable_variables)
-            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamw
+            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamW
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
-
             metric_dict["mm_tr"].update_state(loss)
 
         for _ in tf.range(train_steps): ## for loop within @tf.fuction for improved TPU performance
+            
             strategy.run(train_step_hg, args=(next(hg_iterator),))
-            strategy.run(train_step_mm, args=(next(mm_iterator),))
+            if _ % 3 == 0:
+                strategy.run(train_step_mm, args=(next(mm_iterator),))
 
     @tf.function
     def dist_val_step(hg_iterator,
@@ -250,91 +312,135 @@ def return_train_val_functions_hg_mm(model,
         def val_step_hg(inputs):
             target=inputs['target']
             tss_tokens = inputs['tss_tokens']
-            model_inputs=inputs['inputs']          
+            model_inputs=inputs['inputs']
+            
+            cell_type = tf.cast(inputs['cell_type'],dtype=tf.int32)
+            gene_map = tf.cast(inputs['genes_map'], dtype=tf.float32)
+
             outputs = tf.cast(model(model_inputs,training=False)[0]["hg"],
                               dtype=tf.float32)
-
+            
             loss = tf.reduce_sum(regular_mse(outputs, target), 
                                  axis=0) * (1. / global_batch_size)
 
             metric_dict["hg_val"].update_state(loss)
-
+            
             outputs_reshape = tf.reshape(outputs, [-1]) # reshape to 1D
             targets_reshape = tf.reshape(target, [-1])
             tss_reshape = tf.reshape(tss_tokens, [-1])
+            cell_type_reshape=tf.reshape(cell_type,[-1])
+            gene_map_reshape=tf.reshape(gene_map,[-1])
             
             keep_indices = tf.reshape(tf.where(tf.equal(tss_reshape, 1)), [-1]) # figure out where TSS are
             targets_sub = tf.gather(targets_reshape, indices=keep_indices)
             outputs_sub = tf.gather(outputs_reshape, indices=keep_indices)
             tss_sub = tf.gather(tss_reshape, indices=keep_indices)
-        
-            return outputs_sub, targets_sub, tss_sub
+            cell_type_sub = tf.gather(cell_type_reshape, indices=keep_indices)
+            gene_map_sub=tf.gather(gene_map_reshape, indices=keep_indices)
+
+            return outputs_sub, targets_sub, tss_sub,cell_type_sub, gene_map_sub
 
         def val_step_mm(inputs):
             target=inputs['target']
             tss_tokens = inputs['tss_tokens']
-            model_inputs=inputs['inputs']          
+            
+            model_inputs=inputs['inputs']
+            cell_type = tf.cast(inputs['cell_type'],dtype=tf.int32)
+            gene_map = tf.cast(inputs['genes_map'], dtype=tf.float32)
+
             outputs = tf.cast(model(model_inputs,training=False)[0]["mm"],
                               dtype=tf.float32)
-
+            
             loss = tf.reduce_sum(regular_mse(outputs, target), 
                                  axis=0) * (1. / global_batch_size)
 
             metric_dict["mm_val"].update_state(loss)
-
+            
             outputs_reshape = tf.reshape(outputs, [-1]) # reshape to 1D
             targets_reshape = tf.reshape(target, [-1])
             tss_reshape = tf.reshape(tss_tokens, [-1])
+            cell_type_reshape=tf.reshape(cell_type,[-1])
+            gene_map_reshape=tf.reshape(gene_map,[-1])
             
             keep_indices = tf.reshape(tf.where(tf.equal(tss_reshape, 1)), [-1]) # figure out where TSS are
             targets_sub = tf.gather(targets_reshape, indices=keep_indices)
             outputs_sub = tf.gather(outputs_reshape, indices=keep_indices)
             tss_sub = tf.gather(tss_reshape, indices=keep_indices)
-        
-            return outputs_sub, targets_sub, tss_sub
+            cell_type_sub = tf.gather(cell_type_reshape, indices=keep_indices)
+            gene_map_sub=tf.gather(gene_map_reshape, indices=keep_indices)
 
-        ta_pred_h = tf.TensorArray(tf.float32,size=0, dynamic_size=True, clear_after_read=True)
-        ta_true_h = tf.TensorArray(tf.float32,size=0, dynamic_size=True, clear_after_read=True)
-        ta_tss_h = tf.TensorArray(tf.int32,size=0, dynamic_size=True, clear_after_read=True)
+            return outputs_sub, targets_sub, tss_sub,cell_type_sub, gene_map_sub
 
-        ta_pred_m = tf.TensorArray(tf.float32,size=0, dynamic_size=True, clear_after_read=True)
-        ta_true_m = tf.TensorArray(tf.float32,size=0, dynamic_size=True, clear_after_read=True)
-        ta_tss_m = tf.TensorArray(tf.int32,size=0, dynamic_size=True, clear_after_read=True)
+        ta_pred_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_true_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
+        ta_tss_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store TSS indices
+        ta_celltype_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_genemap_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
+
+        ta_pred_m = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_true_m = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
+        ta_tss_m = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store TSS indices
+        ta_celltype_m = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_genemap_m = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
 
         for _ in tf.range(val_steps): ## for loop within @tf.fuction for improved TPU performance
-            ### all human tensors
-            outputs_rep_h,targets_rep_h,tss_tokens_rep_h = strategy.run(val_step_hg,
-                                                                        args=(next(hg_iterator),))
+            outputs_rep_h, targets_rep_h,tss_tokens_rep_h,cell_type_rep_h,gene_map_rep_h = strategy.run(val_step_hg,
+                                                                                                        args=(next(hg_iterator),))
+            
             outputs_reshape_h = tf.reshape(strategy.gather(outputs_rep_h, axis=0), [-1]) # reshape to 1D
             targets_reshape_h = tf.reshape(strategy.gather(targets_rep_h, axis=0), [-1])
             tss_reshape_h = tf.reshape(strategy.gather(tss_tokens_rep_h, axis=0), [-1])
+            cell_type_reshape_h = tf.reshape(strategy.gather(cell_type_rep_h, axis=0), [-1])
+            gene_map_reshape_h = tf.reshape(strategy.gather(gene_map_rep_h, axis=0), [-1]) 
 
             ta_pred_h = ta_pred_h.write(_, outputs_reshape_h)
             ta_true_h = ta_true_h.write(_, targets_reshape_h)
             ta_tss_h = ta_tss_h.write(_, tss_reshape_h)
+            ta_celltype_h = ta_celltype_h.write(_, cell_type_reshape_h)
+            ta_genemap_h=ta_genemap_h.write(_,gene_map_reshape_h)
 
             ### all mouse tensors
-            outputs_rep_m,targets_rep_m,tss_tokens_rep_m = strategy.run(val_step_mm,
-                                                                        args=(next(mm_iterator),))
-            outputs_reshape_m = tf.reshape(strategy.gather(outputs_rep_m, axis=0), [-1]) # reshape to 1D
-            targets_reshape_m = tf.reshape(strategy.gather(targets_rep_m, axis=0), [-1])
-            tss_reshape_m = tf.reshape(strategy.gather(tss_tokens_rep_m, axis=0), [-1])
+            if _ % 2 == 0:
+                outputs_rep_m, targets_rep_m,tss_tokens_rep_m,cell_type_rep_m,gene_map_rep_m = strategy.run(val_step_mm,
+                                                                                                            args=(next(mm_iterator),))
 
-            ta_pred_m = ta_pred_m.write(_, outputs_reshape_m)
-            ta_true_m = ta_true_m.write(_, targets_reshape_m)
-            ta_tss_m = ta_tss_m.write(_, tss_reshape_m)
-        metric_dict["hg_corr_stats"].update_state(ta_pred_h.concat(), 
-                                                  ta_true_h.concat(), 
-                                                  ta_tss_h.concat()) # compute corr stats
-        metric_dict["mm_corr_stats"].update_state(ta_pred_m.concat(), 
-                                                  ta_true_m.concat(), 
-                                                  ta_tss_m.concat()) # compute corr stats
+                outputs_reshape_m = tf.reshape(strategy.gather(outputs_rep_m, axis=0), [-1]) # reshape to 1D
+                targets_reshape_m = tf.reshape(strategy.gather(targets_rep_m, axis=0), [-1])
+                tss_reshape_m = tf.reshape(strategy.gather(tss_tokens_rep_m, axis=0), [-1])
+                cell_type_reshape_m = tf.reshape(strategy.gather(cell_type_rep_m, axis=0), [-1])
+                gene_map_reshape_m = tf.reshape(strategy.gather(gene_map_rep_m, axis=0), [-1]) 
+
+                ta_pred_m = ta_pred_m.write(_//2, outputs_reshape_m)
+                ta_true_m = ta_true_m.write(_//2, targets_reshape_m)
+                ta_tss_m = ta_tss_m.write(_//2, tss_reshape_m)
+                ta_celltype_m = ta_celltype_m.write(_//2, cell_type_reshape_m)
+                ta_genemap_m=ta_genemap_m.write(_//2,gene_map_reshape_m)
+
+            
+            
+        metric_dict["hg_corr_stats"].update_state(ta_true_h.concat(),
+                                                  ta_pred_h.concat(),
+                                                  ta_tss_h.concat(),
+                                                  ta_celltype_h.concat(),
+                                                  ta_genemap_h.concat())
         ta_pred_h.close()
         ta_true_h.close()
         ta_tss_h.close()
+        ta_celltype_h.close()
+        ta_genemap_h.close()
+        
+        metric_dict["mm_corr_stats"].update_state(ta_true_m.concat(),
+                                                  ta_pred_m.concat(),
+                                                  ta_tss_m.concat(),
+                                                  ta_celltype_m.concat(),
+                                                  ta_genemap_m.concat())
         ta_pred_m.close()
         ta_true_m.close()
         ta_tss_m.close()
+        ta_celltype_m.close()
+        ta_genemap_m.close()
+        
+        
     return dist_train_step, dist_val_step, metric_dict
 
 
@@ -343,7 +449,7 @@ def return_train_val_functions_hg_mm(model,
 helper functions for returning distributed iter for specific organism
 """
     
-def deserialize(serialized_example, input_length, output_length):
+def deserialize(serialized_example, input_length, output_length,input_dim):
     """
     Deserialize bytes stored in TFRecordFile.
     """
@@ -355,10 +461,18 @@ def deserialize(serialized_example, input_length, output_length):
 
     data = tf.io.parse_example(serialized_example, feature_map)
 
+    if input_dim == 1:
+        inputs = tf.ensure_shape(tf.io.parse_tensor(data['inputs'],
+                                           out_type=tf.float32),
+                        [input_length])
+        inputs = tf.transpose(inputs[tf.newaxis])
+    else:
+        inputs= tf.ensure_shape(tf.io.parse_tensor(data['inputs'],
+                                           out_type=tf.float32),
+                        [input_length,input_dim])
+    
     return {
-        'inputs': tf.ensure_shape(tf.io.parse_tensor(data['inputs'],
-                                                     out_type=tf.float32),
-                                  [input_length,5]),
+        'inputs': inputs,
         'target': tf.ensure_shape(tf.io.parse_tensor(data['target'],
                                                      out_type=tf.float32),
                                   [output_length,]),
@@ -367,41 +481,61 @@ def deserialize(serialized_example, input_length, output_length):
                                   [output_length,])
     }
 
-def deserialize_validation(serialized_example, input_length, output_length,
-                           output_length_pre,crop_size,out_length):
+
+def deserialize_val(serialized_example, input_length, output_length,unit,input_dim):
     """
     Deserialize bytes stored in TFRecordFile.
     """
     feature_map = {
-        'sequence': tf.io.FixedLenFeature([], tf.string),
-        'atac': tf.io.FixedLenFeature([],tf.string),
+        'inputs': tf.io.FixedLenFeature([], tf.string),
         'target': tf.io.FixedLenFeature([],tf.string),
         'tss_tokens': tf.io.FixedLenFeature([],tf.string),
-        'interval': tf.io.FixedLenFeature([],tf.string),
-        'genes_list': tf.io.FixedLenFeature([],tf.string),
-        'name': tf.io.FixedLenFeature([],tf.string)
+        'exons': tf.io.FixedLenFeature([],tf.string),
+        'genes_map': tf.io.FixedLenFeature([],tf.string),
+        'txs_map': tf.io.FixedLenFeature([],tf.string),
+        'cell_type': tf.io.FixedLenFeature([],tf.string),
+        'interval': tf.io.FixedLenFeature([],tf.string)
     }
+    
+
 
     data = tf.io.parse_example(serialized_example, feature_map)
 
+    tss_tokens = tf.ensure_shape(tf.io.parse_tensor(data['tss_tokens'],
+                                                     out_type=tf.int32),
+                                  [output_length,])
+    
+    if input_dim == 1:
+        inputs = tf.ensure_shape(tf.io.parse_tensor(data['inputs'],
+                                           out_type=tf.float32),
+                        [input_length])
+        inputs = tf.transpose(inputs[tf.newaxis])
+    else:
+        inputs= tf.ensure_shape(tf.io.parse_tensor(data['inputs'],
+                                           out_type=tf.float32),
+                        [input_length,input_dim])
+    
+    
     return {
-        'inputs': tf.concat([tf.expand_dims(tf.ensure_shape(tf.io.parse_tensor(data['atac'],
-                                                                              out_type=tf.float32), 
-                                                           [input_length,]), 1),
-                                    one_hot(data['sequence'])], axis=1),
-        'target': tf.slice(tf.ensure_shape(tf.io.parse_tensor(data['target'],
-                                                                      out_type=tf.float32), 
-                                                   [output_length_pre,]),
-                           [crop_size],
-                           [out_length]),
-        'tss_tokens': tf.slice(tf.ensure_shape(tf.io.parse_tensor(data['tss_tokens'],
-                                                                  out_type=tf.int32),
-                                               [output_length_pre,]),
-                               [crop_size],
-                               [out_length]),
-        'genes_list': data['genes_list'],
-        'interval': data['interval'],
-        'name': data['name']
+        'inputs': inputs,
+        'target': tf.ensure_shape(tf.io.parse_tensor(data['target'],
+                                                     out_type=tf.float32),
+                                  [output_length,]),
+        'tss_tokens':tf.ensure_shape(tf.io.parse_tensor(data['tss_tokens'],
+                                                     out_type=tf.int32),
+                                  [output_length,]),
+        'exons': tf.ensure_shape(tf.io.parse_tensor(data['exons'],
+                                                     out_type=tf.int32),
+                                  [output_length,]),
+        'cell_type': tf.ensure_shape(tf.io.parse_tensor(data['cell_type'],
+                                                     out_type=tf.int32),
+                                  [output_length,]),
+        'genes_map': tf.ensure_shape(tf.io.parse_tensor(data['genes_map'],
+                                                     out_type=tf.float32),
+                                  [output_length,]),
+        'txs_map': tf.ensure_shape(tf.io.parse_tensor(data['txs_map'],
+                                                     out_type=tf.float32),
+                                  [output_length,])
     }
 
                     
@@ -413,27 +547,25 @@ def return_dataset(gcs_path,
                    output_length,
                    options,
                    num_parallel,
-                   num_epoch):
+                   num_epoch,
+                   input_dim):
     """
     return a tf dataset object for given gcs path
     """
     if organism == 'mm':
-        num_epoch = num_epoch + 30
-    wc = str(organism) + "*.tfrecords"
+        num_epoch = num_epoch * 4
+    if organism == 'rm': 
+        num_epoch = num_epoch * 7
+    wc = str(organism) + "*.tfr"
+
     list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
                                                 split,
                                                 wc)))
+
+    
     random.shuffle(list_files)
     files = tf.data.Dataset.list_files(list_files)
     
-    #dataset = files.interleave(lambda x: tf.data.TFRecordDataset(x, 
-    ##                                                             compression_type='ZLIB',
-    #                                                             buffer_size=10000000,
-    #                                                             num_parallel_reads=num_parallel),
-    #                            num_parallel_calls=num_parallel,
-    #                            deterministic=False,
-    #                            cycle_length=num_parallel,
-    #                            block_length=1)
     dataset = tf.data.TFRecordDataset(files,
                                       compression_type='ZLIB',
                                       buffer_size=10000000,
@@ -442,7 +574,8 @@ def return_dataset(gcs_path,
 
     dataset = dataset.map(lambda record: deserialize(record,
                                                      input_length,
-                                                     output_length),
+                                                     output_length,
+                                                     input_dim),
                           deterministic=False,
                           num_parallel_calls=num_parallel)
 
@@ -450,43 +583,43 @@ def return_dataset(gcs_path,
     return dataset.repeat(num_epoch).batch(batch,drop_remainder=True).prefetch(1)
 
 
-def return_dataset_validation(gcs_path,
-                   organism,
-                   batch,
-                   input_length,
-                   output_length_pre,
-                   output_length,
-                    crop_size,
-                   options,
-                   num_parallel,
-                   num_epoch):
+def return_dataset_val(gcs_path,
+                       split,
+                       organism,
+                       batch,
+                       input_length,
+                       output_length,
+                       options,
+                       num_parallel,
+                       num_epoch,
+                       unit,
+                       input_dim):
     """
     return a tf dataset object for given gcs path
     """
-    list_files = (tf.io.gfile.glob(os.path.join(gcs_path)))
+    if organism == 'mm':
+        num_epoch = num_epoch * 4
+    if organism == 'rm': 
+        num_epoch = num_epoch * 7
+    wc = str(organism) + "*.tfr"
+    
+    list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
+                                                split,
+                                                wc)))
+
     random.shuffle(list_files)
     files = tf.data.Dataset.list_files(list_files)
-    
-    #dataset = files.interleave(lambda x: tf.data.TFRecordDataset(x, 
-    ##                                                             compression_type='ZLIB',
-    #                                                             buffer_size=10000000,
-    #                                                             num_parallel_reads=num_parallel),
-    #                            num_parallel_calls=num_parallel,
-    #                            deterministic=False,
-    #                            cycle_length=num_parallel,
-    #                            block_length=1)
+
     dataset = tf.data.TFRecordDataset(files,
                                       compression_type='ZLIB',
                                       buffer_size=10000000,
                                       num_parallel_reads=num_parallel)
     dataset = dataset.with_options(options)
 
-    dataset = dataset.map(lambda record: deserialize_validation(record,
-                                                     input_length,
-                                                     output_length,
-                                                                output_length_pre,
-                                                                crop_size,
-                                                               output_length),
+    dataset = dataset.map(lambda record: deserialize_val(record,
+                                                         input_length,
+                                                         output_length,
+                                                         unit, input_dim),
                           deterministic=False,
                           num_parallel_calls=num_parallel)
 
@@ -501,7 +634,9 @@ def return_distributed_iterators(heads_dict,
                                  num_parallel_calls,
                                  num_epoch,
                                  strategy,
-                                 options):
+                                 options,
+                                 unit,
+                                 input_dim):
     """ 
     returns train + val dictionaries of distributed iterators
     for given heads_dictionary
@@ -518,15 +653,17 @@ def return_distributed_iterators(heads_dict,
                                      output_length,
                                      options,
                                      num_parallel_calls,
-                                     num_epoch)
-            val_data = return_dataset(gcs_path,
+                                     num_epoch,
+                                     input_dim)
+            val_data = return_dataset_val(gcs_path,
                                      "val",org, 
                                      global_batch_size,
                                      input_length,
                                      output_length,
                                      options,
                                      num_parallel_calls,
-                                     num_epoch)
+                                     num_epoch, unit, input_dim)
+
 
             train_dist = strategy.experimental_distribute_dataset(tr_data)
             #train_dist = train_dist.with_options(options)
@@ -578,13 +715,18 @@ def early_stopping(current_val_loss,
         best_epoch: best epoch so far 
     """
     ### check if min_delta satisfied
-    best_loss = min(logged_val_losses[:-1])
-    best_pearsons=max(logged_pearsons[:-1])
+    try: 
+        best_loss = min(logged_val_losses[:-1])
+        best_pearsons=max(logged_pearsons[:-1])
+        
+    except ValueError:
+        best_loss = current_val_loss
+        best_pearsons = current_pearsons
+        
     stop_criteria = False
-    
     ## if min delta satisfied then log loss
     
-    if (current_val_loss >= (best_loss - min_delta)) and (current_pearsons <= best_pearsons):
+    if (current_val_loss >= (best_loss - min_delta)):# and (current_pearsons <= best_pearsons):
         patience_counter += 1
         if patience_counter >= patience:
             stop_criteria=True
@@ -596,7 +738,7 @@ def early_stopping(current_val_loss,
             print('Saving model...')
             model_name = save_directory + "/" + \
                             saved_model_basename + "/iteration_" + \
-                                str(current_epoch)
+                                str(current_epoch) + "/saved_model"
             model.save_weights(model_name)
             ### write to logging file in saved model dir to model parameters and current epoch info
             
@@ -744,9 +886,12 @@ def parse_args(parser):
                         type=str,
                         help= 'hidden size for transformer' + \
                                 'should be equal to last conv layer filters')
-    parser.add_argument('--conv_filter_size',
-                        dest='conv_filter_size',
-                        help= 'conv_filter_size')
+    parser.add_argument('--conv_filter_size_1',
+                        dest='conv_filter_size_1',
+                        help= 'conv_filter_size_1')
+    parser.add_argument('--conv_filter_size_2',
+                        dest='conv_filter_size_2',
+                        help= 'conv_filter_size_2')
     parser.add_argument('--dim',
                         dest='dim',
                         type=int,
@@ -759,7 +904,22 @@ def parse_args(parser):
                         dest='rel_pos_bins',
                         type=int,
                         help= 'rel_pos_bins')
-
+    parser.add_argument('--kernel_regularizer',
+                        dest='kernel_regularizer',
+                        type=float,
+                        help= 'kernel_regularizer')
+    parser.add_argument('--quant_type',
+                        dest='quant_type',
+                        type=str,
+                        help= 'quant_type')
+    parser.add_argument('--savefreq',
+                        dest='savefreq',
+                        type=int,
+                        help= 'savefreq')
+    parser.add_argument('--input_dim',
+                        dest='input_dim',
+                        type=int,
+                        help= 'input_dim')
 
 
     args = parser.parse_args()
@@ -785,3 +945,647 @@ def one_hot(sequence):
                       depth = 4, 
                       dtype=tf.float32)
     return out
+
+def cell_type_parser(input_str, vocabulary, mapping):
+    '''
+    convert input string tensor to one hot encoded
+    will replace all N character with 0 0 0 0
+    '''
+
+    init_celltype = tf.lookup.KeyValueTensorInitializer(keys=vocabulary,
+                                                         values=mapping)
+    table_celltype = tf.lookup.StaticHashTable(init_celltype, default_value=0)
+
+    input_characters = input_str
+
+    return table_celltype.lookup(input_characters)
+
+def parse_gene_map(gene_map_file):
+    input_df = pd.read_csv(gene_map_file,sep='\t')
+    
+    input_df.columns = ['gene', 'transcript',
+                        'protein_type', 'gene_symbol']
+    
+    input_df['gene'] = input_df['gene'].map(lambda a: a.split('.')[0])
+    input_df['transcript'] = input_df['transcript'].map(lambda a: a.split('.')[0])
+    
+    out_list = list(set(list(input_df['gene'].tolist())))
+    
+    return tf.constant(['empty'] + out_list, dtype=tf.string), tf.range(len(out_list) + 1)
+
+    
+
+def feature_parser(input_feature_map,
+                   local_feature_info,
+                   table_global):
+    '''
+    convert input string tensor to one hot encoded
+    will replace all N character with 0 0 0 0
+    '''
+    
+    
+    parsed_feature_map = tf.strings.split(input_feature_map, sep = ';')
+    
+    def choose_one(b):
+        split_b = tf.strings.split(b,sep=',')
+        def f1(): return split_b[0]
+        def f2(): return b
+        #def f1(): return tf.strings.regex_replace(b, ",", ".")
+        #def f2(): return b
+        return tf.cond(tf.size(split_b) > 1, f1,f2)
+    
+    feature_map_split = tf.map_fn(choose_one, parsed_feature_map)
+
+    parsed_feature_info = tf.strings.split(local_feature_info, sep = ';')
+    
+    def return_first(b):
+        split_b = tf.strings.split(b,sep=':')
+        return split_b[0]
+    
+    local_gene_name = tf.vectorized_map(return_first, parsed_feature_info)
+    
+    def return_gene_encoding(b):
+        def f1(): 
+            return local_gene_name[b-1]
+        def f2(): 
+            return tf.constant(b'empty',dtype=tf.string)
+        return tf.cond(b > 0, f1, f2)
+            
+    converted = tf.map_fn(return_gene_encoding,
+                          tf.strings.to_number(feature_map_split, tf.int32),
+                          fn_output_signature=tf.string)
+    
+    #converted = tf.keras.layers.StringLookup(vocabulary=local_gene_encoding)()
+    return_val = table_global.lookup(converted) 
+    
+    return return_val
+
+    """
+    if unit == 'gene':
+        feature_map = data['genes_to_bin_map']
+    else:
+        feature_map = data['txs_to_bin_map']
+
+    feature_map_split = tf.strings.split(feature_map, sep = ';')
+    
+    def choose_one(b):
+        split_b = tf.strings.split(b,sep=',')
+        #print(tf.size(split_b))
+        def f1(): return split_b[0]
+        def f2() : return b
+
+        return tf.cond(tf.size(split_b) > 1, f1,f2)
+    
+    feature_map_split_float = tf.vectorized_map(lambda t: tf.strings.to_number(t,out_type=tf.float32), 
+                                        tf.map_fn(choose_one, feature_map_split))
+    """
+    
+    
+    
+def make_plots(y_trues,y_preds, cell_types,gene_map, organism):
+    unique_preds = {}
+    unique_trues = {}
+    for k,x in enumerate(gene_map):
+        if (cell_types[k],x) not in unique_preds.keys():
+            unique_preds[(cell_types[k],x)] = []
+            unique_trues[(cell_types[k],x)] = []
+        else:
+            unique_preds[(cell_types[k],x)].append(y_preds[k])
+            unique_trues[(cell_types[k],x)].append(y_trues[k])
+
+    unique_preds = dict(sorted(unique_preds.items()))
+    unique_trues = dict(sorted(unique_trues.items()))
+
+    unique_pred_mean = []
+    unique_true_mean = []
+    for k,v in unique_preds.items():
+        if len(v) > 0:
+            unique_pred_mean.append(np.nanmean(v))
+            true_vals = unique_trues[k]
+            unique_true_mean.append(np.nanmean(true_vals))
+        else:
+            continue
+
+    overall_gene_level_corr = pearsonr(unique_pred_mean,
+                                       unique_true_mean)[0]
+
+    fig_gene_level,ax_gene_level=plt.subplots(figsize=(6,6))
+    try:
+        data = np.vstack([unique_pred_mean,unique_true_mean])
+        kernel = stats.gaussian_kde(data)(data)
+
+        sns.scatterplot(
+            x=unique_true_mean,
+            y=unique_pred_mean,
+            c=kernel,
+            cmap="viridis")
+    except ValueError:
+        sns.scatterplot(
+            x=unique_true_mean,
+            y=unique_pred_mean)
+    
+    plt.xlabel("predicted log2(1.0+TPM)")
+    plt.ylabel("target log2(1.0+TPM)")
+    plt.xlim(0, max(unique_true_mean))
+    plt.ylim(0, max(unique_true_mean))
+    plt.title("overall gene level correlation")
+    ### now compute correlations across cell types
+    across_cells_preds = {}
+    across_cells_trues = {}
+
+    for k,v in unique_preds.items():
+        cell_t,gene_name = k
+        if cell_t not in across_cells_preds.keys():
+            across_cells_preds[cell_t] = []
+            across_cells_trues[cell_t] = []
+        else:
+            across_cells_preds[cell_t].append(v)
+            across_cells_trues[cell_t].append(unique_trues[k])
+    cell_specific_corrs = []
+    for k,v in across_cells_preds.items():
+        trues = []
+        preds = []
+        for idx,x in enumerate(v):
+            if len(x) > 0:
+                preds.append(np.nanmean(x))
+                trues.append(np.nanmean(across_cells_trues[k][idx]))
+        try: 
+            cell_specific_corrs.append(pearsonr(trues, 
+                                                preds)[0])
+        except np.linalg.LinAlgError:
+            continue
+        except ValueError:
+            continue
+
+    fig_cell_spec,ax_cell_spec=plt.subplots(figsize=(6,6))
+    sns.histplot(x=np.asarray(cell_specific_corrs), bins=50)
+    plt.xlabel("cell specific correlations")
+    plt.ylabel("count")
+    plt.title("distribution of correlations within cell type")
+    cell_spec_mean = np.nanmean(cell_specific_corrs)
+
+
+    ### now compute correlations across genes
+    across_genes_preds = {}
+    across_genes_trues = {}
+
+    for k,v in unique_preds.items():
+        cell_t,gene_name = k
+        if gene_name not in across_genes_preds.keys():
+            across_genes_preds[gene_name] = []
+            across_genes_trues[gene_name] = []
+        else:
+            across_genes_preds[gene_name].append(v)
+            across_genes_trues[gene_name].append(unique_trues[k])
+    genes_specific_corrs = []
+    genes_specific_vars = []
+    for k,v in across_genes_preds.items():
+        trues = []
+        preds = []
+        for idx, x in enumerate(v):
+            if len(x) > 0:
+                preds.append(np.nanmean(x))
+                trues.append(np.nanmean(across_genes_trues[k][idx]))
+        try: 
+            genes_specific_corrs.append(pearsonr(trues, 
+                                                 preds)[0])
+            genes_specific_vars.append(np.nanstd(trues))
+        except np.linalg.LinAlgError:
+            continue
+        except ValueError:
+            continue
+            
+    fig_gene_spec,ax_gene_spec=plt.subplots(figsize=(6,6))
+    try: 
+        data = np.vstack([genes_specific_vars,genes_specific_corrs])
+        kernel = stats.gaussian_kde(data)(data)
+        sns.scatterplot(
+            x=genes_specific_vars,
+            y=genes_specific_corrs,
+            c=kernel,
+            cmap="viridis")
+
+    except ValueError:
+        sns.scatterplot(
+            x=genes_specific_vars,
+            y=genes_specific_corrs)
+    except np.linalg.LinAlgError:
+        sns.scatterplot(
+            x=genes_specific_vars,
+            y=genes_specific_corrs)
+        
+    plt.xlabel("gene cross-dataset standard deviation")
+    plt.ylabel("gene cross-dataset correlation")
+    plt.title("correlation vs. std at gene level")
+    gene_spec_mean_corr = np.nanmean(genes_specific_corrs)
+    
+    
+    file_name = organism + ".val.out.tsv"
+    
+    dataset = pd.DataFrame({'true': y_trues, 
+                            'preds': y_preds,
+                            'cell_types': cell_types,
+                            'gene_map': gene_map})
+    
+    dataset.to_csv(file_name, sep='\t',index=False)
+    
+    return overall_gene_level_corr,cell_spec_mean,gene_spec_mean_corr, fig_gene_level, fig_cell_spec,fig_gene_spec
+
+
+
+
+
+
+def return_train_val_functions_hg_mm_rm(model,
+                                   optimizer,
+                                   strategy,
+                                   metric_dict,
+                                   train_steps, 
+                                   val_steps, 
+                                   global_batch_size,
+                                   gradient_clip,
+                                   quant_type):
+    """Returns distributed train and validation functions for
+    a given list of organisms
+    Args:
+        model: model object
+        optimizer: optimizer object
+        metric_dict: empty dictionary to populate with organism
+                     specific metrics
+        train_steps: number of train steps to take in single epoch
+        val_steps: number of val steps to take in single epoch
+        global_batch_size: # replicas * batch_size_per_replica
+        gradient_clip: gradient clip value to be applied in case of adam/adamw optimizer
+    Returns:
+        distributed train function
+        distributed val function
+        metric_dict: dict of tr_loss,val_loss, correlation_stats metrics
+                     for input organisms
+    
+    return distributed train and val step functions for given organism
+    train_steps is the # steps in a single epoch
+    val_steps is the # steps to fully iterate over validation set
+    """
+
+    metric_dict["hg_tr"] = tf.keras.metrics.Mean("hg_tr_loss", 
+                                                     dtype=tf.float32)
+    metric_dict["hg_val"] = tf.keras.metrics.Mean("hg_val_loss", 
+                                                      dtype=tf.float32)
+    metric_dict["hg_corr_stats"] = metrics.correlation_stats(name='hg_corr_stats')
+    metric_dict["mm_tr"] = tf.keras.metrics.Mean("mm_tr_loss", 
+                                                     dtype=tf.float32)
+    metric_dict["mm_val"] = tf.keras.metrics.Mean("mm_val_loss", 
+                                                      dtype=tf.float32)
+    metric_dict["mm_corr_stats"] = metrics.correlation_stats(name='mm_corr_stats')
+    
+    metric_dict["rm_tr"] = tf.keras.metrics.Mean("rm_tr_loss", 
+                                                     dtype=tf.float32)
+    metric_dict["rm_val"] = tf.keras.metrics.Mean("rm_val_loss", 
+                                                      dtype=tf.float32)
+    metric_dict["rm_corr_stats"] = metrics.correlation_stats(name='rm_corr_stats')
+
+    @tf.function
+    def dist_train_step(hg_iterator, mm_iterator, rm_iterator):
+
+        def train_step_hg(inputs):
+            target=target=inputs['target']
+            model_inputs=inputs['inputs']
+            tss_tokens = inputs['tss_tokens']
+            
+            with tf.GradientTape() as tape:
+                outputs = tf.cast(model(model_inputs,training=True)[0]["hg"],
+                                  dtype=tf.float32)
+                loss = tf.reduce_sum(regular_mse(outputs, target), 
+                                     axis=0) * (1. / global_batch_size)
+
+            gradients = tape.gradient(loss, model.trainable_variables)
+            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamW
+            optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+            metric_dict["hg_tr"].update_state(loss)
+
+        def train_step_mm(inputs):
+            target=inputs['target']
+            model_inputs=inputs['inputs']
+            tss_tokens = inputs['tss_tokens']
+            nontss_tokens=tf.cast(tf.add(-1, tss_tokens)*-1,dtype=tf.float32)
+            with tf.GradientTape() as tape:
+                outputs = tf.cast(model(model_inputs,training=True)[0]["mm"],
+                                  dtype=tf.float32)
+                loss = tf.reduce_sum(regular_mse(outputs, target), 
+                                     axis=0) * (1. / global_batch_size)
+
+            gradients = tape.gradient(loss, model.trainable_variables)
+            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamW
+            optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+            metric_dict["mm_tr"].update_state(loss)
+            
+        def train_step_rm(inputs):
+            target=inputs['target']
+            model_inputs=inputs['inputs']
+            tss_tokens = inputs['tss_tokens']
+            nontss_tokens=tf.cast(tf.add(-1, tss_tokens)*-1,dtype=tf.float32)
+            with tf.GradientTape() as tape:
+                outputs = tf.cast(model(model_inputs,training=True)[0]["rm"],
+                                  dtype=tf.float32)
+                loss = tf.reduce_sum(regular_mse(outputs, target), 
+                                     axis=0) * (1. / global_batch_size)
+
+            gradients = tape.gradient(loss, model.trainable_variables)
+            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamW
+            optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+            metric_dict["rm_tr"].update_state(loss)
+
+        for _ in tf.range(train_steps): ## for loop within @tf.fuction for improved TPU performance
+            strategy.run(train_step_hg, args=(next(hg_iterator),))
+            if _ % 2 == 0: 
+                strategy.run(train_step_mm, args=(next(mm_iterator),))
+            if _ % 4 == 0:
+                strategy.run(train_step_rm, args=(next(rm_iterator),))
+
+    @tf.function
+    def dist_val_step(hg_iterator,
+                      mm_iterator,
+                      rm_iterator):
+        def val_step_hg(inputs):
+            target=inputs['target']
+            tss_tokens = inputs['tss_tokens']
+            nontss_tokens=tf.cast(tf.add(-1, tss_tokens)*-1,dtype=tf.float32)
+            
+            model_inputs=inputs['inputs']
+            cell_type = tf.cast(inputs['cell_type'],dtype=tf.int32)
+            gene_map = tf.cast(inputs['genes_map'], dtype=tf.float32)
+
+            outputs = tf.cast(model(model_inputs,training=False)[0]["hg"],
+                              dtype=tf.float32)
+            
+            loss = tf.reduce_sum(regular_mse(outputs, target), 
+                                 axis=0) * (1. / global_batch_size)
+
+            metric_dict["hg_val"].update_state(loss)
+            
+            outputs_reshape = tf.reshape(outputs, [-1]) # reshape to 1D
+            targets_reshape = tf.reshape(target, [-1])
+            tss_reshape = tf.reshape(tss_tokens, [-1])
+            cell_type_reshape=tf.reshape(cell_type,[-1])
+            gene_map_reshape=tf.reshape(gene_map,[-1])
+            
+            keep_indices = tf.reshape(tf.where(tf.equal(tss_reshape, 1)), [-1]) # figure out where TSS are
+            targets_sub = tf.gather(targets_reshape, indices=keep_indices)
+            outputs_sub = tf.gather(outputs_reshape, indices=keep_indices)
+            tss_sub = tf.gather(tss_reshape, indices=keep_indices)
+            cell_type_sub = tf.gather(cell_type_reshape, indices=keep_indices)
+            gene_map_sub=tf.gather(gene_map_reshape, indices=keep_indices)
+
+            return outputs_sub, targets_sub, tss_sub,cell_type_sub, gene_map_sub
+
+        def val_step_mm(inputs):
+            target=inputs['target']
+            tss_tokens = inputs['tss_tokens']
+            nontss_tokens=tf.cast(tf.add(-1, tss_tokens)*-1,dtype=tf.float32)
+            
+            model_inputs=inputs['inputs']
+            cell_type = tf.cast(inputs['cell_type'],dtype=tf.int32)
+            gene_map = tf.cast(inputs['genes_map'], dtype=tf.float32)
+
+            outputs = tf.cast(model(model_inputs,training=False)[0]["mm"],
+                              dtype=tf.float32)
+            
+            loss = tf.reduce_sum(regular_mse(outputs, target), 
+                                 axis=0) * (1. / global_batch_size)
+
+            metric_dict["mm_val"].update_state(loss)
+            
+            outputs_reshape = tf.reshape(outputs, [-1]) # reshape to 1D
+            targets_reshape = tf.reshape(target, [-1])
+            tss_reshape = tf.reshape(tss_tokens, [-1])
+            cell_type_reshape=tf.reshape(cell_type,[-1])
+            gene_map_reshape=tf.reshape(gene_map,[-1])
+            
+            keep_indices = tf.reshape(tf.where(tf.equal(tss_reshape, 1)), [-1]) # figure out where TSS are
+            targets_sub = tf.gather(targets_reshape, indices=keep_indices)
+            outputs_sub = tf.gather(outputs_reshape, indices=keep_indices)
+            tss_sub = tf.gather(tss_reshape, indices=keep_indices)
+            cell_type_sub = tf.gather(cell_type_reshape, indices=keep_indices)
+            gene_map_sub=tf.gather(gene_map_reshape, indices=keep_indices)
+
+            return outputs_sub, targets_sub, tss_sub,cell_type_sub, gene_map_sub
+        
+        def val_step_rm(inputs):
+            target=inputs['target']
+            tss_tokens = inputs['tss_tokens']
+            nontss_tokens=tf.cast(tf.add(-1, tss_tokens)*-1,dtype=tf.float32)
+            
+            model_inputs=inputs['inputs']
+            cell_type = tf.cast(inputs['cell_type'],dtype=tf.int32)
+            gene_map = tf.cast(inputs['genes_map'], dtype=tf.float32)
+
+            outputs = tf.cast(model(model_inputs,training=False)[0]["rm"],
+                              dtype=tf.float32)
+            
+            loss = tf.reduce_sum(regular_mse(outputs, target), 
+                                 axis=0) * (1. / global_batch_size)
+
+            metric_dict["rm_val"].update_state(loss)
+            
+            outputs_reshape = tf.reshape(outputs, [-1]) # reshape to 1D
+            targets_reshape = tf.reshape(target, [-1])
+            tss_reshape = tf.reshape(tss_tokens, [-1])
+            cell_type_reshape=tf.reshape(cell_type,[-1])
+            gene_map_reshape=tf.reshape(gene_map,[-1])
+            
+            keep_indices = tf.reshape(tf.where(tf.equal(tss_reshape, 1)), [-1]) # figure out where TSS are
+            targets_sub = tf.gather(targets_reshape, indices=keep_indices)
+            outputs_sub = tf.gather(outputs_reshape, indices=keep_indices)
+            tss_sub = tf.gather(tss_reshape, indices=keep_indices)
+            cell_type_sub = tf.gather(cell_type_reshape, indices=keep_indices)
+            gene_map_sub=tf.gather(gene_map_reshape, indices=keep_indices)
+
+            return outputs_sub, targets_sub, tss_sub,cell_type_sub, gene_map_sub
+
+        ta_pred_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_true_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
+        ta_tss_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store TSS indices
+        ta_celltype_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_genemap_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
+
+        ta_pred_m = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_true_m = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
+        ta_tss_m = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store TSS indices
+        ta_celltype_m = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_genemap_m = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
+        
+        
+        ta_pred_rm = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_true_rm = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
+        ta_tss_rm = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store TSS indices
+        ta_celltype_rm = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_genemap_rm = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
+
+        for _ in tf.range(val_steps): ## for loop within @tf.fuction for improved TPU performance
+            outputs_rep_h, targets_rep_h,tss_tokens_rep_h,cell_type_rep_h,gene_map_rep_h = strategy.run(val_step_hg,
+                                                                                                        args=(next(hg_iterator),))
+            
+            outputs_reshape_h = tf.reshape(strategy.gather(outputs_rep_h, axis=0), [-1]) # reshape to 1D
+            targets_reshape_h = tf.reshape(strategy.gather(targets_rep_h, axis=0), [-1])
+            tss_reshape_h = tf.reshape(strategy.gather(tss_tokens_rep_h, axis=0), [-1])
+            cell_type_reshape_h = tf.reshape(strategy.gather(cell_type_rep_h, axis=0), [-1])
+            gene_map_reshape_h = tf.reshape(strategy.gather(gene_map_rep_h, axis=0), [-1]) 
+
+            ta_pred_h = ta_pred_h.write(_, outputs_reshape_h)
+            ta_true_h = ta_true_h.write(_, targets_reshape_h)
+            ta_tss_h = ta_tss_h.write(_, tss_reshape_h)
+            ta_celltype_h = ta_celltype_h.write(_, cell_type_reshape_h)
+            ta_genemap_h=ta_genemap_h.write(_,gene_map_reshape_h)
+
+            ### all mouse tensors
+            if _ % 2 == 0:
+                outputs_rep_m, targets_rep_m,tss_tokens_rep_m,cell_type_rep_m,gene_map_rep_m = strategy.run(val_step_mm,
+                                                                                                            args=(next(mm_iterator),))
+
+                outputs_reshape_m = tf.reshape(strategy.gather(outputs_rep_m, axis=0), [-1]) # reshape to 1D
+                targets_reshape_m = tf.reshape(strategy.gather(targets_rep_m, axis=0), [-1])
+                tss_reshape_m = tf.reshape(strategy.gather(tss_tokens_rep_m, axis=0), [-1])
+                cell_type_reshape_m = tf.reshape(strategy.gather(cell_type_rep_m, axis=0), [-1])
+                gene_map_reshape_m = tf.reshape(strategy.gather(gene_map_rep_m, axis=0), [-1]) 
+
+                ta_pred_m = ta_pred_m.write(_//2, outputs_reshape_m)
+                ta_true_m = ta_true_m.write(_//2, targets_reshape_m)
+                ta_tss_m = ta_tss_m.write(_//2, tss_reshape_m)
+                ta_celltype_m = ta_celltype_m.write(_//2, cell_type_reshape_m)
+                ta_genemap_m=ta_genemap_m.write(_//2,gene_map_reshape_m)
+            
+            if _ % 4 == 0:
+            
+                outputs_rep_rm, targets_rep_rm,tss_tokens_rep_rm,cell_type_rep_rm,gene_rmap_rep_rm = strategy.run(val_step_rm,
+                                                                                                            args=(next(rm_iterator),))
+
+                outputs_reshape_rm = tf.reshape(strategy.gather(outputs_rep_rm, axis=0), [-1]) # reshape to 1D
+                targets_reshape_rm = tf.reshape(strategy.gather(targets_rep_rm, axis=0), [-1])
+                tss_reshape_rm = tf.reshape(strategy.gather(tss_tokens_rep_rm, axis=0), [-1])
+                cell_type_reshape_rm = tf.reshape(strategy.gather(cell_type_rep_rm, axis=0), [-1])
+                gene_rmap_reshape_rm = tf.reshape(strategy.gather(gene_rmap_rep_rm, axis=0), [-1]) 
+
+                ta_pred_rm = ta_pred_rm.write(_//4, outputs_reshape_rm)
+                ta_true_rm = ta_true_rm.write(_//4, targets_reshape_rm)
+                ta_tss_rm = ta_tss_rm.write(_//4, tss_reshape_rm)
+                ta_celltype_rm = ta_celltype_rm.write(_//4, cell_type_reshape_rm)
+                ta_genemap_rm=ta_genemap_rm.write(_//4,gene_rmap_reshape_rm)
+
+
+            
+            
+        metric_dict["hg_corr_stats"].update_state(ta_true_h.concat(),
+                                                  ta_pred_h.concat(),
+                                                  ta_tss_h.concat(),
+                                                  ta_celltype_h.concat(),
+                                                  ta_genemap_h.concat())
+        ta_pred_h.close()
+        ta_true_h.close()
+        ta_tss_h.close()
+        ta_celltype_h.close()
+        ta_genemap_h.close()
+        
+        metric_dict["mm_corr_stats"].update_state(ta_true_m.concat(),
+                                                  ta_pred_m.concat(),
+                                                  ta_tss_m.concat(),
+                                                  ta_celltype_m.concat(),
+                                                  ta_genemap_m.concat())
+        ta_pred_m.close()
+        ta_true_m.close()
+        ta_tss_m.close()
+        ta_celltype_m.close()
+        ta_genemap_m.close()
+        
+        
+        
+        metric_dict["rm_corr_stats"].update_state(ta_true_rm.concat(),
+                                                  ta_pred_rm.concat(),
+                                                  ta_tss_rm.concat(),
+                                                  ta_celltype_rm.concat(),
+                                                  ta_genemap_rm.concat())
+        ta_pred_rm.close()
+        ta_true_rm.close()
+        ta_tss_rm.close()
+        ta_celltype_rm.close()
+        ta_genemap_rm.close()
+        
+        
+    return dist_train_step, dist_val_step, metric_dict
+
+
+
+def deserialize_interpretation(serialized_example,
+                               input_length,
+                               out_length):
+    """Deserialize bytes stored in TFRecordFile."""
+    feature_map = {
+        'atac': tf.io.FixedLenFeature([], tf.string),
+        'exons': tf.io.FixedLenFeature([],tf.string),
+        'sequence': tf.io.FixedLenFeature([],tf.string),
+        'target_gene': tf.io.FixedLenFeature([], tf.string),
+        'target_tx': tf.io.FixedLenFeature([],tf.string),
+        'cell_type': tf.io.FixedLenFeature([],tf.string),
+        'genes_map': tf.io.FixedLenFeature([], tf.string),
+        'txs_map': tf.io.FixedLenFeature([],tf.string),
+        'tss_tokens': tf.io.FixedLenFeature([], tf.string),
+        'interval': tf.io.FixedLenFeature([],tf.string)
+    }
+
+    data = tf.io.parse_example(serialized_example, feature_map)
+    
+    atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
+                                              out_type=tf.float32),
+                           [input_length,])
+    
+    exons =  tf.ensure_shape(tf.io.parse_tensor(data['exons'],
+                                                out_type=tf.int32),
+                             [input_length,])
+    
+    tss_tokens = tf.ensure_shape(tf.io.parse_tensor(data['tss_tokens'],
+                                                    out_type=tf.int32),
+                                 [out_length,])
+    
+    cell_type = tf.ensure_shape(tf.io.parse_tensor(data['cell_type'],
+                                   out_type=tf.int32),
+                                [out_length,])
+    
+    genes_map = tf.ensure_shape(tf.io.parse_tensor(data['genes_map'],
+                                                   out_type=tf.float32),
+                                [out_length,])
+    
+    txs_map = tf.ensure_shape(tf.io.parse_tensor(data['txs_map'],
+                                                 out_type=tf.float32),
+                                          [out_length,])
+    
+    seq_one_hot = one_hot(data['sequence'])
+
+    target_gene = tf.ensure_shape(tf.io.parse_tensor(data['target_gene'],
+                                                     out_type=tf.float32),
+                                          [out_length,])
+
+    inputs = tf.concat([tf.expand_dims(atac, 1),
+                        seq_one_hot], axis=1)
+
+        
+    return {
+        'inputs': inputs,
+        'target_gene': target_gene,
+        'sequence': data['sequence'],
+        'atac': atac,
+        'tss_tokens': tss_tokens,
+        'exons': exons,
+        'genes_map': genes_map,
+        'txs_map': txs_map,
+        'cell_type':cell_type,
+        'interval':data['interval']
+    }
+
+
+def log10(x):
+    numerator = tf.math.log(x)
+    denominator = tf.math.log(tf.constant(10, dtype=numerator.dtype))
+    return numerator / denominator
+
+
+
+
