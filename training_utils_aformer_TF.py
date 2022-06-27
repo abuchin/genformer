@@ -927,7 +927,7 @@ def make_plots(y_trues,y_preds, cell_types,gene_map, organism):
 
 def deserialize_interpret(serialized_example,
                 input_length, output_length_pre,
-                crop_size,out_length,seed,split, num_TFs):
+                crop_size,out_length,seed,num_TFs):
     """Deserialize bytes stored in TFRecordFile."""
     feature_map = {
         'atac': tf.io.FixedLenFeature([], tf.string),
@@ -1021,7 +1021,7 @@ def return_dataset_interpret(gcs_path,
     return a tf dataset object for given gcs path
     """
     
-    list_files = (tf.io.gfile.glob(gcs_path)
+    list_files = tf.io.gfile.glob(gcs_path)
 
     files = tf.data.Dataset.list_files(list_files)
 
