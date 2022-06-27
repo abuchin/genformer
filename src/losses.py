@@ -12,6 +12,54 @@ def regular_mse(y_pred,
     mse = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
     return mse(y_true, y_pred)
 
+@tf.function
+def poisson(y_pred,
+                y_true):
+    poisson = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
+    return poisson(y_true, y_pred)
+
+
+@tf.function
+def log_mse(y_pred,
+                y_true):
+    mse = tf.keras.losses.MeanSquaredLogarithmicError(reduction=tf.keras.losses.Reduction.NONE)
+    return mse(y_true, y_pred)
+
+@tf.function
+def abs_mse(y_pred,
+                y_true):
+    mse = tf.keras.losses.MeanAbsoluteError(reduction=tf.keras.losses.Reduction.NONE)
+    return mse(y_true, y_pred)
+
+
+@tf.function
+def tweedie_loss(y_pred,
+                 y_true,
+                 tss_tokens,
+                 bce_weight,
+                 crop_size,
+                 out_length):
+    
+    tss_tokens_sub = crop_tensor(tss_tokens, crop_size, out_length)
+
+    y_true_sub = subset_tensor(crop_tensor(y_true,
+                                               crop_size,
+                                               out_length),
+                                   tss_tokens_sub)
+    y_pred_sub = subset_tensor(crop_tensor(y_pred,
+                                               crop_size,
+                                               out_length),
+                                   tss_tokens_sub)
+
+    msle_batch = tweedie_dev_log_loss(tf.math.log(1.0 + tf.math.maximum(y_true_sub_tpm,
+                                                                        1e-09)) / tf.math.log(2.0),
+                     tf.math.log(1.0 + tf.math.maximum(y_pred_sub_tpm,
+                                                       1e-09)) / tf.math.log(2.0))
+    
+    tweedie_batch = tweedie_dev_log_loss(tf.math.maximum(tf.math.log(1.0 + y_true) / tf.math.log(2.0), 1e-09),
+                                         tf.math.maximum(tf.math.log(1.0 + y_pred) / tf.math.log(2.0), 1e-09))
+    
+    return tweedie_batch
 
 '''
 @tf.function
@@ -44,11 +92,7 @@ def masked_mse(y_pred,
     SE = SE * weights
     MSE = tf.reduce_mean(SE, axis=1)
     return MSE
-'''
 
-
-
-'''
 
 
 @tf.function
@@ -85,45 +129,11 @@ def combined_MSE_BCE(y_pred,
     loss_ratio = mse_batch / bce_batch
     
     return total_loss, tss_tokens_sub, y_pred_sub_sig, loss_ratio, mse_batch, bce_batch
-
-@tf.function
-def tweedie_loss(y_pred,
-                 y_true,
-                 tss_tokens,
-                 bce_weight,
-                 crop_size,
-                 out_length):
-    
-    tss_tokens_sub = crop_tensor(tss_tokens, crop_size, out_length)
-
-    y_true_sub = subset_tensor(crop_tensor(y_true,
-                                               crop_size,
-                                               out_length),
-                                   tss_tokens_sub)
-    y_pred_sub = subset_tensor(crop_tensor(y_pred,
-                                               crop_size,
-                                               out_length),
-                                   tss_tokens_sub)
-
-    #MSE = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.SUM)
-    msle_batch = tweedie_dev_log_loss(tf.math.log(1.0 + tf.math.maximum(y_true_sub_tpm,
-                                                                        1e-09)) / tf.math.log(2.0),
-                     tf.math.log(1.0 + tf.math.maximum(y_pred_sub_tpm,
-                                                       1e-09)) / tf.math.log(2.0))
-    
-    tweedie_batch = tweedie_dev_log_loss(tf.math.maximum(tf.math.log(1.0 + y_true) / tf.math.log(2.0), 1e-09),
-                                         tf.math.maximum(tf.math.log(1.0 + y_pred) / tf.math.log(2.0), 1e-09))
-    #bce = tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.SUM, 
-    #                                         from_logits=False)
-    #bce_batch = bce(tss_tokens_sub,
-    #                y_pred_sub_sig + 1.0e-08)
-
-    #total_loss = tweedie_batch #+ bce_weight * bce_batch
-    #loss_ratio = msle_batch / bce_batch
-    
-    return tweedie_batch
+'''
 
 
+
+'''
 @tf.function
 def zero_agreement(y_pred, y_true):
 ### ignore left and right 20% of intervals
