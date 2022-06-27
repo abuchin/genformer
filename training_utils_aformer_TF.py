@@ -925,58 +925,87 @@ def make_plots(y_trues,y_preds, cell_types,gene_map, organism):
 
 
 
-def deserialize_interpretation(serialized_example, input_length, output_length,num_TFs):
-    """
-    Deserialize bytes stored in TFRecordFile.
-    """
+def deserialize_interpret(serialized_example,
+                input_length, output_length_pre,
+                crop_size,out_length,seed,split, num_TFs):
+    """Deserialize bytes stored in TFRecordFile."""
     feature_map = {
-        'inputs': tf.io.FixedLenFeature([], tf.string),
-        'target': tf.io.FixedLenFeature([],tf.string),
-        'tss_tokens': tf.io.FixedLenFeature([],tf.string),
+        'atac': tf.io.FixedLenFeature([], tf.string),
+        'cage': tf.io.FixedLenFeature([], tf.string),
         'exons': tf.io.FixedLenFeature([],tf.string),
-        'genes_map': tf.io.FixedLenFeature([],tf.string),
-        'txs_map': tf.io.FixedLenFeature([],tf.string),
+        'sequence': tf.io.FixedLenFeature([],tf.string),
         'cell_type': tf.io.FixedLenFeature([],tf.string),
-        'interval': tf.io.FixedLenFeature([],tf.string),
-        'TF_acc': tf.io.FixedLenFeature([],tf.string)
-    }
-    data = tf.io.parse_example(serialized_example, feature_map)
-
-    tss_tokens = tf.ensure_shape(tf.io.parse_tensor(data['tss_tokens'],
-                                                     out_type=tf.int32),
-                                  [output_length,])
-    
-    inputs= tf.ensure_shape(tf.io.parse_tensor(data['inputs'],
-                                       out_type=tf.float32),
-                    [input_length,5])
-    
-    
-    return {
-        'inputs': inputs,
-        'target': tf.ensure_shape(tf.io.parse_tensor(data['target'],
-                                                     out_type=tf.float32),
-                                  [output_length,]),
-        'tss_tokens':tf.ensure_shape(tf.io.parse_tensor(data['tss_tokens'],
-                                                     out_type=tf.int32),
-                                  [output_length,]),
-        'exons': tf.ensure_shape(tf.io.parse_tensor(data['exons'],
-                                                     out_type=tf.int32),
-                                  [output_length,]),
-        'cell_type': tf.ensure_shape(tf.io.parse_tensor(data['cell_type'],
-                                                     out_type=tf.int32),
-                                  [output_length,]),
-        'genes_map': tf.ensure_shape(tf.io.parse_tensor(data['genes_map'],
-                                                     out_type=tf.float32),
-                                  [output_length,]),
-        'txs_map': tf.ensure_shape(tf.io.parse_tensor(data['txs_map'],
-                                                     out_type=tf.float32),
-                                  [output_length,]),
-        'TF_acc': tf.ensure_shape(tf.io.parse_tensor(data['TF_acc'],
-                                                     out_type=tf.float32),
-                                  [num_TFs,])
+        'genes_map': tf.io.FixedLenFeature([], tf.string),
+        'txs_map': tf.io.FixedLenFeature([],tf.string),
+        'TF_acc': tf.io.FixedLenFeature([],tf.string),
+        'tss_tokens': tf.io.FixedLenFeature([], tf.string),
+        'interval': tf.io.FixedLenFeature([],tf.string)
         
     }
 
+    data = tf.io.parse_example(serialized_example, feature_map)
+    
+    atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
+                                              out_type=tf.float32),
+                           [input_length,])
+    
+    exons =  tf.ensure_shape(tf.io.parse_tensor(data['exons'],
+                                                out_type=tf.int32),
+                             [output_length_pre,])
+    
+    cage = tf.slice(tf.ensure_shape(tf.io.parse_tensor(data['cage'],
+                                              out_type=tf.float32),
+                           [output_length_pre,]),
+                    [crop_size],
+                    [out_length])
+    
+    resolution = input_length // output_length_pre
+    
+    tss_tokens = tf.ensure_shape(tf.io.parse_tensor(data['tss_tokens'],
+                                                    out_type=tf.int32),
+                                 [output_length_pre,])
+
+    tss_tokens_crop = tf.slice(tss_tokens,
+                          [crop_size],
+                          [out_length])
+    
+    cell_type = tf.repeat(tf.io.parse_tensor(data['cell_type'],
+                                   out_type=tf.int32),
+                          out_length)
+    
+    genes_map = tf.slice(tf.ensure_shape(tf.io.parse_tensor(data['genes_map'],
+                                                             out_type=tf.float32),
+                                          [output_length_pre,]),
+                          [crop_size],
+                          [out_length])
+    
+    txs_map = tf.slice(tf.ensure_shape(tf.io.parse_tensor(data['txs_map'],
+                                                             out_type=tf.float32),
+                                          [output_length_pre,]),
+                          [crop_size],
+                          [out_length])
+    
+    seq_one_hot = one_hot(data['sequence'])
+    TF_acc = tf.ensure_shape(tf.io.parse_tensor(data['TF_acc'],out_type=tf.float32),
+                             [num_TFs])
+
+    
+    ### need seq or 
+    
+    inputs = tf.concat([tf.expand_dims(atac, 1),
+                                   seq_one_hot], axis=1)
+        
+    return {
+        'inputs': inputs,
+        'target': cage,
+        'tss_tokens': tss_tokens_crop,
+        'exons': exons,
+        'genes_map': genes_map,
+        'txs_map': txs_map,
+        'cell_type':cell_type,
+        'interval':data['interval'],
+        'TF_acc': TF_acc
+    }
 
 def log10(x):
     numerator = tf.math.log(x)
