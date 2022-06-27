@@ -1007,6 +1007,44 @@ def deserialize_interpret(serialized_example,
         'TF_acc': TF_acc
     }
 
+def return_dataset_interpret(gcs_path,
+                             input_length,
+                             output_length_pre,
+                             crop_size,
+                             out_length,
+                             options,
+                             num_parallel,
+                             num_epoch,
+                             seed,
+                             num_TFs):
+    """
+    return a tf dataset object for given gcs path
+    """
+    
+    list_files = (tf.io.gfile.glob(gcs_path)
+
+    files = tf.data.Dataset.list_files(list_files)
+
+    dataset = tf.data.TFRecordDataset(files,
+                                      compression_type='ZLIB',
+                                      buffer_size=100000,
+                                      num_parallel_reads=num_parallel)
+    dataset = dataset.with_options(options)
+
+    dataset = dataset.map(lambda record: deserialize_interpret(record,
+                                                               input_length,
+                                                               output_length_pre,
+                                                               crop_size,
+                                                               out_length,
+                                                               seed,
+                                                               num_TFs),
+                          deterministic=False,
+                          num_parallel_calls=num_parallel)
+
+
+    return dataset.repeat(num_epoch).batch(1, drop_remainder=True).prefetch(1)
+
+
 def log10(x):
     numerator = tf.math.log(x)
     denominator = tf.math.log(tf.constant(10, dtype=numerator.dtype))
