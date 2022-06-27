@@ -69,8 +69,10 @@ class correlation_stats(tf.keras.metrics.Metric):
         
 
     def result(self):
-        return {'pearsonR': pearsons(self._y_trues, self._y_preds),
-                'R2': r2(self._y_trues, self._y_preds),
+        return {'pearsonR': pearsons(log10_1p(self._y_trues), 
+                                     log10_1p(self._y_preds)),
+                'R2': r2(log10_1p(self._y_trues), 
+                         log10_1p(self._y_preds)),
                 'tss_abs': self._tss_abs,
                 'tss_count': self._tss_count,
                 'y_trues': self._y_trues,
@@ -85,69 +87,37 @@ class correlation_stats(tf.keras.metrics.Metric):
             
 def pearsons(y_true, y_pred):
     '''
-    Helper function to compute pearsons correlation for 1D inputs
-    '''
-
-    count = y_true.shape[0]
-    product_sum = tf.reduce_sum(y_true * y_pred)
-
-    sum_product = tf.reduce_sum(y_true) * tf.reduce_sum(y_pred)
-
-    numerator = product_sum - (count * tf.reduce_mean(y_true) * tf.reduce_mean(y_pred))
-    
-
-    stdev_pred = tf.math.reduce_std(y_pred)
-    stdev_true = tf.math.reduce_std(y_true)
-
-    denominator = stdev_pred * stdev_true * tf.constant(count,dtype=tf.float32)
-    
-    pearsons = (numerator / denominator)
-    
-    #print(pearsons)
-
-    return pearsons
-
-
-def r2(y_true, y_pred):
-    '''
-    Helper function to compute r2 for 1D inputs
-    to do: check on discrepancy w/ tensorflow implementation
-    '''
-
-    y_true.shape.assert_is_compatible_with(y_pred.shape)
-    y_true = tf.cast(y_true, 'float32')
-    y_pred = tf.cast(y_pred, 'float32')
-    residual = tf.reduce_sum(tf.square(y_true - y_pred))
-    total = tf.reduce_sum(tf.square(y_true -  tf.reduce_mean(y_true))) + tf.constant(1.0e-06,dtype=tf.float32)
-    r2 = tf.constant(1.0,dtype=tf.float32) - residual / total
-    return r2
-
-def pearsons_batch(y_true, y_pred):
-    '''
     Helper function to compute r2 for tensors of shape (batch, length)
     '''
     y_true.shape.assert_is_compatible_with(y_pred.shape)
     y_true = tf.cast(y_true, 'float32')
     y_pred = tf.cast(y_pred, 'float32')
     
-    count = y_true.shape[1]
-    product_sum = tf.reduce_sum(y_true * y_pred, axis=1,keepdims=True)
-
-    sum_product = tf.reduce_sum(y_true, axis=1,keepdims=True) * tf.reduce_sum(y_pred, axis=1,keepdims=True)
-
-    numerator = product_sum - (count * tf.reduce_mean(y_true,axis=1,keepdims=True) * tf.reduce_mean(y_pred,axis=1,keepdims=True))
+    true_sum = tf.reduce_sum(y_true,axis=0)
+    pred_sum = tf.reduce_sum(y_pred,axis=0)
     
-
-    stdev_pred = tf.math.reduce_std(y_pred, axis=1,keepdims=True)
-    stdev_true = tf.math.reduce_std(y_true, axis=1,keepdims=True)
-
-    denominator = stdev_pred * stdev_true * tf.constant(count,dtype=tf.float32)
+    count = tf.reduce_sum(tf.ones_like(y_true),axis=0)
     
-    pearsons = (numerator / denominator)#[:,0]
+    true_mean = true_sum / count
+    true_sq_sum = tf.reduce_sum(tf.math.square(y_true),axis=0)
+    pred_mean = pred_sum / count
+    pred_sq_sum = tf.reduce_sum(tf.math.square(y_pred),axis=0)
+    product_sum = tf.reduce_sum(y_true*y_pred, axis=0)
+    
+    covariance = (product_sum - true_mean * pred_sum
+                      - pred_mean * true_sum
+                      + count * true_mean * pred_mean)
+    
+    true_var = true_sq_sum - count * tf.math.square(true_mean)
+    pred_var = pred_sq_sum - count * tf.math.square(pred_mean)
+    tp_var = tf.math.sqrt(true_var) * tf.math.sqrt(pred_var)
+    pearsons = covariance / tp_var
+
     return pearsons
+    
 
 
-def r2_batch(y_true, y_pred):
+def r2(y_true, y_pred):
     '''
     Helper function to compute r2 for tensors of shape (batch, length)
     to do: check descrepancy w/ tensorflow implementation
@@ -155,12 +125,10 @@ def r2_batch(y_true, y_pred):
     y_true.shape.assert_is_compatible_with(y_pred.shape)
     y_true = tf.cast(y_true, 'float32')
     y_pred = tf.cast(y_pred, 'float32')
-    residual = tf.reduce_sum(tf.square(y_true - y_pred),axis=1,keepdims=True)
-    total = tf.reduce_sum(tf.square(y_true -  tf.reduce_mean(y_true)),axis=1,keepdims=True) + tf.constant(1.0e-06,dtype=tf.float32)
+    residual = tf.reduce_sum(tf.square(y_true - y_pred),axis=0,keepdims=True)
+    total = tf.reduce_sum(tf.square(y_true -  tf.reduce_mean(y_true)),axis=0,keepdims=True)
     r2 = tf.constant(1.0,dtype=tf.float32) - residual / total
     return r2#[:,0]
-
-
 
 #def plot_att(
 
@@ -318,11 +286,14 @@ class correlation_stats_aformer(tf.keras.metrics.Metric):
         self._init = None
 
     def _initialize(self):
-        self._pearsonsr = tf.Variable([], shape=(None,), validate_shape=False)
-        self._r2 = tf.Variable([], shape=(None,1), validate_shape=False)
-        #self._pearsonsr = self.add_weight(name='pearsonsr', initializer=None, dtype=tf.float32)
-        #self._r2= self.add_weight(name='r2', initializer=None, dtype=tf.float32)
+        #self._pearsonsr = tf.Variable([],shape=(None,), validate_shape=False)
+        #self._r2 = tf.Variable([], shape=(None,), validate_shape=False)
+        self._pearsonsr_sum = self.add_weight(name='pearsonsr', initializer=None, dtype=tf.float32)
+        self._r2_sum= self.add_weight(name='r2', initializer=None, dtype=tf.float32)
+        self._total= self.add_weight(name='total', initializer=None, dtype=tf.float32)
+        
     def update_state(self, y_true, y_pred):
+        
         if self._init is None:
             # initialization check.
             self._initialize()
@@ -331,16 +302,78 @@ class correlation_stats_aformer(tf.keras.metrics.Metric):
         y_true.shape.assert_is_compatible_with(y_pred.shape)
         y_true = tf.cast(y_true, 'float32')
         y_pred = tf.cast(y_pred, 'float32')
+        
+        pearsons_r = pearsons_batch(y_true,y_pred)
+        r2_val = r2_batch(y_true,y_pred)
+        
+        batch_size = tf.reduce_sum(tf.ones_like(r2_val))
 
-        self._pearsonsr.assign(pearsons_batch(y_true,y_pred))
-        self._r2.assign(r2_batch(y_true,y_pred))
+        self._pearsonsr_sum.assign_add(tf.reduce_sum(pearsons_r))
+        self._r2_sum.assign_add(tf.reduce_sum(r2_val))
+        self._total.assign_add(tf.cast(batch_size,dtype=tf.float32))
         
     def result(self):
-        return {'pearsonR': self._pearsonsr,
-                'R2': self._r2
+        return {'pearsonR': self._pearsonsr_sum / self._total,
+                'R2': self._r2_sum / self._total
+                #'total': self._total
                }
     #@tf.function
     def reset_state(self):
         tf.keras.backend.batch_set_value([(v, 0) for v in self.variables])
+    #def reset_state(self):
+    #    for s in self.variables:
+    #        s.assign(tf.zeros(shape=s.shape))
             
             
+def pearsons_batch(y_true, y_pred):
+    '''
+    Helper function to compute r2 for tensors of shape (batch, length)
+    '''
+    y_true.shape.assert_is_compatible_with(y_pred.shape)
+    y_true = tf.cast(y_true, 'float32')
+    y_pred = tf.cast(y_pred, 'float32')
+    
+    true_sum = tf.reduce_sum(y_true,axis=1)
+    pred_sum = tf.reduce_sum(y_pred,axis=1)
+    
+    count = tf.reduce_sum(tf.ones_like(y_true),axis=1)
+    
+    true_mean = true_sum / count
+    true_sq_sum = tf.reduce_sum(tf.math.square(y_true),axis=1)
+    pred_mean = pred_sum / count
+    pred_sq_sum = tf.reduce_sum(tf.math.square(y_pred),axis=1)
+    product_sum = tf.reduce_sum(y_true*y_pred, axis=1)
+    
+    covariance = (product_sum - true_mean * pred_sum
+                      - pred_mean * true_sum
+                      + count * true_mean * pred_mean)
+    
+    true_var = true_sq_sum - count * tf.math.square(true_mean)
+    pred_var = pred_sq_sum - count * tf.math.square(pred_mean)
+    tp_var = tf.math.sqrt(true_var) * tf.math.sqrt(pred_var)
+    pearsons = covariance / tp_var
+    
+    #pearsons_not_nan = tf.dtypes.cast(tf.math.logical_not(tf.math.is_nan(pearsons)), dtype=tf.float32)
+    return pearsons
+    
+
+
+def r2_batch(y_true, y_pred):
+    '''
+    Helper function to compute r2 for tensors of shape (batch, length)
+    to do: check descrepancy w/ tensorflow implementation
+    '''
+    y_true.shape.assert_is_compatible_with(y_pred.shape)
+    y_true = tf.cast(y_true, 'float32')
+    y_pred = tf.cast(y_pred, 'float32')
+    residual = tf.reduce_sum(tf.square(y_true - y_pred),axis=1,keepdims=True)
+    total = tf.reduce_sum(tf.square(y_true -  tf.reduce_mean(y_true)),axis=1,keepdims=True)
+    r2 = tf.constant(1.0,dtype=tf.float32) - residual / total
+    return r2#[:,0]
+
+
+
+def log10_1p(x):
+    numerator = tf.math.log(x + 1.0)
+    denominator = tf.math.log(tf.constant(10, dtype=numerator.dtype))
+    return numerator / denominator

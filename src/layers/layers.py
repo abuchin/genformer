@@ -355,9 +355,8 @@ class Performer(kl.Layer):
                  widening: int,
                  rel_pos_bins=None,
                  kernel_transformation: str = 'relu_kernel_transformation',
-                 use_spe: bool = False,
-                 use_mask_pos: bool = True,
-                 use_rot_emb: bool = False,
+                 use_mask_pos: bool = False,
+                 use_rot_emb: bool = True,
                  name = 'transformer_layer',
                  **kwargs):
         super().__init__(name=name, **kwargs)
@@ -389,7 +388,6 @@ class Performer(kl.Layer):
         self.rel_pos_bins = rel_pos_bins
         self.use_rot_emb=use_rot_emb
         self.use_mask_pos=use_mask_pos
-        self.use_spe=use_spe
         self.d_model=d_model
         self.normalize=normalize
         self.seed=seed
@@ -405,7 +403,6 @@ class Performer(kl.Layer):
                                                    nb_random_features=self.nb_random_features,
                                                    attention_dropout=self.attention_dropout,
                                                    use_rot_emb=self.use_rot_emb,
-                                                   use_spe=self.use_spe,
                                                    use_mask_pos=self.use_mask_pos,
                                                    max_seq_length=self.max_seq_length,
                                                    normalize=self.normalize,
@@ -433,7 +430,6 @@ class Performer(kl.Layer):
             "rel_pos_bins":self.rel_pos_bins,
             "use_rot_emb":self.use_rot_emb,
             "use_mask_pos":self.use_mask_pos,
-            "use_spe":self.use_spe,
             "d_model":self.d_model,
             "normalize":self.normalize,
             "seed":self.seed
@@ -446,14 +442,14 @@ class Performer(kl.Layer):
         return cls(**config)
     
     def call(self, inputs, rpe=None, training=None, **kwargs):
-
-        ## mha
         x = self.layer_norm(inputs)
         x, k_prime, q_prime = self.self_attention(tf.cast(x,dtype=tf.float32),
                                                   tf.cast(x,dtype=tf.float32),
                                                   rpe=tf.cast(rpe,dtype=tf.float32),
                                                   **kwargs)
+
         x = self.dropout(x, training=training)
+
         mha_output = x + inputs
         ## ffn
         FFN_out = self.FFN(mha_output,training=training,**kwargs)
@@ -485,12 +481,11 @@ class Performer_Encoder(kl.Layer):
                  attention_dropout = .1,
                  num_realization=1,
                  rel_pos_bins=None,
-                 use_spe=False,
-                 spe_type=None,
                  kernel_size=None,
                  use_rot_emb=False,
                  use_mask_pos=False,
                  normalize=False,
+                 norm=True,
                  seed=42,
                  kernel_transformation: str = 'softmax_kernel_transformation',
                  name = 'performer_stack',
@@ -527,10 +522,9 @@ class Performer_Encoder(kl.Layer):
         self.numerical_stabilizer=numerical_stabilizer
         self.rel_pos_bins=rel_pos_bins#None#rel_pos_bins
         self.use_rot_emb=use_rot_emb
-        self.use_spe=use_spe
-        self.spe_type=spe_type
         self.use_mask_pos=use_mask_pos
         self.normalize=normalize
+        self.norm=norm
         self.widening=widening
         self.kernel_transformation=kernel_transformation
         self.seed=seed
@@ -546,7 +540,6 @@ class Performer_Encoder(kl.Layer):
                                  max_seq_length=self.max_seq_length,
                                  rel_pos_bins=self.rel_pos_bins,
                                  kernel_transformation=self.kernel_transformation,
-                                 use_spe=self.use_spe,
                                  use_mask_pos=self.use_mask_pos,
                                  seed=self.seed,
                                  use_rot_emb=self.use_rot_emb,
@@ -563,17 +556,23 @@ class Performer_Encoder(kl.Layer):
         N = input_shape[0]
         L = input_shape[1]
         
-        self.relative_positional_bias = tf.constant(tf.random.uniform((self.num_heads, 
-                                                                       2 * self.rel_pos_bins - 1)))
+        if self.use_mask_pos:
+            self.relative_positional_bias = tf.constant(tf.random.uniform((self.num_heads, 
+                                                                           2 * self.rel_pos_bins - 1)))
+            
+        if self.use_rot_emb:
+            self.pos_emb = FixedPositionalEmbedding(self.d_model, self.max_seq_length)
+            self.layer_pos_emb = FixedPositionalEmbedding(self.dim, self.max_seq_length)       
         
-        if L <= self.rel_pos_bins:
-            self.rpe = tf.concat((tf.expand_dims(self.relative_positional_bias[:,0], axis=1), 
-                        self.relative_positional_bias[:,self.rel_pos_bins-L: self.rel_pos_bins+L-1]), axis=1)
-        else:
-            self.rpe = tf.concat([tf.repeat(tf.expand_dims(self.relative_positional_bias[:,0], axis=1), repeats= L-self.rel_pos_bins+1, axis=1), 
-                    self.relative_positional_bias,
-                    tf.repeat(tf.expand_dims(self.relative_positional_bias[:,-1], axis=1), repeats=L-self.rel_pos_bins, axis=1)], axis=1)
-    
+        if self.use_mask_pos:
+            if L <= self.rel_pos_bins:
+                self.rpe = tf.concat((tf.expand_dims(self.relative_positional_bias[:,0], axis=1), 
+                            self.relative_positional_bias[:,self.rel_pos_bins-L: self.rel_pos_bins+L-1]), axis=1)
+            else:
+                self.rpe = tf.concat([tf.repeat(tf.expand_dims(self.relative_positional_bias[:,0], axis=1), repeats= L-self.rel_pos_bins+1, axis=1), 
+                        self.relative_positional_bias,
+                        tf.repeat(tf.expand_dims(self.relative_positional_bias[:,-1], axis=1), repeats=L-self.rel_pos_bins, axis=1)], axis=1)
+
         super(Performer_Encoder,self).build(input_shape)
     
     def get_config(self):
@@ -592,10 +591,9 @@ class Performer_Encoder(kl.Layer):
             "num_realization":self.num_realization,
             "rel_pos_bins":self.rel_pos_bins,
             "use_rot_emb":self.use_rot_emb,
-            "use_spe":self.use_spe,
-            "spe_type":self.spe_type,
             "use_mask_pos":self.use_mask_pos,
             "normalize":self.normalize,
+            "norm":self.norm,
             "seed":self.seed
         }
 
@@ -609,11 +607,19 @@ class Performer_Encoder(kl.Layer):
     def call(self, x, training=None, **kwargs):
         att_matrices={}
         for idx,layer in enumerate(self.layers):
-            x,k_prime,q_prime = layer(x, rpe=self.rpe, training=training)
-            att_matrices['layer_' + str(idx)] = (k_prime,q_prime)
-        #x = self.layer_norm(x)
-        #if self.norm is not None:
-        #    x = self.norm(x)
+            if self.use_rot_emb is True:
+                x += self.pos_emb(x)
+                rpe = self.layer_pos_emb(x)
+                x,k_prime,q_prime = layer(x, rpe=rpe, training=training)
+                att_matrices['layer_' + str(idx)] = (k_prime,q_prime)
+                
+            if self.use_mask_pos is True:
+                x,k_prime,q_prime = layer(x, rpe=rpe, training=training)
+                att_matrices['layer_' + str(idx)] = (k_prime,q_prime)
+            
+        if self.norm:
+            x = self.layer_norm(x)
+            
         return x,att_matrices
     
     """
@@ -746,7 +752,7 @@ class attention_pool(kl.Layer):
     ### revisit 
     def call(self, inputs):
         _, length, num_features = inputs.shape
-        print(inputs.shape)
+        #print(inputs.shape)
         inputs = tf.reshape(inputs, (-1, length // self._pool_size, 
                                      self._pool_size,  num_features))
         out = tf.reduce_sum(inputs * tf.nn.softmax(self._logit_linear(inputs), 
@@ -766,3 +772,23 @@ class attention_pool(kl.Layer):
     def cast_inputs(self, inputs):
         # Casts to float16, the policy's lowest-precision dtype
         return self._mixed_precision_policy.cast_to_lowest(inputs)
+
+    
+
+class FixedPositionalEmbedding(tf.keras.layers.Layer):
+    def __init__(self, dim, max_seq_len):
+        super().__init__()
+        self.dim = dim
+        self.max_seq_len = max_seq_len
+
+    def build(self, input_shape):
+        self.inv_freq = 1. / (10000 ** (tf.range(start=0, limit=self.dim, delta=2, dtype='float32') / self.dim))
+        self.position = tf.range(start=0, limit=self.max_seq_len, delta=1, dtype='float32')
+        self.sinusoid_inp = tf.einsum("i,j->ij", self.position, self.inv_freq)
+        self.emb = tf.concat((tf.math.sin(self.sinusoid_inp), 
+                              tf.math.cos(self.sinusoid_inp)), axis=-1)
+
+    def call(self, x):
+        return tf.cast(self.emb[None, :x.shape[1], :],dtype=tf.bfloat16)
+    
+

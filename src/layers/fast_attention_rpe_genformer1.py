@@ -315,56 +315,24 @@ def favor_attention(query,
     query_prime = tf.transpose(query_prime, [1, 0, 2, 3])  # [L,B,H,M]
     key_prime = tf.transpose(key_prime, [1, 0, 2, 3])  # [L,B,H,M]
     value = tf.transpose(value, [1, 0, 2, 3])  # [L,B,H,D]
-  
-
+    
     if causal:
         av_attention = causal_numerator(query_prime, key_prime, value)
         attention_normalizer = causal_denominator(query_prime, key_prime)
     else:
         av_attention = noncausal_numerator(query_prime, key_prime, value)
-    
         attention_normalizer = noncausal_denominator(query_prime, key_prime)
+        
   # TODO(kchoro): Add more comments.
     av_attention = tf.transpose(av_attention, [1, 0, 2, 3])
     #print("avattn", av_attention.shape)
     attention_normalizer = tf.transpose(attention_normalizer, [1, 0, 2])
-  
+    
     attention_normalizer = tf.expand_dims(attention_normalizer,
                                         len(attention_normalizer.shape))
     return av_attention / attention_normalizer, key_prime, query_prime
 
-#Add positional encodings.
-'''
-This is from rotoformer paper
-'''
-def rotate_every_two(x):
-    x = rearrange(x, '... (d j) -> ... d j', j = 2)
-    x1, x2 = tf.unstack(x, axis = -1)
-    x = tf.stack([-x2, x1], axis = -1)
-    return rearrange(x, '... d j -> ... (d j)')
 
-def apply_rotary_pos_emb(q, k, sinu_pos):
-    sinu_pos = rearrange(sinu_pos, '() n (j d) -> n j d', j = 2)
-    sin, cos = tf.unstack(sinu_pos, axis = -2)
-    sin, cos = map(lambda t: repeat(t, 'b n -> b (n j)', j = 2), (sin, cos))
-    q, k = map(lambda t: (t * cos) + (rotate_every_two(t) * sin), (q, k))
-    return q, k
-
-class FixedPositionalEmbedding(tf.keras.layers.Layer):
-    def __init__(self, dim, max_seq_len):
-        super().__init__()
-        self.dim = dim
-        self.max_seq_len = max_seq_len
-
-    def build(self, input_shape):
-        self.inv_freq = 1. / (10000 ** (tf.range(start=0, limit=self.dim, delta=2, dtype='float32') / self.dim))
-        self.position = tf.range(start=0, limit=self.max_seq_len, delta=1, dtype='float32')
-        self.sinusoid_inp = tf.einsum("i,j->ij", self.position, self.inv_freq)
-        self.emb = tf.concat((tf.math.sin(self.sinusoid_inp), tf.math.cos(self.sinusoid_inp)), axis=-1)
-
-    def call(self, x):
-        return self.emb[None, :x.shape[1], :]
-    
 @tf.keras.utils.register_keras_serializable()
 class Attention(tf.keras.layers.Layer):
     """Multi-headed attention layer."""
@@ -378,11 +346,10 @@ class Attention(tf.keras.layers.Layer):
            numerical_stabilizer=0.001,
            causal=False,
            nb_random_features=16,
-           use_rot_emb = False,
-           use_spe = False,
-           use_mask_pos = True,
+           use_rot_emb = True,
+           use_mask_pos = False,
            eps = 1e-6,
-           normalize = False,
+           normalize = True,
            seed=42
            ):
         
@@ -416,11 +383,8 @@ class Attention(tf.keras.layers.Layer):
         self.kernel_transformation = kernel_transformation
         self.numerical_stabilizer = numerical_stabilizer
         self.causal = causal
-     #   self.projection_matrix_type = projection_matrix_type
         self.nb_random_features = nb_random_features
-        #self.max_seq_length = max_seq_length
         self.use_rot_emb = use_rot_emb
-        self.use_spe = use_spe
         self.use_mask_pos = use_mask_pos
         self.eps = eps
         self.normalize = normalize
@@ -483,7 +447,6 @@ class Attention(tf.keras.layers.Layer):
             "causal":self.causal,
             'kernel_transformation':self.kernel_transformation,
             "use_rot_emb":self.use_rot_emb,
-            "use_spe":self.use_spe,
             "use_mask_pos":self.use_mask_pos,
             "eps":self.eps,
             "normalize":self.normalize,
@@ -535,51 +498,63 @@ class Attention(tf.keras.layers.Layer):
 
         dim = q.shape[-1]
         tgt_len = k.shape[1]
+        
+        
+        if self.use_mask_pos is True:
 
-        create_kernel = partial(kernel_transform, projection_matrix= self.projection_matrix)
-        q, k = map(lambda t: tf.transpose(t, [0,2,1,3]), (q,k))
+            create_kernel = partial(kernel_transform, projection_matrix= self.projection_matrix)
+            q, k = map(lambda t: tf.transpose(t, [0,2,1,3]), (q,k))
 
-                   #rearrange(t, 'b n h d -> b h n d', h = h), (q, k))
-        if self.normalize: 
-            q = tf.math.l2_normalize(q,axis=-1)
-            k = tf.math.l2_normalize(k,axis=-1)
-        q_prime = create_kernel(q, is_query = True)
-        k_prime = create_kernel(k, is_query = False)
-        #k_prime = rearrange(k_prime, 'b h n d -> b h d n', h=h) #(batch, head, dim_head, seq_len) ([1, 8, 1000, 16])
-        k_prime = tf.transpose(k_prime, [0,1,3,2])
-        #q_prime = rearrange(q_prime, 'b h n d -> b n h d', h=h)
-        q_prime = tf.transpose(q_prime, [0,2,1,3])
+                       #rearrange(t, 'b n h d -> b h n d', h = h), (q, k))
+            if self.normalize: 
+                q = tf.math.l2_normalize(q,axis=-1)
+                k = tf.math.l2_normalize(k,axis=-1)
+            q_prime = create_kernel(q, is_query = True)
+            k_prime = create_kernel(k, is_query = False)
+            #k_prime = rearrange(k_prime, 'b h n d -> b h d n', h=h) #(batch, head, dim_head, seq_len) ([1, 8, 1000, 16])
+            k_prime = tf.transpose(k_prime, [0,1,3,2])
+            #q_prime = rearrange(q_prime, 'b h n d -> b n h d', h=h)
+            q_prime = tf.transpose(q_prime, [0,2,1,3])
 
-        kv = tf.einsum("nhdl,nlhm->nhmdl", k_prime, v)
+            kv = tf.einsum("nhdl,nlhm->nhmdl", k_prime, v)
 
-        # Efficient matrix multiplication
-        u = tf.signal.rfft(tf.cast(rpe,dtype=tf.float32))          #rpe.shape = [num_heads, 2*tgt_len]
-        #print("u", u.shape)
+            # Efficient matrix multiplication
+            u = tf.signal.rfft(tf.cast(rpe,dtype=tf.float32))          #rpe.shape = [num_heads, 2*tgt_len]
+            #print("u", u.shape)
 
-        y = tf.signal.rfft(tf.cast(kv, dtype=tf.float32),
-                           fft_length=[2*tgt_len]) #KV.shape  = [bsz, num_heads, v_dim, k_dim, tgt_len]  
-        y = tf.einsum("hl,nhmdl->nhmdl", u, y)
-        weighted_kv = tf.cast(tf.signal.irfft(y)[:, :,:,:,tgt_len:],dtype=tf.float32)
+            y = tf.signal.rfft(tf.cast(kv, dtype=tf.float32),
+                               fft_length=[2*tgt_len]) #KV.shape  = [bsz, num_heads, v_dim, k_dim, tgt_len]  
+            y = tf.einsum("hl,nhmdl->nhmdl", u, y)
+            weighted_kv = tf.cast(tf.signal.irfft(y)[:, :,:,:,tgt_len:],dtype=tf.float32)
 
-        y1= tf.signal.rfft(tf.cast(k_prime,dtype=tf.float32) ,
-                           fft_length=[2*tgt_len]) #k.shape  = [bsz, num_heads, k_dim, tgt_len]
+            y1= tf.signal.rfft(tf.cast(k_prime,dtype=tf.float32) ,
+                               fft_length=[2*tgt_len]) #k.shape  = [bsz, num_heads, k_dim, tgt_len]
 
-        y1 = tf.einsum("hl,nhdl->nhdl", u, y1)
-        weighted_k = tf.cast(tf.signal.irfft(y1)[:, :,:,tgt_len:],dtype=tf.float32)
-        #print("weighted k", weighted_k.shape)
+            y1 = tf.einsum("hl,nhdl->nhdl", u, y1)
+            weighted_k = tf.cast(tf.signal.irfft(y1)[:, :,:,tgt_len:],dtype=tf.float32)
+            #print("weighted k", weighted_k.shape)
 
-        # Compute the normalizer
-        Z = 1/(tf.einsum("nlhd,nhdl->nlh", q_prime, weighted_k) + self.eps)
-        #Z = rearrange(Z, 'n l h -> n h l') #transpose by keeping the batch dim fixed
-        Z = tf.transpose(Z, [0,2,1])
-        #print("Z rearrange", Z.shape)
+            # Compute the normalizer
+            Z = 1/(tf.einsum("nlhd,nhdl->nlh", q_prime, weighted_k) + self.eps)
+            #Z = rearrange(Z, 'n l h -> n h l') #transpose by keeping the batch dim fixed
+            Z = tf.transpose(Z, [0,2,1])
+            #print("Z rearrange", Z.shape)
 
-        # Finally compute and return the new values
-        # Equivalent to V = torch.einsum("nlhd,nhmdl,nhl->nlhm", Q, weighted_KV, Z)
-        attention_output = tf.einsum("nlhd,nhmdl,nhl->nlhm", q_prime, weighted_kv, Z)
-        # attention_output = rearrange(attention_output, 'b n h d -> b n (h d)')
-        #print("attention_output rearrange", attention_output.shape)
+            # Finally compute and return the new values
+            # Equivalent to V = torch.einsum("nlhd,nhmdl,nhl->nlhm", Q, weighted_KV, Z)
+            attention_output = tf.einsum("nlhd,nhmdl,nhl->nlhm", q_prime, weighted_kv, Z)
+            # attention_output = rearrange(attention_output, 'b n h d -> b n (h d)')
+            #print("attention_output rearrange", attention_output.shape)
 
+        if self.use_rot_emb is True and self.use_mask_pos is False:
+            #q, k, v = map(lambda t: rearrange(t, 'b n h d -> b h n d', h = h), (q, k, v))
+            q,k = apply_rotary_pos_emb(q,k,rpe)
+            #k = apply_rotary_pos_emb(rpe, k)
+            #q, k = apply_rotary_pos_emb(q,k,rpe)
+            attention_output, k_prime, q_prime = favor_attention(q, k, v,
+                                       kernel_transform, self.causal,
+                                       self.projection_matrix)
+        
         attention_output = self.output_dense_layer(attention_output)
         #print("attn2", attention_output.shape)
         return tf.cast(attention_output,dtype=tf.bfloat16), tf.cast(k_prime,dtype=tf.bfloat16), tf.cast(q_prime,
@@ -593,7 +568,6 @@ class SelfAttention(Attention):
     def call(self,
            query_input,
            rpe,
-         #  bias,
            training,
            cache=None,
            decode_loop_step=None):
@@ -602,5 +576,64 @@ class SelfAttention(Attention):
     def get_config(self):
         base_config = super(SelfAttention, self).get_config()
         return {**base_config}
+    
 
- 
+def rotate_every_two(x):
+    x = rearrange(x, '... (d j) -> ... d j', j = 2)
+    x1, x2 = tf.unstack(x, axis = -1)
+    x = tf.stack([-x2, x1], axis = -1)
+    return rearrange(x, '... d j -> ... (d j)')
+
+def apply_rotary_pos_emb(q, k, sinu_pos):
+    b,l,h,d = q.shape
+    sinu_pos = rearrange(sinu_pos, '() n (j d) -> n j d', j = 2)
+    sin, cos = tf.unstack(sinu_pos, axis = -2)
+    sin, cos = map(lambda t: repeat(t, 'b n -> b (n j)', j = 2), (sin, cos))
+    sin = tf.repeat(tf.expand_dims(sin,axis=1),h,axis=1)
+    sin = tf.repeat(tf.expand_dims(sin,axis=0),b,axis=0) # b, l, d
+    cos = tf.repeat(tf.expand_dims(cos,axis=1),h,axis=1)
+    cos = tf.repeat(tf.expand_dims(cos,axis=0),b,axis=0) # b, l, d
+    q, k = map(lambda t: (t * cos) + (rotate_every_two(t) * sin), (q, k))
+    return q, k
+
+"""
+def rotate_half(x):
+    x = rearrange(x, r = 2)
+    x1, x2 = tf.unstack(x, axis=-1)
+    x = tf.stack((-x2, x1), axis=-1)
+    return irearrange(x)
+
+
+def apply_rotary_pos_emb(q,k,sinu_pos):
+    sinu_pos = rearrange(sinu_pos, '() n (j d) -> n j d', j = 2)
+    sin, cos = sinu_pos.unbind(dim = -2)
+    sin, cos = map(lambda t: repeat(t, 'b n -> b (n j)', j = 2), (sin, cos))
+    q, k = map(lambda t: (t * cos) + (rotate_every_two(t) * sin), (q, k))
+    return q, k
+
+def rearrange(x, r=2):
+    b = tf.shape(x)
+    b1 = b[:-1]
+    b2 = b[-1, None]
+    b3 = tf.constant([r], dtype=tf.int32)
+    b4 = tf.cast(b2/b3, dtype=tf.int32)
+    b_ = tf.concat([b1, b4, b3], axis=0)
+
+    return tf.reshape(x, b_)
+
+def irearrange(x):
+    c = tf.shape(x)
+    c1 = c[:-2]
+    c2 = tf.reduce_prod(c[-2:])[None]
+    c_ = tf.concat([c1, c2], axis=0)
+
+    return tf.reshape(x, c_)
+
+def repeat(x, r):
+    c = tf.ones_like(tf.shape(x), dtype=tf.int32)
+    c1 = c[:-1]
+    c2 = c[-1][None] * r
+    c_ = tf.concat([c1, c2], axis=0)
+
+    return tf.tile(x, c_)
+"""
