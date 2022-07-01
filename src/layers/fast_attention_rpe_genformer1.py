@@ -585,14 +585,15 @@ def rotate_every_two(x):
     return rearrange(x, '... d j -> ... (d j)')
 
 def apply_rotary_pos_emb(q, k, sinu_pos):
-    b,l,h,d = q.shape
+
     sinu_pos = rearrange(sinu_pos, '() n (j d) -> n j d', j = 2)
     sin, cos = tf.unstack(sinu_pos, axis = -2)
     sin, cos = map(lambda t: repeat(t, 'b n -> b (n j)', j = 2), (sin, cos))
-    sin = tf.repeat(tf.expand_dims(sin,axis=1),h,axis=1)
-    sin = tf.repeat(tf.expand_dims(sin,axis=0),b,axis=0) # b, l, d
-    cos = tf.repeat(tf.expand_dims(cos,axis=1),h,axis=1)
-    cos = tf.repeat(tf.expand_dims(cos,axis=0),b,axis=0) # b, l, d
+
+    sin = tf.repeat(tf.expand_dims(sin,axis=1),tf.shape(q)[2],axis=1)
+    sin = tf.repeat(tf.expand_dims(sin,axis=0),tf.shape(q)[0],axis=0) # b, l, d
+    cos = tf.repeat(tf.expand_dims(cos,axis=1),tf.shape(q)[2],axis=1)
+    cos = tf.repeat(tf.expand_dims(cos,axis=0),tf.shape(q)[0],axis=0) # b, l, d
     q, k = map(lambda t: (t * cos) + (rotate_every_two(t) * sin), (q, k))
     return q, k
 
