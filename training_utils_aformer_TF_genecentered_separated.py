@@ -110,8 +110,9 @@ def return_train_val_functions_hg(model,
     metric_dict["hg_corr_stats"] = metrics.correlation_stats_gene_centered(name='hg_corr_stats')
     
 
-    @tf.function(jit_compile=True)
+    
     def dist_train_step(iterator):
+        @tf.function(jit_compile=True)
         def train_step_hg(inputs):
             target=tf.cast(inputs['target'],dtype=tf.float32)
             #tf.print(target, output_stream=sys.stderr)
@@ -157,8 +158,9 @@ def return_train_val_functions_hg(model,
         for _ in tf.range(train_steps): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(train_step_hg, args=(next(iterator),))
 
-    @tf.function(jit_compile=True)
+    
     def dist_val_step(iterator):
+        @tf.function(jit_compile=True)
         def val_step_hg(inputs):
             target=tf.cast(inputs['target'],dtype=tf.float32)
             seq_inputs=tf.cast(inputs['inputs'],
