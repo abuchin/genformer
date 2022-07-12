@@ -9,6 +9,8 @@ sudo pip3 install seaborn
 sudo pip3 install einops
 sudo pip3 install tqdm
 sudo pip3 install wandb
+sudo pip3 install plotly
 
 
 export PYTHONPATH="${PYTHONPATH}:/usr/share/tpu/models"
+chmod a+x execute_sweep_tpupod.sh

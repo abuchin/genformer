@@ -196,7 +196,7 @@ def main():
             '''
             options = tf.data.Options()
             options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.OFF
-            options.deterministic=False
+            #options.deterministic=False
             options.experimental_threading.max_intra_op_parallelism = 1
 
             BATCH_SIZE_PER_REPLICA = args.batch_size
