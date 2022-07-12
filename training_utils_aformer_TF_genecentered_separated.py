@@ -78,8 +78,8 @@ def return_train_val_functions_hg(model,
                                    train_steps, 
                                    val_steps, 
                                    global_batch_size,
-                                   gradient_clip,
-                                   use_prior):
+                                   gradient_clip):
+                                   #use_prior):
     """Returns distributed train and validation functions for
     a given list of organisms
     Args:
