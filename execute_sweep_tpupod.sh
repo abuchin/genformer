@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 python3 train_model_aformer_TF_genecentered_separated.py \
-            --tpu_name="node-20" \
+            --tpu_name="local" \
             --tpu_zone="us-central1-a" \
             --wandb_project="aformer_TF_gene_centered_test" \
             --wandb_user="njaved" \

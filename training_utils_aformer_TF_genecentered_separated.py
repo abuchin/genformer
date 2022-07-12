@@ -132,6 +132,7 @@ def return_train_val_functions_hg(model,
                     output = tf.cast(output,dtype=tf.float32)
                 loss = tf.reduce_sum(regular_mse(output, target),
                                      axis=0) * (1. / global_batch_size)
+                """
                 print(loss)
                 
                 # Compute gradients of the output with respect to the input
@@ -144,6 +145,7 @@ def return_train_val_functions_hg(model,
                     print(fourier_loss)
                     loss = loss + fourier_loss
                     print(loss)
+                """
                 
             #print(model.trainable_variables)
             gradients = tape.gradient(loss, model.trainable_variables)
