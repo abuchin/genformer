@@ -25,7 +25,7 @@ class correlation_stats(tf.keras.metrics.Metric):
         self._y_trues = tf.Variable([], shape=(None,), validate_shape=False)
         self._y_preds = tf.Variable([], shape=(None,), validate_shape=False)
         self._cell_types = tf.Variable([], shape=(None,), validate_shape=False,dtype=tf.int32)
-        self._gene_map = tf.Variable([], shape=(None,), validate_shape=False,dtype=tf.float32)
+        self._gene_map = tf.Variable([], shape=(None,), validate_shape=False,dtype=tf.int32)
         #self._feature_maps = tf.Variable([], shape=(None,), validate_shape=False,dtype=tf.int32)
         #self._feature_map_sub = tf.Variable([], shape=(None,), validate_shape=False)
         #tf.TensorArray(tf.float32, size=0, dynamic_size=True) 
@@ -69,10 +69,10 @@ class correlation_stats(tf.keras.metrics.Metric):
         
 
     def result(self):
-        return {'pearsonR': pearsons(log10_1p(self._y_trues), 
-                                     log10_1p(self._y_preds)),
-                'R2': r2(log10_1p(self._y_trues), 
-                         log10_1p(self._y_preds)),
+        return {'pearsonR': pearsons(self._y_trues, 
+                                     self._y_preds),
+                'R2': r2(self._y_trues, 
+                         self._y_preds),
                 'tss_abs': self._tss_abs,
                 'tss_count': self._tss_count,
                 'y_trues': self._y_trues,
@@ -377,3 +377,62 @@ def log10_1p(x):
     numerator = tf.math.log(x + 1.0)
     denominator = tf.math.log(tf.constant(10, dtype=numerator.dtype))
     return numerator / denominator
+
+
+
+class correlation_stats_gene_centered(tf.keras.metrics.Metric):
+    def __init__(self, reduce_axis=None, name='correlation_stats_gene_centered'):
+        """contains code for computing 
+            R2, pearsons correlation, and MSE over TSS sites provided
+            in the tss input to the call function
+        """
+        super(correlation_stats_gene_centered, self).__init__(name=name)
+        self._init = None
+
+    def _initialize(self):
+        self._y_trues = tf.Variable([], shape=(None,), validate_shape=False)
+        self._y_preds = tf.Variable([], shape=(None,), validate_shape=False)
+        self._cell_types = tf.Variable([], shape=(None,), validate_shape=False,dtype=tf.int32)
+        self._gene_map = tf.Variable([], shape=(None,), validate_shape=False,dtype=tf.int32)
+
+        """
+        originally wanted to compute over each actual val step but having 
+        trouble w/ keeping track of values in tensorarray within tf keras metrics subclass
+        """
+
+    def update_state(self, y_true, y_pred, cell_type,gene_map):
+        if self._init is None:
+            # initialization check.
+            self._initialize()
+        self._init = 1.0
+
+        y_true.shape.assert_is_compatible_with(y_pred.shape)
+
+        ## ensure no batch dimension, this will preserve order of tensors
+        y_true = tf.reshape(y_true, [-1])
+        y_pred = tf.reshape(y_pred, [-1])
+        cell_type=tf.reshape(cell_type,[-1])
+        gene_map=tf.reshape(gene_map,[-1])
+
+        self._y_trues.assign(y_true)
+        self._y_preds.assign(y_pred)
+        
+        self._cell_types.assign(cell_type)
+        self._gene_map.assign(gene_map)
+        
+
+    def result(self):
+        return {'pearsonR': pearsons(self._y_trues, 
+                                     self._y_preds),
+                'R2': r2(self._y_trues,
+                         self._y_preds),
+                'y_trues': self._y_trues,
+                'y_preds': self._y_preds,
+                'cell_types': self._cell_types,
+                'gene_map': self._gene_map
+               }
+    #@tf.function
+    def reset_state(self):
+        tf.keras.backend.batch_set_value([(v, 0) for v in self.variables])
+            
+            

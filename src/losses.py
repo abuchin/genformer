@@ -10,7 +10,8 @@ import pandas as pd
 def regular_mse(y_pred,
                 y_true):
     mse = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
-    return mse(y_true, y_pred)
+    loss = mse(y_true, y_pred)
+    return loss
 
 @tf.function
 def poisson(y_pred,

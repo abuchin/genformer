@@ -11,6 +11,7 @@ from tensorflow.keras import layers as kl
 #import src.layers.fast_attention as fa
 import src.layers.fast_attention_rpe_genformer1 as fa_rpe
 import src.utils as utils
+from tensorflow.keras.layers.experimental import SyncBatchNormalization as syncbatchnorm
 
 @tf.keras.utils.register_keras_serializable()
 class Residual(kl.Layer):
@@ -96,7 +97,7 @@ class conv1Dblock(kl.Layer):
                               kernel_initializer=tf.keras.initializers.GlorotUniform(),
                               kernel_regularizer=tf.keras.regularizers.L2(self.kernel_regularizer))
         self.gelu = tfa.layers.GELU()
-        self.batch_norm = kl.BatchNormalization(axis=-1,
+        self.batch_norm = syncbatchnorm(axis=-1,
                                                 momentum=self.momentum,
                                                 center=True,
                                                 scale=True,
@@ -123,7 +124,7 @@ class conv1Dblock(kl.Layer):
         x = self.conv(inputs)
         x = self.gelu(x)
         x = self.batch_norm(x, training=training) 
-        # todo: try switch order conv/batch norm for conventional conv block style
+        
         return x
 
 @tf.keras.utils.register_keras_serializable()
@@ -158,7 +159,7 @@ class seperable_conv1Dblock(kl.Layer):
                               kernel_initializer=tf.keras.initializers.GlorotUniform(),
                               kernel_regularizer=tf.keras.regularizers.L2(self.kernel_regularizer))
         self.gelu = tfa.layers.GELU()
-        self.batch_norm = kl.BatchNormalization(axis=-1,
+        self.batch_norm = syncbatchnorm(axis=-1,
                                                 momentum=self.momentum,
                                                 center=True,
                                                 scale=True,
@@ -614,7 +615,7 @@ class Performer_Encoder(kl.Layer):
                 att_matrices['layer_' + str(idx)] = (k_prime,q_prime)
                 
             if self.use_mask_pos is True:
-                x,k_prime,q_prime = layer(x, rpe=rpe, training=training)
+                x,k_prime,q_prime = layer(x, rpe=self.rpe, training=training)
                 att_matrices['layer_' + str(idx)] = (k_prime,q_prime)
             
         if self.norm:
@@ -789,6 +790,7 @@ class FixedPositionalEmbedding(tf.keras.layers.Layer):
                               tf.math.cos(self.sinusoid_inp)), axis=-1)
 
     def call(self, x):
-        return tf.cast(self.emb[None, :x.shape[1], :],dtype=tf.bfloat16)
+        return tf.cast(self.emb[None, :x.shape[1], :],
+                       dtype=tf.bfloat16)
     
 
