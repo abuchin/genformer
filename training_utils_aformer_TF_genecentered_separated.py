@@ -71,15 +71,18 @@ consolidate into single simpler function
 """
 
 
-def return_train_val_functions_hg(model,
-                                   optimizer,
-                                   strategy,
-                                   metric_dict,
-                                   train_steps, 
-                                   val_steps, 
-                                   global_batch_size,
-                                   gradient_clip):
-                                   #use_prior):
+def return_train_val_functions(model,
+                               organisms,
+                               optimizer,
+                               strategy,
+                               metric_dict,
+                               train_steps, 
+                               val_steps_h,
+                               val_steps_m,
+                               global_batch_size,
+                               gradient_clip,
+                               use_prior,
+                               fourier_loss_scale=None):
     """Returns distributed train and validation functions for
     a given list of organisms
     Args:
@@ -101,65 +104,102 @@ def return_train_val_functions_hg(model,
     train_steps is the # steps in a single epoch
     val_steps is the # steps to fully iterate over validation set
     """
-    #print('parsing_metric_dict')
-    ## define the dictionary of metrics
-    metric_dict["hg_tr"] = tf.keras.metrics.Mean("hg_tr_loss",
-                                                 dtype=tf.float32)
-    metric_dict["hg_val"] = tf.keras.metrics.Mean("hg_val_loss",
-                                                  dtype=tf.float32)
-    metric_dict["hg_corr_stats"] = metrics.correlation_stats_gene_centered(name='hg_corr_stats')
-    
 
+    if 'hg' in organisms:
+        metric_dict["hg_tr"] = tf.keras.metrics.Mean("hg_tr_loss",
+                                                     dtype=tf.float32)
+        metric_dict["hg_val"] = tf.keras.metrics.Mean("hg_val_loss",
+                                                      dtype=tf.float32)
+        metric_dict["hg_corr_stats"] = metrics.correlation_stats_gene_centered(name='hg_corr_stats')
+    if 'mm' in organisms:
+        metric_dict["mm_tr"] = tf.keras.metrics.Mean("mm_tr_loss",
+                                                     dtype=tf.float32)
+        metric_dict["mm_val"] = tf.keras.metrics.Mean("mm_val_loss",
+                                                      dtype=tf.float32)
+        metric_dict["mm_corr_stats"] = metrics.correlation_stats_gene_centered(name='mm_corr_stats')
     
-    def dist_train_step(iterator):
+    def dist_train_step(iterator_hg,iterator_mm):
         @tf.function(jit_compile=True)
         def train_step_hg(inputs):
             target=tf.cast(inputs['target'],dtype=tf.float32)
-            #tf.print(target, output_stream=sys.stderr)
             seq_inputs=tf.cast(inputs['inputs'],
                                  dtype=tf.bfloat16)
             atac_inputs =tf.cast(inputs['atac'],
                                  dtype=tf.bfloat16)
             tf_input = tf.cast(inputs['TF_acc'],
                                dtype=tf.bfloat16)
+
             input_tuple = seq_inputs,atac_inputs,tf_input
-            
+
             with tf.GradientTape() as tape:
                 with tf.GradientTape() as input_grad_tape:
-                    input_grad_tape.watch(input_tuple)
-                    #input_grad_tape.watch(atac_inputs)
-                    #input_grad_tape.watch(tf_input)
-                    output = model(input_tuple,training=True)[0]["hg"]
-                    output = tf.cast(output,dtype=tf.float32)
-                loss = tf.reduce_sum(regular_mse(output, target),
-                                     axis=0) * (1. / global_batch_size)
-                """
-                print(loss)
-                
-                # Compute gradients of the output with respect to the input
-                if use_prior:
-                    input_grads = input_grad_tape.gradient(output,input_tuple)
-                    input_grads = input_grads[0] * seq_inputs # Gradient * input
-                    #input_grads = tf.cast(input_grads,dtype=tf.float32)
-                    fourier_loss = fourier_att_prior_loss(output, input_grads)
+                    input_grad_tape.watch(seq_inputs)
+                    input_grad_tape.watch(atac_inputs)
+                    input_grad_tape.watch(tf_input)
+                    output = model(input_tuple,human=True,
+                                   training=True)[0]["hg"]
 
-                    print(fourier_loss)
-                    loss = loss + fourier_loss
-                    print(loss)
-                """
-                
+                    loss = tf.reduce_sum(regular_mse(output, target),
+                                         axis=0) * (1. / global_batch_size)
+
             #print(model.trainable_variables)
             gradients = tape.gradient(loss, model.trainable_variables)
-            gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamW
+            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamW
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
+            input_grads = input_grad_tape.gradient(output,input_tuple)
+            if use_prior and fourier_loss_scale is not None:
+                input_grads_0 = input_grads[0] * seq_inputs
+                fourier_loss_0 = fourier_att_prior_loss(output, input_grads_0)
+
+                loss = loss + fourier_loss_scale * fourier_loss_0
+
             metric_dict["hg_tr"].update_state(loss)
+            
+        @tf.function(jit_compile=True)
+        def train_step_mm(inputs):
+            target=tf.cast(inputs['target'],dtype=tf.float32)
+            seq_inputs=tf.cast(inputs['inputs'],
+                                 dtype=tf.bfloat16)
+            atac_inputs =tf.cast(inputs['atac'],
+                                 dtype=tf.bfloat16)
+            tf_input = tf.cast(inputs['TF_acc'],
+                               dtype=tf.bfloat16)
+
+            input_tuple = seq_inputs,atac_inputs,tf_input
+
+            with tf.GradientTape() as tape:
+                with tf.GradientTape() as input_grad_tape:
+                    input_grad_tape.watch(seq_inputs)
+                    input_grad_tape.watch(atac_inputs)
+                    input_grad_tape.watch(tf_input)
+                    output = model(input_tuple,human=False,
+                                   training=True)[0]["mm"]
+
+                    loss = tf.reduce_sum(regular_mse(output, target),
+                                         axis=0) * (1. / global_batch_size)
+
+            #print(model.trainable_variables)
+            gradients = tape.gradient(loss, model.trainable_variables)
+            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamW
+            optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+
+            input_grads = input_grad_tape.gradient(output,input_tuple)
+            if use_prior:
+                input_grads_0 = input_grads[0] * seq_inputs
+                fourier_loss_0 = fourier_att_prior_loss(output,input_grads_0)
+
+                loss = loss + fourier_loss_0
+
+            metric_dict["mm_tr"].update_state(loss)
 
         for _ in tf.range(train_steps): ## for loop within @tf.fuction for improved TPU performance
-            strategy.run(train_step_hg, args=(next(iterator),))
+            strategy.run(train_step_hg, args=(next(iterator_hg),))
+            strategy.run(train_step_mm, args=(next(iterator_mm),))
 
     
-    def dist_val_step(iterator):
+    def dist_val_step(iterator_hg,iterator_mm):
+        
         @tf.function(jit_compile=True)
         def val_step_hg(inputs):
             target=tf.cast(inputs['target'],dtype=tf.float32)
@@ -174,7 +214,8 @@ def return_train_val_functions_hg(model,
             cell_type = inputs['cell_type']
             gene_map = inputs['gene_encoded']
 
-            output = tf.cast(model(input_tuple,training=False)[0]["hg"],
+            output = tf.cast(model(input_tuple,human=True,
+                                   training=False)[0]["hg"],
                               dtype=tf.float32)
 
             loss = tf.reduce_sum(regular_mse(output, target),
@@ -183,34 +224,90 @@ def return_train_val_functions_hg(model,
             metric_dict["hg_val"].update_state(loss)
 
             return target, output, cell_type, gene_map
-    
-        ta_pred = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
-        ta_true = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
-        ta_celltype = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
-        ta_genemap = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
         
-        for _ in tf.range(val_steps): ## for loop within @tf.fuction for improved TPU performance
+        @tf.function(jit_compile=True)
+        def val_step_mm(inputs):
+            target=tf.cast(inputs['target'],dtype=tf.float32)
+            seq_inputs=tf.cast(inputs['inputs'],
+                                 dtype=tf.float32)
+            atac_inputs =tf.cast(inputs['atac'],
+                                 dtype=tf.float32)
+            tf_input = tf.cast(inputs['TF_acc'],
+                               dtype=tf.float32)
+            input_tuple = seq_inputs,atac_inputs,tf_input
+            
+            cell_type = inputs['cell_type']
+            gene_map = inputs['gene_encoded']
+
+            output = tf.cast(model(input_tuple,human=False,
+                                   training=False)[0]["mm"],
+                              dtype=tf.float32)
+
+            loss = tf.reduce_sum(regular_mse(output, target),
+                                 axis=0) * (1. / global_batch_size)
+
+            metric_dict["mm_val"].update_state(loss)
+
+            return target, output, cell_type, gene_map
+    
+        ta_pred_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_true_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
+        ta_celltype_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_genemap_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
+        
+
+        
+        for _ in tf.range(val_steps_h): ## for loop within @tf.fuction for improved TPU performance
             target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step_hg,
-                                                                               args=(next(iterator),))
+                                                                               args=(next(iterator_hg),))
             
             target_reshape = tf.reshape(strategy.gather(target_rep, axis=0), [-1]) # reshape to 1D
             output_reshape = tf.reshape(strategy.gather(output_rep, axis=0), [-1])
             cell_type_reshape = tf.reshape(strategy.gather(cell_type_rep, axis=0), [-1])
             gene_map_reshape = tf.reshape(strategy.gather(gene_map_rep, axis=0), [-1])
 
-            ta_pred = ta_pred.write(_, output_reshape)
-            ta_true = ta_true.write(_, target_reshape)
-            ta_celltype = ta_celltype.write(_, cell_type_reshape)
-            ta_genemap = ta_genemap.write(_, gene_map_reshape)
+            ta_pred_h = ta_pred_h.write(_, output_reshape)
+            ta_true_h = ta_true_h.write(_, target_reshape)
+            ta_celltype_h = ta_celltype_h.write(_, cell_type_reshape)
+            ta_genemap_h = ta_genemap_h.write(_, gene_map_reshape)
+            
+        metric_dict["hg_corr_stats"].update_state(ta_true_h.concat(),
+                                                  ta_pred_h.concat(),
+                                                  ta_celltype_h.concat(),
+                                                  ta_genemap_h.concat())
+        ta_pred_h.close()
+        ta_true_h.close()
+        ta_celltype_h.close()
+        ta_genemap_h.close()
+            
+        ta_pred_m = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_true_m = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
+        ta_celltype_m = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_genemap_m = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
+            
+        for _ in tf.range(val_steps_m): ## for loop within @tf.fuction for improved TPU performance
+            target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step_mm,
+                                                                               args=(next(iterator_mm),))
+            
+            target_reshape = tf.reshape(strategy.gather(target_rep, axis=0), [-1]) # reshape to 1D
+            output_reshape = tf.reshape(strategy.gather(output_rep, axis=0), [-1])
+            cell_type_reshape = tf.reshape(strategy.gather(cell_type_rep, axis=0), [-1])
+            gene_map_reshape = tf.reshape(strategy.gather(gene_map_rep, axis=0), [-1])
 
-        metric_dict["hg_corr_stats"].update_state(ta_true.concat(),
-                                                  ta_pred.concat(),
-                                                  ta_celltype.concat(),
-                                                  ta_genemap.concat())
-        ta_pred.close()
-        ta_true.close()
-        ta_celltype.close()
-        ta_genemap.close()
+            ta_pred_m = ta_pred_m.write(_, output_reshape)
+            ta_true_m = ta_true_m.write(_, target_reshape)
+            ta_celltype_m = ta_celltype_m.write(_, cell_type_reshape)
+            ta_genemap_m = ta_genemap_m.write(_, gene_map_reshape)
+        
+        
+        metric_dict["mm_corr_stats"].update_state(ta_true_m.concat(),
+                                                  ta_pred_m.concat(),
+                                                  ta_celltype_m.concat(),
+                                                  ta_genemap_m.concat())
+        ta_pred_m.close()
+        ta_true_m.close()
+        ta_celltype_m.close()
+        ta_genemap_m.close()
 
     return dist_train_step, dist_val_step, metric_dict
 
@@ -222,7 +319,7 @@ def deserialize(serialized_example, input_length,
     """
     feature_map = {
         'atac': tf.io.FixedLenFeature([], tf.string),
-        'exons': tf.io.FixedLenFeature([],tf.string),
+        'tss_tokens': tf.io.FixedLenFeature([], tf.string),
         'sequence': tf.io.FixedLenFeature([],tf.string),
         'TPM': tf.io.FixedLenFeature([],tf.string),
         'TPM_uqn': tf.io.FixedLenFeature([],tf.string),
@@ -241,17 +338,18 @@ def deserialize(serialized_example, input_length,
     ### rev_comp
     rev_comp = random.randrange(0,2)
     
-    exons = tf.ensure_shape(tf.io.parse_tensor(data['exons'],
+    tss_tokens = tf.ensure_shape(tf.io.parse_tensor(data['tss_tokens'],
                                               out_type=tf.int32),
                             [input_seq_length,])
-    exons = tf.cast(tf.slice(exons, [shift],[input_length]),dtype=tf.float32)
+    
+    tss_tokens = tf.cast(tf.slice(tss_tokens, [shift],[input_length]),dtype=tf.float32)
     
     atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
                                               out_type=tf.float32),
                            [input_seq_length,])
     atac = tf.slice(atac, [shift],[input_length])
     atac = tf.nn.dropout(atac, rate=0.05)*(0.95)
-    atac = atac + tf.math.abs(tf.random.normal(exons.shape, 
+    atac = atac + tf.math.abs(tf.random.normal(tss_tokens.shape, 
                                    mean=0.0, 
                                    stddev=5.0e-01, dtype=tf.float32))
     atac=tf.expand_dims(atac,1)
@@ -260,7 +358,7 @@ def deserialize(serialized_example, input_length,
     
     if rev_comp == 1:
         atac = tf.reverse(atac,[0])
-        exons = tf.reverse(exons,[0])
+        tss_tokens = tf.reverse(tss_tokens,[0])
         sequence = rev_comp_one_hot(tf.strings.substr(data['sequence'],
                                                       shift,input_length))
     
@@ -270,8 +368,7 @@ def deserialize(serialized_example, input_length,
                              [num_TFs,])
     TF_acc = tf.nn.dropout(TF_acc, rate=0.01)*(0.99)
     
-    #inputs = tf.concat([tf.expand_dims(atac, 1), sequence], axis=1)
-    inputs = tf.concat([tf.expand_dims(exons,1), sequence], axis=1)
+    inputs = tf.concat([tf.expand_dims(tss_tokens,1), sequence], axis=1)
 
     TPM = tf.io.parse_tensor(data['TPM'],out_type=tf.float32)
     TPM_uqn = tf.io.parse_tensor(data['TPM_uqn'],out_type=tf.float32)
@@ -318,7 +415,7 @@ def deserialize_val(serialized_example, input_length,
     data = tf.io.parse_example(serialized_example, feature_map)
 
     ### stochastic sequence shift and gaussian noise
-    shift = 500#random.randrange(0,max_shift,1)
+    shift = max_shift
     input_seq_length = input_length + max_shift
     interval_end = input_length + shift
     
@@ -326,6 +423,12 @@ def deserialize_val(serialized_example, input_length,
                                               out_type=tf.int32),
                             [input_seq_length,])
     exons = tf.cast(tf.slice(exons, [shift],[input_length]),dtype=tf.float32)
+    
+    tss_tokens = tf.ensure_shape(tf.io.parse_tensor(data['tss_tokens'],
+                                              out_type=tf.int32),
+                            [input_seq_length,])
+
+    tss_tokens = tf.cast(tf.slice(tss_tokens, [shift],[input_length]),dtype=tf.float32)
     
     atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
                                               out_type=tf.float32),
@@ -340,8 +443,7 @@ def deserialize_val(serialized_example, input_length,
                                               out_type=tf.float32),
                              [num_TFs,])
     
-    inputs = tf.concat([tf.expand_dims(exons,1), sequence], axis=1)
-    #inputs = tf.concat([tf.expand_dims(exons,1), inputs], axis=1)
+    inputs = tf.concat([tf.expand_dims(tss_tokens,1), sequence], axis=1)
     
     TPM = tf.io.parse_tensor(data['TPM'],out_type=tf.float32)
     TPM_uqn = tf.io.parse_tensor(data['TPM_uqn'],out_type=tf.float32)
@@ -361,11 +463,7 @@ def deserialize_val(serialized_example, input_length,
         target = log2(1.0 + tf.math.maximum(0.0,TPM_uqn))
     else:
         raise ValueError('input an appropriate input type')
-    
-    tss_tokens = tf.ensure_shape(tf.io.parse_tensor(data['tss_tokens'],
-                                              out_type=tf.int32),
-                            [input_seq_length,])
-    tss_tokens = tf.slice(tss_tokens, [shift],[input_length])
+
         
     return {
         'inputs': tf.ensure_shape(inputs,[input_length,5]),
@@ -482,6 +580,10 @@ def return_distributed_iterators(heads_dict,
         data_it_val_list = []
 
         for org,index in heads_dict.items():
+            if org == 'hg':
+                num_tf = 1637
+            else:
+                num_tf = 1366
             tr_data = return_dataset(gcs_path,
                                      "train",org, 
                                      global_batch_size,
@@ -491,7 +593,7 @@ def return_distributed_iterators(heads_dict,
                                      options,
                                      num_parallel_calls,
                                      num_epoch,
-                                     num_TFs)
+                                     num_tf)
             
             val_data = return_dataset_val(gcs_path,
                                          "val",org, 
@@ -502,7 +604,7 @@ def return_distributed_iterators(heads_dict,
                                          options,
                                          num_parallel_calls,
                                          num_epoch,
-                                         num_TFs)
+                                         num_tf)
             
 
 
@@ -727,7 +829,7 @@ def parse_args(parser):
                                 'should be equal to last conv layer filters')
     parser.add_argument('--conv_filter_size_1',
                         dest='conv_filter_size_1',
-                        help= 'conv_filter_size_1')
+                        help= 'conv _filter_size_1')
     parser.add_argument('--conv_filter_size_2',
                         dest='conv_filter_size_2',
                         help= 'conv_filter_size_2')
@@ -1201,8 +1303,10 @@ def sum_log(x):
     return np.log10(1.0 + np.nansum(x))
 
 
+
+
 def fourier_att_prior_loss(
-    output, input_grads, freq_limit=150, limit_softness=0.2,
+    output, input_grads, freq_limit=500, limit_softness=0.2,
     att_prior_grad_smooth_sigma=3
 ):
     """
@@ -1267,7 +1371,6 @@ def fourier_att_prior_loss(
     # Add up along frequency axis to get score
     pos_score = tf.reduce_sum(pos_weighted_mags, axis=1)
     pos_loss = 1 - pos_score
-    print(pos_loss)
     return tf.reduce_mean(pos_loss)
     
     
@@ -1305,5 +1408,5 @@ def smooth_tensor_1d(input_tensor, smooth_sigma):
     smoothed = tf.nn.conv1d(
         input_tensor, kernel, stride=1, padding="SAME", data_format="NWC"
     )
-    print(smoothed)
+
     return tf.squeeze(smoothed, axis=2)

@@ -86,11 +86,17 @@ def main():
                 'conv_channel_list':{
                     'values': [[int(x) for x in args.conv_channel_list.split(',')]]
                 },
-                'conv_filter_size_1':{
-                    'values': [int(x) for x in args.conv_filter_size_1.split(',')]
+                'conv_filter_size_1_seq':{
+                    'values': [int(x) for x in args.conv_filter_size_1_seq.split(',')]
                 },
-                'conv_filter_size_2':{
-                    'values': [int(x) for x in args.conv_filter_size_2.split(',')]
+                'conv_filter_size_2_seq':{
+                    'values': [int(x) for x in args.conv_filter_size_2_seq.split(',')]
+                },
+                'conv_filter_size_1_atac':{
+                    'values': [int(x) for x in args.conv_filter_size_1_atac.split(',')]
+                },
+                'conv_filter_size_2_atac':{
+                    'values': [int(x) for x in args.conv_filter_size_2_atac.split(',')]
                 },
                 'num_transformer_layers':{
                     'values': [int(x) for x in args.num_transformer_layers.split(',')]

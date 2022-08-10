@@ -11,6 +11,7 @@ from tensorflow.keras import layers as kl
 #import src.layers.fast_attention as fa
 import src.layers.fast_attention_rpe_genformer1 as fa_rpe
 import src.utils as utils
+from tensorflow.keras import regularizers
 from tensorflow.keras.layers.experimental import SyncBatchNormalization as syncbatchnorm
 
 @tf.keras.utils.register_keras_serializable()
@@ -794,3 +795,265 @@ class FixedPositionalEmbedding(tf.keras.layers.Layer):
                        dtype=tf.bfloat16)
     
 
+############################ conv stack block #####################################
+@tf.keras.utils.register_keras_serializable()
+class convstackblock(kl.Layer):
+    def __init__(self,
+                 initial_channels: int,
+                 channels_list: list , 
+                 conv_filter_size_1: int,
+                 conv_filter_size_2: float,
+                 momentum: float,
+                 input_length:int,
+                 stride: int = 1,
+                 kernel_regularizer: float = 0.01,
+                 pooling_type='str',
+                 name: str = 'convstackblock',
+                 **kwargs):
+        """Enformer style conv stack block
+        Args:
+            num_channels
+            conv_filter_size
+            momentum: batch norm momentum
+            stride: default 1 for no dim reduction
+            name: Module name.
+        """
+        super().__init__(name=name, **kwargs)
+        self.initial_channels=initial_channels
+        self.channels_list=channels_list
+        self.conv_filter_size_1=conv_filter_size_1
+        self.conv_filter_size_2=conv_filter_size_2
+        self.stride=stride
+        self.input_length=input_length
+        self.momentum=momentum
+        self.kernel_regularizer=kernel_regularizer
+        self.pooling_type=pooling_type
+        
+        
+        self.stem_initial_conv = kl.Conv1D(filters=self.initial_channels,
+                                           kernel_size=self.conv_filter_size_1,
+                                           strides=self.stride,
+                                           padding='same',
+                                           input_shape=(self.input_length, 5),
+                                           kernel_initializer=tf.keras.initializers.GlorotNormal(),
+                                           kernel_regularizer=regularizers.L2(self.kernel_regularizer)
+                                           )
+        self.stem_gelu = tfa.layers.GELU()
+        
+        self.stem_residual_conv_seq = Residual(conv1Dblock(num_channels=self.initial_channels,
+                                              conv_filter_size=1,stride=1,momentum=self.momentum,
+                                                           kernel_regularizer=self.kernel_regularizer,
+                                              **kwargs,
+                                              name = "stem_conv_block"), name = 'stem_res_conv')
+        
+        self.maxpool = kl.MaxPool1D(pool_size=2,strides=2,padding='valid')
+        
+        
+        self.conv_stack = tf.keras.Sequential()
+        for k, channels in enumerate(self.channels_list):
+            self.conv_stack.add(conv1Dblock(num_channels=channels,
+                                                conv_filter_size=self.conv_filter_size_2,
+                                                stride=1, 
+                                                momentum=self.momentum,
+                                                kernel_regularizer=self.kernel_regularizer, 
+                                                **kwargs, 
+                                            name = f'conv_stack_seq_b_{k}'))
+            self.conv_stack.add(Residual(conv1Dblock(num_channels=channels,
+                                                         conv_filter_size=1, 
+                                                         momentum=self.momentum, 
+                                                         kernel_regularizer=self.kernel_regularizer,
+                                                         **kwargs, 
+                                                     name = f'conv_stack_seq_resb_{k}'),
+                                         name = f'res_{k}'))
+            self.conv_stack.add(kl.MaxPool1D(pool_size=2,strides=2,padding='valid')) # todo: trial attention pooling
+        
+
+    def get_config(self):
+        config = {
+            "initial_channels":self.initial_channels,
+            "channels_list":self.channels_list,
+            "conv_filter_size_1":self.conv_filter_size_1,
+            "conv_filter_size_2":self.conv_filter_size_2,
+            "stride":self.stride,
+            "momentum":self.momentum,
+            "kernel_regularizer":self.kernel_regularizer,
+            "pooling_type":self.pooling_type
+            
+        }
+        base_config = super().get_config()
+        return {**base_config, **config}
+    
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+    
+    def call(self, inputs, training=None):
+        seq_or_atac,tf_inputs = inputs
+
+        x = self.stem_initial_conv(seq_or_atac,training=training)
+        x = self.stem_gelu(x)
+        x = self.stem_residual_conv_seq(x,training=training)
+        x = self.maxpool(x, training=training)
+        
+        x = tf.concat([x,tf_inputs],axis=2)
+        
+        x = self.conv_stack(x,training=training)
+        
+        return x
+    
+    
+############################ output head module #####################################
+@tf.keras.utils.register_keras_serializable()
+class headmodule_block(kl.Layer):
+    def __init__(self,
+                 num_channels_in: int,
+                 momentum: float,
+                 kernel_regularizer: float = 0.01,
+                 bottleneck_units: int = 64,
+                 name: str = 'headmodule_block',
+                 **kwargs):
+        """Enformer style conv stack block
+        Args:
+            num_channels
+            conv_filter_size
+            momentum: batch norm momentum
+            stride: default 1 for no dim reduction
+            name: Module name.
+        """
+        super().__init__(name=name, **kwargs)
+        self.num_channels_in=num_channels_in
+        self.momentum=momentum
+        self.kernel_regularizer=kernel_regularizer
+        self.bottleneck_units=bottleneck_units
+        
+        self.final_conv = conv1Dblock(num_channels=num_channels_in,
+                                        conv_filter_size=1, 
+                                        stride=1, 
+                                        kernel_regularizer=self.kernel_regularizer,
+                                        momentum=self.momentum,
+                                      name = 'final_conv', **kwargs)
+        self.gelu = tfa.layers.GELU()
+        self.syncbatch_norm = syncbatchnorm(axis=-1,
+                                            momentum=self.momentum,
+                                            center=True,
+                                            scale=True,
+                                            beta_initializer="zeros",
+                                            gamma_initializer="ones",
+                                            **kwargs)
+        
+        self.flatten_layer = tf.keras.layers.Flatten()
+        
+        self.bottleneck_units = kl.Dense(bottleneck_units,
+                                 kernel_initializer=tf.keras.initializers.GlorotNormal(),
+                                 kernel_regularizer=regularizers.L2(self.kernel_regularizer),
+                                 use_bias=True)
+
+        self.final_unit = kl.Dense(1,
+                                     kernel_initializer=tf.keras.initializers.GlorotNormal(),
+                                     kernel_regularizer=regularizers.L2(self.kernel_regularizer),
+                                     use_bias=True)
+        self.final_softplus = tf.keras.layers.Activation('softplus',
+                                                        dtype=tf.float32)
+
+    def get_config(self):
+        config = {
+            "num_channels_in":self.num_channels_in,
+            "momentum":self.momentum,
+            "kernel_regularizer":self.kernel_regularizer,
+            "bottleneck_units":self.bottleneck_units
+            
+        }
+        base_config = super().get_config()
+        return {**base_config, **config}
+    
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+    
+    def call(self, inputs, training=None):
+        x = self.final_conv(inputs,training=training)
+        x = self.gelu(x)
+        x = self.syncbatch_norm(x,training=training)
+        x = self.flatten_layer(x, training=training)
+        x = self.bottleneck_units(x,training=training)
+        x = self.final_unit(x,training=training)
+        x = self.final_softplus(x,training=training)
+        
+        return x
+    
+    
+    
+    
+############################ tf_module module #####################################
+@tf.keras.utils.register_keras_serializable()
+class tf_module(kl.Layer):
+    def __init__(self,
+                 TF_inputs: int,
+                 momentum: float,
+                 kernel_regularizer: float = 0.01,
+                 bottleneck_units: int = 64,
+                 name: str = 'headmodule_block',
+                 **kwargs):
+        """Enformer style conv stack block
+        Args:
+            num_channels
+            conv_filter_size
+            momentum: batch norm momentum
+            stride: default 1 for no dim reduction
+            name: Module name.
+        """
+        super().__init__(name=name, **kwargs)
+        self.TF_inputs=TF_inputs
+        self.momentum=momentum
+        self.kernel_regularizer=kernel_regularizer
+        self.bottleneck_units=bottleneck_units
+        
+        self.dense = kl.Dense(self.TF_inputs,
+                                 kernel_initializer=tf.keras.initializers.GlorotNormal(),
+                                 kernel_regularizer=regularizers.L2(self.kernel_regularizer),
+                                 use_bias=True)
+        
+        self.gelu = tfa.layers.GELU()
+        self.syncbatch_norm_1 = syncbatchnorm(axis=-1,
+                                            momentum=self.momentum,
+                                            center=True,
+                                            scale=True,
+                                            beta_initializer="zeros",
+                                            gamma_initializer="ones",
+                                            **kwargs)
+        self.syncbatch_norm_2 = syncbatchnorm(axis=-1,
+                                            momentum=self.momentum,
+                                            center=True,
+                                            scale=True,
+                                            beta_initializer="zeros",
+                                            gamma_initializer="ones",
+                                            **kwargs)
+
+        self.bottleneck = kl.Dense(bottleneck_units,
+                                 kernel_initializer=tf.keras.initializers.GlorotNormal(),
+                                 kernel_regularizer=regularizers.L2(self.kernel_regularizer),
+                                 use_bias=True)
+
+    def get_config(self):
+        config = {
+            "TF_inputs":self.TF_inputs,
+            "momentum":self.momentum,
+            "kernel_regularizer":self.kernel_regularizer,
+            "bottleneck_units":self.bottleneck_units
+            
+        }
+        base_config = super().get_config()
+        return {**base_config, **config}
+    
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+    
+    def call(self, inputs, training=None):
+        x = self.dense(inputs,training=training)
+        x = self.gelu(x)
+        x = self.syncbatch_norm_1(x,training=training)
+        x = self.bottleneck(inputs,training=training)
+        x = self.gelu(x)
+        x = self.syncbatch_norm_2(x,training=training)
+        return x

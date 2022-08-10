@@ -557,8 +557,7 @@ class Attention(tf.keras.layers.Layer):
         
         attention_output = self.output_dense_layer(attention_output)
         #print("attn2", attention_output.shape)
-        return tf.cast(attention_output,dtype=tf.bfloat16), tf.cast(k_prime,dtype=tf.bfloat16), tf.cast(q_prime,
-                                                                                                        dtype=tf.bfloat16)
+        return attention_output, k_prime, q_prime
 
 
 @tf.keras.utils.register_keras_serializable()
