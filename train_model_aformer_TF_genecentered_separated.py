@@ -15,7 +15,9 @@ import time
 from datetime import datetime
 import random
 
-
+import logging
+from silence_tensorflow import silence_tensorflow
+silence_tensorflow()
 import tensorflow as tf
 import tensorflow.experimental.numpy as tnp
 import tensorflow_addons as tfa
