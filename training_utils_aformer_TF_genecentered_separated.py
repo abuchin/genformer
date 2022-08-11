@@ -33,7 +33,7 @@ import pandas as pd
 import src.utils
 import seaborn as sns
 
-from scipy.stats.stats import pearsonr, pearsonr
+from scipy.stats.stats import pearsonr, spearmanr
 from scipy.stats import linregress
 from scipy import stats
 import keras.backend as kb
@@ -893,6 +893,7 @@ def parse_args(parser):
     parser.add_argument('--num_epochs', dest = 'num_epochs',
                         type=int, help='num_epochs')
     parser.add_argument('--warmup_frac', dest = 'warmup_frac',
+                        default=0.0,
                         type=float, help='warmup_frac')
     parser.add_argument('--train_steps', dest = 'train_steps',
                         type=int, help='train_steps')
@@ -1054,6 +1055,11 @@ def parse_args(parser):
                         type=str,
                         default="0.5",
                         help= 'fft_prior_scale')
+    parser.add_argument('--total_steps',
+                        dest='total_steps',
+                        type=int,
+                        default=0,
+                        help= 'total_steps')
 
 
 
@@ -1375,7 +1381,7 @@ def make_plots(y_trues,y_preds, cell_types,gene_map, file_name_prefix):
     
     dataset.to_csv(file_name, sep='\t',index=False)
     
-    return overall_gene_level_corr,low_gene_level_corr,low_gene_level_corr_sp, high_gene_level_corr,high_gene_level_corr_sp, cell_spec_median,cell_spec_median_sp,gene_spec_median_corr, gene_spec_median_corr_sp, fig_gene_level,fig_gene_level_l,fig_gene_level_h, fig_cell_spec,fig_gene_spec
+    return overall_gene_level_corr,overall_gene_level_corr_sp, low_gene_level_corr,low_gene_level_corr_sp, high_gene_level_corr,high_gene_level_corr_sp, cell_spec_median,cell_spec_median_sp,gene_spec_median_corr, gene_spec_median_corr_sp, fig_gene_level,fig_gene_level_l,fig_gene_level_h, fig_cell_spec,fig_gene_spec
 
 
 

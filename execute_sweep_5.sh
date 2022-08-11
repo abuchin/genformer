@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python train_model_aformer_TF_genecentered_separated.py \
-            --tpu_name="node-20" \
-            --tpu_zone="us-east1-d" \
+            --tpu_name="node-15" \
+            --tpu_zone="us-central1-a" \
             --wandb_project="aformer_TF_gene_centered_test" \
             --wandb_user="njaved" \
             --wandb_sweep_name="aformer_TF_gene_centered_test" \
@@ -15,7 +15,8 @@ python train_model_aformer_TF_genecentered_separated.py \
             --batch_size=48 \
             --num_epochs=20 \
             --train_steps=50 \
-            --warmup_frac=0.025 \
+            --warmup_frac=0.10 \
+            --total_steps=1000 \
             --val_steps_h=47 \
             --val_steps_m=7 \
             --patience=10 \
@@ -23,12 +24,12 @@ python train_model_aformer_TF_genecentered_separated.py \
             --model_save_dir="gs://picard-testing-176520/65k_genecentered_blacklist0.50_atacnormalized/models" \
             --model_save_basename="aformer_TF_gene_centered" \
             --lr_schedule="cosine_decay_w_warmup" \
-            --lr_base="0.0005" \
-            --min_lr="0.000001" \
-            --optimizer="adafactor" \
+            --lr_base="5.0e-04" \
+            --min_lr="5.0e-08" \
+            --optimizer="adabelief" \
             --gradient_clip="0.2" \
             --precision="mixed_bfloat16" \
-            --weight_decay_frac="5.0e-04" \
+            --weight_decay_frac="1.0e-04" \
             --epsilon=1.0e-10 \
             --rectify=True \
             --conv_channel_list="96,96,112,112,128,128" \

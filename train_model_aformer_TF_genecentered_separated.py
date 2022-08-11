@@ -193,6 +193,7 @@ def main():
             wandb.config.val_steps_m=args.val_steps_m
             wandb.config.batch_size=args.batch_size
             wandb.config.warmup_frac=args.warmup_frac
+            wandb.config.total_steps=args.total_steps
             wandb.config.patience=args.patience
             wandb.config.min_delta=args.min_delta
             wandb.config.model_save_dir=args.model_save_dir
@@ -282,12 +283,28 @@ def main():
                                         heads_dict=heads_dict,
                                         use_rot_emb = rot_emb_bool,
                                         use_mask_pos = mask_bool)
+            
     
+            if wandb.config.optimizer == "adabelief":
+                optimizer = tfa.optimizers.AdaBelief(learning_rate=wandb.config.lr_base,
+                                                     weight_decay=wandb.config.weight_decay_frac,
+                                                     warmup_proportion=wandb.config.warmup_frac,
+                                                     epsilon=wandb.config.epsilon,
+                                                     rectify=wandb.config.rectify,
+                                                     min_lr=wandb.config.min_lr,
+                                                     total_steps=wandb.config.total_steps)
+                    
+                optimizer=tfa.optimizers.Lookahead(optimizer,
+                                                   sync_period=wandb.config.sync_period,
+                                                   slow_step_size=wandb.config.slow_step_frac)
+            elif wandb.config.optimizer == 'adafactor':
+                optimizer = optimizers.AdafactorOptimizer()
+                optimizer=tfa.optimizers.Lookahead(optimizer,
+                                                   sync_period=wandb.config.sync_period,
+                                                   slow_step_size=wandb.config.slow_step_frac)
+            else:
+                raise ValueError("optimizer not implemented")
 
-            optimizer = optimizers.AdafactorOptimizer()
-            optimizer=tfa.optimizers.Lookahead(optimizer,
-                                               sync_period=wandb.config.sync_period,
-                                               slow_step_size=wandb.config.slow_step_frac)
             
             metric_dict = {}
             if len(orgs) == 1:
@@ -344,16 +361,22 @@ def main():
                 val_losses.append(metric_dict['hg_val'].result().numpy())
                 val_pearsons.append(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy())
 
-                overall_corr, low_corr,high_corr,cell_corr, gene_corr, overall_fig,l_fig,h_fig,cell_fig,gene_fig = training_utils.make_plots(y_trues,y_preds,cell_types,gene_map, 'hg')
+                overall_corr,overall_corr_sp,low_corr,low_corr_sp,high_corr, high_corr_sp, cell_corr,cell_corr_sp, gene_corr,gene_corr_sp, overall_fig,l_fig,h_fig,cell_fig,gene_fig = training_utils.make_plots(y_trues,y_preds,cell_types,gene_map, 'hg')
+                
                 
 
                 wandb.log({'hg_train_loss': metric_dict['hg_tr'].result().numpy(),
                            'hg_val_loss': metric_dict['hg_val'].result().numpy(),
                            'hg_overall_rho': overall_corr,
+                           'hg_overall_rho_sp': overall_corr_sp,
                            'hg_low_rho': low_corr,
+                           'hg_low_rho_sp': low_corr_sp,
                            'hg_high_rho': high_corr,
+                           'hg_high_rho_sp': high_corr_sp,
                            'hg_mean_cell_rho': cell_corr,
-                           'hg_mean_gene_rho': gene_corr},
+                           'hg_mean_cell_rho_sp': cell_corr_sp,
+                           'hg_mean_gene_rho': gene_corr,
+                          'hg_mean_gene_rho_sp': gene_corr_sp},
                           step=epoch_i)
                 wandb.log({"overall_gene_level":overall_fig},step=epoch_i)
                 wandb.log({"low_gene_level":l_fig},step=epoch_i)
