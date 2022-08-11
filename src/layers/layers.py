@@ -888,14 +888,12 @@ class convstackblock(kl.Layer):
         return cls(**config)
     
     def call(self, inputs, training=None):
-        seq_or_atac,tf_inputs = inputs
+        seq_or_atac = inputs
 
         x = self.stem_initial_conv(seq_or_atac,training=training)
         x = self.stem_gelu(x)
         x = self.stem_residual_conv_seq(x,training=training)
         x = self.maxpool(x, training=training)
-        
-        x = tf.concat([x,tf_inputs],axis=2)
         
         x = self.conv_stack(x,training=training)
         
@@ -909,7 +907,9 @@ class headmodule_block(kl.Layer):
                  num_channels_in: int,
                  momentum: float,
                  kernel_regularizer: float = 0.01,
+                 bottleneck_units_tf: int = 64,
                  bottleneck_units: int = 64,
+                 dropout_rate=0.10,
                  name: str = 'headmodule_block',
                  **kwargs):
         """Enformer style conv stack block
@@ -925,6 +925,24 @@ class headmodule_block(kl.Layer):
         self.momentum=momentum
         self.kernel_regularizer=kernel_regularizer
         self.bottleneck_units=bottleneck_units
+        self.bottleneck_units_tf=bottleneck_units_tf
+        self.dropout_rate=dropout_rate
+        
+        self.tf_bottleneck = kl.Dense(self.bottleneck_units_tf,
+                                     kernel_initializer=tf.keras.initializers.GlorotNormal(),
+                                     kernel_regularizer=regularizers.L2(self.kernel_regularizer),
+                                     use_bias=False)
+        
+        self.gelu = tfa.layers.GELU()
+        self.syncbatch_norm_2 = syncbatchnorm(axis=-1,
+                                            momentum=self.momentum,
+                                            center=True,
+                                            scale=True,
+                                            beta_initializer="zeros",
+                                            gamma_initializer="ones",
+                                            **kwargs)
+        
+        self.dropout_tf = kl.Dropout(rate=self.dropout_rate / 2,**kwargs)
         
         self.final_conv = conv1Dblock(num_channels=num_channels_in,
                                         conv_filter_size=1, 
@@ -933,7 +951,7 @@ class headmodule_block(kl.Layer):
                                         momentum=self.momentum,
                                       name = 'final_conv', **kwargs)
         self.gelu = tfa.layers.GELU()
-        self.syncbatch_norm = syncbatchnorm(axis=-1,
+        self.syncbatch_norm_1 = syncbatchnorm(axis=-1,
                                             momentum=self.momentum,
                                             center=True,
                                             scale=True,
@@ -942,11 +960,19 @@ class headmodule_block(kl.Layer):
                                             **kwargs)
         
         self.flatten_layer = tf.keras.layers.Flatten()
-        
-        self.bottleneck_units = kl.Dense(bottleneck_units,
+    
+        self.bottleneck_units = kl.Dense(self.bottleneck_units,
                                  kernel_initializer=tf.keras.initializers.GlorotNormal(),
                                  kernel_regularizer=regularizers.L2(self.kernel_regularizer),
-                                 use_bias=True)
+                                 use_bias=False)
+        
+        self.syncbatch_norm_3 = syncbatchnorm(axis=-1,
+                                            momentum=self.momentum,
+                                            center=True,
+                                            scale=True,
+                                            beta_initializer="zeros",
+                                            gamma_initializer="ones",
+                                            **kwargs)
 
         self.final_unit = kl.Dense(1,
                                      kernel_initializer=tf.keras.initializers.GlorotNormal(),
@@ -954,13 +980,17 @@ class headmodule_block(kl.Layer):
                                      use_bias=True)
         self.final_softplus = tf.keras.layers.Activation('softplus',
                                                         dtype=tf.float32)
+        
+        self.dropout = kl.Dropout(rate=self.dropout_rate,**kwargs)
 
     def get_config(self):
         config = {
             "num_channels_in":self.num_channels_in,
             "momentum":self.momentum,
             "kernel_regularizer":self.kernel_regularizer,
-            "bottleneck_units":self.bottleneck_units
+            "bottleneck_units":self.bottleneck_units,
+            "dropout_rate":self.dropout_rate,
+            "bottleneck_units_tf": self.bottleneck_units_tf
             
         }
         base_config = super().get_config()
@@ -971,15 +1001,28 @@ class headmodule_block(kl.Layer):
         return cls(**config)
     
     def call(self, inputs, training=None):
-        x = self.final_conv(inputs,training=training)
-        x = self.gelu(x)
-        x = self.syncbatch_norm(x,training=training)
-        x = self.flatten_layer(x, training=training)
-        x = self.bottleneck_units(x,training=training)
-        x = self.final_unit(x,training=training)
-        x = self.final_softplus(x,training=training)
+        seq_and_atac, tf_inputs = inputs
         
-        return x
+        x = self.final_conv(seq_and_atac,training=training)
+        x = self.gelu(x)
+        x = self.syncbatch_norm_1(x,training=training)
+        x = self.flatten_layer(x, training=training)
+        
+        tf_out = self.tf_bottleneck(tf_inputs,training=training)
+        tf_out = self.gelu(tf_out)
+        tf_out = self.syncbatch_norm_2(tf_out,training=training)
+        tf_out = self.dropout_tf(tf_out,training=training)
+        
+        final_out = tf.concat([x,tf_out],axis=1)
+        
+        final_out = self.bottleneck_units(final_out,training=training)
+        final_out = self.gelu(final_out)
+        final_out = self.syncbatch_norm_3(final_out,training=training)
+        final_out = self.dropout(final_out,training=training)
+        final_out = self.final_unit(final_out,training=training)
+        final_out = self.final_softplus(final_out,training=training)
+        
+        return final_out
     
     
     
@@ -992,6 +1035,7 @@ class tf_module(kl.Layer):
                  momentum: float,
                  kernel_regularizer: float = 0.01,
                  bottleneck_units: int = 64,
+                 dropout_rate: float = 0.1,
                  name: str = 'headmodule_block',
                  **kwargs):
         """Enformer style conv stack block
@@ -1007,11 +1051,12 @@ class tf_module(kl.Layer):
         self.momentum=momentum
         self.kernel_regularizer=kernel_regularizer
         self.bottleneck_units=bottleneck_units
+        self.dropout_rate=dropout_rate
         
         self.dense = kl.Dense(self.TF_inputs,
                                  kernel_initializer=tf.keras.initializers.GlorotNormal(),
                                  kernel_regularizer=regularizers.L2(self.kernel_regularizer),
-                                 use_bias=True)
+                                 use_bias=False)
         
         self.gelu = tfa.layers.GELU()
         self.syncbatch_norm_1 = syncbatchnorm(axis=-1,
@@ -1028,11 +1073,13 @@ class tf_module(kl.Layer):
                                             beta_initializer="zeros",
                                             gamma_initializer="ones",
                                             **kwargs)
+        
+        self.dropout = kl.Dropout(rate=self.dropout_rate,**kwargs)
 
         self.bottleneck = kl.Dense(bottleneck_units,
                                  kernel_initializer=tf.keras.initializers.GlorotNormal(),
                                  kernel_regularizer=regularizers.L2(self.kernel_regularizer),
-                                 use_bias=True)
+                                 use_bias=False)
 
     def get_config(self):
         config = {
@@ -1053,7 +1100,9 @@ class tf_module(kl.Layer):
         x = self.dense(inputs,training=training)
         x = self.gelu(x)
         x = self.syncbatch_norm_1(x,training=training)
+        x = self.dropout(x,training=training)
         x = self.bottleneck(inputs,training=training)
         x = self.gelu(x)
         x = self.syncbatch_norm_2(x,training=training)
+        x = self.dropout(x,training=training)
         return x

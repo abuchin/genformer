@@ -34,7 +34,7 @@ class aformer(tf.keras.Model):
                  channels_list: list = [36, 36, 48, 48, 64],
                  kernel_regularizer: float = 0.01,
                  d_model = 64,
-                 TF_bottleneck=64,
+                 bottleneck_units_tf=64,
                  bottleneck_units=64,
                  norm=True,
                  dim = 32, 
@@ -48,7 +48,6 @@ class aformer(tf.keras.Model):
                  normalize = True,
                  seed = 3,
                  stride=1,
-                 human=True,
                  TF_inputs_hg=1637,
                  TF_inputs_mm=1366,
                  heads_dict: dict = {'hg':0,
@@ -83,9 +82,7 @@ class aformer(tf.keras.Model):
         self.channels_list=channels_list
         self.kernel_regularizer=kernel_regularizer
         self.heads_dict=heads_dict
-        self.TF_inputs_hg=TF_inputs_hg
-        self.TF_inputs_mm=TF_inputs_mm
-        self.TF_bottleneck=TF_bottleneck
+        self.bottleneck_units_tf=bottleneck_units_tf
         self.bottleneck_units=bottleneck_units
         self.norm=norm
         self.d_model = d_model
@@ -97,7 +94,6 @@ class aformer(tf.keras.Model):
         self.use_mask_pos = use_mask_pos
         self.normalize = normalize
         self.seed = seed
-        self.human = human
         self.stride = stride
         
         ### conv stack for sequence inputs
@@ -134,7 +130,7 @@ class aformer(tf.keras.Model):
                                                    widening=self.widening,
                                                    hidden_size=self.hidden_size,
                                                    numerical_stabilizer=self.numerical_stabilizer,
-                                                   attention_dropout=self.dropout_rate,
+                                                   attention_dropout=self.dropout_rate / 5,
                                                    rel_pos_bins=self.rel_pos_bins,
                                                    kernel_size=self.kernel_size,
                                                    use_rot_emb=self.use_rot_emb,
@@ -146,56 +142,25 @@ class aformer(tf.keras.Model):
         ## final conv stack, organism specific
         self._heads = {head: headmodule_block(num_channels_in=2*self.hidden_size,
                                               momentum=self.momentum,
+                                              dropout_rate=self.dropout_rate,
                                               kernel_regularizer=self.kernel_regularizer,
+                                              bottleneck_units_tf=self.bottleneck_units_tf,
                                               bottleneck_units=self.bottleneck_units, **kwargs) for head in self.heads_dict.keys()}
         
-        self.hg_TF_module = tf_module(TF_inputs=self.TF_inputs_hg,
-                                      momentum=self.momentum,
-                                      bottleneck_units=self.TF_bottleneck,
-                                      kernel_regularizer=self.kernel_regularizer, **kwargs)
-                                      
-        
-        self.mm_TF_module = tf_module(TF_inputs=self.TF_inputs_mm,
-                                      momentum=self.momentum,
-                                      bottleneck_units=self.TF_bottleneck,
-                                      kernel_regularizer=self.kernel_regularizer, **kwargs)
-                                    
-
     @property
     def heads(self):
         return self._heads
 
     #@tf.function(input_signature=[tf.TensorSpec([None, SEQUENCE_LENGTH, 5], tf.bfloat16),
     #                              tf.TensorSpec([None, 1572], tf.bfloat16)])
-    def call(self, inputs, human=True,training:bool=True):
+    def call(self, inputs, training:bool=True):
         
         sequence,atac,tf_inputs = inputs
-
-        
-        # TF processing module
-        
-        if human: 
-            tf_out = self.hg_TF_module(tf_inputs,
-                                       training=training)
-            tf_out = tf.expand_dims(
-                tf_out, axis=1, name=None
-            )
-            tf_out=tf.repeat(tf_out, (self.input_length // 2), axis=1)
-        else:
-            tf_out = self.mm_TF_module(tf_inputs,
-                                       training=training)
-            tf_out = tf.expand_dims(
-                tf_out, axis=1, name=None
-            )
-            tf_out=tf.repeat(tf_out, (self.input_length // 2), axis=1)
-            
-        init_seq_inputs=sequence, tf_out
-        init_atac_inputs=atac, tf_out
         
         # sequence processing module
-        x_seq = self.convstack_seq(init_seq_inputs,training=training) ### here dimension is 131072 / 2, C = hidden/size / 2
+        x_seq = self.convstack_seq(sequence,training=training) ### here dimension is 131072 / 2, C = hidden/size / 2
         
-        x_atac = self.convstack_atac(init_atac_inputs,training=training)
+        x_atac = self.convstack_atac(atac,training=training)
 
         transformer_input = tf.concat([x_seq,
                                        x_atac],axis=2)
@@ -203,7 +168,9 @@ class aformer(tf.keras.Model):
         
         x,att_matrices = self.transformer_stack(transformer_input,training=training)
 
-        return [{head: head_module(x,
+        org_spec_inputs = x,tf_inputs
+        
+        return [{head: head_module(org_spec_inputs,
                                    training=training)
                 for head, head_module in self.heads.items()},att_matrices]
     
@@ -253,52 +220,27 @@ class aformer(tf.keras.Model):
     
     #@tf.function(input_signature=[tf.TensorSpec([None, SEQUENCE_LENGTH, 5], tf.float32),
     #                              tf.TensorSpec([None, 1572], tf.float32)])
-    def predict_on_batch(self, human:bool, inputs):
-        """Method for SavedModel."""
+    def predict_on_batch(self, inputs, training:bool=False):
+        
         sequence,atac,tf_inputs = inputs
         
-        # TF processing module
-        
-        if human: 
-            tf_out = self.hg_TF_module(tf_inputs,
-                                       training=training)
-            tf_out = tf.expand_dims(
-                tf_out, axis=1, name=None
-            )
-            tf_out=tf.repeat(tf_out, (self.input_length // 2), axis=1)
-        else:
-            tf_out = self.mm_TF_module(tf_inputs,
-                                       training=training)
-            tf_out = tf.expand_dims(
-                tf_out, axis=1, name=None
-            )
-            tf_out=tf.repeat(tf_out, (self.input_length // 2), axis=1)
+        init_seq_inputs=sequence, tf_out
+        init_atac_inputs=atac, tf_out
         
         # sequence processing module
-        x_seq = self.stem_initial_conv_seq(sequence,training=training)
-        x_seq = self.stem_gelu_seq(x_seq)
-        x_seq = self.stem_residual_conv_seq(x_seq,training=training)
-        x_seq = self.stem_pool_seq(x_seq) ### here dimension is 131072 / 2, C = hidden/size / 2
+        x_seq = self.convstack_seq(sequence,training=training) ### here dimension is 131072 / 2, C = hidden/size / 2
         
-        x_atac = self.stem_initial_conv_atac(atac,training=training)
-        x_atac = self.stem_gelu_atac(x_atac)
-        x_atac = self.stem_residual_conv_atac(x_atac,training=training)
-        x_atac = self.stem_pool_atac(x_atac) ### here dimension is 131072 / 2, C = hidden/size / 2
-        
-        #### this has dimension sequence_length // 2 x 64 channels
-        conv_stack_input_seq = tf.concat([x_seq,tf_out],axis=2)
-        x_seq_conv_output = self.conv_stack_seq(conv_stack_input_seq,training=training)
+        x_atac = self.convstack_atac(atac,training=training)
 
-        conv_stack_input_atac = tf.concat([x_atac,tf_out],axis=2)
-        x_atac_conv_output = self.conv_stack_atac(conv_stack_input_atac,training=training)
-        
-        transformer_input = tf.concat([x_seq_conv_output,
-                                       x_atac_conv_output],axis=2)
+        transformer_input = tf.concat([x_seq,
+                                       x_atac],axis=2)
         transformer_input = self.sin_pe(transformer_input)
         
         x,att_matrices = self.transformer_stack(transformer_input,training=training)
 
-        return [{head: head_module(x,
+        org_spec_inputs = x,tf_inputs
+        
+        return [{head: head_module(org_spec_inputs,
                                    training=training)
                 for head, head_module in self.heads.items()},att_matrices]
 

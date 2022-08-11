@@ -98,6 +98,12 @@ def main():
                 'conv_filter_size_2_atac':{
                     'values': [int(x) for x in args.conv_filter_size_2_atac.split(',')]
                 },
+                'bottleneck_units':{
+                    'values': [int(x) for x in args.bottleneck_units.split(',')]
+                },
+                'bottleneck_units_tf':{
+                    'values': [int(x) for x in args.bottleneck_units_tf.split(',')]
+                },
                 'num_transformer_layers':{
                     'values': [int(x) for x in args.num_transformer_layers.split(',')]
                 },
@@ -136,6 +142,15 @@ def main():
                 },
                 'kernel_regularizer': {
                     'values':[args.kernel_regularizer]
+                },
+                'use_fft_prior': {
+                    'values':[x == 'True' for x in args.use_fft_prior.split(',')]
+                },
+                'fft_prior_scale': {
+                    'values':[args.fft_prior_scale]
+                },
+                'freq_limit': {
+                    'values':[int(x) for x in args.freq_limit.split(',')]
                 }
             }
     }
@@ -170,7 +185,8 @@ def main():
             wandb.config.output_heads=args.output_heads
             wandb.config.num_epochs=args.num_epochs
             wandb.config.train_steps=args.train_steps
-            wandb.config.val_steps=args.val_steps
+            wandb.config.val_steps_h=args.val_steps_h
+            wandb.config.val_steps_m=args.val_steps_m
             wandb.config.batch_size=args.batch_size
             wandb.config.warmup_frac=args.warmup_frac
             wandb.config.patience=args.patience
@@ -183,27 +199,19 @@ def main():
             wandb.config.use_rot_emb=args.use_rot_emb
             wandb.config.use_mask_pos=args.use_mask_pos
 
-            wandb.config.rel_pos_bins=args.rel_pos_bins
             wandb.config.max_seq_length=args.max_seq_length
             
             num_convs = len(wandb.config.conv_channel_list) + 1
-            wandb.run.name = '_'.join([str(wandb.config.model_save_basename),
-                                      'I' + str(wandb.config.input_length),
-                                      'T' + str(wandb.config.num_transformer_layers),
-                                      'H' + str(wandb.config.num_heads),
-                                      'C' + str(num_convs),
-                                      'F.1' + str(wandb.config.conv_filter_size_1),
-                                      'F.2' + str(wandb.config.conv_filter_size_2),
-                                      'D' + str(wandb.config.dropout),
-                                      'HS' + str(wandb.config.hidden_size)])
-            
+            wandb.run.name = 'test'
             '''
             TPU init options
             '''
             options = tf.data.Options()
             options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.OFF
-            #options.deterministic=False
-            options.experimental_threading.max_intra_op_parallelism = 1
+            options.deterministic=False
+            #options.experimental_threading.max_intra_op_parallelism = 1
+            mixed_precision.set_global_policy('mixed_bfloat16')
+            tf.config.optimizer.set_jit(True)
 
             BATCH_SIZE_PER_REPLICA = args.batch_size
             NUM_REPLICAS = strategy.num_replicas_in_sync
@@ -217,7 +225,7 @@ def main():
             orgs = wandb.config.organisms.split(',')
             for k, org in enumerate(orgs):
                 heads_dict[org] = int(k)
-            print(heads_dict)
+
             data_dict_tr, data_dict_val = training_utils.return_distributed_iterators(heads_dict,
                                                                                       wandb.config.gcs_path,
                                                                                       GLOBAL_BATCH_SIZE,
@@ -227,8 +235,8 @@ def main():
                                                                                       args.num_parallel,
                                                                                       args.num_epochs,
                                                                                       strategy,
-                                                                                      options,
-                                                                                      1572)
+                                                                                      options)
+            
 
             rot_emb_bool = False
             if wandb.config.use_rot_emb == 'True':
@@ -245,7 +253,6 @@ def main():
                 raise ValueError('choose one of rotary or mask')
                 
             
-            ### define model
             model = aformer.aformer(kernel_transformation=wandb.config.kernel_transformation,
                                         dropout_rate=wandb.config.dropout,
                                         input_length=wandb.config.input_length,
@@ -258,72 +265,53 @@ def main():
                                         rel_pos_bins=wandb.config.rel_pos_bins,
                                         max_seq_length=wandb.config.max_seq_length,
                                         widening = 2, 
-                                        conv_filter_size_1=wandb.config.conv_filter_size_1,
-                                        conv_filter_size_2=wandb.config.conv_filter_size_2,
+                                        conv_filter_size_1_seq=wandb.config.conv_filter_size_1_seq,
+                                        conv_filter_size_2_seq=wandb.config.conv_filter_size_2_seq,
+                                        conv_filter_size_1_atac=wandb.config.conv_filter_size_1_atac,
+                                        conv_filter_size_2_atac=wandb.config.conv_filter_size_2_atac,
                                         transformer_depth=wandb.config.num_transformer_layers,
                                         momentum=wandb.config.momentum,
                                         channels_list=wandb.config.conv_channel_list,
                                         kernel_regularizer=wandb.config.kernel_regularizer,
+                                        bottleneck_units=wandb.config.bottleneck_units,
+                                        bottleneck_units_tf=wandb.config.bottleneck_units_tf,
                                         heads_dict=heads_dict,
-                                        TF_inputs=1572,
                                         use_rot_emb = rot_emb_bool,
                                         use_mask_pos = mask_bool)
-                                        #input_dim=args.input_dim)
     
-            
-            ## choose an optimizer
-        
-            #### create distributed train + val steps
-            #if wandb.config.optimizer in ['adamW', 'adam']:
-            if args.lr_schedule == 'cosine_decay_w_warmup':
-                learning_rate_fn = schedulers.cosine_decay_w_warmup(peak_lr = wandb.config.lr_base,
-                                                                    initial_learning_rate=wandb.config.min_lr,
-                                                                    total_steps=wandb.config.train_steps * wandb.config.num_epochs,
-                                                                    warmup_steps=wandb.config.warmup_frac * wandb.config.train_steps * wandb.config.num_epochs,
-                                                                    hold_peak_rate_steps=wandb.config.train_steps)
-                weight_decay_fn = schedulers.cosine_decay_w_warmup(peak_lr = wandb.config.lr_base * wandb.config.weight_decay_frac,
-                                                                   initial_learning_rate=wandb.config.min_lr * wandb.config.weight_decay_frac,
-                                                                   total_steps=wandb.config.train_steps * wandb.config.num_epochs,
-                                                                   warmup_steps=wandb.config.warmup_frac * wandb.config.train_steps * wandb.config.num_epochs,
-                                                                   hold_peak_rate_steps=wandb.config.train_steps)
-            else:
-                raise ValueError('schedule not implemented yet')
-                
-            if wandb.config.optimizer == 'adamW':
-                optimizer = tfa.optimizers.AdamW(learning_rate=learning_rate_fn,
-                                                 weight_decay=weight_decay_fn)
-            elif wandb.config.optimizer == 'adam':
-                optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate_fn)
-            elif wandb.config.optimizer == 'adabelief':
-                optimizer = tfa.optimizers.AdaBelief(learning_rate=wandb.config.lr_base,
-                                                     weight_decay=wandb.config.weight_decay_frac,
-                                                     warmup_proportion=wandb.config.warmup_frac,
-                                                     epsilon=wandb.config.epsilon,
-                                                     rectify=wandb.config.rectify,
-                                                     min_lr=wandb.config.min_lr,
-                                                     total_steps=wandb.config.train_steps*wandb.config.num_epochs)
-                
-                #optimizer = tfa.optimizers.Lookahead(optimizer, 
-                #                                     sync_period=wandb.config.sync_period, 
-                #                                     slow_step_size=wandb.config.slow_step_frac)
 
-
-            #optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
-            elif wandb.config.optimizer == 'adafactor':
-                optimizer = optimizers.AdafactorOptimizer(multiply_by_parameter_scale=False,
-                                                          learning_rate = learning_rate_fn)
-            else:
-                raise ValueError('optimizer not implemented')
+            optimizer = optimizers.AdafactorOptimizer()
+            optimizer=tfa.optimizers.Lookahead(optimizer,
+                                               sync_period=wandb.config.sync_period,
+                                               slow_step_size=wandb.config.slow_step_frac)
             
             metric_dict = {}
-            train_step, val_step, metric_dict = training_utils.return_train_val_functions_hg(model,
-                                                                                          optimizer,
-                                                                                          strategy,
-                                                                                          metric_dict, 
-                                                                                          wandb.config.train_steps,
-                                                                                          wandb.config.val_steps,
-                                                                                          GLOBAL_BATCH_SIZE,
-                                                                                          wandb.config.gradient_clip)
+            if len(orgs) == 1:
+                train_step, val_step, metric_dict = training_utils.return_train_val_functions_hg(model,
+                                                                                              optimizer,
+                                                                                              strategy,
+                                                                                              metric_dict, 
+                                                                                              wandb.config.train_steps,
+                                                                                              wandb.config.val_steps_h,
+                                                                                              wandb.config.val_steps_m,
+                                                                                              GLOBAL_BATCH_SIZE,
+                                                                                              wandb.config.gradient_clip,
+                                                                                              wandb.config.use_fft_prior,
+                                                                                              wandb.config.freq_limit,
+                                                                                              wandb.config.fft_prior_scale)
+            else:
+                train_step, val_step, metric_dict = training_utils.return_train_val_functions_hg_mm(model,
+                                                                                              optimizer,
+                                                                                              strategy,
+                                                                                              metric_dict, 
+                                                                                              wandb.config.train_steps,
+                                                                                              wandb.config.val_steps_h,
+                                                                                              wandb.config.val_steps_m,
+                                                                                              GLOBAL_BATCH_SIZE,
+                                                                                              wandb.config.gradient_clip,
+                                                                                              wandb.config.use_fft_prior,
+                                                                                              wandb.config.freq_limit,
+                                                                                              wandb.config.fft_prior_scale)
 
             
             ### main training loop
@@ -336,9 +324,14 @@ def main():
             best_epoch = 0
             for epoch_i in range(1, wandb.config.num_epochs):
                 start = time.time()
-
-                train_step(data_dict_tr['hg'])
-                val_step(data_dict_val['hg'])
+                if len(orgs) == 1:
+                    train_step(data_dict_tr['hg'])
+                    val_step(data_dict_val['hg'])
+                else:
+                    train_step(data_dict_tr['hg'],
+                               data_dict_tr['mm'])
+                    val_step(data_dict_val['hg'],
+                             data_dict_val['mm'])
                 y_trues = metric_dict['hg_corr_stats'].result()['y_trues'].numpy()
                 y_preds = metric_dict['hg_corr_stats'].result()['y_preds'].numpy()
                 cell_types = metric_dict['hg_corr_stats'].result()['cell_types'].numpy()

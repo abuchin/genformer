@@ -71,8 +71,7 @@ consolidate into single simpler function
 """
 
 
-def return_train_val_functions(model,
-                               organisms,
+def return_train_val_functions_hg_mm(model,
                                optimizer,
                                strategy,
                                metric_dict,
@@ -82,6 +81,7 @@ def return_train_val_functions(model,
                                global_batch_size,
                                gradient_clip,
                                use_prior,
+                               freq_limit,
                                fourier_loss_scale=None):
     """Returns distributed train and validation functions for
     a given list of organisms
@@ -105,19 +105,19 @@ def return_train_val_functions(model,
     val_steps is the # steps to fully iterate over validation set
     """
 
-    if 'hg' in organisms:
-        metric_dict["hg_tr"] = tf.keras.metrics.Mean("hg_tr_loss",
-                                                     dtype=tf.float32)
-        metric_dict["hg_val"] = tf.keras.metrics.Mean("hg_val_loss",
-                                                      dtype=tf.float32)
-        metric_dict["hg_corr_stats"] = metrics.correlation_stats_gene_centered(name='hg_corr_stats')
-    if 'mm' in organisms:
-        metric_dict["mm_tr"] = tf.keras.metrics.Mean("mm_tr_loss",
-                                                     dtype=tf.float32)
-        metric_dict["mm_val"] = tf.keras.metrics.Mean("mm_val_loss",
-                                                      dtype=tf.float32)
-        metric_dict["mm_corr_stats"] = metrics.correlation_stats_gene_centered(name='mm_corr_stats')
-    
+
+    metric_dict["hg_tr"] = tf.keras.metrics.Mean("hg_tr_loss",
+                                                 dtype=tf.float32)
+    metric_dict["hg_val"] = tf.keras.metrics.Mean("hg_val_loss",
+                                                  dtype=tf.float32)
+    metric_dict["hg_corr_stats"] = metrics.correlation_stats_gene_centered(name='hg_corr_stats')
+
+    metric_dict["mm_tr"] = tf.keras.metrics.Mean("mm_tr_loss",
+                                                 dtype=tf.float32)
+    metric_dict["mm_val"] = tf.keras.metrics.Mean("mm_val_loss",
+                                                  dtype=tf.float32)
+    metric_dict["mm_corr_stats"] = metrics.correlation_stats_gene_centered(name='mm_corr_stats')
+
     def dist_train_step(iterator_hg,iterator_mm):
         @tf.function(jit_compile=True)
         def train_step_hg(inputs):
@@ -136,7 +136,7 @@ def return_train_val_functions(model,
                     input_grad_tape.watch(seq_inputs)
                     input_grad_tape.watch(atac_inputs)
                     input_grad_tape.watch(tf_input)
-                    output = model(input_tuple,human=True,
+                    output = model(input_tuple,
                                    training=True)[0]["hg"]
 
                     loss = tf.reduce_sum(regular_mse(output, target),
@@ -150,7 +150,8 @@ def return_train_val_functions(model,
             input_grads = input_grad_tape.gradient(output,input_tuple)
             if use_prior and fourier_loss_scale is not None:
                 input_grads_0 = input_grads[0] * seq_inputs
-                fourier_loss_0 = fourier_att_prior_loss(output, input_grads_0)
+                fourier_loss_0 = fourier_att_prior_loss(output, input_grads_0,
+                                                        freq_limit=freq_limit)
 
                 loss = loss + fourier_loss_scale * fourier_loss_0
 
@@ -165,15 +166,20 @@ def return_train_val_functions(model,
                                  dtype=tf.bfloat16)
             tf_input = tf.cast(inputs['TF_acc'],
                                dtype=tf.bfloat16)
+            padding = tf.constant([[0,0],[0,271]])
+            tf_input_pad = tf.pad(tf_input,
+                                  padding,
+                                  "CONSTANT",
+                                  0.0)
 
-            input_tuple = seq_inputs,atac_inputs,tf_input
+            input_tuple = seq_inputs,atac_inputs,tf_input_pad
 
             with tf.GradientTape() as tape:
                 with tf.GradientTape() as input_grad_tape:
                     input_grad_tape.watch(seq_inputs)
                     input_grad_tape.watch(atac_inputs)
                     input_grad_tape.watch(tf_input)
-                    output = model(input_tuple,human=False,
+                    output = model(input_tuple,
                                    training=True)[0]["mm"]
 
                     loss = tf.reduce_sum(regular_mse(output, target),
@@ -195,7 +201,8 @@ def return_train_val_functions(model,
 
         for _ in tf.range(train_steps): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(train_step_hg, args=(next(iterator_hg),))
-            strategy.run(train_step_mm, args=(next(iterator_mm),))
+            if _ % 10 == 0:
+                strategy.run(train_step_mm, args=(next(iterator_mm),))
 
     
     def dist_val_step(iterator_hg,iterator_mm):
@@ -214,7 +221,7 @@ def return_train_val_functions(model,
             cell_type = inputs['cell_type']
             gene_map = inputs['gene_encoded']
 
-            output = tf.cast(model(input_tuple,human=True,
+            output = tf.cast(model(input_tuple,
                                    training=False)[0]["hg"],
                               dtype=tf.float32)
 
@@ -232,14 +239,19 @@ def return_train_val_functions(model,
                                  dtype=tf.float32)
             atac_inputs =tf.cast(inputs['atac'],
                                  dtype=tf.float32)
+            padding = tf.constant([[0,0],[0,271]])
             tf_input = tf.cast(inputs['TF_acc'],
                                dtype=tf.float32)
-            input_tuple = seq_inputs,atac_inputs,tf_input
+            tf_input_pad = tf.pad(tf_input,
+                                  padding,
+                                  "CONSTANT",
+                                  0.0)
+            input_tuple = seq_inputs,atac_inputs,tf_input_pad
             
             cell_type = inputs['cell_type']
             gene_map = inputs['gene_encoded']
 
-            output = tf.cast(model(input_tuple,human=False,
+            output = tf.cast(model(input_tuple,
                                    training=False)[0]["mm"],
                               dtype=tf.float32)
 
@@ -312,6 +324,148 @@ def return_train_val_functions(model,
     return dist_train_step, dist_val_step, metric_dict
 
 
+def return_train_val_functions_hg(model,
+                               optimizer,
+                               strategy,
+                               metric_dict,
+                               train_steps, 
+                               val_steps_h,
+                               val_steps_m,
+                               global_batch_size,
+                               gradient_clip,
+                               use_prior,
+                               freq_limit,
+                               fourier_loss_scale=None):
+    """Returns distributed train and validation functions for
+    a given list of organisms
+    Args:
+        model: model object
+        optimizer: optimizer object
+        metric_dict: empty dictionary to populate with organism
+                     specific metrics
+        train_steps: number of train steps to take in single epoch
+        val_steps: number of val steps to take in single epoch
+        global_batch_size: # replicas * batch_size_per_replica
+        gradient_clip: gradient clip value to be applied in case of adam/adamw optimizer
+    Returns:
+        distributed train function
+        distributed val function
+        metric_dict: dict of tr_loss,val_loss, correlation_stats metrics
+                     for input organisms
+    
+    return distributed train and val step functions for given organism
+    train_steps is the # steps in a single epoch
+    val_steps is the # steps to fully iterate over validation set
+    """
+
+    metric_dict["hg_tr"] = tf.keras.metrics.Mean("hg_tr_loss",
+                                                 dtype=tf.float32)
+    metric_dict["hg_val"] = tf.keras.metrics.Mean("hg_val_loss",
+                                                  dtype=tf.float32)
+    metric_dict["hg_corr_stats"] = metrics.correlation_stats_gene_centered(name='hg_corr_stats')
+    
+    def dist_train_step(iterator_hg):
+        @tf.function(jit_compile=True)
+        def train_step_hg(inputs):
+            target=tf.cast(inputs['target'],dtype=tf.float32)
+            seq_inputs=tf.cast(inputs['inputs'],
+                                 dtype=tf.bfloat16)
+            atac_inputs =tf.cast(inputs['atac'],
+                                 dtype=tf.bfloat16)
+            tf_input = tf.cast(inputs['TF_acc'],
+                               dtype=tf.bfloat16)
+
+            input_tuple = seq_inputs,atac_inputs,tf_input
+
+            with tf.GradientTape() as tape:
+                with tf.GradientTape() as input_grad_tape:
+                    input_grad_tape.watch(seq_inputs)
+                    input_grad_tape.watch(atac_inputs)
+                    input_grad_tape.watch(tf_input)
+                    output = model(input_tuple,
+                                   training=True)[0]["hg"]
+
+                    loss = tf.reduce_sum(regular_mse(output, target),
+                                         axis=0) * (1. / global_batch_size)
+
+            #print(model.trainable_variables)
+            gradients = tape.gradient(loss, model.trainable_variables)
+            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamW
+            optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+
+            input_grads = input_grad_tape.gradient(output,input_tuple)
+            if use_prior and fourier_loss_scale is not None:
+                input_grads_0 = input_grads[0] * seq_inputs
+                fourier_loss_0 = fourier_att_prior_loss(output, input_grads_0,
+                                                        freq_limit=freq_limit)
+
+                loss = loss + fourier_loss_scale * fourier_loss_0
+
+            metric_dict["hg_tr"].update_state(loss)
+
+
+        for _ in tf.range(train_steps): ## for loop within @tf.fuction for improved TPU performance
+            strategy.run(train_step_hg, args=(next(iterator_hg),))
+
+    
+    def dist_val_step(iterator_hg):
+        
+        @tf.function(jit_compile=True)
+        def val_step_hg(inputs):
+            target=tf.cast(inputs['target'],dtype=tf.float32)
+            seq_inputs=tf.cast(inputs['inputs'],
+                                 dtype=tf.float32)
+            atac_inputs =tf.cast(inputs['atac'],
+                                 dtype=tf.float32)
+            tf_input = tf.cast(inputs['TF_acc'],
+                               dtype=tf.float32)
+            input_tuple = seq_inputs,atac_inputs,tf_input
+            
+            cell_type = inputs['cell_type']
+            gene_map = inputs['gene_encoded']
+
+            output = tf.cast(model(input_tuple,
+                                   training=False)[0]["hg"],
+                              dtype=tf.float32)
+
+            loss = tf.reduce_sum(regular_mse(output, target),
+                                 axis=0) * (1. / global_batch_size)
+
+            metric_dict["hg_val"].update_state(loss)
+
+            return target, output, cell_type, gene_map
+        
+        ta_pred_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_true_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
+        ta_celltype_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_genemap_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
+
+        for _ in tf.range(val_steps_h): ## for loop within @tf.fuction for improved TPU performance
+            target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step_hg,
+                                                                               args=(next(iterator_hg),))
+            
+            target_reshape = tf.reshape(strategy.gather(target_rep, axis=0), [-1]) # reshape to 1D
+            output_reshape = tf.reshape(strategy.gather(output_rep, axis=0), [-1])
+            cell_type_reshape = tf.reshape(strategy.gather(cell_type_rep, axis=0), [-1])
+            gene_map_reshape = tf.reshape(strategy.gather(gene_map_rep, axis=0), [-1])
+
+            ta_pred_h = ta_pred_h.write(_, output_reshape)
+            ta_true_h = ta_true_h.write(_, target_reshape)
+            ta_celltype_h = ta_celltype_h.write(_, cell_type_reshape)
+            ta_genemap_h = ta_genemap_h.write(_, gene_map_reshape)
+            
+        metric_dict["hg_corr_stats"].update_state(ta_true_h.concat(),
+                                                  ta_pred_h.concat(),
+                                                  ta_celltype_h.concat(),
+                                                  ta_genemap_h.concat())
+        ta_pred_h.close()
+        ta_true_h.close()
+        ta_celltype_h.close()
+        ta_genemap_h.close()
+            
+
+    return dist_train_step, dist_val_step, metric_dict
+
 def deserialize(serialized_example, input_length, 
                 num_TFs,max_shift,output_type):
     """
@@ -348,10 +502,10 @@ def deserialize(serialized_example, input_length,
                                               out_type=tf.float32),
                            [input_seq_length,])
     atac = tf.slice(atac, [shift],[input_length])
-    atac = tf.nn.dropout(atac, rate=0.05)*(0.95)
+    atac = tf.nn.dropout(atac, rate=0.01)
     atac = atac + tf.math.abs(tf.random.normal(tss_tokens.shape, 
                                    mean=0.0, 
-                                   stddev=5.0e-01, dtype=tf.float32))
+                                   stddev=1.0e-04, dtype=tf.float32))
     atac=tf.expand_dims(atac,1)
     sequence = one_hot(tf.strings.substr(data['sequence'],
                                  shift,input_length))
@@ -362,11 +516,12 @@ def deserialize(serialized_example, input_length,
         sequence = rev_comp_one_hot(tf.strings.substr(data['sequence'],
                                                       shift,input_length))
     
-    sequence = tf.nn.dropout(sequence, rate=0.05)*(0.95)
     TF_acc = tf.ensure_shape(tf.io.parse_tensor(data['TF_acc'],
                                               out_type=tf.float32),
                              [num_TFs,])
-    TF_acc = tf.nn.dropout(TF_acc, rate=0.01)*(0.99)
+    TF_acc = TF_acc + tf.math.abs(tf.random.normal(TF_acc.shape, 
+                                   mean=0.0, 
+                                   stddev=1.0e-04, dtype=tf.float32))
     
     inputs = tf.concat([tf.expand_dims(tss_tokens,1), sequence], axis=1)
 
@@ -568,14 +723,12 @@ def return_distributed_iterators(heads_dict,
                                  num_parallel_calls,
                                  num_epoch,
                                  strategy,
-                                 options,
-                                 num_TFs):
+                                 options):
     """ 
     returns train + val dictionaries of distributed iterators
     for given heads_dictionary
     """
     with strategy.scope():
-        
         data_it_tr_list = []
         data_it_val_list = []
 
@@ -606,7 +759,6 @@ def return_distributed_iterators(heads_dict,
                                          num_epoch,
                                          num_tf)
             
-
 
             train_dist = strategy.experimental_distribute_dataset(tr_data)
             val_dist= strategy.experimental_distribute_dataset(val_data)
@@ -716,7 +868,7 @@ def parse_args(parser):
     parser.add_argument('--output_heads',
                         dest='output_heads',
                         type=str,
-                        help= 'list of organisms(hg,mm,rm)')
+                        help= 'list of organisms(hg,mm)')
     parser.add_argument('--num_parallel', dest = 'num_parallel',
                         type=int, default=multiprocessing.cpu_count(),
                         help='thread count for tensorflow record loading')
@@ -742,8 +894,10 @@ def parse_args(parser):
                         type=float, help='warmup_frac')
     parser.add_argument('--train_steps', dest = 'train_steps',
                         type=int, help='train_steps')
-    parser.add_argument('--val_steps', dest = 'val_steps',
-                        type=int, help='val_steps')
+    parser.add_argument('--val_steps_h', dest = 'val_steps_h',
+                        type=int, help='val_steps_h')
+    parser.add_argument('--val_steps_m', dest = 'val_steps_m',
+                        type=int, help='val_steps_m')
     parser.add_argument('--patience', dest = 'patience',
                         type=int, help='patience for early stopping')
     parser.add_argument('--min_delta', dest = 'min_delta',
@@ -757,16 +911,19 @@ def parse_args(parser):
 ## parameters to sweep over
     parser.add_argument('--lr_schedule',
                         dest = 'lr_schedule',
+                        default=None,
                         type=str)
     parser.add_argument('--lr_base',
                         dest='lr_base',
+                        default="1.0e-03",
                         help='lr_base')
     parser.add_argument('--min_lr',
                         dest='min_lr',
+                        default="1.0e-07",
                         help= 'min_lr')
     parser.add_argument('--epsilon',
                         dest='epsilon',
-                        default=1.0e-08,
+                        default=1.0e-10,
                         type=float,
                         help= 'epsilon')
     parser.add_argument('--rectify',
@@ -775,10 +932,12 @@ def parse_args(parser):
                         help= 'rectify')
     parser.add_argument('--optimizer',
                         dest='optimizer',
+                        default="adafactor",
                         help= 'optimizer, one of adafactor, adam, or adamW')
     parser.add_argument('--gradient_clip',
                         dest='gradient_clip',
                         type=str,
+                        default="0.2",
                         help= 'gradient_clip')
     parser.add_argument('--precision',
                         dest='precision',
@@ -827,12 +986,31 @@ def parse_args(parser):
                         type=str,
                         help= 'hidden size for transformer' + \
                                 'should be equal to last conv layer filters')
-    parser.add_argument('--conv_filter_size_1',
-                        dest='conv_filter_size_1',
-                        help= 'conv _filter_size_1')
-    parser.add_argument('--conv_filter_size_2',
-                        dest='conv_filter_size_2',
-                        help= 'conv_filter_size_2')
+    parser.add_argument('--conv_filter_size_1_atac',
+                        dest='conv_filter_size_1_atac',
+                        default="15",
+                        help= 'conv _filter_size_1_atac')
+    parser.add_argument('--conv_filter_size_2_atac',
+                        dest='conv_filter_size_2_atac',
+                        default="5",
+                        help= 'conv_filter_size_2_atac')
+    parser.add_argument('--conv_filter_size_1_seq',
+                        dest='conv_filter_size_1_seq',
+                        default="15",
+                        help= 'conv _filter_size_1_seq')
+    parser.add_argument('--conv_filter_size_2_seq',
+                        dest='conv_filter_size_2_seq',
+                        default="5",
+                        help= 'conv_filter_size_2_seq')
+    parser.add_argument('--bottleneck_units',
+                        dest='bottleneck_units',
+                        default="64",
+                        help= 'conv bottleneck_units')
+    parser.add_argument('--bottleneck_units_tf',
+                        dest='bottleneck_units_tf',
+                        default="64",
+                        help= 'bottleneck_units_tf')
+    
     parser.add_argument('--dim',
                         dest='dim',
                         type=int,
@@ -844,6 +1022,7 @@ def parse_args(parser):
     parser.add_argument('--rel_pos_bins',
                         dest='rel_pos_bins',
                         type=int,
+                        default=128,
                         help= 'rel_pos_bins')
     parser.add_argument('--kernel_regularizer',
                         dest='kernel_regularizer',
@@ -859,6 +1038,20 @@ def parse_args(parser):
     parser.add_argument('--use_mask_pos',
                         dest='use_mask_pos',
                         help= 'use_mask_pos')
+    parser.add_argument('--use_fft_prior',
+                        dest='use_fft_prior',
+                        default="True",
+                        help= 'use_fft_prior')
+    parser.add_argument('--freq_limit',
+                        dest='freq_limit',
+                        type=str,
+                        default="5000",
+                        help= 'freq_limit')
+    parser.add_argument('--fft_prior_scale',
+                        dest='fft_prior_scale',
+                        type=float,
+                        default=0.5,
+                        help= 'fft_prior_scale')
 
 
 
