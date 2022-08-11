@@ -12,9 +12,9 @@ python train_model_aformer_TF_genecentered_separated.py \
             --input_length=65536 \
             --max_shift=300 \
             --target_unit="logTPM" \
-            --batch_size=72 \
+            --batch_size=48 \
             --num_epochs=20 \
-            --train_steps=298 \
+            --train_steps=50 \
             --warmup_frac=0.025 \
             --val_steps_h=47 \
             --val_steps_m=7 \

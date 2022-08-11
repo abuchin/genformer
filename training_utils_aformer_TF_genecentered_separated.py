@@ -18,6 +18,7 @@ import multiprocessing
 import logging
 from silence_tensorflow import silence_tensorflow
 silence_tensorflow()
+os.environ['TF_ENABLE_EAGER_CLIENT_STREAMING_ENQUEUE']='False'
 import tensorflow as tf
 import tensorflow.experimental.numpy as tnp
 import tensorflow_addons as tfa
@@ -152,8 +153,7 @@ def return_train_val_functions_hg_mm(model,
             input_grads = input_grad_tape.gradient(output,input_tuple)
             if use_prior and fourier_loss_scale is not None:
                 input_grads_0 = input_grads[0] * seq_inputs
-                fourier_loss_0 = fourier_att_prior_loss(output, input_grads_0,
-                                                        freq_limit=freq_limit)
+                fourier_loss_0 = fourier_att_prior_loss(output, input_grads_0, freq_limit=freq_limit)
 
                 loss = loss + fourier_loss_scale * fourier_loss_0
 
@@ -1211,6 +1211,8 @@ def make_plots(y_trues,y_preds, cell_types,gene_map, file_name_prefix):
 
     overall_gene_level_corr = pearsonr(y_trues,
                                        y_preds)[0]
+    overall_gene_level_corr_sp = pearsonr(y_trues,
+                                       y_preds)[0]
 
     fig_gene_level,ax_gene_level=plt.subplots(figsize=(6,6))
     data = np.vstack([y_trues,y_preds])
@@ -1238,6 +1240,8 @@ def make_plots(y_trues,y_preds, cell_types,gene_map, file_name_prefix):
     
     low_gene_level_corr = pearsonr(low_y_trues,
                                        low_y_preds)[0]
+    low_gene_level_corr_sp = spearmanr(low_y_trues,
+                                       low_y_preds)[0]
     
     fig_gene_level_l,ax_gene_level_l=plt.subplots(figsize=(6,6))
     data = np.vstack([low_y_trues,low_y_preds])
@@ -1260,6 +1264,8 @@ def make_plots(y_trues,y_preds, cell_types,gene_map, file_name_prefix):
     high_y_preds = y_preds[high_y_true_indices]
     
     high_gene_level_corr = pearsonr(high_y_trues,
+                                    high_y_preds)[0]
+    high_gene_level_corr_sp = spearmanr(high_y_trues,
                                     high_y_preds)[0]
     
     fig_gene_level_h,ax_gene_level_h=plt.subplots(figsize=(6,6))
@@ -1291,6 +1297,7 @@ def make_plots(y_trues,y_preds, cell_types,gene_map, file_name_prefix):
             across_cells_preds[cell_t].append(v)
             across_cells_trues[cell_t].append(unique_trues[k])
     cell_specific_corrs = []
+    cell_specific_corrs_sp = []
     for k,v in across_cells_preds.items():
         trues = []
         preds = []
@@ -1298,8 +1305,10 @@ def make_plots(y_trues,y_preds, cell_types,gene_map, file_name_prefix):
             #if len(x) > 0:
             preds.append(x)
             trues.append(across_cells_trues[k][idx])
-        try: 
+        try:
             cell_specific_corrs.append(pearsonr(trues, 
+                                                preds)[0])
+            cell_specific_corrs_sp.append(spearmanr(trues, 
                                                 preds)[0])
         except np.linalg.LinAlgError:
             continue
@@ -1312,6 +1321,7 @@ def make_plots(y_trues,y_preds, cell_types,gene_map, file_name_prefix):
     plt.ylabel("count")
     plt.title("log-log pearsonsR")
     cell_spec_median = np.nanmedian(cell_specific_corrs)
+    cell_spec_median_sp = np.nanmedian(cell_specific_corrs_sp)
 
 
     ### now compute correlations across genes
@@ -1327,6 +1337,7 @@ def make_plots(y_trues,y_preds, cell_types,gene_map, file_name_prefix):
             across_genes_preds[gene_name].append(v)
             across_genes_trues[gene_name].append(unique_trues[k])
     genes_specific_corrs = []
+    genes_specific_corrs_sp = []
     genes_specific_vars = []
     for k,v in across_genes_preds.items():
         trues = []
@@ -1337,6 +1348,8 @@ def make_plots(y_trues,y_preds, cell_types,gene_map, file_name_prefix):
             trues.append(across_genes_trues[k][idx])
         try: 
             genes_specific_corrs.append(pearsonr(trues, 
+                                                 preds)[0])
+            genes_specific_corrs_sp.append(spearmanr(trues, 
                                                  preds)[0])
             genes_specific_vars.append(np.nanstd(trues))
         except np.linalg.LinAlgError:
@@ -1350,6 +1363,7 @@ def make_plots(y_trues,y_preds, cell_types,gene_map, file_name_prefix):
     plt.ylabel("count")
     plt.title("log-log pearsonsR")
     gene_spec_median_corr = np.nanmedian(genes_specific_corrs)
+    gene_spec_median_corr_sp = np.nanmedian(genes_specific_corrs_sp)
     
     
     file_name = file_name_prefix + ".val.out.tsv"
@@ -1361,7 +1375,7 @@ def make_plots(y_trues,y_preds, cell_types,gene_map, file_name_prefix):
     
     dataset.to_csv(file_name, sep='\t',index=False)
     
-    return overall_gene_level_corr,low_gene_level_corr, high_gene_level_corr,cell_spec_median,gene_spec_median_corr, fig_gene_level,fig_gene_level_l,fig_gene_level_h, fig_cell_spec,fig_gene_spec
+    return overall_gene_level_corr,low_gene_level_corr,low_gene_level_corr_sp, high_gene_level_corr,high_gene_level_corr_sp, cell_spec_median,cell_spec_median_sp,gene_spec_median_corr, gene_spec_median_corr_sp, fig_gene_level,fig_gene_level_l,fig_gene_level_h, fig_cell_spec,fig_gene_spec
 
 
 
@@ -1491,19 +1505,9 @@ def log2(x):
     denominator = tf.math.log(tf.constant(2, dtype=numerator.dtype))
     return numerator / denominator
 
-
-
-
-def sum_log(x):
-    return np.log10(1.0 + np.nansum(x))
-
-
-
-
 def fourier_att_prior_loss(
     output, input_grads, freq_limit=500, limit_softness=0.2,
-    att_prior_grad_smooth_sigma=3
-):
+    att_prior_grad_smooth_sigma=3):
     """
     Computes an attribution prior loss for some given training examples,
     using a Fourier transform form.

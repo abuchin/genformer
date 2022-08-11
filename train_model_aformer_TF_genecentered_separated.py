@@ -18,6 +18,7 @@ import random
 import logging
 from silence_tensorflow import silence_tensorflow
 silence_tensorflow()
+os.environ['TF_ENABLE_EAGER_CLIENT_STREAMING_ENQUEUE']='False'
 import tensorflow as tf
 import tensorflow.experimental.numpy as tnp
 import tensorflow_addons as tfa
@@ -33,7 +34,8 @@ import src.utils as utils
 
 import training_utils_aformer_TF_genecentered_separated as training_utils
 import seaborn as sns
-from scipy.stats.stats import pearsonr  
+from scipy.stats.stats import pearsonr
+from scipy.stats.stats import spearmanr  
 from scipy import stats
 
  ## reformat 
