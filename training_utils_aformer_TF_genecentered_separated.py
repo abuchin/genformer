@@ -1028,7 +1028,7 @@ def parse_args(parser):
                         help= 'rel_pos_bins')
     parser.add_argument('--kernel_regularizer',
                         dest='kernel_regularizer',
-                        type=float,
+                        type=str,
                         help= 'kernel_regularizer')
     parser.add_argument('--savefreq',
                         dest='savefreq',
@@ -1051,8 +1051,8 @@ def parse_args(parser):
                         help= 'freq_limit')
     parser.add_argument('--fft_prior_scale',
                         dest='fft_prior_scale',
-                        type=float,
-                        default=0.5,
+                        type=str,
+                        default="0.5",
                         help= 'fft_prior_scale')
 
 

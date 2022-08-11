@@ -125,7 +125,7 @@ def main():
                     'values':[args.kernel_transformation]
                 },
                 'organisms': {
-                    'values':[args.output_heads]
+                    'values':args.output_heads.split(';')
                 },
                 'dim': {
                     'values':[args.dim]
@@ -143,13 +143,13 @@ def main():
                     'values':[args.rectify]
                 },
                 'kernel_regularizer': {
-                    'values':[args.kernel_regularizer]
+                    'values':[float(x) for x in args.kernel_regularizer.split(',')]
                 },
                 'use_fft_prior': {
                     'values':[x == 'True' for x in args.use_fft_prior.split(',')]
                 },
                 'fft_prior_scale': {
-                    'values':[args.fft_prior_scale]
+                    'values':[float(x) for x in args.fft_prior_scale.split(',')]
                 },
                 'freq_limit': {
                     'values':[int(x) for x in args.freq_limit.split(',')]
