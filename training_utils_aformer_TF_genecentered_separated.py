@@ -1344,7 +1344,7 @@ def make_plots(y_trues,y_preds,
     cell_specific_corrs = []
     cell_specific_corrs_sp = []
     correlations_cells = {}
-
+    
     for k,v in across_cells_preds.items():
         trues = []
         preds = []
@@ -1359,7 +1359,8 @@ def make_plots(y_trues,y_preds,
                                        preds)[0]
             cell_specific_corrs.append(pearsonsr_val)
             cell_specific_corrs_sp.append(spearmansr_val)
-            correlations_cells[k : pearsonsr_val, spearmansr_val]
+            correlations_cells[k] = (pearsonsr_val,spearmansr_val)
+
 
         except np.linalg.LinAlgError:
             continue
@@ -1406,8 +1407,8 @@ def make_plots(y_trues,y_preds,
             genes_specific_corrs.append(pearsonsr_val)
             genes_specific_corrs_sp.append(spearmansr_val)
             
-            correlations_genes[k : pearsonsr_val,spearmansr_val]
-            
+            correlations_genes[k] = (pearsonsr_val,spearmansr_val)
+
             genes_specific_vars.append(np.nanstd(trues))
         except np.linalg.LinAlgError:
             continue
@@ -1425,42 +1426,27 @@ def make_plots(y_trues,y_preds,
     
     file_name = file_name_prefix + ".val.out.tsv"
     
-    
+
     correlations_cells_df = pd.DataFrame({'cell_type_encoding': correlations_cells.keys(),
-                                   'spearmansr': correlations_cells.values()[1],
-                                   'pearsonsr': correlations_cells.values()[0]})
-    
+                                   'spearmansr': [v[1] for k,v in correlations_cells.items()],
+                                   'pearsonsr': [v[0] for k,v in correlations_cells.items()]})
+
     correlations_cells_df = cell_type_parser(correlations_cells_df,
                                              cell_type_map_file)
-    
-    correlations_cells_table = wandb.Table(columns=['cell_type',
-                                                    'cell_type_encoding',
-                                                    'spearmansr',
-                                                    'pearsonsr'],
-                                           data =[correlations_cells_df['cell_type'].tolist(),
-                                                  correlations_cells_df['cell_type_encoding'].tolist(),
-                                                  correlations_cells_df['spearmansr'].tolist(),
-                                                  correlations_cells_df['pearsonsr'].tolist()])
 
-
-    correlations_genes_df= pd.DataFrame({'gene_type_encoding': correlations_genes.keys(),
-                                   'spearmansr': correlations_genes.values()[1],
-                                   'pearsonsr': correlations_genes.values()[0]})
+    correlations_cells_table = wandb.Table(dataframe=correlations_cells_df)
+    #print('logged cells table')
+    correlations_genes_df = pd.DataFrame({'gene_encoding': correlations_genes.keys(),
+                                   'spearmansr': [v[1] for k,v in correlations_genes.items()],
+                                   'pearsonsr': [v[0] for k,v in correlations_genes.items()]})
                                    
     correlations_genes_df = gene_map_parser(correlations_genes_df,
                                             gene_map_file,
                                             gene_symbol_map_file)
     
-    correlations_genes_df_table = wandb.Table(columns=['gene_symbol',
-                                                    'gene_encoding',
-                                                    'spearmansr',
-                                                    'pearsonsr'],
-                                           data =[correlations_cells_df['cell_type'].tolist(),
-                                                  correlations_cells_df['cell_type_encoding'].tolist(),
-                                                  correlations_cells_df['spearmansr'].tolist(),
-                                                  correlations_cells_df['pearsonsr'].tolist()])
+    correlations_genes_table = wandb.Table(dataframe=correlations_genes_df)
     
-    return overall_gene_level_corr,overall_gene_level_corr_sp, low_gene_level_corr,low_gene_level_corr_sp, high_gene_level_corr,high_gene_level_corr_sp, cell_spec_median,cell_spec_median_sp,gene_spec_median_corr, gene_spec_median_corr_sp, fig_cell_spec,fig_gene_spec,correlations_cells_table,correlations_genes_df_table
+    return overall_gene_level_corr,overall_gene_level_corr_sp, low_gene_level_corr,low_gene_level_corr_sp, high_gene_level_corr,high_gene_level_corr_sp, cell_spec_median,cell_spec_median_sp,gene_spec_median_corr, gene_spec_median_corr_sp, fig_cell_spec,fig_gene_spec,correlations_cells_table,correlations_genes_table
 
 
 
@@ -1701,9 +1687,10 @@ def smooth_tensor_1d(input_tensor, smooth_sigma):
 def cell_type_parser(input_df, cell_type_map):
     cell_type_map_df = pd.read_csv(cell_type_map,sep='\t',header=None)
     
-    cell_type_map_df.columns = ['cell_type','cell_type_encoding']
+    cell_type_map_df.columns = ['cell_type', 
+                                'cell_type_encoding']
     
-    input_df= input_df.merge(correlations_cells_df,
+    input_df= input_df.merge(cell_type_map_df,
                    left_on='cell_type_encoding', right_on='cell_type_encoding')
     return input_df
 
@@ -1714,17 +1701,19 @@ def gene_map_parser(input_df, gene_map_file, gene_symbol_map):
     
     gene_map_df = pd.read_csv(gene_map_file,sep='\t')
     
-    gene_map_df.columns = ['ensembl_id', 'gene_symbol']
+    gene_map_df.columns = ['ensembl_id', 
+                           'gene_encoding']
     
     gene_symbol_df = pd.read_csv(gene_symbol_map,sep='\t')
-    gene_symbol_df.columns = ['ensembl_id', 'gene_encoding']
+    gene_symbol_df.columns = ['ensembl_id', 
+                              'symbol']
     
     gene_map_df = gene_map_df.merge(gene_symbol_df,
                                     left_on = 'ensembl_id',
                                     right_on = 'ensembl_id')
     
     input_df = input_df.merge(gene_map_df,
-                              left_on='gene_type_encoding',
+                              left_on='gene_encoding',
                               right_on='gene_encoding')
                               
                               

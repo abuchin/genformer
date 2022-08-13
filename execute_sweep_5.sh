@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python train_model_aformer_TF_genecentered_separated.py \
-            --tpu_name="node-20" \
-            --tpu_zone="us-east1-d" \
+            --tpu_name="node-15" \
+            --tpu_zone="us-central1-a" \
             --wandb_project="aformer_TF_gene_centered" \
             --wandb_user="njaved" \
             --wandb_sweep_name="aformer_TF_gene_centered" \
@@ -12,9 +12,9 @@ python train_model_aformer_TF_genecentered_separated.py \
             --input_length="16384" \
             --max_shift=300 \
             --target_unit="logTPM" \
-            --batch_size=4 \
+            --batch_size=2 \
             --num_epochs=10 \
-            --train_steps=50 \
+            --train_steps=26 \
             --warmup_frac=0.02 \
             --total_steps=1000 \
             --val_steps_h=10 \

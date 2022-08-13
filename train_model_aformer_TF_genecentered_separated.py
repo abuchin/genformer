@@ -424,6 +424,14 @@ def main():
 
                 val_losses.append(metric_dict['hg_val'].result().numpy())
                 val_pearsons.append(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy())
+                
+                print('completed epoch ' + str(epoch_i))
+                
+                print('hg_train_loss: ' + str(metric_dict['hg_tr'].result().numpy()))
+                print('hg_val_loss: ' + str(metric_dict['hg_val'].result().numpy()))
+                print('hg_val_pearson: ' + str(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy()))
+                print('hg_val_R2: ' + str(metric_dict['hg_corr_stats'].result()['R2'].numpy()))
+                
 
                 overall_corr,overall_corr_sp,low_corr,low_corr_sp,high_corr, high_corr_sp, cell_corr,cell_corr_sp, gene_corr,gene_corr_sp,cell_fig,gene_fig, cells_table,genes_table= training_utils.make_plots(y_trues,y_preds,cell_types,gene_map, 'hg',args.cell_type_map_file, args.gene_map_file, args.gene_symbol_map_file)
                 
@@ -479,19 +487,15 @@ def main():
                                                                                               model=model,
                                                                                               save_directory=wandb.config.model_save_dir,
                                                                                               saved_model_basename=wandb.config.model_save_basename)
-                print('completed epoch ' + str(epoch_i))
-                print('duration(mins): ' + str(duration))
-                print('hg_train_loss: ' + str(metric_dict['hg_tr'].result().numpy()))
-                print('hg_val_loss: ' + str(metric_dict['hg_val'].result().numpy()))
-                print('hg_val_pearson: ' + str(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy()))
-                print('hg_val_R2: ' + str(metric_dict['hg_corr_stats'].result()['R2'].numpy()))
-                print('patience counter at: ' + str(patience_counter))
 
+                print('patience counter at: ' + str(patience_counter))
                 for key, item in metric_dict.items():
                     item.reset_state()
                 if stop_criteria:
                     print('early stopping at: epoch ' + str(epoch_i))
                     break
+                    
+                print('duration(mins): ' + str(duration))
                     
             print('saving model at: epoch ' + str(epoch_i))
             print('best model was at: epoch ' + str(best_epoch))
