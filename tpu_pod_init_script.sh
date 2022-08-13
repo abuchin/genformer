@@ -9,7 +9,7 @@ sudo pip3 install einops
 sudo pip3 install tqdm
 sudo pip3 install wandb
 sudo pip3 install plotly
-
+sudo pip3 install tensorboard-plugin-profile==2.4.0
 export TPU_NAME=javed_tpu_pod2
 export PYTHONPATH="${PYTHONPATH}:/usr/share/tpu/models"
 export TPU_LOAD_LIBRARY=0
