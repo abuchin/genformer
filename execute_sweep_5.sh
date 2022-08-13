@@ -1,30 +1,30 @@
 #!/bin/bash -l
 
 python train_model_aformer_TF_genecentered_separated.py \
-            --tpu_name="node-15" \
-            --tpu_zone="us-central1-a" \
+            --tpu_name="node-22" \
+            --tpu_zone="us-east1-d" \
             --wandb_project="aformer_TF_gene_centered" \
             --wandb_user="njaved" \
             --wandb_sweep_name="aformer_TF_gene_centered" \
             --gcs_project="picard-testing-176520" \
-            --gcs_path="gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/preprocessed" \
-            --output_heads="hg" \
-            --input_length="16384" \
+            --gcs_path="gs://picard-testing-176520/65k_genecentered_blacklist0.50_atacnormalized/preprocessed" \
+            --output_heads="hg,mm;hg" \
+            --input_length="65536" \
             --max_shift=300 \
             --target_unit="logTPM" \
-            --batch_size=2 \
-            --num_epochs=10 \
-            --train_steps=26 \
-            --warmup_frac=0.02 \
-            --total_steps=1000 \
-            --val_steps_h=10 \
-            --val_steps_m=10 \
+            --batch_size=8 \
+            --num_epochs=9 \
+            --train_steps=2676 \
+            --warmup_frac=0.2 \
+            --total_steps=26760 \
+            --val_steps_h=421 \
+            --val_steps_m=58 \
             --patience=10 \
             --min_delta=0.001 \
-            --model_save_dir="gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/models" \
+            --model_save_dir="gs://picard-testing-176520/65k_genecentered_blacklist0.50_atacnormalized/models" \
             --model_save_basename="aformer_TF_gene_centered" \
-            --lr_base="5.0e-05" \
-            --min_lr="5.0e-10" \
+            --lr_base="5.0e-04" \
+            --min_lr="5.0e-07" \
             --optimizer="adamw" \
             --gradient_clip="0.2" \
             --precision="mixed_bfloat16" \
@@ -56,4 +56,4 @@ python train_model_aformer_TF_genecentered_separated.py \
             --fft_prior_scale="0.5" \
             --bottleneck_units="64" \
             --bottleneck_units_tf="64" \
-            --use_tf_acc="True"
+            --use_tf_acc="True,False"

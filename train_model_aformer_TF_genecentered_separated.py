@@ -416,6 +416,13 @@ def main():
                                data_dict_tr['mm'])
                     val_step(data_dict_val['hg'],
                              data_dict_val['mm'])
+                end = time.time()
+                duration = (end - start) / 60.
+                print('completed epoch ' + str(epoch_i))
+                print('hg_train_loss: ' + str(metric_dict['hg_tr'].result().numpy()))
+                print('training duration(mins): ' + str(duration))
+                
+                start = time.time()
 
                 y_trues = metric_dict['hg_corr_stats'].result()['y_trues'].numpy()
                 y_preds = metric_dict['hg_corr_stats'].result()['y_preds'].numpy()
@@ -425,9 +432,6 @@ def main():
                 val_losses.append(metric_dict['hg_val'].result().numpy())
                 val_pearsons.append(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy())
                 
-                print('completed epoch ' + str(epoch_i))
-                
-                print('hg_train_loss: ' + str(metric_dict['hg_tr'].result().numpy()))
                 print('hg_val_loss: ' + str(metric_dict['hg_val'].result().numpy()))
                 print('hg_val_pearson: ' + str(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy()))
                 print('hg_val_R2: ' + str(metric_dict['hg_corr_stats'].result()['R2'].numpy()))
@@ -453,9 +457,6 @@ def main():
 
                 wandb.log({"cells_correlations": cells_table},step=epoch_i)
                 wandb.log({"genes_correlations": genes_table},step=epoch_i)
-                #wandb.log({"overall_gene_level":overall_fig},step=epoch_i)
-                #wandb.log({"low_gene_level":l_fig},step=epoch_i)
-                #wandb.log({"high_gene_level":h_fig},step=epoch_i)
                 wandb.log({"cell level corr":cell_fig},step=epoch_i)
                 wandb.log({"gene level corrs/var":gene_fig},step=epoch_i)
                 
@@ -468,10 +469,6 @@ def main():
                         wandb.log({"learning_rate": lr.numpy()[k]},
                                   step=i)
                     
-                
-                end = time.time()
-                duration = (end - start) / 60.
-
                 
                 if (epoch_i > 2):
                     stop_criteria,patience_counter,best_epoch = training_utils.early_stopping(current_val_loss=val_losses[-1],
@@ -495,7 +492,9 @@ def main():
                     print('early stopping at: epoch ' + str(epoch_i))
                     break
                     
-                print('duration(mins): ' + str(duration))
+                end = time.time()
+                duration = (end - start) / 60.
+                print('validation duration(mins): ' + str(duration))
                     
             print('saving model at: epoch ' + str(epoch_i))
             print('best model was at: epoch ' + str(best_epoch))
