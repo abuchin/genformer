@@ -199,8 +199,8 @@ class aformer(tf.keras.Model):
             "d_model":self.d_model,
             "norm":self.norm,
             "dim":self.dim,
-            "TF_inputs_hg":self.TF_inputs_hg,
-            "TF_inputs_mm":self.TF_inputs_mm,
+            "bottleneck_units_tf":self.bottleneck_units_tf,
+            "bottleneck_units":self.bottleneck_units,
             "human":self.human,
             "max_seq_length":self.max_seq_length,
             "rel_pos_bins":self.rel_pos_bins,
@@ -208,7 +208,10 @@ class aformer(tf.keras.Model):
             "use_rot_emb":self.use_rot_emb,
             "use_mask_pos":self.use_mask_pos,
             "normalize":self.normalize,
-            "seed":self.seed
+            "seed":self.seed,
+            "TF_inputs_hg":self.TF_inputs_hg,
+            "TF_inputs_mm":self.TF_inputs_mm,
+            
         }
         
         base_config = super().get_config()
@@ -223,9 +226,6 @@ class aformer(tf.keras.Model):
     def predict_on_batch(self, inputs, training:bool=False):
         
         sequence,atac,tf_inputs = inputs
-        
-        init_seq_inputs=sequence, tf_out
-        init_atac_inputs=atac, tf_out
         
         # sequence processing module
         x_seq = self.convstack_seq(sequence,training=training) ### here dimension is 131072 / 2, C = hidden/size / 2

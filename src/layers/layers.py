@@ -56,6 +56,7 @@ class crop(kl.Layer):
         config = {"crop_frac":self._crop_frac}
         base_config = super().get_config()
         return {**base_config, **config}
+    
     @classmethod
     def from_config(cls, config):
         return cls(**config)
@@ -257,7 +258,6 @@ class TransformerBlock(kl.Layer):
                  widening: int,
                  dropout_rate: float,
                  kernel_transformation: str = 'relu_kernel_transformation',
-                 positional_dropout_rate: float = 0.10,
                  name = 'transformer_layer',
                  **kwargs):
         super().__init__(name=name, **kwargs)
@@ -807,7 +807,7 @@ class convstackblock(kl.Layer):
                  input_length:int,
                  stride: int = 1,
                  kernel_regularizer: float = 0.01,
-                 pooling_type='str',
+                 pooling_type='max',
                  name: str = 'convstackblock',
                  **kwargs):
         """Enformer style conv stack block
@@ -876,6 +876,7 @@ class convstackblock(kl.Layer):
             "conv_filter_size_2":self.conv_filter_size_2,
             "stride":self.stride,
             "momentum":self.momentum,
+            "input_length":self.input_length,
             "kernel_regularizer":self.kernel_regularizer,
             "pooling_type":self.pooling_type
             
@@ -993,6 +994,8 @@ class headmodule_block(kl.Layer):
             "bottleneck_units_tf": self.bottleneck_units_tf
             
         }
+        
+                    
         base_config = super().get_config()
         return {**base_config, **config}
     
@@ -1086,12 +1089,14 @@ class tf_module(kl.Layer):
             "TF_inputs":self.TF_inputs,
             "momentum":self.momentum,
             "kernel_regularizer":self.kernel_regularizer,
-            "bottleneck_units":self.bottleneck_units
+            "bottleneck_units":self.bottleneck_units,
+            "dropout_rate":self.dropout_rate
             
         }
         base_config = super().get_config()
         return {**base_config, **config}
     
+
     @classmethod
     def from_config(cls, config):
         return cls(**config)
