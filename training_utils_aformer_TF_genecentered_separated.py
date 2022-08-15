@@ -6,7 +6,7 @@ import re
 import argparse
 import collections
 import gzip
-import math
+import math 
 import shutil
 import matplotlib.pyplot as plt
 import wandb
@@ -80,7 +80,6 @@ def return_train_val_functions_hg_mm(model,
                                metric_dict,
                                train_steps, 
                                val_steps_h,
-                               val_steps_m,
                                global_batch_size,
                                gradient_clip,
                                use_prior,
@@ -223,7 +222,7 @@ def return_train_val_functions_hg_mm(model,
         return ta_lr.concat(), ta_it.concat()
 
     
-    def dist_val_step(iterator_hg,iterator_mm):
+    def dist_val_step(iterator_hg):
         
         @tf.function(jit_compile=True)
         def val_step_hg(inputs):
@@ -249,43 +248,11 @@ def return_train_val_functions_hg_mm(model,
             metric_dict["hg_val"].update_state(loss)
 
             return target, output, cell_type, gene_map
-        
-        @tf.function(jit_compile=True)
-        def val_step_mm(inputs):
-            target=tf.cast(inputs['target'],dtype=tf.float32)
-            seq_inputs=tf.cast(inputs['inputs'],
-                                 dtype=tf.float32)
-            atac_inputs =tf.cast(inputs['atac'],
-                                 dtype=tf.float32)
-            padding = tf.constant([[0,0],[0,271]])
-            tf_input = tf.cast(inputs['TF_acc'],
-                               dtype=tf.float32)
-            tf_input_pad = tf.pad(tf_input,
-                                  padding,
-                                  "CONSTANT",
-                                  0.0)
-            input_tuple = seq_inputs,atac_inputs,tf_input_pad
-            
-            cell_type = inputs['cell_type']
-            gene_map = inputs['gene_encoded']
 
-            output = tf.cast(model(input_tuple,
-                                   training=False)[0]["mm"],
-                              dtype=tf.float32)
-
-            loss = tf.reduce_sum(regular_mse(output, target),
-                                 axis=0) * (1. / global_batch_size)
-
-            metric_dict["mm_val"].update_state(loss)
-
-            return target, output, cell_type, gene_map
-    
         ta_pred_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
         ta_true_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
         ta_celltype_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
         ta_genemap_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
-        
-
         
         for _ in tf.range(val_steps_h): ## for loop within @tf.fuction for improved TPU performance
             target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step_hg,
@@ -309,35 +276,6 @@ def return_train_val_functions_hg_mm(model,
         ta_true_h.close()
         ta_celltype_h.close()
         ta_genemap_h.close()
-            
-        ta_pred_m = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
-        ta_true_m = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
-        ta_celltype_m = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
-        ta_genemap_m = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
-            
-        for _ in tf.range(val_steps_m): ## for loop within @tf.fuction for improved TPU performance
-            target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step_mm,
-                                                                               args=(next(iterator_mm),))
-            
-            target_reshape = tf.reshape(strategy.gather(target_rep, axis=0), [-1]) # reshape to 1D
-            output_reshape = tf.reshape(strategy.gather(output_rep, axis=0), [-1])
-            cell_type_reshape = tf.reshape(strategy.gather(cell_type_rep, axis=0), [-1])
-            gene_map_reshape = tf.reshape(strategy.gather(gene_map_rep, axis=0), [-1])
-
-            ta_pred_m = ta_pred_m.write(_, output_reshape)
-            ta_true_m = ta_true_m.write(_, target_reshape)
-            ta_celltype_m = ta_celltype_m.write(_, cell_type_reshape)
-            ta_genemap_m = ta_genemap_m.write(_, gene_map_reshape)
-        
-        
-        metric_dict["mm_corr_stats"].update_state(ta_true_m.concat(),
-                                                  ta_pred_m.concat(),
-                                                  ta_celltype_m.concat(),
-                                                  ta_genemap_m.concat())
-        ta_pred_m.close()
-        ta_true_m.close()
-        ta_celltype_m.close()
-        ta_genemap_m.close()
 
     return dist_train_step, dist_val_step, metric_dict
 
@@ -348,7 +286,6 @@ def return_train_val_functions_hg(model,
                                metric_dict,
                                train_steps, 
                                val_steps_h,
-                               val_steps_m,
                                global_batch_size,
                                gradient_clip,
                                use_prior,
@@ -689,7 +626,7 @@ def return_dataset(gcs_path,
     
     dataset = tf.data.TFRecordDataset(files,
                                       compression_type='ZLIB',
-                                      buffer_size=10000000,
+                                      #buffer_size=1000000,
                                       num_parallel_reads=num_parallel)
     dataset = dataset.with_options(options)
 
@@ -702,7 +639,7 @@ def return_dataset(gcs_path,
                           num_parallel_calls=num_parallel)
     
     
-    return dataset.repeat(num_epoch).batch(batch,drop_remainder=True).prefetch(1)
+    return dataset.repeat(num_epoch).batch(batch,drop_remainder=True).prefetch(tf.data.AUTOTUNE)
 
 
 def return_dataset_val(gcs_path,
@@ -731,7 +668,7 @@ def return_dataset_val(gcs_path,
 
     dataset = tf.data.TFRecordDataset(files,
                                       compression_type='ZLIB',
-                                      buffer_size=100000,
+                                      #buffer_size=tf.data.AUTOTUNE,
                                       num_parallel_reads=num_parallel)
     dataset = dataset.with_options(options)
 
@@ -929,8 +866,6 @@ def parse_args(parser):
                         type=int, help='train_steps')
     parser.add_argument('--val_steps_h', dest = 'val_steps_h',
                         type=int, help='val_steps_h')
-    parser.add_argument('--val_steps_m', dest = 'val_steps_m',
-                        type=int, help='val_steps_m')
     parser.add_argument('--patience', dest = 'patience',
                         type=int, help='patience for early stopping')
     parser.add_argument('--min_delta', dest = 'min_delta',
@@ -1407,7 +1342,7 @@ def make_plots(y_trues,y_preds,
             genes_specific_corrs.append(pearsonsr_val)
             genes_specific_corrs_sp.append(spearmansr_val)
             
-            correlations_genes[k] = (pearsonsr_val,spearmansr_val)
+            correlations_genes[k] = (pearsonsr_val,spearmansr_val,np.nanstd(trues))
 
             genes_specific_vars.append(np.nanstd(trues))
         except np.linalg.LinAlgError:
@@ -1438,7 +1373,8 @@ def make_plots(y_trues,y_preds,
     #print('logged cells table')
     correlations_genes_df = pd.DataFrame({'gene_encoding': correlations_genes.keys(),
                                    'spearmansr': [v[1] for k,v in correlations_genes.items()],
-                                   'pearsonsr': [v[0] for k,v in correlations_genes.items()]})
+                                   'pearsonsr': [v[0] for k,v in correlations_genes.items()],
+                                     'std': [v[0] for k,v in correlations_genes.items()]})
                                    
     correlations_genes_df = gene_map_parser(correlations_genes_df,
                                             gene_map_file,
@@ -1547,7 +1483,7 @@ def return_dataset_interpret(gcs_path,
 
     dataset = tf.data.TFRecordDataset(files,
                                       compression_type='ZLIB',
-                                      buffer_size=100000,
+                                      #buffer_size=tf.data.AUTOTUNE,
                                       num_parallel_reads=num_parallel)
     dataset = dataset.with_options(options)
 

@@ -200,7 +200,6 @@ def main():
             wandb.config.num_epochs=args.num_epochs
             wandb.config.train_steps=args.train_steps
             wandb.config.val_steps_h=args.val_steps_h
-            wandb.config.val_steps_m=args.val_steps_m
             wandb.config.batch_size=args.batch_size
             wandb.config.warmup_frac=args.warmup_frac
             wandb.config.total_steps=args.total_steps
@@ -224,7 +223,7 @@ def main():
             TPU init options
             '''
             options = tf.data.Options()
-            #options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.OFF
+            options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.FILE
             options.deterministic=False
             #options.experimental_threading.max_intra_op_parallelism = 1
             mixed_precision.set_global_policy('mixed_bfloat16')
@@ -375,7 +374,6 @@ def main():
                                                                                               metric_dict, 
                                                                                               wandb.config.train_steps,
                                                                                               wandb.config.val_steps_h,
-                                                                                              wandb.config.val_steps_m,
                                                                                               GLOBAL_BATCH_SIZE,
                                                                                               wandb.config.gradient_clip,
                                                                                               wandb.config.use_fft_prior,
@@ -389,7 +387,6 @@ def main():
                                                                                               metric_dict, 
                                                                                               wandb.config.train_steps,
                                                                                               wandb.config.val_steps_h,
-                                                                                              wandb.config.val_steps_m,
                                                                                               GLOBAL_BATCH_SIZE,
                                                                                               wandb.config.gradient_clip,
                                                                                               wandb.config.use_fft_prior,
