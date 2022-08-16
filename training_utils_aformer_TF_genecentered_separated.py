@@ -80,6 +80,7 @@ def return_train_val_functions_hg_mm(model,
                                metric_dict,
                                train_steps, 
                                val_steps_h,
+                               val_steps_ho,
                                global_batch_size,
                                gradient_clip,
                                use_prior,
@@ -203,7 +204,7 @@ def return_train_val_functions_hg_mm(model,
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
             input_grads = input_grad_tape.gradient(output,input_tuple)
-            if use_prior:
+            if use_prior and fourier_loss_scale is not None:
                 input_grads_0 = input_grads[0] * seq_inputs
                 fourier_loss_0 = fourier_att_prior_loss(output,input_grads_0)
 
@@ -284,7 +285,6 @@ def return_train_val_functions_hg_mm(model,
         
         
     def dist_val_step_ho(iterator_hg_ho):
-        
         @tf.function(jit_compile=True)
         def val_step_hg_ho(inputs):
             target=tf.cast(inputs['target'],dtype=tf.float32)
@@ -315,8 +315,8 @@ def return_train_val_functions_hg_mm(model,
         ta_celltype_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
         ta_genemap_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
         
-        for _ in tf.range(val_steps_h): ## for loop within @tf.fuction for improved TPU performance
-            target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step_hg,
+        for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
+            target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step_hg_ho,
                                                                                args=(next(iterator_hg_ho),))
             
             target_reshape = tf.reshape(strategy.gather(target_rep, axis=0), [-1]) # reshape to 1D
@@ -347,6 +347,7 @@ def return_train_val_functions_hg(model,
                                metric_dict,
                                train_steps, 
                                val_steps_h,
+                                  val_steps_ho,
                                global_batch_size,
                                gradient_clip,
                                use_prior,
@@ -532,8 +533,8 @@ def return_train_val_functions_hg(model,
         ta_celltype_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
         ta_genemap_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
         
-        for _ in tf.range(val_steps_h): ## for loop within @tf.fuction for improved TPU performance
-            target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step_hg,
+        for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
+            target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step_hg_ho,
                                                                                args=(next(iterator_hg_ho),))
             
             target_reshape = tf.reshape(strategy.gather(target_rep, axis=0), [-1]) # reshape to 1D
@@ -662,7 +663,7 @@ def deserialize_val(serialized_example, input_length,
     data = tf.io.parse_example(serialized_example, feature_map)
 
     ### stochastic sequence shift and gaussian noise
-    shift = max_shift
+    shift = max_shift // 2
     input_seq_length = input_length + max_shift
     interval_end = input_length + shift
     
@@ -809,8 +810,6 @@ def return_dataset_val(gcs_path,
 
 
 def return_dataset_val_holdout(gcs_path,
-                       split,
-                       organism,
                        batch,
                        input_length,
                        max_shift,
@@ -894,27 +893,31 @@ def return_distributed_iterators(heads_dict,
                                          num_epoch,
                                          num_tf)
             
-            val_data_holdout = return_dataset_val(gcs_path_val_ho,
-                                         global_batch_size,
-                                         input_length,
-                                         max_shift,
-                                         output_type,
-                                         options,
-                                         num_parallel_calls,
-                                         num_epoch,
-                                         num_tf)
             
-
             train_dist = strategy.experimental_distribute_dataset(tr_data)
             val_dist= strategy.experimental_distribute_dataset(val_data)
-            val_dist_ho = strategy.experimental_distribute_dataset(val_data_holdout)
+            
 
             tr_data_it = iter(train_dist)
             val_data_it = iter(val_dist)
-            val_data_ho_it = iter(val_dist_ho)
+            
             
             data_it_tr_list.append(tr_data_it)
             data_it_val_list.append(val_data_it)
+            
+            
+            
+        val_data_holdout = return_dataset_val_holdout(gcs_path_val_ho,
+                                                 global_batch_size,
+                                                 input_length,
+                                                 max_shift,
+                                                 output_type,
+                                                 options,
+                                                 num_parallel_calls,
+                                                 num_epoch,
+                                                 1637)
+        val_dist_ho = strategy.experimental_distribute_dataset(val_data_holdout)
+        val_data_ho_it = iter(val_dist_ho)
             
         data_dict_tr = dict(zip(heads_dict.keys(), data_it_tr_list))
         data_dict_val = dict(zip(heads_dict.keys(), data_it_val_list))
@@ -1014,6 +1017,9 @@ def parse_args(parser):
     parser.add_argument('--gcs_path',
                         dest='gcs_path',
                         help= 'google bucket containing preprocessed data')
+    parser.add_argument('--gcs_path_val_ho',
+                        dest='gcs_path_val_ho',
+                        help= 'google bucket containing validation holdout data')
     parser.add_argument('--output_heads',
                         dest='output_heads',
                         type=str,
@@ -1046,6 +1052,8 @@ def parse_args(parser):
                         type=int, help='train_steps')
     parser.add_argument('--val_steps_h', dest = 'val_steps_h',
                         type=int, help='val_steps_h')
+    parser.add_argument('--val_steps_ho', dest = 'val_steps_ho',
+                    type=int, help='val_steps_ho')
     parser.add_argument('--patience', dest = 'patience',
                         type=int, help='patience for early stopping')
     parser.add_argument('--min_delta', dest = 'min_delta',
@@ -1186,10 +1194,10 @@ def parse_args(parser):
                         dest='use_fft_prior',
                         default="True",
                         help= 'use_fft_prior')
-    parser.add_argument('--freq_limit',
-                        dest='freq_limit',
+    parser.add_argument('--freq_limit_scale',
+                        dest='freq_limit_scale',
                         type=str,
-                        default="5000",
+                        default="0.07",
                         help= 'freq_limit')
     parser.add_argument('--fft_prior_scale',
                         dest='fft_prior_scale',
@@ -1231,6 +1239,7 @@ def parse_args(parser):
                         type=str,
                         default=os.getcwd() + "/references/cell_type_map.tsv",
                         help= 'cell_type_map_file')
+
 
     
     args = parser.parse_args()
