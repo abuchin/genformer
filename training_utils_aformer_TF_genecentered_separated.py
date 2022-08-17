@@ -310,10 +310,10 @@ def return_train_val_functions_hg_mm(model,
 
             return target, output, cell_type, gene_map
 
-        ta_pred_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
-        ta_true_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
-        ta_celltype_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
-        ta_genemap_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
+        ta_pred_ho = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_true_ho = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
+        ta_celltype_ho = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_genemap_ho = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
         
         for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
             target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step_hg_ho,
@@ -324,19 +324,19 @@ def return_train_val_functions_hg_mm(model,
             cell_type_reshape = tf.reshape(strategy.gather(cell_type_rep, axis=0), [-1])
             gene_map_reshape = tf.reshape(strategy.gather(gene_map_rep, axis=0), [-1])
 
-            ta_pred_h = ta_pred_h.write(_, output_reshape)
-            ta_true_h = ta_true_h.write(_, target_reshape)
-            ta_celltype_h = ta_celltype_h.write(_, cell_type_reshape)
-            ta_genemap_h = ta_genemap_h.write(_, gene_map_reshape)
+            ta_pred_ho = ta_pred_ho.write(_, output_reshape)
+            ta_true_ho = ta_true_ho.write(_, target_reshape)
+            ta_celltype_ho = ta_celltype_ho.write(_, cell_type_reshape)
+            ta_genemap_ho = ta_genemap_ho.write(_, gene_map_reshape)
             
-        metric_dict["hg_corr_stats_ho"].update_state(ta_true_h.concat(),
-                                                  ta_pred_h.concat(),
-                                                  ta_celltype_h.concat(),
-                                                  ta_genemap_h.concat())
-        ta_pred_h.close()
-        ta_true_h.close()
-        ta_celltype_h.close()
-        ta_genemap_h.close()
+        metric_dict["hg_corr_stats_ho"].update_state(ta_true_ho.concat(),
+                                                  ta_pred_ho.concat(),
+                                                  ta_celltype_ho.concat(),
+                                                  ta_genemap_ho.concat())
+        ta_pred_ho.close()
+        ta_true_ho.close()
+        ta_celltype_ho.close()
+        ta_genemap_ho.close()
 
     return dist_train_step, dist_val_step, dist_val_step_ho, metric_dict
 
@@ -347,7 +347,7 @@ def return_train_val_functions_hg(model,
                                metric_dict,
                                train_steps, 
                                val_steps_h,
-                                  val_steps_ho,
+                               val_steps_ho,
                                global_batch_size,
                                gradient_clip,
                                use_prior,
@@ -528,10 +528,10 @@ def return_train_val_functions_hg(model,
 
             return target, output, cell_type, gene_map
 
-        ta_pred_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
-        ta_true_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
-        ta_celltype_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
-        ta_genemap_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
+        ta_pred_ho = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_true_ho = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
+        ta_celltype_ho = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_genemap_ho = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
         
         for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
             target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step_hg_ho,
@@ -542,24 +542,23 @@ def return_train_val_functions_hg(model,
             cell_type_reshape = tf.reshape(strategy.gather(cell_type_rep, axis=0), [-1])
             gene_map_reshape = tf.reshape(strategy.gather(gene_map_rep, axis=0), [-1])
 
-            ta_pred_h = ta_pred_h.write(_, output_reshape)
-            ta_true_h = ta_true_h.write(_, target_reshape)
-            ta_celltype_h = ta_celltype_h.write(_, cell_type_reshape)
-            ta_genemap_h = ta_genemap_h.write(_, gene_map_reshape)
+            ta_pred_ho = ta_pred_ho.write(_, output_reshape)
+            ta_true_ho = ta_true_ho.write(_, target_reshape)
+            ta_celltype_ho = ta_celltype_ho.write(_, cell_type_reshape)
+            ta_genemap_ho = ta_genemap_ho.write(_, gene_map_reshape)
             
-        metric_dict["hg_corr_stats_ho"].update_state(ta_true_h.concat(),
-                                                  ta_pred_h.concat(),
-                                                  ta_celltype_h.concat(),
-                                                  ta_genemap_h.concat())
-        ta_pred_h.close()
-        ta_true_h.close()
-        ta_celltype_h.close()
-        ta_genemap_h.close()
+        metric_dict["hg_corr_stats_ho"].update_state(ta_true_ho.concat(),
+                                                  ta_pred_ho.concat(),
+                                                  ta_celltype_ho.concat(),
+                                                  ta_genemap_ho.concat())
+        ta_pred_ho.close()
+        ta_true_ho.close()
+        ta_celltype_ho.close()
+        ta_genemap_ho.close()
             
+    return dist_train_step,dist_val_step,dist_val_step_ho,metric_dict
 
-    return dist_train_step, dist_val_step,dist_val_step_ho, metric_dict
-
-def deserialize(serialized_example, input_length, 
+def deserialize(serialized_example,input_length, 
                 num_TFs,max_shift,output_type):
     """
     Deserialize bytes stored in TFRecordFile.
@@ -614,7 +613,7 @@ def deserialize(serialized_example, input_length,
                              [num_TFs,])
     TF_acc = TF_acc + tf.math.abs(tf.random.normal(TF_acc.shape, 
                                    mean=0.0, 
-                                   stddev=1.0e-04, dtype=tf.float32))
+                                   stddev=1.0e-06, dtype=tf.float32))
     
     inputs = tf.concat([tf.expand_dims(tss_tokens,1), sequence], axis=1)
 
@@ -716,7 +715,7 @@ def deserialize_val(serialized_example, input_length,
     return {
         'inputs': tf.ensure_shape(inputs,[input_length,5]),
         'atac': tf.ensure_shape(atac, [input_length,1]),
-        'target': tf.reshape(target,[-1]),
+        'target': tf.transpose(tf.reshape(target,[-1])),
         'TF_acc': TF_acc,
         'cell_type': tf.transpose(tf.reshape(cell_type,[-1])),
         'gene_encoded': tf.transpose(tf.reshape(gene_encoded,[-1])),
@@ -897,10 +896,8 @@ def return_distributed_iterators(heads_dict,
             train_dist = strategy.experimental_distribute_dataset(tr_data)
             val_dist= strategy.experimental_distribute_dataset(val_data)
             
-
             tr_data_it = iter(train_dist)
             val_data_it = iter(val_dist)
-            
             
             data_it_tr_list.append(tr_data_it)
             data_it_val_list.append(val_data_it)

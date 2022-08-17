@@ -289,7 +289,7 @@ def main():
                                    allow_val_change=True)
                 wandb.config.update({"val_steps_h" : 71},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_h" : 7},
+                wandb.config.update({"val_steps_ho" : 7},
                                    allow_val_change=True)
                 wandb.config.update({"total_steps": 4460},
                                    allow_val_change=True)
@@ -309,7 +309,7 @@ def main():
                                    allow_val_change=True)
                 wandb.config.update({"val_steps_h" : 106},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_h" : 10},
+                wandb.config.update({"val_steps_ho" : 10},
                                    allow_val_change=True)
                 wandb.config.update({"total_steps": 6690},
                                    allow_val_change=True)
@@ -329,7 +329,7 @@ def main():
                                    allow_val_change=True)
                 wandb.config.update({"val_steps_h" : 141},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_h" : 12},
+                wandb.config.update({"val_steps_ho" : 12},
                                    allow_val_change=True)
                 wandb.config.update({"total_steps": 8920},
                                    allow_val_change=True)
@@ -360,7 +360,8 @@ def main():
                                                                                       strategy,
                                                                                       options)
             
-
+            print('val ho it')
+            print(val_ho_it)
             rot_emb_bool = False
             if wandb.config.use_rot_emb == 'True':
                 rot_emb_bool = True
@@ -451,7 +452,7 @@ def main():
             metric_dict = {}
             
             freq_limit = int(wandb.config.input_length * wandb.config.freq_limit_scale)
-            
+            print('freq_limit:', freq_limit)
             if len(orgs) == 1:
                 
                 train_step, val_step, dist_val_step_ho, metric_dict = training_utils.return_train_val_functions_hg(model,
@@ -482,6 +483,8 @@ def main():
                                                                                               wandb.config.fft_prior_scale,
                                                                                               wandb.config.use_tf_acc)
 
+                
+            print(wandb.config)
             
             ### main training loop
             global_step = 0
@@ -491,17 +494,17 @@ def main():
             patience_counter = 0
             stop_criteria = False
             best_epoch = 0
+            
+            
             for epoch_i in range(1, wandb.config.num_epochs):
                 start = time.time()
                 if len(orgs) == 1:
                     lr, it = train_step(data_dict_tr['hg'])
-                    val_step(data_dict_val['hg'])
-                    dist_val_step_ho(val_ho_it)
+
                 else:
                     lr, it = train_step(data_dict_tr['hg'],
-                               data_dict_tr['mm'])
-                    val_step(data_dict_val['hg'])
-                    dist_val_step_ho(val_ho_it)
+                                        data_dict_tr['mm'])
+
                 end = time.time()
                 duration = (end - start) / 60.
                 print('completed epoch ' + str(epoch_i))
@@ -509,17 +512,11 @@ def main():
                 print('training duration(mins): ' + str(duration))
                 
                 start = time.time()
-
-                y_trues = metric_dict['hg_corr_stats'].result()['y_trues'].numpy()
-                y_preds = metric_dict['hg_corr_stats'].result()['y_preds'].numpy()
-                cell_types = metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
-                gene_map = metric_dict['hg_corr_stats'].result()['gene_map'].numpy()
-                
-                y_trues_ho = metric_dict['hg_corr_stats_ho'].result()['y_trues'].numpy()
-                y_preds_ho = metric_dict['hg_corr_stats_ho'].result()['y_preds'].numpy()
-                cell_types_ho = metric_dict['hg_corr_stats_ho'].result()['cell_types'].numpy()
-                gene_map_ho = metric_dict['hg_corr_stats_ho'].result()['gene_map'].numpy()
-
+                if len(orgs) == 1:
+                    val_step(data_dict_val['hg'])
+                else:
+                    val_step(data_dict_val['hg'])
+                    
                 val_losses.append(metric_dict['hg_val'].result().numpy())
                 val_pearsons.append(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy())
                 
@@ -527,12 +524,26 @@ def main():
                 print('hg_val_pearson: ' + str(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy()))
                 print('hg_val_R2: ' + str(metric_dict['hg_corr_stats'].result()['R2'].numpy()))
                 
+                dist_val_step_ho(val_ho_it)
+                print('completed dist_val_step')
                 print('hg_val_pearson_ho: ' + str(metric_dict['hg_corr_stats_ho'].result()['pearsonR'].numpy()))
                 print('hg_val_R2_ho: ' + str(metric_dict['hg_corr_stats_ho'].result()['R2'].numpy()))
+                    
+                    
+                    
+                    
+                y_trues = metric_dict['hg_corr_stats'].result()['y_trues'].numpy()
+                y_preds = metric_dict['hg_corr_stats'].result()['y_preds'].numpy()
+                cell_types = metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
+                gene_map = metric_dict['hg_corr_stats'].result()['gene_map'].numpy()
                 
-
+                
                 overall_corr,overall_corr_sp,low_corr,low_corr_sp,high_corr, high_corr_sp, cell_corr,cell_corr_sp, gene_corr,gene_corr_sp,cell_fig,gene_fig, cells_table,genes_table= training_utils.make_plots(y_trues,y_preds,cell_types,gene_map, 'hg',args.cell_type_map_file, args.gene_map_file, args.gene_symbol_map_file)
-                
+
+                y_trues_ho = metric_dict['hg_corr_stats_ho'].result()['y_trues'].numpy()
+                y_preds_ho = metric_dict['hg_corr_stats_ho'].result()['y_preds'].numpy()
+                cell_types_ho = metric_dict['hg_corr_stats_ho'].result()['cell_types'].numpy()
+                gene_map_ho = metric_dict['hg_corr_stats_ho'].result()['gene_map'].numpy()
                 
                 overall_corr_ho,overall_corr_sp_ho,low_corr_ho,low_corr_sp_ho,high_corr_ho, high_corr_sp_ho, cell_corr_ho,cell_corr_sp_ho, gene_corr_ho,gene_corr_sp_ho,cell_fig_ho,gene_fig_ho,cells_table_ho,genes_table_ho= training_utils.make_plots(y_trues_ho,y_preds_ho,cell_types_ho,gene_map_ho, 'hg_ho',args.cell_type_map_file, args.gene_map_file, args.gene_symbol_map_file)
                 
