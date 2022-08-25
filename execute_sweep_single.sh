@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
-python train_model_aformer_TF_genecentered_separated_SINGLE.py \
-            --tpu_name="node-25" \
+python3 train_model_aformer_TF_genecentered_separated_SINGLE.py \
+            --tpu_name="node-24" \
             --tpu_zone="us-east1-d" \
             --wandb_project="aformer_initial_tests_single" \
             --wandb_user="njaved" \
@@ -13,13 +13,13 @@ python train_model_aformer_TF_genecentered_separated_SINGLE.py \
             --max_shift=300 \
             --target_unit="logTPM" \
             --batch_size=72 \
-            --num_epochs=40 \
+            --num_epochs=25 \
             --train_steps=2 \
             --warmup_frac=0.05 \
             --total_steps=100 \
             --val_steps_h=1 \
             --val_steps_ho=7 \
-            --patience=30 \
+            --patience=6 \
             --min_delta=0.001 \
             --model_save_dir="gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/models" \
             --model_save_basename="aformer_TF_gene_centered" \
@@ -28,7 +28,7 @@ python train_model_aformer_TF_genecentered_separated_SINGLE.py \
             --optimizer="adamw" \
             --gradient_clip="0.2" \
             --precision="mixed_bfloat16" \
-            --weight_decay_frac="0.0,1.0e-02,1.0e-03,1.0e-04" \
+            --weight_decay_frac="0.0,1.0e-02,1.0e-04" \
             --epsilon=1.0e-10 \
             --rectify=True \
             --conv_channel_list="48,48,56,56,64,64" \
@@ -48,7 +48,7 @@ python train_model_aformer_TF_genecentered_separated_SINGLE.py \
             --rel_pos_bins=512 \
             --kernel_transformation="relu_kernel_transformation" \
             --kernel_regularizer="0.0,1.0e-04" \
-            --savefreq=4 \
+            --savefreq=30 \
             --use_rot_emb="True" \
             --use_mask_pos="False" \
             --use_fft_prior="False" \

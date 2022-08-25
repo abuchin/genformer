@@ -570,7 +570,7 @@ def main():
                 gene_map = metric_dict['hg_corr_stats'].result()['gene_map'].numpy()
                 
                 
-                overall_corr,overall_corr_sp,low_corr,low_corr_sp,high_corr, high_corr_sp, cell_corr,cell_corr_sp, gene_corr,gene_corr_sp,cell_fig,gene_fig, cells_df,genes_df,h_var_corr,h_var_corr_sp,low_var_corr,low_var_corr_sp= training_utils.make_plots(y_trues,y_preds,cell_types,gene_map, 'hg',args.cell_type_map_file, args.gene_map_file, args.gene_symbol_map_file,args.high_variance_list)
+                overall_corr,overall_corr_sp,low_corr,low_corr_sp,high_corr, high_corr_sp, cell_corr,cell_corr_sp, gene_corr,gene_corr_sp,cell_fig,gene_fig, cells_df,genes_df,h_var_corr,h_var_corr_sp,low_var_corr,low_var_corr_sp,fig_gene_level= training_utils.make_plots(y_trues,y_preds,cell_types,gene_map, 'hg',args.cell_type_map_file, args.gene_map_file, args.gene_symbol_map_file,args.high_variance_list)
 
 
                 wandb.log({'hg_train_loss': metric_dict['hg_tr'].result().numpy(),
@@ -584,6 +584,7 @@ def main():
                            'hg_median_cell_rho': cell_corr,
                            'hg_median_cell_rho_sp': cell_corr_sp},
                           step=epoch_i)
+                wandb.log({"gene level corrs/var":fig_gene_level},step=epoch_i)
                 
                 if epoch_i % 3 == 0:
     
@@ -598,7 +599,7 @@ def main():
                     cell_types_ho = metric_dict['hg_corr_stats_ho'].result()['cell_types'].numpy()
                     gene_map_ho = metric_dict['hg_corr_stats_ho'].result()['gene_map'].numpy()
 
-                    overall_corr_ho,overall_corr_sp_ho,low_corr_ho,low_corr_sp_ho,high_corr_ho, high_corr_sp_ho, cell_corr_ho,cell_corr_sp_ho, gene_corr_ho,gene_corr_sp_ho,cell_fig_ho,gene_fig_ho,cells_df_ho,genes_df_ho,h_var_corr_ho,h_var_corr_sp_ho,low_var_corr_ho,low_var_corr_sp_ho = training_utils.make_plots(y_trues_ho,y_preds_ho,cell_types_ho,gene_map_ho, 'hg_ho',args.cell_type_map_file, args.gene_map_file, args.gene_symbol_map_file,args.high_variance_list)
+                    overall_corr_ho,overall_corr_sp_ho,low_corr_ho,low_corr_sp_ho,high_corr_ho, high_corr_sp_ho, cell_corr_ho,cell_corr_sp_ho, gene_corr_ho,gene_corr_sp_ho,cell_fig_ho,gene_fig_ho,cells_df_ho,genes_df_ho,h_var_corr_ho,h_var_corr_sp_ho,low_var_corr_ho,low_var_corr_sp_ho,fig_gene_level_ho = training_utils.make_plots(y_trues_ho,y_preds_ho,cell_types_ho,gene_map_ho, 'hg_ho',args.cell_type_map_file, args.gene_map_file, args.gene_symbol_map_file,args.high_variance_list)
                     
                     wandb.log({'hg_overall_rho_ho': overall_corr_ho,
                                'hg_overall_rho_sp_ho': overall_corr_sp_ho,
@@ -606,6 +607,10 @@ def main():
                                'hg_low_var_sp_ho': low_var_corr_sp_ho,
                                'hg_high_var_ho': h_var_corr_ho,
                                'hg_high_var_sp_ho': h_var_corr_sp_ho,
+                               'hg_low_corr_ho': low_corr_ho,
+                               'hg_low_corr_sp_ho': low_corr_sp_ho,
+                               'hg_high_corr_ho': high_corr_ho,
+                               'hg_high_corr_sp_ho': high_corr_sp_ho,
                                'hg_median_cell_rho_ho': cell_corr_ho,
                                'hg_median_cell_rho_sp_ho': cell_corr_sp_ho},
                               step=epoch_i)
@@ -615,8 +620,10 @@ def main():
                     
                     wandb.log({"cells_correlations": cells_table},step=epoch_i)
                     wandb.log({"genes_correlations": genes_table},step=epoch_i)
-                    wandb.log({"cell level corr":cell_fig_ho},step=epoch_i)
-                    wandb.log({"gene level corrs/var":gene_fig_ho},step=epoch_i)
+                    wandb.log({"cell level corr_ho":cell_fig_ho},step=epoch_i)
+                    wandb.log({"gene level corrs/var_ho":gene_fig_ho},step=epoch_i)
+                    wandb.log({"all genes, all cell-types":cell_fig_ho},step=epoch_i)
+                    wandb.log({"gene level corrs/var holdout":fig_gene_level_ho},step=epoch_i)
                 
                 
                 if (epoch_i > 2):
@@ -633,7 +640,7 @@ def main():
                                                                                               model=model,
                                                                                               save_directory=wandb.config.model_save_dir,
                                                                                               saved_model_basename=wandb.config.model_save_basename)
-
+                plt.figure().close('all')
                 print('patience counter at: ' + str(patience_counter))
                 for key, item in metric_dict.items():
                     item.reset_state()
