@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 python train_model_aformer_TF_genecentered_separated_SINGLE.py \
-            --tpu_name="node-24" \
+            --tpu_name="node-25" \
             --tpu_zone="us-east1-d" \
             --wandb_project="aformer_initial_tests_single" \
             --wandb_user="njaved" \
@@ -36,7 +36,7 @@ python train_model_aformer_TF_genecentered_separated_SINGLE.py \
             --conv_filter_size_2_atac="5" \
             --conv_filter_size_1_seq="15" \
             --conv_filter_size_2_seq="5" \
-            --dropout="0.20" \
+            --dropout="0.20,0.40" \
             --num_transformer_layers="2" \
             --num_heads="4" \
             --momentum="0.90" \
