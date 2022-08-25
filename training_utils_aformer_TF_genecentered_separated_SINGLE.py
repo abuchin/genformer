@@ -737,7 +737,7 @@ def return_dataset(gcs_path,
     """
     return a tf dataset object for given gcs path
     """
-    wc = str(organism) + "*.tfr"
+    wc = str(organism).upper() + "*.tfr"
     
     list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
                                                 split,
@@ -762,7 +762,7 @@ def return_dataset(gcs_path,
                           num_parallel_calls=num_parallel)
     
     
-    return dataset.repeat(num_epoch).batch(batch,drop_remainder=True).prefetch(tf.data.AUTOTUNE)
+    return dataset.repeat().batch(batch,drop_remainder=True).prefetch(tf.data.AUTOTUNE)
 
 
 def return_dataset_val(gcs_path,
@@ -780,7 +780,7 @@ def return_dataset_val(gcs_path,
     return a tf dataset object for given gcs path
     """
 
-    wc = str(organism) + "*.tfr"
+    wc = str(organism).upper() + "*.tfr"
     
     list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
                                                 split,
@@ -804,7 +804,7 @@ def return_dataset_val(gcs_path,
                           num_parallel_calls=num_parallel)
 
 
-    return dataset.repeat(num_epoch).batch(batch, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
+    return dataset.repeat().batch(batch, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
 
 
 
@@ -813,6 +813,7 @@ def return_dataset_val_holdout(gcs_path,
                        input_length,
                        max_shift,
                        output_type,
+                       options,
                        num_parallel,
                        num_epoch,
                        num_TFs):
@@ -832,10 +833,6 @@ def return_dataset_val_holdout(gcs_path,
                                       compression_type='ZLIB',
                                       #buffer_size=tf.data.AUTOTUNE,
                                       num_parallel_reads=num_parallel)
-    options = tf.data.Options()
-    options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.FILE
-    options.deterministic=False
-    
     dataset = dataset.with_options(options)
 
     dataset = dataset.map(lambda record: deserialize_val(record,
@@ -847,7 +844,7 @@ def return_dataset_val_holdout(gcs_path,
                           num_parallel_calls=num_parallel)
 
 
-    return dataset.repeat(num_epoch).batch(batch, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
+    return dataset.repeat().batch(batch, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
 
 def return_distributed_iterators(heads_dict,
                                  gcs_path,
@@ -912,6 +909,7 @@ def return_distributed_iterators(heads_dict,
                                                  input_length,
                                                  max_shift,
                                                  output_type,
+                                                 options,
                                                  num_parallel_calls,
                                                  num_epoch,
                                                  1637)
@@ -1233,16 +1231,16 @@ def parse_args(parser):
                         type=str,
                         default=os.getcwd() + "/references/gencode.v38.gene_transcript_type.tsv",
                         help= 'gene_symbol_encoding')
-    parser.add_argument('--high_variance_list',
-                        dest='high_variance_list',
-                        type=str,
-                        default=os.getcwd() + "/references/HIGH_variance_genes.tsv",
-                        help= 'list of high variance genes')
     parser.add_argument('--cell_type_map_file',
                         dest='cell_type_map_file',
                         type=str,
                         default=os.getcwd() + "/references/cell_type_map.tsv",
                         help= 'cell_type_map_file')
+    parser.add_argument('--high_variance_list',
+                        dest='high_variance_list',
+                        type=str,
+                        default=os.getcwd() + "/references/HIGH_variance_genes.tsv",
+                        help= 'list of high variance genes')
 
 
     
@@ -1545,11 +1543,13 @@ def make_plots(y_trues,y_preds,
             genes_specific_corrs.append(pearsonsr_val)
             genes_specific_corrs_sp.append(spearmansr_val)
             
-            
+            #print(k,v)
             if k in high_var_list:
+                #print('appending to high var')
                 high_variance_corr.append(pearsonsr_val)
                 high_variance_corr_sp.append(spearmansr_val)
             else:
+                #print('appending to low var')
                 low_variance_corr.append(pearsonsr_val)
                 low_variance_corr_sp.append(spearmansr_val)
                 
@@ -1712,7 +1712,7 @@ def return_dataset_interpret(gcs_path,
                           deterministic=False,
                           num_parallel_calls=num_parallel)
 
-    dataset = dataset.repeat(num_epoch).batch(batch, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
+    dataset = dataset.repeat().batch(batch, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
     interpret_dist = strategy.experimental_distribute_dataset(dataset)
 
     return iter(interpret_dist)
@@ -1883,7 +1883,5 @@ def variance_gene_parser(input_file):
                               
                               
     return gene_list
-
-
 
 

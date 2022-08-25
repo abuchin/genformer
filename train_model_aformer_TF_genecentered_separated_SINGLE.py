@@ -32,7 +32,7 @@ import src.optimizers as optimizers
 import src.schedulers as schedulers
 import src.utils as utils
 
-import training_utils_aformer_TF_genecentered_separated as training_utils
+import training_utils_aformer_TF_genecentered_separated_SINGLE as training_utils
 import seaborn as sns
 from scipy.stats.stats import pearsonr
 from scipy.stats.stats import spearmanr  
@@ -225,7 +225,7 @@ def main():
             TPU init options
             '''
             options = tf.data.Options()
-            options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.FILE
+            options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.DATA
             options.deterministic=False
             #options.experimental_threading.max_intra_op_parallelism = 1
             mixed_precision.set_global_policy('mixed_bfloat16')
@@ -236,11 +236,11 @@ def main():
             
             
             if wandb.config.input_length == 16384:
-                wandb.config.update({"gcs_path": "gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/preprocessed"},
+                wandb.config.update({"gcs_path": "gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/jurkat_single"},
                                    allow_val_change=True)
                 wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/val_holdout/val"},
                                    allow_val_change=True)
-                wandb.config.update({"model_save_dir": "gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/models"},
+                wandb.config.update({"model_save_dir": "gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/jurkat_single/jurkat_single_model"},
                                    allow_val_change=True)
                 wandb.config.update({"max_seq_length": 128},
                                    allow_val_change=True)
@@ -253,92 +253,130 @@ def main():
                                    allow_val_change=True)
                 wandb.config.update({"total_steps": args.total_steps},
                                    allow_val_change=True)
+            elif wandb.config.input_length == 32768:
+                
+                wandb.config.update({"gcs_path": "gs://picard-testing-176520/32k_genecentered_blacklist0.50_atacnormalized/jurkat_single"},
+                                   allow_val_change=True)
+                wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/32k_genecentered_blacklist0.50_atacnormalized/val_holdout/val"},
+                                   allow_val_change=True)
+                wandb.config.update({"model_save_dir": "gs://picard-testing-176520/32k_genecentered_blacklist0.50_atacnormalized/jurkat_single/jurkat_single_model"},
+                                   allow_val_change=True)
+                wandb.config.update({"max_seq_length": 512},
+                                   allow_val_change=True)
+                BATCH_SIZE_PER_REPLICA=64
+                wandb.config.update({"train_steps": 7},
+                                   allow_val_change=True)
+                wandb.config.update({"val_steps_h" : 1},
+                                   allow_val_change=True)
+                wandb.config.update({"val_steps_ho" : 29},
+                                   allow_val_change=True)
+                wandb.config.update({"total_steps": 100},
+                                   allow_val_change=True)
                 
             elif wandb.config.input_length == 65536:
                 
-                wandb.config.update({"gcs_path": "gs://picard-testing-176520/65k_genecentered_blacklist0.50_atacnormalized/preprocessed"},
+                wandb.config.update({"gcs_path": "gs://picard-testing-176520/65k_genecentered_blacklist0.50_atacnormalized/jurkat_single"},
                                    allow_val_change=True)
                 wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/65k_genecentered_blacklist0.50_atacnormalized/val_holdout/val"},
                                    allow_val_change=True)
-                wandb.config.update({"model_save_dir": "gs://picard-testing-176520/65k_genecentered_blacklist0.50_atacnormalized/models"},
+                wandb.config.update({"model_save_dir": "gs://picard-testing-176520/65k_genecentered_blacklist0.50_atacnormalized/jurkat_single/jurkat_single_model"},
                                    allow_val_change=True)
                 wandb.config.update({"max_seq_length": 512},
                                    allow_val_change=True)
                 BATCH_SIZE_PER_REPLICA=48
-                wandb.config.update({"train_steps": 446},
+                wandb.config.update({"train_steps": 3},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_h" : 71},
+                wandb.config.update({"val_steps_h" : 1},
                                    allow_val_change=True)
                 wandb.config.update({"val_steps_ho" : 10},
                                    allow_val_change=True)
-                wandb.config.update({"total_steps": 22300},
+                wandb.config.update({"total_steps": 150},
                                    allow_val_change=True)
                 
             elif wandb.config.input_length == 131072:
                 
-                wandb.config.update({"gcs_path": "gs://picard-testing-176520/131k_genecentered_blacklist0.50_atacnormalized/preprocessed"},
+                wandb.config.update({"gcs_path": "gs://picard-testing-176520/131k_genecentered_blacklist0.50_atacnormalized/jurkat_single"},
                                    allow_val_change=True)
                 wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/131k_genecentered_blacklist0.50_atacnormalized/val_holdout/val"},
                                    allow_val_change=True)
-                wandb.config.update({"model_save_dir": "gs://picard-testing-176520/131k_genecentered_blacklist0.50_atacnormalized/models"},
+                wandb.config.update({"model_save_dir": "gs://picard-testing-176520/131k_genecentered_blacklist0.50_atacnormalized/jurkat_single/jurkat_single_model"},
                                    allow_val_change=True)
                 wandb.config.update({"max_seq_length": 1024},
                                    allow_val_change=True)
                 BATCH_SIZE_PER_REPLICA=16
-                wandb.config.update({"train_steps": 1338},
+                wandb.config.update({"train_steps": 7},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_h" : 211},
+                wandb.config.update({"val_steps_h" : 1},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_ho" : 28},
+                wandb.config.update({"val_steps_ho" : 27},
                                    allow_val_change=True)
-                wandb.config.update({"total_steps": 66900},
+                wandb.config.update({"total_steps": 350},
                                    allow_val_change=True)
                 
             elif wandb.config.input_length == 196608:
                 
-                wandb.config.update({"gcs_path": "gs://picard-testing-176520/196k_genecentered_blacklist0.50_atacnormalized/preprocessed"},
+                wandb.config.update({"gcs_path": "gs://picard-testing-176520/196k_genecentered_blacklist0.50_atacnormalized/jurkat_single"},
                                    allow_val_change=True)
                 wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/196k_genecentered_blacklist0.50_atacnormalized/val_holdout/val"},
                                    allow_val_change=True)
-                wandb.config.update({"model_save_dir": "gs://picard-testing-176520/196k_genecentered_blacklist0.50_atacnormalized/models"},
+                wandb.config.update({"model_save_dir": "gs://picard-testing-176520/196k_genecentered_blacklist0.50_atacnormalized/jurkat_single/jurkat_single_model"},
                                    allow_val_change=True)
                 wandb.config.update({"max_seq_length": 1536},
                                    allow_val_change=True)
                 BATCH_SIZE_PER_REPLICA=12
-                wandb.config.update({"train_steps": 1784},
+                wandb.config.update({"train_steps": 9},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_h" : 281},
+                wandb.config.update({"val_steps_h" : 2},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_ho" : 37},
+                wandb.config.update({"val_steps_ho" : 39},
                                    allow_val_change=True)
-                wandb.config.update({"total_steps": 89200},
+                wandb.config.update({"total_steps": 450},
                                    allow_val_change=True)
                 
             elif wandb.config.input_length == 262144:
-                wandb.config.update({"gcs_path": "gs://picard-testing-176520/262k_genecentered_blacklist0.50_atacnormalized/preprocessed"},
+                wandb.config.update({"gcs_path": "gs://picard-testing-176520/262k_genecentered_blacklist0.50_atacnormalized/jurkat_single"},
                                    allow_val_change=True)
                 wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/262k_genecentered_blacklist0.50_atacnormalized/val_holdout/val"},
                                    allow_val_change=True)
-                wandb.config.update({"model_save_dir": "gs://picard-testing-176520/262k_genecentered_blacklist0.50_atacnormalized/models"},
+                wandb.config.update({"model_save_dir": "gs://picard-testing-176520/262k_genecentered_blacklist0.50_atacnormalized/jurkat_single/jurkat_single_model"},
                                    allow_val_change=True)
                 wandb.config.update({"max_seq_length": 2048},
                                    allow_val_change=True)
                 BATCH_SIZE_PER_REPLICA=6
                 #print(BATCH_SIZE_PER_REPLICA)
-                wandb.config.update({"train_steps": 3567},
+                wandb.config.update({"train_steps": 17},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_h" : 562},
+                wandb.config.update({"val_steps_h" : 3},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_ho" : 73},
+                wandb.config.update({"val_steps_ho" : 77},
                                    allow_val_change=True)
-                wandb.config.update({"total_steps": 178350},
+                wandb.config.update({"total_steps": 850},
+                                   allow_val_change=True)
+            elif wandb.config.input_length == 393216:
+                wandb.config.update({"gcs_path": "gs://picard-testing-176520/393k_genecentered_blacklist0.50_atacnormalized/jurkat_single"},
+                                   allow_val_change=True)
+                wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/393k_genecentered_blacklist0.50_atacnormalized/val_holdout/val"},
+                                   allow_val_change=True)
+                wandb.config.update({"model_save_dir": "gs://picard-testing-176520/393k_genecentered_blacklist0.50_atacnormalized/jurkat_single/jurkat_single_model"},
+                                   allow_val_change=True)
+                wandb.config.update({"max_seq_length": 3072},
+                                   allow_val_change=True)
+                BATCH_SIZE_PER_REPLICA=2
+                #print(BATCH_SIZE_PER_REPLICA)
+                wandb.config.update({"train_steps": 51},
+                                   allow_val_change=True)
+                wandb.config.update({"val_steps_h" : 8},
+                                   allow_val_change=True)
+                wandb.config.update({"val_steps_ho" : 230},
+                                   allow_val_change=True)
+                wandb.config.update({"total_steps": 2550},
                                    allow_val_change=True)
             else:
                 raise ValueError('input a valid length')
             
             
             GLOBAL_BATCH_SIZE = BATCH_SIZE_PER_REPLICA * NUM_REPLICAS
-            #print('global batch size:', GLOBAL_BATCH_SIZE)
+            print('global batch size:', GLOBAL_BATCH_SIZE)
             data_it_tr_list = []
             data_it_val_list = []
             
@@ -356,12 +394,12 @@ def main():
                                                                                       wandb.config.max_shift,
                                                                                       wandb.config.target_unit,
                                                                                       args.num_parallel,
-                                                                                      args.num_epochs*10,
+                                                                                      args.num_epochs,
                                                                                       strategy,
                                                                                       options)
             
-            #print('val ho it')
-            #print(val_ho_it)
+            print('val ho it')
+            print(val_ho_it)
             rot_emb_bool = False
             if wandb.config.use_rot_emb == 'True':
                 rot_emb_bool = True
@@ -452,7 +490,7 @@ def main():
             metric_dict = {}
             
             freq_limit = int(wandb.config.input_length * wandb.config.freq_limit_scale)
-            #print('freq_limit:', freq_limit)
+            print('freq_limit:', freq_limit)
             if len(orgs) == 1:
                 
                 train_step, val_step, dist_val_step_ho, metric_dict = training_utils.return_train_val_functions_hg(model,
@@ -484,7 +522,7 @@ def main():
                                                                                               wandb.config.use_tf_acc)
 
                 
-            #print(wandb.config)
+            print(wandb.config)
             
             ### main training loop
             global_step = 0
@@ -496,7 +534,7 @@ def main():
             best_epoch = 0
             
             
-            for epoch_i in range(1, wandb.config.num_epochs):
+            for epoch_i in range(1, wandb.config.num_epochs + 1):
                 start = time.time()
                 if len(orgs) == 1:
                     lr, it = train_step(data_dict_tr['hg'])
@@ -524,15 +562,8 @@ def main():
                 print('hg_val_pearson: ' + str(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy()))
                 print('hg_val_R2: ' + str(metric_dict['hg_corr_stats'].result()['R2'].numpy()))
                 
-                dist_val_step_ho(val_ho_it)
-                
-                print('completed dist_val_step')
-                print('hg_val_pearson_ho: ' + str(metric_dict['hg_corr_stats_ho'].result()['pearsonR'].numpy()))
-                print('hg_val_R2_ho: ' + str(metric_dict['hg_corr_stats_ho'].result()['R2'].numpy()))
-                    
-                    
-                    
-                    
+
+
                 y_trues = metric_dict['hg_corr_stats'].result()['y_trues'].numpy()
                 y_preds = metric_dict['hg_corr_stats'].result()['y_preds'].numpy()
                 cell_types = metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
@@ -541,40 +572,44 @@ def main():
                 
                 overall_corr,overall_corr_sp,low_corr,low_corr_sp,high_corr, high_corr_sp, cell_corr,cell_corr_sp, gene_corr,gene_corr_sp,cell_fig,gene_fig, cells_df,genes_df,h_var_corr,h_var_corr_sp,low_var_corr,low_var_corr_sp= training_utils.make_plots(y_trues,y_preds,cell_types,gene_map, 'hg',args.cell_type_map_file, args.gene_map_file, args.gene_symbol_map_file,args.high_variance_list)
 
-                y_trues_ho = metric_dict['hg_corr_stats_ho'].result()['y_trues'].numpy()
-                y_preds_ho = metric_dict['hg_corr_stats_ho'].result()['y_preds'].numpy()
-                cell_types_ho = metric_dict['hg_corr_stats_ho'].result()['cell_types'].numpy()
-                gene_map_ho = metric_dict['hg_corr_stats_ho'].result()['gene_map'].numpy()
-                
-                overall_corr_ho,overall_corr_sp_ho,low_corr_ho,low_corr_sp_ho,high_corr_ho, high_corr_sp_ho, cell_corr_ho,cell_corr_sp_ho, gene_corr_ho,gene_corr_sp_ho,cell_fig_ho,gene_fig_ho,cells_df_ho,genes_df_ho,h_var_corr_ho,h_var_corr_sp_ho,low_var_corr_ho,low_var_corr_sp_ho = training_utils.make_plots(y_trues_ho,y_preds_ho,cell_types_ho,gene_map_ho, 'hg_ho',args.cell_type_map_file, args.gene_map_file, args.gene_symbol_map_file,args.high_variance_list)
-                
-                
+
                 wandb.log({'hg_train_loss': metric_dict['hg_tr'].result().numpy(),
                            'hg_val_loss': metric_dict['hg_val'].result().numpy(),
                            'hg_overall_rho': overall_corr,
                            'hg_overall_rho_sp': overall_corr_sp,
-                           'hg_low_rho': low_var_corr,
-                           'hg_low_rho_sp': low_var_corr_sp,
-                           'hg_high_rho': h_var_corr,
-                           'hg_high_rho_sp': h_var_corr_sp,
+                           'hg_low_var': low_var_corr,
+                           'hg_low_var_sp': low_var_corr_sp,
+                           'hg_high_var': h_var_corr,
+                           'hg_high_var_sp': h_var_corr_sp,
                            'hg_median_cell_rho': cell_corr,
-                           'hg_median_cell_rho_sp': cell_corr_sp,
-                           'hg_median_gene_rho': gene_corr,
-                           'hg_median_gene_rho_sp': gene_corr_sp,
-                           'hg_val_loss_ho': metric_dict['hg_val_ho'].result().numpy(),
-                           'hg_overall_rho_ho': overall_corr_ho,
-                           'hg_overall_rho_sp_ho': overall_corr_sp_ho,
-                           'hg_low_rho_ho': low_var_corr_ho,
-                           'hg_low_rho_sp_ho': low_var_corr_sp_ho,
-                           'hg_high_rho_ho': h_var_corr_ho,
-                           'hg_high_rho_sp_ho': h_var_corr_sp_ho,
-                           'hg_median_cell_rho_ho': cell_corr_ho,
-                           'hg_median_cell_rho_sp_ho': cell_corr_sp_ho,
-                           'hg_median_gene_rho_ho': gene_corr_ho,
-                           'hg_median_gene_rho_sp_ho': gene_corr_sp_ho},
+                           'hg_median_cell_rho_sp': cell_corr_sp},
                           step=epoch_i)
                 
-                if epoch_i == wandb.config.num_epochs - 1:
+                if epoch_i % 3 == 0:
+    
+                    dist_val_step_ho(val_ho_it)
+
+                    print('completed dist_val_step_ho')
+                    print('hg_val_pearson_ho: ' + str(metric_dict['hg_corr_stats_ho'].result()['pearsonR'].numpy()))
+                    print('hg_val_R2_ho: ' + str(metric_dict['hg_corr_stats_ho'].result()['R2'].numpy()))
+
+                    y_trues_ho = metric_dict['hg_corr_stats_ho'].result()['y_trues'].numpy()
+                    y_preds_ho = metric_dict['hg_corr_stats_ho'].result()['y_preds'].numpy()
+                    cell_types_ho = metric_dict['hg_corr_stats_ho'].result()['cell_types'].numpy()
+                    gene_map_ho = metric_dict['hg_corr_stats_ho'].result()['gene_map'].numpy()
+
+                    overall_corr_ho,overall_corr_sp_ho,low_corr_ho,low_corr_sp_ho,high_corr_ho, high_corr_sp_ho, cell_corr_ho,cell_corr_sp_ho, gene_corr_ho,gene_corr_sp_ho,cell_fig_ho,gene_fig_ho,cells_df_ho,genes_df_ho,h_var_corr_ho,h_var_corr_sp_ho,low_var_corr_ho,low_var_corr_sp_ho = training_utils.make_plots(y_trues_ho,y_preds_ho,cell_types_ho,gene_map_ho, 'hg_ho',args.cell_type_map_file, args.gene_map_file, args.gene_symbol_map_file,args.high_variance_list)
+                    
+                    wandb.log({'hg_overall_rho_ho': overall_corr_ho,
+                               'hg_overall_rho_sp_ho': overall_corr_sp_ho,
+                               'hg_low_var_ho': low_var_corr_ho,
+                               'hg_low_var_sp_ho': low_var_corr_sp_ho,
+                               'hg_high_var_ho': h_var_corr_ho,
+                               'hg_high_var_sp_ho': h_var_corr_sp_ho,
+                               'hg_median_cell_rho_ho': cell_corr_ho,
+                               'hg_median_cell_rho_sp_ho': cell_corr_sp_ho},
+                              step=epoch_i)
+                    
                     cells_table = wandb.Table(dataframe=cells_df_ho)
                     genes_table = wandb.Table(dataframe=genes_df_ho)
                     
@@ -583,9 +618,6 @@ def main():
                     wandb.log({"cell level corr":cell_fig_ho},step=epoch_i)
                     wandb.log({"gene level corrs/var":gene_fig_ho},step=epoch_i)
                 
-                
-
-                    
                 
                 if (epoch_i > 2):
                     stop_criteria,patience_counter,best_epoch = training_utils.early_stopping(current_val_loss=val_losses[-1],
@@ -608,13 +640,13 @@ def main():
                 if stop_criteria:
                     print('early stopping at: epoch ' + str(epoch_i))
                     break
-                    
+                
                 end = time.time()
                 duration = (end - start) / 60.
                 print('validation duration(mins): ' + str(duration))
                     
             print('saving model at: epoch ' + str(epoch_i))
-            print('best model was at: epoch ' + str(best_epoch))
+            #print('best model was at: epoch ' + str(best_epoch))
             model.save_weights(wandb.config.model_save_dir + "/" + wandb.config.model_save_basename + "_" + wandb.run.name + "/final/saved_model")
     sweep_id = wandb.sweep(sweep_config, project=args.wandb_project)
     wandb.agent(sweep_id, function=sweep_train)
