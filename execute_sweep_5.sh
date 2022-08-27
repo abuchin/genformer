@@ -29,7 +29,7 @@ python3 train_model_aformer_TF_genecentered_separated.py \
             --optimizer="adamw" \
             --gradient_clip="0.2" \
             --precision="mixed_bfloat16" \
-            --weight_decay_frac="1.0e-04" \
+            --weight_decay_frac="1.0e-02" \
             --epsilon=1.0e-10 \
             --rectify=True \
             --conv_channel_list="48,48,56,56,64,64" \
@@ -48,7 +48,7 @@ python3 train_model_aformer_TF_genecentered_separated.py \
             --sync_period=6 \
             --rel_pos_bins=512 \
             --kernel_transformation="relu_kernel_transformation" \
-            --kernel_regularizer="0.00001" \
+            --kernel_regularizer="0" \
             --savefreq=10 \
             --use_rot_emb="True" \
             --use_mask_pos="False" \
