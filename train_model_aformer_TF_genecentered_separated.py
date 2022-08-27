@@ -18,7 +18,7 @@ import random
 import logging
 from silence_tensorflow import silence_tensorflow
 silence_tensorflow()
-os.environ['TF_ENABLE_EAGER_CLIENT_STREAMING_ENQUEUE']='False'
+#os.environ['TF_ENABLE_EAGER_CLIENT_STREAMING_ENQUEUE']='False'
 import tensorflow as tf
 import tensorflow.experimental.numpy as tnp
 import tensorflow_addons as tfa
@@ -220,14 +220,26 @@ def main():
             #wandb.config.max_seq_length=args.max_seq_length
             
             num_convs = len(wandb.config.conv_channel_list) + 1
-            wandb.run.name = 'test'
+            wandb.run.name = '_'.join(['I' + str(wandb.config.input_length),
+                                        'LR' + str(wandb.config.lr_base),
+                                        'KR' + str(wandb.config.kernel_regularizer),
+                                        'WD' + str(wandb.config.weight_decay_frac),
+                                        'T' + str(wandb.config.num_transformer_layers),
+                                        'H' + str(wandb.config.num_heads),
+                                        'C' + str(num_convs),
+                                        'AF.1' + str(wandb.config.conv_filter_size_1_atac),
+                                        'AF.2' + str(wandb.config.conv_filter_size_2_atac),
+                                        'SF.1' + str(wandb.config.conv_filter_size_1_seq),
+                                        'SF.2' + str(wandb.config.conv_filter_size_2_seq),
+                                        'D' + str(wandb.config.dropout),
+                                        'HS' + str(wandb.config.hidden_size)])
             '''
             TPU init options
             '''
             options = tf.data.Options()
             options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.FILE
             options.deterministic=False
-            #options.experimental_threading.max_intra_op_parallelism = 1
+            options.experimental_threading.max_intra_op_parallelism = 1
             mixed_precision.set_global_policy('mixed_bfloat16')
             tf.config.optimizer.set_jit(True)
 
@@ -530,24 +542,48 @@ def main():
                 print('hg_val_pearson_ho: ' + str(metric_dict['hg_corr_stats_ho'].result()['pearsonR'].numpy()))
                 print('hg_val_R2_ho: ' + str(metric_dict['hg_corr_stats_ho'].result()['R2'].numpy()))
                     
-                    
-                    
-                    
                 y_trues = metric_dict['hg_corr_stats'].result()['y_trues'].numpy()
                 y_preds = metric_dict['hg_corr_stats'].result()['y_preds'].numpy()
                 cell_types = metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
                 gene_map = metric_dict['hg_corr_stats'].result()['gene_map'].numpy()
                 
                 
-                overall_corr,overall_corr_sp,low_corr,low_corr_sp,high_corr, high_corr_sp, cell_corr,cell_corr_sp, gene_corr,gene_corr_sp,cell_fig,gene_fig, cells_df,genes_df,h_var_corr,h_var_corr_sp,low_var_corr,low_var_corr_sp= training_utils.make_plots(y_trues,y_preds,cell_types,gene_map, 'hg',args.cell_type_map_file, args.gene_map_file, args.gene_symbol_map_file,args.high_variance_list)
-
+                overall_corr,overall_corr_sp,\
+                    low_corr,low_corr_sp,\
+                        high_corr,high_corr_sp,\
+                            cell_corr,cell_corr_sp,\
+                                gene_corr,gene_corr_sp,\
+                                    cell_fig,gene_fig,cells_df,genes_df,\
+                                        h_var_corr,h_var_corr_sp,\
+                                            low_var_corr,low_var_corr_sp,\
+                                                fig_gene_level=\
+                                                    training_utils.make_plots(y_trues,y_preds,
+                                                    cell_types,gene_map, 
+                                                    'hg',args.cell_type_map_file, 
+                                                    args.gene_map_file, 
+                                                    args.gene_symbol_map_file,
+                                                    args.high_variance_list)
+                    
                 y_trues_ho = metric_dict['hg_corr_stats_ho'].result()['y_trues'].numpy()
                 y_preds_ho = metric_dict['hg_corr_stats_ho'].result()['y_preds'].numpy()
                 cell_types_ho = metric_dict['hg_corr_stats_ho'].result()['cell_types'].numpy()
                 gene_map_ho = metric_dict['hg_corr_stats_ho'].result()['gene_map'].numpy()
                 
-                overall_corr_ho,overall_corr_sp_ho,low_corr_ho,low_corr_sp_ho,high_corr_ho, high_corr_sp_ho, cell_corr_ho,cell_corr_sp_ho, gene_corr_ho,gene_corr_sp_ho,cell_fig_ho,gene_fig_ho,cells_df_ho,genes_df_ho,h_var_corr_ho,h_var_corr_sp_ho,low_var_corr_ho,low_var_corr_sp_ho = training_utils.make_plots(y_trues_ho,y_preds_ho,cell_types_ho,gene_map_ho, 'hg_ho',args.cell_type_map_file, args.gene_map_file, args.gene_symbol_map_file,args.high_variance_list)
-                
+                overall_corr_ho,overall_corr_sp_ho,\
+                    low_corr_ho,low_corr_sp_ho,\
+                        high_corr_ho,high_corr_sp_ho,\
+                            cell_corr_ho,cell_corr_sp_ho,\
+                                gene_corr_ho,gene_corr_sp_ho,\
+                                    cell_fig_ho,gene_fig_ho,cells_df_ho,genes_df_ho,\
+                                        h_var_corr_ho,h_var_corr_sp_ho,\
+                                            low_var_corr_ho,low_var_corr_sp_ho,\
+                                                fig_gene_level_ho=\
+                                                    training_utils.make_plots(y_trues_ho,y_preds_ho,
+                                                    cell_types_ho,gene_map_ho, 
+                                                    'hg_ho',args.cell_type_map_file, 
+                                                    args.gene_map_file, 
+                                                    args.gene_symbol_map_file,
+                                                    args.high_variance_list)
                 
                 wandb.log({'hg_train_loss': metric_dict['hg_tr'].result().numpy(),
                            'hg_val_loss': metric_dict['hg_val'].result().numpy(),
@@ -557,6 +593,10 @@ def main():
                            'hg_low_rho_sp': low_var_corr_sp,
                            'hg_high_rho': h_var_corr,
                            'hg_high_rho_sp': h_var_corr_sp,
+                           'hg_low_var': low_var_corr,
+                           'hg_low_var_sp': low_var_corr_sp,
+                           'hg_high_var': h_var_corr,
+                           'hg_high_var_sp': h_var_corr_sp,
                            'hg_median_cell_rho': cell_corr,
                            'hg_median_cell_rho_sp': cell_corr_sp,
                            'hg_median_gene_rho': gene_corr,
@@ -568,20 +608,26 @@ def main():
                            'hg_low_rho_sp_ho': low_var_corr_sp_ho,
                            'hg_high_rho_ho': h_var_corr_ho,
                            'hg_high_rho_sp_ho': h_var_corr_sp_ho,
+                            'hg_low_var_ho': low_var_corr_ho,
+                            'hg_low_var_sp_ho': low_var_corr_sp_ho,
+                            'hg_high_var_ho': h_var_corr_ho,
+                            'hg_high_var_sp_ho': h_var_corr_sp_ho,
                            'hg_median_cell_rho_ho': cell_corr_ho,
                            'hg_median_cell_rho_sp_ho': cell_corr_sp_ho,
                            'hg_median_gene_rho_ho': gene_corr_ho,
                            'hg_median_gene_rho_sp_ho': gene_corr_sp_ho},
                           step=epoch_i)
                 
-                if epoch_i == wandb.config.num_epochs - 1:
+                if epoch_i == wandb.config.num_epochs:
                     cells_table = wandb.Table(dataframe=cells_df_ho)
                     genes_table = wandb.Table(dataframe=genes_df_ho)
                     
                     wandb.log({"cells_correlations": cells_table},step=epoch_i)
                     wandb.log({"genes_correlations": genes_table},step=epoch_i)
-                    wandb.log({"cell level corr":cell_fig_ho},step=epoch_i)
-                    wandb.log({"gene level corrs/var":gene_fig_ho},step=epoch_i)
+                    wandb.log({"cell level corr_ho":cell_fig_ho},step=epoch_i)
+                    wandb.log({"gene level corrs/var_ho":gene_fig_ho},step=epoch_i)
+                    wandb.log({"all genes, all cell-types":cell_fig_ho},step=epoch_i)
+                    wandb.log({"gene level corrs/var holdout":fig_gene_level_ho},step=epoch_i)
                 
                 
 
@@ -601,7 +647,7 @@ def main():
                                                                                               model=model,
                                                                                               save_directory=wandb.config.model_save_dir,
                                                                                               saved_model_basename=wandb.config.model_save_basename)
-
+                plt.close('all')
                 print('patience counter at: ' + str(patience_counter))
                 for key, item in metric_dict.items():
                     item.reset_state()

@@ -1387,15 +1387,15 @@ def make_plots(y_trues,y_preds,
     overall_gene_level_corr_sp = spearmanr(y_trues,
                                        y_preds)[0]
 
-    #fig_gene_level,ax_gene_level=plt.subplots(figsize=(6,6))
-    #data = np.vstack([y_trues,y_preds])
-    #kernel = stats.gaussian_kde(data)(data)
+    fig_gene_level,ax_gene_level=plt.subplots(figsize=(6,6))
+    data = np.vstack([y_trues,y_preds])
+    kernel = stats.gaussian_kde(data)(data)
 
-    #sns.scatterplot(
-    #    x=y_trues,
-    #    y=y_preds,
-    #    c=kernel,
-    #    cmap="viridis")
+    sns.scatterplot(
+        x=y_trues,
+        y=y_preds,
+        c=kernel,
+        cmap="viridis")
     
     plt.xlabel("true log2(1.0+TPM)")
     plt.ylabel("predicted log2(1.0+TPM)")
@@ -1416,23 +1416,7 @@ def make_plots(y_trues,y_preds,
     low_gene_level_corr_sp = spearmanr(low_y_trues,
                                        low_y_preds)[0]
     
-    """
-    fig_gene_level_l,ax_gene_level_l=plt.subplots(figsize=(6,6))
-    data = np.vstack([low_y_trues,low_y_preds])
-    kernel = stats.gaussian_kde(data)(data)
 
-    sns.scatterplot(
-        x=low_y_trues,
-        y=low_y_preds,
-        c=kernel,
-        cmap="viridis")
-    
-    plt.xlabel("true log2(1.0+TPM)")
-    plt.ylabel("predicted log2(1.0+TPM)")
-    plt.xlim(0, max(low_y_trues))
-    plt.ylim(0, max(low_y_trues))
-    plt.title("correlation LOW expression, all genes, all cells")
-    """
     high_y_true_indices = np.where(y_trues >= 3.5)
     high_y_trues = y_trues[high_y_true_indices]
     high_y_preds = y_preds[high_y_true_indices]
@@ -1545,11 +1529,13 @@ def make_plots(y_trues,y_preds,
             genes_specific_corrs.append(pearsonsr_val)
             genes_specific_corrs_sp.append(spearmansr_val)
             
-            
+            #print(k,v)
             if k in high_var_list:
+                #print('appending to high var')
                 high_variance_corr.append(pearsonsr_val)
                 high_variance_corr_sp.append(spearmansr_val)
             else:
+                #print('appending to low var')
                 low_variance_corr.append(pearsonsr_val)
                 low_variance_corr_sp.append(spearmansr_val)
                 
@@ -1598,8 +1584,15 @@ def make_plots(y_trues,y_preds,
     
     #correlations_genes_table = wandb.Table(dataframe=correlations_genes_df)
     
-    return overall_gene_level_corr,overall_gene_level_corr_sp, low_gene_level_corr,low_gene_level_corr_sp, high_gene_level_corr,high_gene_level_corr_sp, cell_spec_median,cell_spec_median_sp,gene_spec_median_corr, gene_spec_median_corr_sp, fig_cell_spec,fig_gene_spec,correlations_cells_df,correlations_genes_df,high_variance_corr_med,high_variance_corr_sp_med,low_variance_corr_med,low_variance_corr_sp_med
-
+    return overall_gene_level_corr,overall_gene_level_corr_sp,\
+        low_gene_level_corr,low_gene_level_corr_sp,\
+            high_gene_level_corr,high_gene_level_corr_sp,\
+                cell_spec_median,cell_spec_median_sp,\
+                    gene_spec_median_corr, gene_spec_median_corr_sp,\
+                        fig_cell_spec,fig_gene_spec,\
+                            correlations_cells_df,correlations_genes_df,\
+                                high_variance_corr_med,high_variance_corr_sp_med,\
+                                    low_variance_corr_med,low_variance_corr_sp_med,fig_gene_level
 
 
 
@@ -1705,6 +1698,9 @@ def return_dataset_interpret(gcs_path,
                                       compression_type='ZLIB',
                                       #buffer_size=tf.data.AUTOTUNE,
                                       num_parallel_reads=num_parallel)
+
+    dataset 
+
     dataset = dataset.map(lambda record: deserialize_interpret(record,
                                                          input_length,
                                                          num_TFs,
@@ -1712,7 +1708,9 @@ def return_dataset_interpret(gcs_path,
                           deterministic=False,
                           num_parallel_calls=num_parallel)
 
-    dataset = dataset.repeat(num_epoch).batch(batch, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
+    dataset = dataset.shuffle(batch,
+                                reshuffle_each_iteration=True).repeat(num_epoch).batch(batch, 
+                                drop_remainder=True).prefetch(tf.data.AUTOTUNE)
     interpret_dist = strategy.experimental_distribute_dataset(dataset)
 
     return iter(interpret_dist)

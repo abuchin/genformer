@@ -110,15 +110,15 @@ def return_train_val_functions_hg_mm(model,
     """
 
 
-    metric_dict["hg_tr"] = tf.keras.metrics.Mean("hg_tr_loss",
+    metric_dict["hg_tr"]=tf.keras.metrics.Mean("hg_tr_loss",
                                                  dtype=tf.float32)
-    metric_dict["hg_val"] = tf.keras.metrics.Mean("hg_val_loss",
+    metric_dict["hg_val"]=tf.keras.metrics.Mean("hg_val_loss",
                                                   dtype=tf.float32)
-    metric_dict["hg_val_ho"] = tf.keras.metrics.Mean("hg_val_ho_loss",
+    metric_dict["hg_val_ho"]=tf.keras.metrics.Mean("hg_val_ho_loss",
                                                   dtype=tf.float32)
-    metric_dict["hg_corr_stats"] = metrics.correlation_stats_gene_centered(name='hg_corr_stats')
+    metric_dict["hg_corr_stats"]=metrics.correlation_stats_gene_centered(name='hg_corr_stats')
     
-    metric_dict["hg_corr_stats_ho"] = metrics.correlation_stats_gene_centered(name='hg_corr_stats_ho')
+    metric_dict["hg_corr_stats_ho"]=metrics.correlation_stats_gene_centered(name='hg_corr_stats_ho')
 
     metric_dict["mm_tr"] = tf.keras.metrics.Mean("mm_tr_loss",
                                                  dtype=tf.float32)
@@ -154,13 +154,15 @@ def return_train_val_functions_hg_mm(model,
 
             #print(model.trainable_variables)
             gradients = tape.gradient(loss, model.trainable_variables)
-            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamW
+            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) 
+            # #comment this back in if using adam or adamW
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
             input_grads = input_grad_tape.gradient(output,input_tuple)
             if use_prior and fourier_loss_scale is not None:
                 input_grads_0 = input_grads[0] * seq_inputs
-                fourier_loss_0 = fourier_att_prior_loss(output, input_grads_0, freq_limit=freq_limit)
+                fourier_loss_0 = fourier_att_prior_loss(output, input_grads_0, 
+                freq_limit=freq_limit)
 
                 loss = loss + fourier_loss_scale * fourier_loss_0
 
@@ -200,7 +202,8 @@ def return_train_val_functions_hg_mm(model,
 
             #print(model.trainable_variables)
             gradients = tape.gradient(loss, model.trainable_variables)
-            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamW
+            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) 
+            # #comment this back in if using adam or adamW
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
             input_grads = input_grad_tape.gradient(output,input_tuple)
@@ -254,14 +257,15 @@ def return_train_val_functions_hg_mm(model,
 
             return target, output, cell_type, gene_map
 
-        ta_pred_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
-        ta_true_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
-        ta_celltype_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_pred_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) #tensor array to store preds
+        ta_true_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) #tensor array to store vals
+        ta_celltype_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True) #tensor array to store preds
         ta_genemap_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
         
         for _ in tf.range(val_steps_h): ## for loop within @tf.fuction for improved TPU performance
-            target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step_hg,
-                                                                               args=(next(iterator_hg),))
+            target_rep, output_rep, \
+                cell_type_rep, gene_map_rep = strategy.run(val_step_hg,
+                                                            args=(next(iterator_hg),))
             
             target_reshape = tf.reshape(strategy.gather(target_rep, axis=0), [-1]) # reshape to 1D
             output_reshape = tf.reshape(strategy.gather(output_rep, axis=0), [-1])
@@ -316,8 +320,9 @@ def return_train_val_functions_hg_mm(model,
         ta_genemap_ho = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
         
         for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
-            target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step_hg_ho,
-                                                                               args=(next(iterator_hg_ho),))
+            target_rep, output_rep, \
+                cell_type_rep, gene_map_rep = strategy.run(val_step_hg_ho,
+                                                        args=(next(iterator_hg_ho),))
             
             target_reshape = tf.reshape(strategy.gather(target_rep, axis=0), [-1]) # reshape to 1D
             output_reshape = tf.reshape(strategy.gather(output_rep, axis=0), [-1])
@@ -376,15 +381,15 @@ def return_train_val_functions_hg(model,
     val_steps is the # steps to fully iterate over validation set
     """
 
-    metric_dict["hg_tr"] = tf.keras.metrics.Mean("hg_tr_loss",
+    metric_dict["hg_tr"]=tf.keras.metrics.Mean("hg_tr_loss",
                                                  dtype=tf.float32)
-    metric_dict["hg_val"] = tf.keras.metrics.Mean("hg_val_loss",
+    metric_dict["hg_val"]=tf.keras.metrics.Mean("hg_val_loss",
                                                   dtype=tf.float32)
-    metric_dict["hg_val_ho"] = tf.keras.metrics.Mean("hg_val_loss_ho",
+    metric_dict["hg_val_ho"]=tf.keras.metrics.Mean("hg_val_loss_ho",
                                                   dtype=tf.float32)
-    metric_dict["hg_corr_stats"] = metrics.correlation_stats_gene_centered(name='hg_corr_stats')
+    metric_dict["hg_corr_stats"]=metrics.correlation_stats_gene_centered(name='hg_corr_stats')
     
-    metric_dict["hg_corr_stats_ho"] = metrics.correlation_stats_gene_centered(name='hg_corr_stats_ho')
+    metric_dict["hg_corr_stats_ho"]=metrics.correlation_stats_gene_centered(name='hg_corr_stats_ho')
 
     
     def dist_train_step(iterator_hg):
@@ -477,8 +482,9 @@ def return_train_val_functions_hg(model,
         ta_genemap_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
 
         for _ in tf.range(val_steps_h): ## for loop within @tf.fuction for improved TPU performance
-            target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step_hg,
-                                                                               args=(next(iterator_hg),))
+            target_rep, output_rep, \
+                cell_type_rep, gene_map_rep = strategy.run(val_step_hg,
+                                                            args=(next(iterator_hg),))
             
             target_reshape = tf.reshape(strategy.gather(target_rep, axis=0), [-1]) # reshape to 1D
             output_reshape = tf.reshape(strategy.gather(output_rep, axis=0), [-1])
@@ -534,8 +540,9 @@ def return_train_val_functions_hg(model,
         ta_genemap_ho = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
         
         for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
-            target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step_hg_ho,
-                                                                               args=(next(iterator_hg_ho),))
+            target_rep, output_rep, \
+                cell_type_rep, gene_map_rep = strategy.run(val_step_hg_ho,
+                                                            args=(next(iterator_hg_ho),))
             
             target_reshape = tf.reshape(strategy.gather(target_rep, axis=0), [-1]) # reshape to 1D
             output_reshape = tf.reshape(strategy.gather(output_rep, axis=0), [-1])
@@ -1582,7 +1589,15 @@ def make_plots(y_trues,y_preds,
     
     #correlations_genes_table = wandb.Table(dataframe=correlations_genes_df)
     
-    return overall_gene_level_corr,overall_gene_level_corr_sp, low_gene_level_corr,low_gene_level_corr_sp, high_gene_level_corr,high_gene_level_corr_sp, cell_spec_median,cell_spec_median_sp,gene_spec_median_corr, gene_spec_median_corr_sp, fig_cell_spec,fig_gene_spec,correlations_cells_df,correlations_genes_df,high_variance_corr_med,high_variance_corr_sp_med,low_variance_corr_med,low_variance_corr_sp_med,fig_gene_level
+    return overall_gene_level_corr,overall_gene_level_corr_sp,\
+        low_gene_level_corr,low_gene_level_corr_sp,\
+            high_gene_level_corr,high_gene_level_corr_sp,\
+                cell_spec_median,cell_spec_median_sp,\
+                    gene_spec_median_corr, gene_spec_median_corr_sp,\
+                        fig_cell_spec,fig_gene_spec,\
+                            correlations_cells_df,correlations_genes_df,\
+                                high_variance_corr_med,high_variance_corr_sp_med,\
+                                    low_variance_corr_med,low_variance_corr_sp_med,fig_gene_level
 
 
 

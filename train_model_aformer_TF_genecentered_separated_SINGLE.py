@@ -18,7 +18,7 @@ import random
 import logging
 from silence_tensorflow import silence_tensorflow
 silence_tensorflow()
-os.environ['TF_ENABLE_EAGER_CLIENT_STREAMING_ENQUEUE']='False'
+#os.environ['TF_ENABLE_EAGER_CLIENT_STREAMING_ENQUEUE']='False'
 import tensorflow as tf
 import tensorflow.experimental.numpy as tnp
 import tensorflow_addons as tfa
@@ -43,10 +43,10 @@ from scipy import stats
 
 def main():
     # ============== arg parse ==============================================# 
-    parser = argparse.ArgumentParser(
+    parser=argparse.ArgumentParser(
         description='process input for genformer training loop')
-    parser = training_utils.parse_args(parser)
-    args = parser.parse_args()
+    parser=training_utils.parse_args(parser)
+    args=parser.parse_args()
     
     #================ init ==================================================# 
     
@@ -55,7 +55,7 @@ def main():
     ### make sure TPU started
 
     # ============== define sweep options ==================== #
-    sweep_config = {
+    sweep_config={
             "name" : args.wandb_sweep_name,
             'method': "grid",
             'metric': {
@@ -171,24 +171,24 @@ def main():
     
     def sweep_train(config_defaults=None):
         # Set default values
-        # Specify the other hyperparameters to the configuration, if any
+        # Specify the other hyperparameters to the configuration,if any
 
         ## tpu initialization
-        strategy = training_utils.tf_tpu_initialize(args.tpu_name)
+        strategy=training_utils.tf_tpu_initialize(args.tpu_name)
         if args.precision == 'mixed_bfloat16':
             mixed_precision.set_global_policy('mixed_bfloat16')
         
         ## rest must be w/in strategy scope
         with strategy.scope():
-            config_defaults = {
+            config_defaults={
                 "lr_base": 0.01 ### will be overwritten
             }
             
             ### log training parameters
-            wandb.init(config=config_defaults, 
-                       project= args.wandb_project, 
+            wandb.init(config=config_defaults,
+                       project= args.wandb_project,
                        entity=args.wandb_user)
-            wandb.Table.MAX_ROWS = 2000000
+            wandb.Table.MAX_ROWS=2000000
             #wandb.init(mode="disabled")
             wandb.config.tpu=args.tpu_name
             wandb.config.gcs_path=args.gcs_path
@@ -219,20 +219,32 @@ def main():
 
             #wandb.config.max_seq_length=args.max_seq_length
             
-            num_convs = len(wandb.config.conv_channel_list) + 1
-            wandb.run.name = 'test'
+            num_convs=len(wandb.config.conv_channel_list) + 1
+            wandb.run.name = '_'.join(['I' + str(wandb.config.input_length),
+                                        'LR' + str(wandb.config.lr_base),
+                                        'KR' + str(wandb.config.kernel_regularizer),
+                                        'WD' + str(wandb.config.weight_decay_frac),
+                                        'T' + str(wandb.config.num_transformer_layers),
+                                        'H' + str(wandb.config.num_heads),
+                                        'C' + str(num_convs),
+                                        'AF.1' + str(wandb.config.conv_filter_size_1_atac),
+                                        'AF.2' + str(wandb.config.conv_filter_size_2_atac),
+                                        'SF.1' + str(wandb.config.conv_filter_size_1_seq),
+                                        'SF.2' + str(wandb.config.conv_filter_size_2_seq),
+                                        'D' + str(wandb.config.dropout),
+                                        'HS' + str(wandb.config.hidden_size)])
             '''
             TPU init options
             '''
-            options = tf.data.Options()
-            options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.DATA
+            options=tf.data.Options()
+            options.experimental_distribute.auto_shard_policy=tf.data.experimental.AutoShardPolicy.DATA
             options.deterministic=False
-            #options.experimental_threading.max_intra_op_parallelism = 1
+            options.experimental_threading.max_intra_op_parallelism=1
             mixed_precision.set_global_policy('mixed_bfloat16')
             tf.config.optimizer.set_jit(True)
 
 
-            NUM_REPLICAS = strategy.num_replicas_in_sync
+            NUM_REPLICAS=strategy.num_replicas_in_sync
             
             
             if wandb.config.input_length == 16384:
@@ -375,18 +387,18 @@ def main():
                 raise ValueError('input a valid length')
             
             
-            GLOBAL_BATCH_SIZE = BATCH_SIZE_PER_REPLICA * NUM_REPLICAS
+            GLOBAL_BATCH_SIZE=BATCH_SIZE_PER_REPLICA*NUM_REPLICAS
             print('global batch size:', GLOBAL_BATCH_SIZE)
-            data_it_tr_list = []
-            data_it_val_list = []
+            data_it_tr_list=[]
+            data_it_val_list=[]
             
             ### create dataset iterators
-            heads_dict = {}
-            orgs = wandb.config.organisms.split(',')
+            heads_dict={}
+            orgs=wandb.config.organisms.split(',')
             for k, org in enumerate(orgs):
-                heads_dict[org] = int(k)
+                heads_dict[org]=int(k)
 
-            data_dict_tr, data_dict_val,val_ho_it = training_utils.return_distributed_iterators(heads_dict,
+            data_dict_tr, data_dict_val,val_ho_it=training_utils.return_distributed_iterators(heads_dict,
                                                                                       wandb.config.gcs_path,
                                                                                       wandb.config.gcs_path_val_ho,
                                                                                       GLOBAL_BATCH_SIZE,
@@ -400,12 +412,12 @@ def main():
             
             print('val ho it')
             print(val_ho_it)
-            rot_emb_bool = False
+            rot_emb_bool=False
             if wandb.config.use_rot_emb == 'True':
-                rot_emb_bool = True
-            mask_bool = False
+                rot_emb_bool=True
+            mask_bool=False
             if wandb.config.use_mask_pos == 'True':
-                mask_bool = True
+                mask_bool=True
             #print(rot_emb_bool)
             #print(mask_bool)
             if ((mask_bool and rot_emb_bool)):
@@ -415,7 +427,7 @@ def main():
                 raise ValueError('choose one of rotary or mask')
                 
             
-            model = aformer.aformer(kernel_transformation=wandb.config.kernel_transformation,
+            model=aformer.aformer(kernel_transformation=wandb.config.kernel_transformation,
                                         dropout_rate=wandb.config.dropout,
                                         input_length=wandb.config.input_length,
                                         num_heads=wandb.config.num_heads,
@@ -426,7 +438,7 @@ def main():
                                         dim=wandb.config.dim,
                                         rel_pos_bins=wandb.config.rel_pos_bins,
                                         max_seq_length=wandb.config.max_seq_length,
-                                        widening = 2, 
+                                        widening=2, 
                                         conv_filter_size_1_seq=wandb.config.conv_filter_size_1_seq,
                                         conv_filter_size_2_seq=wandb.config.conv_filter_size_2_seq,
                                         conv_filter_size_1_atac=wandb.config.conv_filter_size_1_atac,
@@ -438,12 +450,12 @@ def main():
                                         bottleneck_units=wandb.config.bottleneck_units,
                                         bottleneck_units_tf=wandb.config.bottleneck_units_tf,
                                         heads_dict=heads_dict,
-                                        use_rot_emb = rot_emb_bool,
-                                        use_mask_pos = mask_bool)
+                                        use_rot_emb=rot_emb_bool,
+                                        use_mask_pos=mask_bool)
             
     
             if wandb.config.optimizer == "adabelief":
-                optimizer = tfa.optimizers.AdaBelief(learning_rate=wandb.config.lr_base,
+                optimizer=tfa.optimizers.AdaBelief(learning_rate=wandb.config.lr_base,
                                                      weight_decay=wandb.config.weight_decay_frac,
                                                      warmup_proportion=wandb.config.warmup_frac,
                                                      epsilon=wandb.config.epsilon,
@@ -455,7 +467,7 @@ def main():
                                                    sync_period=wandb.config.sync_period,
                                                    slow_step_size=wandb.config.slow_step_frac)
             elif wandb.config.optimizer == 'adafactor':
-                optimizer = optimizers.AdafactorOptimizer()
+                optimizer=optimizers.AdafactorOptimizer()
                 optimizer=tfa.optimizers.Lookahead(optimizer,
                                                    sync_period=wandb.config.sync_period,
                                                    slow_step_size=wandb.config.slow_step_frac)
@@ -463,19 +475,20 @@ def main():
                 ## learning rate_scheduler
                 scheduler= tf.keras.optimizers.schedules.CosineDecay(
                     initial_learning_rate=wandb.config.lr_base,
-                    decay_steps=wandb.config.total_steps, alpha=(wandb.config.min_lr / wandb.config.lr_base))
+                    decay_steps=\
+                        wandb.config.total_steps, alpha=(wandb.config.min_lr / wandb.config.lr_base))
                 scheduler=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base,
-                                             warmup_steps=wandb.config.warmup_frac * wandb.config.total_steps,
+                                             warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps,
                                              decay_schedule_fn=scheduler)
                                             
                 scheduler_wd= tf.keras.optimizers.schedules.CosineDecay(
                     initial_learning_rate=wandb.config.weight_decay_frac,
-                    decay_steps=wandb.config.total_steps, alpha=0.0)
+                    decay_steps=wandb.config.total_steps,alpha=0.0)
                 scheduler_wd=optimizers.WarmUp(initial_learning_rate=wandb.config.weight_decay_frac,
-                                             warmup_steps=int(wandb.config.warmup_frac * wandb.config.total_steps),
+                                             warmup_steps=int(wandb.config.warmup_frac*wandb.config.total_steps),
                                              decay_schedule_fn=scheduler)
                 
-                optimizer = tfa.optimizers.AdamW(learning_rate=scheduler,
+                optimizer=tfa.optimizers.AdamW(learning_rate=scheduler,
                                                  beta_1=wandb.config.beta1,
                                                  beta_2=wandb.config.beta2,
                                                  weight_decay=scheduler_wd)
@@ -487,69 +500,71 @@ def main():
                 raise ValueError("optimizer not implemented")
 
             
-            metric_dict = {}
+            metric_dict={}
             
-            freq_limit = int(wandb.config.input_length * wandb.config.freq_limit_scale)
-            print('freq_limit:', freq_limit)
+            freq_limit=int(wandb.config.input_length*wandb.config.freq_limit_scale)
+            print('freq_limit:',freq_limit)
             if len(orgs) == 1:
                 
-                train_step, val_step, dist_val_step_ho, metric_dict = training_utils.return_train_val_functions_hg(model,
-                                                                                              optimizer,
-                                                                                              strategy,
-                                                                                              metric_dict, 
-                                                                                              wandb.config.train_steps,
-                                                                                              wandb.config.val_steps_h,
-                                                                                              wandb.config.val_steps_ho,
-                                                                                              GLOBAL_BATCH_SIZE,
-                                                                                              wandb.config.gradient_clip,
-                                                                                              wandb.config.use_fft_prior,
-                                                                                              freq_limit,
-                                                                                              wandb.config.fft_prior_scale,
-                                                                                              wandb.config.use_tf_acc)
+                train_step,val_step,dist_val_step_ho,metric_dict=\
+                    training_utils.return_train_val_functions_hg(model,
+                                                                optimizer,
+                                                                strategy,
+                                                                metric_dict,
+                                                                wandb.config.train_steps,
+                                                                wandb.config.val_steps_h,
+                                                                wandb.config.val_steps_ho,
+                                                                GLOBAL_BATCH_SIZE,
+                                                                wandb.config.gradient_clip,
+                                                                wandb.config.use_fft_prior,
+                                                                freq_limit,
+                                                                wandb.config.fft_prior_scale,
+                                                                wandb.config.use_tf_acc)
             else:
-                train_step, val_step, dist_val_step_ho, metric_dict = training_utils.return_train_val_functions_hg_mm(model,
-                                                                                              optimizer,
-                                                                                              strategy,
-                                                                                              metric_dict, 
-                                                                                              wandb.config.train_steps,
-                                                                                              wandb.config.val_steps_h,
-                                                                                              wandb.config.val_steps_ho,
-                                                                                              GLOBAL_BATCH_SIZE,
-                                                                                              wandb.config.gradient_clip,
-                                                                                              wandb.config.use_fft_prior,
-                                                                                              freq_limit,
-                                                                                              wandb.config.fft_prior_scale,
-                                                                                              wandb.config.use_tf_acc)
+                train_step,val_step,dist_val_step_ho,metric_dict=\
+                    training_utils.return_train_val_functions_hg_mm(model,
+                                                                    optimizer,
+                                                                    strategy,
+                                                                    metric_dict,
+                                                                    wandb.config.train_steps,
+                                                                    wandb.config.val_steps_h,
+                                                                    wandb.config.val_steps_ho,
+                                                                    GLOBAL_BATCH_SIZE,
+                                                                    wandb.config.gradient_clip,
+                                                                    wandb.config.use_fft_prior,
+                                                                    freq_limit,
+                                                                    wandb.config.fft_prior_scale,
+                                                                    wandb.config.use_tf_acc)
 
                 
             print(wandb.config)
             
             ### main training loop
-            global_step = 0
-            val_losses = []
-            val_pearsons = []
-            val_R2 = []
-            patience_counter = 0
-            stop_criteria = False
-            best_epoch = 0
+            global_step=0
+            val_losses=[]
+            val_pearsons=[]
+            val_R2=[]
+            patience_counter=0
+            stop_criteria=False
+            best_epoch=0
             
             
-            for epoch_i in range(1, wandb.config.num_epochs + 1):
-                start = time.time()
+            for epoch_i in range(1,wandb.config.num_epochs + 1):
+                start=time.time()
                 if len(orgs) == 1:
-                    lr, it = train_step(data_dict_tr['hg'])
+                    lr,it=train_step(data_dict_tr['hg'])
 
                 else:
-                    lr, it = train_step(data_dict_tr['hg'],
+                    lr,it=train_step(data_dict_tr['hg'],
                                         data_dict_tr['mm'])
 
-                end = time.time()
-                duration = (end - start) / 60.
+                end=time.time()
+                duration=(end - start) / 60.
                 print('completed epoch ' + str(epoch_i))
                 print('hg_train_loss: ' + str(metric_dict['hg_tr'].result().numpy()))
                 print('training duration(mins): ' + str(duration))
                 
-                start = time.time()
+                start=time.time()
                 if len(orgs) == 1:
                     val_step(data_dict_val['hg'])
                 else:
@@ -564,14 +579,27 @@ def main():
                 
 
 
-                y_trues = metric_dict['hg_corr_stats'].result()['y_trues'].numpy()
-                y_preds = metric_dict['hg_corr_stats'].result()['y_preds'].numpy()
-                cell_types = metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
-                gene_map = metric_dict['hg_corr_stats'].result()['gene_map'].numpy()
+                y_trues=metric_dict['hg_corr_stats'].result()['y_trues'].numpy()
+                y_preds=metric_dict['hg_corr_stats'].result()['y_preds'].numpy()
+                cell_types=metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
+                gene_map=metric_dict['hg_corr_stats'].result()['gene_map'].numpy()
                 
                 
-                overall_corr,overall_corr_sp,low_corr,low_corr_sp,high_corr, high_corr_sp, cell_corr,cell_corr_sp, gene_corr,gene_corr_sp,cell_fig,gene_fig, cells_df,genes_df,h_var_corr,h_var_corr_sp,low_var_corr,low_var_corr_sp,fig_gene_level= training_utils.make_plots(y_trues,y_preds,cell_types,gene_map, 'hg',args.cell_type_map_file, args.gene_map_file, args.gene_symbol_map_file,args.high_variance_list)
-
+                overall_corr,overall_corr_sp,\
+                    low_corr,low_corr_sp,\
+                        high_corr,high_corr_sp,\
+                            cell_corr,cell_corr_sp,\
+                                gene_corr,gene_corr_sp,\
+                                    cell_fig,gene_fig,cells_df_ho,genes_df,\
+                                        h_var_corr,h_var_corr_sp,\
+                                            low_var_corr,low_var_corr_sp,\
+                                                fig_gene_level=\
+                                                    training_utils.make_plots(y_trues,y_preds,
+                                                    cell_types,gene_map,
+                                                    'hg',args.cell_type_map_file,
+                                                    args.gene_map_file,
+                                                    args.gene_symbol_map_file,
+                                                    args.high_variance_list)
 
                 wandb.log({'hg_train_loss': metric_dict['hg_tr'].result().numpy(),
                            'hg_val_loss': metric_dict['hg_val'].result().numpy(),
@@ -594,13 +622,25 @@ def main():
                     print('hg_val_pearson_ho: ' + str(metric_dict['hg_corr_stats_ho'].result()['pearsonR'].numpy()))
                     print('hg_val_R2_ho: ' + str(metric_dict['hg_corr_stats_ho'].result()['R2'].numpy()))
 
-                    y_trues_ho = metric_dict['hg_corr_stats_ho'].result()['y_trues'].numpy()
-                    y_preds_ho = metric_dict['hg_corr_stats_ho'].result()['y_preds'].numpy()
-                    cell_types_ho = metric_dict['hg_corr_stats_ho'].result()['cell_types'].numpy()
-                    gene_map_ho = metric_dict['hg_corr_stats_ho'].result()['gene_map'].numpy()
-
-                    overall_corr_ho,overall_corr_sp_ho,low_corr_ho,low_corr_sp_ho,high_corr_ho, high_corr_sp_ho, cell_corr_ho,cell_corr_sp_ho, gene_corr_ho,gene_corr_sp_ho,cell_fig_ho,gene_fig_ho,cells_df_ho,genes_df_ho,h_var_corr_ho,h_var_corr_sp_ho,low_var_corr_ho,low_var_corr_sp_ho,fig_gene_level_ho = training_utils.make_plots(y_trues_ho,y_preds_ho,cell_types_ho,gene_map_ho, 'hg_ho',args.cell_type_map_file, args.gene_map_file, args.gene_symbol_map_file,args.high_variance_list)
-                    
+                    y_trues_ho=metric_dict['hg_corr_stats_ho'].result()['y_trues'].numpy()
+                    y_preds_ho=metric_dict['hg_corr_stats_ho'].result()['y_preds'].numpy()
+                    cell_types_ho=metric_dict['hg_corr_stats_ho'].result()['cell_types'].numpy()
+                    gene_map_ho=metric_dict['hg_corr_stats_ho'].result()['gene_map'].numpy()
+                    overall_corr_ho,overall_corr_sp_ho,\
+                        low_corr_ho,low_corr_sp_ho,\
+                            high_corr_ho,high_corr_sp_ho,\
+                                cell_corr_ho,cell_corr_sp_ho,\
+                                    gene_corr_ho,gene_corr_sp_ho,\
+                                        cell_fig_ho,gene_fig_ho,cells_df_ho,genes_df_ho,\
+                                            h_var_corr_ho,h_var_corr_sp_ho,\
+                                                low_var_corr_ho,low_var_corr_sp_ho,\
+                                                    fig_gene_level_ho=\
+                                                        training_utils.make_plots(y_trues_ho,y_preds_ho,
+                                                                                cell_types_ho,gene_map_ho,
+                                                                                'hg_ho',args.cell_type_map_file,
+                                                                                args.gene_map_file,
+                                                                                args.gene_symbol_map_file,
+                                                                                args.high_variance_list)
                     wandb.log({'hg_overall_rho_ho': overall_corr_ho,
                                'hg_overall_rho_sp_ho': overall_corr_sp_ho,
                                'hg_low_var_ho': low_var_corr_ho,
@@ -615,48 +655,52 @@ def main():
                                'hg_median_cell_rho_sp_ho': cell_corr_sp_ho},
                               step=epoch_i)
                     
-                    cells_table = wandb.Table(dataframe=cells_df_ho)
-                    genes_table = wandb.Table(dataframe=genes_df_ho)
+                    cells_table=wandb.Table(dataframe=cells_df_ho)
+                    genes_table=wandb.Table(dataframe=genes_df_ho)
                     
                     wandb.log({"cells_correlations": cells_table},step=epoch_i)
                     wandb.log({"genes_correlations": genes_table},step=epoch_i)
                     wandb.log({"cell level corr_ho":cell_fig_ho},step=epoch_i)
                     wandb.log({"gene level corrs/var_ho":gene_fig_ho},step=epoch_i)
-                    wandb.log({"all genes, all cell-types":cell_fig_ho},step=epoch_i)
+                    wandb.log({"all genes,all cell-types":cell_fig_ho},step=epoch_i)
                     wandb.log({"gene level corrs/var holdout":fig_gene_level_ho},step=epoch_i)
                 
                 
                 if (epoch_i > 2):
-                    stop_criteria,patience_counter,best_epoch = training_utils.early_stopping(current_val_loss=val_losses[-1],
-                                                                                              logged_val_losses=val_losses,
-                                                                                              current_pearsons=val_pearsons[-1],
-                                                                                              logged_pearsons=val_pearsons,
-                                                                                              current_epoch=epoch_i,
-                                                                                              best_epoch=best_epoch,
-                                                                                              save_freq=args.savefreq,
-                                                                                              patience=wandb.config.patience,
-                                                                                              patience_counter=patience_counter,
-                                                                                              min_delta=wandb.config.min_delta,
-                                                                                              model=model,
-                                                                                              save_directory=wandb.config.model_save_dir,
-                                                                                              saved_model_basename=wandb.config.model_save_basename)
-                plt.figure().close('all')
+                    stop_criteria,patience_counter,best_epoch=\
+                        training_utils.early_stopping(current_val_loss=val_losses[-1],
+                                                    logged_val_losses=val_losses,
+                                                    current_pearsons=val_pearsons[-1],
+                                                    logged_pearsons=val_pearsons,
+                                                    current_epoch=epoch_i,
+                                                    best_epoch=best_epoch,
+                                                    save_freq=args.savefreq,
+                                                    patience=wandb.config.patience,
+                                                    patience_counter=patience_counter,
+                                                    min_delta=wandb.config.min_delta,
+                                                    model=model,
+                                                    save_directory=wandb.config.model_save_dir,
+                                                    saved_model_basename=wandb.config.model_save_basename)
+                
+                plt.close('all')
                 print('patience counter at: ' + str(patience_counter))
-                for key, item in metric_dict.items():
+                for key,item in metric_dict.items():
                     item.reset_state()
                 if stop_criteria:
                     print('early stopping at: epoch ' + str(epoch_i))
                     break
                 
-                end = time.time()
-                duration = (end - start) / 60.
+                end=time.time()
+                duration=(end - start) / 60.
                 print('validation duration(mins): ' + str(duration))
                     
             print('saving model at: epoch ' + str(epoch_i))
             #print('best model was at: epoch ' + str(best_epoch))
-            model.save_weights(wandb.config.model_save_dir + "/" + wandb.config.model_save_basename + "_" + wandb.run.name + "/final/saved_model")
-    sweep_id = wandb.sweep(sweep_config, project=args.wandb_project)
-    wandb.agent(sweep_id, function=sweep_train)
+            model.save_weights(wandb.config.model_save_dir + "/" + \
+                                wandb.config.model_save_basename + "_" + \
+                                    wandb.run.name + "/final/saved_model")
+    sweep_id=wandb.sweep(sweep_config,project=args.wandb_project)
+    wandb.agent(sweep_id,function=sweep_train)
     #sweep_train()
 
 ##########################################################################
