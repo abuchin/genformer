@@ -253,19 +253,38 @@ def main():
                 wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/val_holdout/val"},
                                    allow_val_change=True)
                 wandb.config.update({"model_save_dir": "gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/models"},
-                                   allow_val_change=True)
+                                    allow_val_change=True)
                 wandb.config.update({"max_seq_length": 128},
                                    allow_val_change=True)
                 BATCH_SIZE_PER_REPLICA=args.batch_size
-                wandb.config.update({"train_steps": args.train_steps},
+                wandb.config.update({"train_steps": 295},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_h" : args.val_steps_h},
+                wandb.config.update({"val_steps_h" : 47},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_ho" : args.val_steps_ho},
+                wandb.config.update({"val_steps_ho" : 7},
                                    allow_val_change=True)
-                wandb.config.update({"total_steps": args.total_steps},
+                wandb.config.update({"total_steps": 29500},
                                    allow_val_change=True)
+            elif wandb.config.input_length == 32768:
                 
+                wandb.config.update({"gcs_path": "gs://picard-testing-176520/32k_genecentered_blacklist0.50_atacnormalized/preprocessed"},
+                                   allow_val_change=True)
+                wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/32k_genecentered_blacklist0.50_atacnormalized/val_holdout/val"},
+                                   allow_val_change=True)
+                wandb.config.update({"model_save_dir": "gs://picard-testing-176520/32k_genecentered_blacklist0.50_atacnormalized/models"},
+                                   allow_val_change=True)
+                wandb.config.update({"max_seq_length": 512},
+                                   allow_val_change=True)
+                BATCH_SIZE_PER_REPLICA=64
+                wandb.config.update({"train_steps": 332},
+                                   allow_val_change=True)
+                wandb.config.update({"val_steps_h" : 52},
+                                   allow_val_change=True)
+                wandb.config.update({"val_steps_ho" : 7},
+                                   allow_val_change=True)
+                wandb.config.update({"total_steps": 33200},
+                                   allow_val_change=True)
+
             elif wandb.config.input_length == 65536:
                 
                 wandb.config.update({"gcs_path": "gs://picard-testing-176520/65k_genecentered_blacklist0.50_atacnormalized/preprocessed"},
@@ -273,17 +292,17 @@ def main():
                 wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/65k_genecentered_blacklist0.50_atacnormalized/val_holdout/val"},
                                    allow_val_change=True)
                 wandb.config.update({"model_save_dir": "gs://picard-testing-176520/65k_genecentered_blacklist0.50_atacnormalized/models"},
-                                   allow_val_change=True)
+                                    allow_val_change=True)
                 wandb.config.update({"max_seq_length": 512},
                                    allow_val_change=True)
                 BATCH_SIZE_PER_REPLICA=48
-                wandb.config.update({"train_steps": 446},
+                wandb.config.update({"train_steps": 442},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_h" : 71},
+                wandb.config.update({"val_steps_h" : 70},
                                    allow_val_change=True)
                 wandb.config.update({"val_steps_ho" : 10},
                                    allow_val_change=True)
-                wandb.config.update({"total_steps": 22300},
+                wandb.config.update({"total_steps": 44200},
                                    allow_val_change=True)
                 
             elif wandb.config.input_length == 131072:
@@ -293,37 +312,36 @@ def main():
                 wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/131k_genecentered_blacklist0.50_atacnormalized/val_holdout/val"},
                                    allow_val_change=True)
                 wandb.config.update({"model_save_dir": "gs://picard-testing-176520/131k_genecentered_blacklist0.50_atacnormalized/models"},
-                                   allow_val_change=True)
+                                    allow_val_change=True)
                 wandb.config.update({"max_seq_length": 1024},
                                    allow_val_change=True)
-                BATCH_SIZE_PER_REPLICA=16
-                wandb.config.update({"train_steps": 1338},
+                BATCH_SIZE_PER_REPLICA=24
+                wandb.config.update({"train_steps": 883},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_h" : 211},
+                wandb.config.update({"val_steps_h" : 139},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_ho" : 28},
+                wandb.config.update({"val_steps_ho" : 19},
                                    allow_val_change=True)
-                wandb.config.update({"total_steps": 66900},
+                wandb.config.update({"total_steps": 88300},
                                    allow_val_change=True)
                 
             elif wandb.config.input_length == 196608:
-                
                 wandb.config.update({"gcs_path": "gs://picard-testing-176520/196k_genecentered_blacklist0.50_atacnormalized/preprocessed"},
                                    allow_val_change=True)
                 wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/196k_genecentered_blacklist0.50_atacnormalized/val_holdout/val"},
                                    allow_val_change=True)
                 wandb.config.update({"model_save_dir": "gs://picard-testing-176520/196k_genecentered_blacklist0.50_atacnormalized/models"},
-                                   allow_val_change=True)
+                                    allow_val_change=True)
                 wandb.config.update({"max_seq_length": 1536},
                                    allow_val_change=True)
                 BATCH_SIZE_PER_REPLICA=12
-                wandb.config.update({"train_steps": 1784},
+                wandb.config.update({"train_steps": 1766},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_h" : 281},
+                wandb.config.update({"val_steps_h" : 278},
                                    allow_val_change=True)
                 wandb.config.update({"val_steps_ho" : 37},
                                    allow_val_change=True)
-                wandb.config.update({"total_steps": 89200},
+                wandb.config.update({"total_steps": 176600},
                                    allow_val_change=True)
                 
             elif wandb.config.input_length == 262144:
@@ -332,7 +350,7 @@ def main():
                 wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/262k_genecentered_blacklist0.50_atacnormalized/val_holdout/val"},
                                    allow_val_change=True)
                 wandb.config.update({"model_save_dir": "gs://picard-testing-176520/262k_genecentered_blacklist0.50_atacnormalized/models"},
-                                   allow_val_change=True)
+                                    allow_val_change=True)
                 wandb.config.update({"max_seq_length": 2048},
                                    allow_val_change=True)
                 BATCH_SIZE_PER_REPLICA=6
@@ -608,10 +626,10 @@ def main():
                            'hg_low_rho_sp_ho': low_var_corr_sp_ho,
                            'hg_high_rho_ho': h_var_corr_ho,
                            'hg_high_rho_sp_ho': h_var_corr_sp_ho,
-                            'hg_low_var_ho': low_var_corr_ho,
-                            'hg_low_var_sp_ho': low_var_corr_sp_ho,
-                            'hg_high_var_ho': h_var_corr_ho,
-                            'hg_high_var_sp_ho': h_var_corr_sp_ho,
+                           'hg_low_var_ho': low_var_corr_ho,
+                           'hg_low_var_sp_ho': low_var_corr_sp_ho,
+                           'hg_high_var_ho': h_var_corr_ho,
+                           'hg_high_var_sp_ho': h_var_corr_sp_ho,
                            'hg_median_cell_rho_ho': cell_corr_ho,
                            'hg_median_cell_rho_sp_ho': cell_corr_sp_ho,
                            'hg_median_gene_rho_ho': gene_corr_ho,
