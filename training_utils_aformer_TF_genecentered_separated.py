@@ -18,7 +18,7 @@ import multiprocessing
 import logging
 from silence_tensorflow import silence_tensorflow
 silence_tensorflow()
-os.environ['TF_ENABLE_EAGER_CLIENT_STREAMING_ENQUEUE']='False'
+#os.environ['TF_ENABLE_EAGER_CLIENT_STREAMING_ENQUEUE']='False'
 import tensorflow as tf
 import tensorflow.experimental.numpy as tnp
 import tensorflow_addons as tfa
@@ -749,7 +749,7 @@ def return_dataset(gcs_path,
     
     dataset = tf.data.TFRecordDataset(files,
                                       compression_type='ZLIB',
-                                      #buffer_size=1000000,
+                                      buffer_size=1000000,
                                       num_parallel_reads=num_parallel)
     dataset = dataset.with_options(options)
 
@@ -760,8 +760,7 @@ def return_dataset(gcs_path,
                                                      output_type),
                           deterministic=False,
                           num_parallel_calls=num_parallel)
-    
-    
+
     return dataset.repeat(num_epoch).batch(batch,drop_remainder=True).prefetch(tf.data.AUTOTUNE)
 
 
@@ -830,22 +829,13 @@ def return_dataset_val_holdout(gcs_path,
 
     dataset = tf.data.TFRecordDataset(files,
                                       compression_type='ZLIB',
-                                      #buffer_size=tf.data.AUTOTUNE,
+                                      buffer_size=1000000,
                                       num_parallel_reads=num_parallel)
     options = tf.data.Options()
     options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.FILE
     options.deterministic=False
     
     dataset = dataset.with_options(options)
-
-    dataset = dataset.map(lambda record: deserialize_val(record,
-                                                         input_length,
-                                                         num_TFs,
-                                                         max_shift,
-                                                         output_type),
-                          deterministic=False,
-                          num_parallel_calls=num_parallel)
-
 
     return dataset.repeat(num_epoch).batch(batch, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
 
@@ -1696,7 +1686,7 @@ def return_dataset_interpret(gcs_path,
 
     dataset = tf.data.TFRecordDataset(files,
                                       compression_type='ZLIB',
-                                      #buffer_size=tf.data.AUTOTUNE,
+                                      buffer_size=1000000,
                                       num_parallel_reads=num_parallel)
 
     dataset 
@@ -1708,8 +1698,7 @@ def return_dataset_interpret(gcs_path,
                           deterministic=False,
                           num_parallel_calls=num_parallel)
 
-    dataset = dataset.shuffle(batch,
-                                reshuffle_each_iteration=True).repeat(num_epoch).batch(batch, 
+    dataset = dataset.repeat(num_epoch).batch(batch, 
                                 drop_remainder=True).prefetch(tf.data.AUTOTUNE)
     interpret_dist = strategy.experimental_distribute_dataset(dataset)
 
