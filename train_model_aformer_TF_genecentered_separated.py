@@ -250,7 +250,7 @@ def main():
             if wandb.config.input_length == 16384:
                 wandb.config.update({"gcs_path": "gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/preprocessed"},
                                    allow_val_change=True)
-                wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/val_holdout/val"},
+                wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/val_holdout/preprocessed/val"},
                                    allow_val_change=True)
                 wandb.config.update({"model_save_dir": "gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/models"},
                                     allow_val_change=True)
@@ -269,7 +269,7 @@ def main():
                 
                 wandb.config.update({"gcs_path": "gs://picard-testing-176520/32k_genecentered_blacklist0.50_atacnormalized/preprocessed"},
                                    allow_val_change=True)
-                wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/32k_genecentered_blacklist0.50_atacnormalized/val_holdout/val"},
+                wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/32k_genecentered_blacklist0.50_atacnormalized/val_holdout/preprocessed/val"},
                                    allow_val_change=True)
                 wandb.config.update({"model_save_dir": "gs://picard-testing-176520/32k_genecentered_blacklist0.50_atacnormalized/models"},
                                    allow_val_change=True)
@@ -289,7 +289,7 @@ def main():
                 
                 wandb.config.update({"gcs_path": "gs://picard-testing-176520/65k_genecentered_blacklist0.50_atacnormalized/preprocessed"},
                                    allow_val_change=True)
-                wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/65k_genecentered_blacklist0.50_atacnormalized/val_holdout/val"},
+                wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/65k_genecentered_blacklist0.50_atacnormalized/val_holdout/preprocessed/val"},
                                    allow_val_change=True)
                 wandb.config.update({"model_save_dir": "gs://picard-testing-176520/65k_genecentered_blacklist0.50_atacnormalized/models"},
                                     allow_val_change=True)
@@ -309,7 +309,7 @@ def main():
                 
                 wandb.config.update({"gcs_path": "gs://picard-testing-176520/131k_genecentered_blacklist0.50_atacnormalized/preprocessed"},
                                    allow_val_change=True)
-                wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/131k_genecentered_blacklist0.50_atacnormalized/val_holdout/val"},
+                wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/131k_genecentered_blacklist0.50_atacnormalized/val_holdout/preprocessed/val"},
                                    allow_val_change=True)
                 wandb.config.update({"model_save_dir": "gs://picard-testing-176520/131k_genecentered_blacklist0.50_atacnormalized/models"},
                                     allow_val_change=True)
@@ -328,7 +328,7 @@ def main():
             elif wandb.config.input_length == 196608:
                 wandb.config.update({"gcs_path": "gs://picard-testing-176520/196k_genecentered_blacklist0.50_atacnormalized/preprocessed"},
                                    allow_val_change=True)
-                wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/196k_genecentered_blacklist0.50_atacnormalized/val_holdout/val"},
+                wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/196k_genecentered_blacklist0.50_atacnormalized/val_holdout/preprocessed/val"},
                                    allow_val_change=True)
                 wandb.config.update({"model_save_dir": "gs://picard-testing-176520/196k_genecentered_blacklist0.50_atacnormalized/models"},
                                     allow_val_change=True)
@@ -347,7 +347,7 @@ def main():
             elif wandb.config.input_length == 262144:
                 wandb.config.update({"gcs_path": "gs://picard-testing-176520/262k_genecentered_blacklist0.50_atacnormalized/preprocessed"},
                                    allow_val_change=True)
-                wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/262k_genecentered_blacklist0.50_atacnormalized/val_holdout/val"},
+                wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/262k_genecentered_blacklist0.50_atacnormalized/val_holdout/preprocessed/val"},
                                    allow_val_change=True)
                 wandb.config.update({"model_save_dir": "gs://picard-testing-176520/262k_genecentered_blacklist0.50_atacnormalized/models"},
                                     allow_val_change=True)
@@ -386,7 +386,7 @@ def main():
                                                                                       wandb.config.max_shift,
                                                                                       wandb.config.target_unit,
                                                                                       args.num_parallel,
-                                                                                      args.num_epochs*10,
+                                                                                      args.num_epochs+5,
                                                                                       strategy,
                                                                                       options)
             
@@ -542,10 +542,8 @@ def main():
                 print('training duration(mins): ' + str(duration))
                 
                 start = time.time()
-                if len(orgs) == 1:
-                    val_step(data_dict_val['hg'])
-                else:
-                    val_step(data_dict_val['hg'])
+                
+                val_step(data_dict_val['hg'])
                     
                 val_losses.append(metric_dict['hg_val'].result().numpy())
                 val_pearsons.append(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy())
@@ -553,13 +551,23 @@ def main():
                 print('hg_val_loss: ' + str(metric_dict['hg_val'].result().numpy()))
                 print('hg_val_pearson: ' + str(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy()))
                 print('hg_val_R2: ' + str(metric_dict['hg_corr_stats'].result()['R2'].numpy()))
-                
+                end = time.time()
+                duration = (end - start) / 60.
+                print('validation duration(mins): ' + str(duration))
+
+                start = time.time()
                 dist_val_step_ho(val_ho_it)
                 
                 print('completed dist_val_step')
                 print('hg_val_pearson_ho: ' + str(metric_dict['hg_corr_stats_ho'].result()['pearsonR'].numpy()))
                 print('hg_val_R2_ho: ' + str(metric_dict['hg_corr_stats_ho'].result()['R2'].numpy()))
-                    
+                end = time.time()
+                duration = (end - start) / 60.
+                print('validation holdout duration(mins): ' + str(duration))
+
+
+                start = time.time()
+
                 y_trues = metric_dict['hg_corr_stats'].result()['y_trues'].numpy()
                 y_preds = metric_dict['hg_corr_stats'].result()['y_preds'].numpy()
                 cell_types = metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
@@ -652,19 +660,20 @@ def main():
                     
                 
                 if (epoch_i > 2):
-                    stop_criteria,patience_counter,best_epoch = training_utils.early_stopping(current_val_loss=val_losses[-1],
-                                                                                              logged_val_losses=val_losses,
-                                                                                              current_pearsons=val_pearsons[-1],
-                                                                                              logged_pearsons=val_pearsons,
-                                                                                              current_epoch=epoch_i,
-                                                                                              best_epoch=best_epoch,
-                                                                                              save_freq=args.savefreq,
-                                                                                              patience=wandb.config.patience,
-                                                                                              patience_counter=patience_counter,
-                                                                                              min_delta=wandb.config.min_delta,
-                                                                                              model=model,
-                                                                                              save_directory=wandb.config.model_save_dir,
-                                                                                              saved_model_basename=wandb.config.model_save_basename)
+                    stop_criteria,patience_counter,best_epoch = \
+                        training_utils.early_stopping(current_val_loss=val_losses[-1],
+                                                        logged_val_losses=val_losses,
+                                                        current_pearsons=val_pearsons[-1],
+                                                        logged_pearsons=val_pearsons,
+                                                        current_epoch=epoch_i,
+                                                        best_epoch=best_epoch,
+                                                        save_freq=args.savefreq,
+                                                        patience=wandb.config.patience,
+                                                        patience_counter=patience_counter,
+                                                        min_delta=wandb.config.min_delta,
+                                                        model=model,
+                                                        save_directory=wandb.config.model_save_dir,
+                                                        saved_model_basename=wandb.config.model_save_basename)
                 plt.close('all')
                 print('patience counter at: ' + str(patience_counter))
                 for key, item in metric_dict.items():
@@ -675,7 +684,7 @@ def main():
                     
                 end = time.time()
                 duration = (end - start) / 60.
-                print('validation duration(mins): ' + str(duration))
+                print('plotting/logging duration(mins): ' + str(duration))
                     
             print('saving model at: epoch ' + str(epoch_i))
             print('best model was at: epoch ' + str(best_epoch))
