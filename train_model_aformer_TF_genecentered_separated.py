@@ -526,7 +526,7 @@ def main():
             best_epoch = 0
             
             
-            for epoch_i in range(1, wandb.config.num_epochs):
+            for epoch_i in range(1, wandb.config.num_epochs+1):
                 start = time.time()
                 if len(orgs) == 1:
                     lr, it = train_step(data_dict_tr['hg'])
@@ -555,19 +555,6 @@ def main():
                 duration = (end - start) / 60.
                 print('validation duration(mins): ' + str(duration))
 
-                start = time.time()
-                dist_val_step_ho(val_ho_it)
-                
-                print('completed dist_val_step')
-                print('hg_val_pearson_ho: ' + str(metric_dict['hg_corr_stats_ho'].result()['pearsonR'].numpy()))
-                print('hg_val_R2_ho: ' + str(metric_dict['hg_corr_stats_ho'].result()['R2'].numpy()))
-                end = time.time()
-                duration = (end - start) / 60.
-                print('validation holdout duration(mins): ' + str(duration))
-
-
-                start = time.time()
-
                 y_trues = metric_dict['hg_corr_stats'].result()['y_trues'].numpy()
                 y_preds = metric_dict['hg_corr_stats'].result()['y_preds'].numpy()
                 cell_types = metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
@@ -590,26 +577,7 @@ def main():
                                                     args.gene_symbol_map_file,
                                                     args.high_variance_list)
                     
-                y_trues_ho = metric_dict['hg_corr_stats_ho'].result()['y_trues'].numpy()
-                y_preds_ho = metric_dict['hg_corr_stats_ho'].result()['y_preds'].numpy()
-                cell_types_ho = metric_dict['hg_corr_stats_ho'].result()['cell_types'].numpy()
-                gene_map_ho = metric_dict['hg_corr_stats_ho'].result()['gene_map'].numpy()
-                
-                overall_corr_ho,overall_corr_sp_ho,\
-                    low_corr_ho,low_corr_sp_ho,\
-                        high_corr_ho,high_corr_sp_ho,\
-                            cell_corr_ho,cell_corr_sp_ho,\
-                                gene_corr_ho,gene_corr_sp_ho,\
-                                    cell_fig_ho,gene_fig_ho,cells_df_ho,genes_df_ho,\
-                                        h_var_corr_ho,h_var_corr_sp_ho,\
-                                            low_var_corr_ho,low_var_corr_sp_ho,\
-                                                fig_gene_level_ho=\
-                                                    training_utils.make_plots(y_trues_ho,y_preds_ho,
-                                                    cell_types_ho,gene_map_ho, 
-                                                    'hg_ho',args.cell_type_map_file, 
-                                                    args.gene_map_file, 
-                                                    args.gene_symbol_map_file,
-                                                    args.high_variance_list)
+
                 
                 wandb.log({'hg_train_loss': metric_dict['hg_tr'].result().numpy(),
                            'hg_val_loss': metric_dict['hg_val'].result().numpy(),
@@ -622,29 +590,39 @@ def main():
                            'hg_low_var': low_var_corr,
                            'hg_low_var_sp': low_var_corr_sp,
                            'hg_high_var': h_var_corr,
-                           'hg_high_var_sp': h_var_corr_sp,
-                           'hg_median_cell_rho': cell_corr,
-                           'hg_median_cell_rho_sp': cell_corr_sp,
-                           'hg_median_gene_rho': gene_corr,
-                           'hg_median_gene_rho_sp': gene_corr_sp,
-                           'hg_val_loss_ho': metric_dict['hg_val_ho'].result().numpy(),
-                           'hg_overall_rho_ho': overall_corr_ho,
-                           'hg_overall_rho_sp_ho': overall_corr_sp_ho,
-                           'hg_low_rho_ho': low_var_corr_ho,
-                           'hg_low_rho_sp_ho': low_var_corr_sp_ho,
-                           'hg_high_rho_ho': h_var_corr_ho,
-                           'hg_high_rho_sp_ho': h_var_corr_sp_ho,
-                           'hg_low_var_ho': low_var_corr_ho,
-                           'hg_low_var_sp_ho': low_var_corr_sp_ho,
-                           'hg_high_var_ho': h_var_corr_ho,
-                           'hg_high_var_sp_ho': h_var_corr_sp_ho,
-                           'hg_median_cell_rho_ho': cell_corr_ho,
-                           'hg_median_cell_rho_sp_ho': cell_corr_sp_ho,
-                           'hg_median_gene_rho_ho': gene_corr_ho,
-                           'hg_median_gene_rho_sp_ho': gene_corr_sp_ho},
+                           'hg_high_var_sp': h_var_corr_sp},
                           step=epoch_i)
                 
-                if epoch_i == wandb.config.num_epochs:
+                if epoch_i % 3 == 0:
+
+                    start = time.time()
+                    dist_val_step_ho(val_ho_it)
+                    
+                    print('completed dist_val_step')
+                    print('hg_val_pearson_ho: ' + str(metric_dict['hg_corr_stats_ho'].result()['pearsonR'].numpy()))
+                    print('hg_val_R2_ho: ' + str(metric_dict['hg_corr_stats_ho'].result()['R2'].numpy()))
+
+                    y_trues_ho = metric_dict['hg_corr_stats_ho'].result()['y_trues'].numpy()
+                    y_preds_ho = metric_dict['hg_corr_stats_ho'].result()['y_preds'].numpy()
+                    cell_types_ho = metric_dict['hg_corr_stats_ho'].result()['cell_types'].numpy()
+                    gene_map_ho = metric_dict['hg_corr_stats_ho'].result()['gene_map'].numpy()
+                    
+                    overall_corr_ho,overall_corr_sp_ho,\
+                        low_corr_ho,low_corr_sp_ho,\
+                            high_corr_ho,high_corr_sp_ho,\
+                                cell_corr_ho,cell_corr_sp_ho,\
+                                    gene_corr_ho,gene_corr_sp_ho,\
+                                        cell_fig_ho,gene_fig_ho,cells_df_ho,genes_df_ho,\
+                                            h_var_corr_ho,h_var_corr_sp_ho,\
+                                                low_var_corr_ho,low_var_corr_sp_ho,\
+                                                    fig_gene_level_ho=\
+                                                        training_utils.make_plots(y_trues_ho,y_preds_ho,
+                                                        cell_types_ho,gene_map_ho, 
+                                                        'hg_ho',args.cell_type_map_file, 
+                                                        args.gene_map_file, 
+                                                        args.gene_symbol_map_file,
+                                                        args.high_variance_list)
+
                     cells_table = wandb.Table(dataframe=cells_df_ho)
                     genes_table = wandb.Table(dataframe=genes_df_ho)
                     
@@ -655,7 +633,25 @@ def main():
                     wandb.log({"all genes, all cell-types":cell_fig_ho},step=epoch_i)
                     wandb.log({"gene level corrs/var holdout":fig_gene_level_ho},step=epoch_i)
                 
-                
+                    wandb.log({'hg_val_loss_ho': metric_dict['hg_val_ho'].result().numpy(),
+                            'hg_overall_rho_ho': overall_corr_ho,
+                            'hg_overall_rho_sp_ho': overall_corr_sp_ho,
+                            'hg_low_rho_ho': low_var_corr_ho,
+                            'hg_low_rho_sp_ho': low_var_corr_sp_ho,
+                            'hg_high_rho_ho': h_var_corr_ho,
+                            'hg_high_rho_sp_ho': h_var_corr_sp_ho,
+                            'hg_low_var_ho': low_var_corr_ho,
+                            'hg_low_var_sp_ho': low_var_corr_sp_ho,
+                            'hg_high_var_ho': h_var_corr_ho,
+                            'hg_high_var_sp_ho': h_var_corr_sp_ho,
+                            'hg_median_cell_rho_ho': cell_corr_ho,
+                            'hg_median_cell_rho_sp_ho': cell_corr_sp_ho,
+                            'hg_median_gene_rho_ho': gene_corr_ho,
+                            'hg_median_gene_rho_sp_ho': gene_corr_sp_ho},
+                            step=epoch_i)
+                    end = time.time()
+                    duration = (end - start) / 60.
+                    print('validation holdout and log/plot duration(mins): ' + str(duration))
 
                     
                 
@@ -681,10 +677,6 @@ def main():
                 if stop_criteria:
                     print('early stopping at: epoch ' + str(epoch_i))
                     break
-                    
-                end = time.time()
-                duration = (end - start) / 60.
-                print('plotting/logging duration(mins): ' + str(duration))
                     
             print('saving model at: epoch ' + str(epoch_i))
             print('best model was at: epoch ' + str(best_epoch))
