@@ -14,3 +14,4 @@ export TPU_NAME=node-24
 export ZONE=us-east1-d 
 export TPU_LOAD_LIBRARY=0
 
+wandb login

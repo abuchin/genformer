@@ -369,8 +369,8 @@ def main():
                 raise ValueError('input a valid length')
             
             
-            GLOBAL_BATCH_SIZE = BATCH_SIZE_PER_REPLICA * NUM_REPLICAS
-            #print('global batch size:', GLOBAL_BATCH_SIZE)
+            GLOBAL_BATCH_SIZE = BATCH_SIZE_PER_REPLICA*NUM_REPLICAS
+            print('global batch size:', GLOBAL_BATCH_SIZE)
             data_it_tr_list = []
             data_it_val_list = []
 
@@ -473,14 +473,14 @@ def main():
                     initial_learning_rate=wandb.config.lr_base,
                     decay_steps=wandb.config.total_steps, alpha=(wandb.config.min_lr / wandb.config.lr_base))
                 scheduler=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base,
-                                             warmup_steps=wandb.config.warmup_frac * wandb.config.total_steps,
+                                             warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps,
                                              decay_schedule_fn=scheduler)
                                             
                 scheduler_wd= tf.keras.optimizers.schedules.CosineDecay(
                     initial_learning_rate=wandb.config.weight_decay_frac,
                     decay_steps=wandb.config.total_steps, alpha=0.0)
                 scheduler_wd=optimizers.WarmUp(initial_learning_rate=wandb.config.weight_decay_frac,
-                                             warmup_steps=int(wandb.config.warmup_frac * wandb.config.total_steps),
+                                             warmup_steps=int(wandb.config.warmup_frac*wandb.config.total_steps),
                                              decay_schedule_fn=scheduler)
                 
                 optimizer = tfa.optimizers.AdamW(learning_rate=scheduler,
@@ -497,40 +497,42 @@ def main():
             
             metric_dict = {}
             
-            freq_limit = int(wandb.config.input_length * wandb.config.freq_limit_scale)
+            freq_limit = int(wandb.config.input_length*wandb.config.freq_limit_scale)
             #print('freq_limit:', freq_limit)
             if len(orgs) == 1:
                 
-                train_step, val_step, dist_val_step_ho, metric_dict = training_utils.return_train_val_functions_hg(model,
-                                                                                              optimizer,
-                                                                                              strategy,
-                                                                                              metric_dict, 
-                                                                                              wandb.config.train_steps,
-                                                                                              wandb.config.val_steps_h,
-                                                                                              wandb.config.val_steps_ho,
-                                                                                              GLOBAL_BATCH_SIZE,
-                                                                                              wandb.config.gradient_clip,
-                                                                                              wandb.config.use_fft_prior,
-                                                                                              freq_limit,
-                                                                                              wandb.config.fft_prior_scale,
-                                                                                              wandb.config.use_tf_acc)
+                train_step, val_step, dist_val_step_ho, metric_dict\
+                    =training_utils.return_train_val_functions_hg(model,
+                                                                optimizer,
+                                                                strategy,
+                                                                metric_dict, 
+                                                                wandb.config.train_steps,
+                                                                wandb.config.val_steps_h,
+                                                                wandb.config.val_steps_ho,
+                                                                GLOBAL_BATCH_SIZE,
+                                                                wandb.config.gradient_clip,
+                                                                wandb.config.use_fft_prior,
+                                                                freq_limit,
+                                                                wandb.config.fft_prior_scale,
+                                                                wandb.config.use_tf_acc)
             else:
-                train_step, val_step, dist_val_step_ho, metric_dict = training_utils.return_train_val_functions_hg_mm(model,
-                                                                                              optimizer,
-                                                                                              strategy,
-                                                                                              metric_dict, 
-                                                                                              wandb.config.train_steps,
-                                                                                              wandb.config.val_steps_h,
-                                                                                              wandb.config.val_steps_ho,
-                                                                                              GLOBAL_BATCH_SIZE,
-                                                                                              wandb.config.gradient_clip,
-                                                                                              wandb.config.use_fft_prior,
-                                                                                              freq_limit,
-                                                                                              wandb.config.fft_prior_scale,
-                                                                                              wandb.config.use_tf_acc)
+                train_step, val_step, dist_val_step_ho, metric_dict=\
+                    training_utils.return_train_val_functions_hg_mm(model,
+                                                                    optimizer,
+                                                                    strategy,
+                                                                    metric_dict, 
+                                                                    wandb.config.train_steps,
+                                                                    wandb.config.val_steps_h,
+                                                                    wandb.config.val_steps_ho,
+                                                                    GLOBAL_BATCH_SIZE,
+                                                                    wandb.config.gradient_clip,
+                                                                    wandb.config.use_fft_prior,
+                                                                    freq_limit,
+                                                                    wandb.config.fft_prior_scale,
+                                                                    wandb.config.use_tf_acc)
 
                 
-            #print(wandb.config)
+            print(wandb.config)
             
             ### main training loop
             global_step = 0
@@ -543,6 +545,7 @@ def main():
             
             
             for epoch_i in range(1, wandb.config.num_epochs+1):
+                print('starting epoch_', str(epoch_i))
                 start = time.time()
                 if len(orgs) == 1:
                     lr, it = train_step(data_dict_tr['hg'])
@@ -563,22 +566,18 @@ def main():
 
 
                 start = time.time()
-                
                 val_step(data_dict_val['hg'])
-                    
                 val_losses.append(metric_dict['hg_val'].result().numpy())
                 val_pearsons.append(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy())
                 
                 print('hg_val_loss: ' + str(metric_dict['hg_val'].result().numpy()))
                 print('hg_val_pearson: ' + str(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy()))
                 print('hg_val_R2: ' + str(metric_dict['hg_corr_stats'].result()['R2'].numpy()))
-
                 y_trues = metric_dict['hg_corr_stats'].result()['y_trues'].numpy()
                 y_preds = metric_dict['hg_corr_stats'].result()['y_preds'].numpy()
                 cell_types = metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
                 gene_map = metric_dict['hg_corr_stats'].result()['gene_map'].numpy()
-                
-                
+                print('returned tensor array values')
                 overall_corr,overall_corr_sp,\
                     low_corr,low_corr_sp,\
                         high_corr,high_corr_sp,\
@@ -594,7 +593,7 @@ def main():
                                                     gene_map_df, 
                                                     gene_symbol_df,
                                                     genes_variance_df)
-
+                print('returned correlation metrics from make plots function')
                 wandb.log({'hg_val_loss': metric_dict['hg_val'].result().numpy(),
                            'hg_overall_rho': overall_corr,
                            'hg_overall_rho_sp': overall_corr_sp,
@@ -607,13 +606,12 @@ def main():
                            'hg_median_gene_rho': gene_corr,
                            'hg_median_gene_rho_sp': gene_corr_sp},
                           step=epoch_i)
-                    
+                print('completed wandb logging')
                 end = time.time()
                 duration = (end - start) / 60.
 
                 print('validation duration(mins): ' + str(duration))
 
-                
                 if epoch_i % 2 == 0:
 
                     start = time.time()
