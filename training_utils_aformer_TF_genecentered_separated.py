@@ -15,7 +15,7 @@ from datetime import datetime
 import random
 
 import multiprocessing
-import logging
+#import logging
 #from silence_tensorflow import silence_tensorflow
 #silence_tensorflow()
 os.environ['TF_ENABLE_EAGER_CLIENT_STREAMING_ENQUEUE']='False'

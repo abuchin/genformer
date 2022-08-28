@@ -16,10 +16,10 @@ import pandas as pd
 from datetime import datetime
 import random
 
-import logging
-from silence_tensorflow import silence_tensorflow
+#import logging
+#from silence_tensorflow import silence_tensorflow
 #silence_tensorflow()
-#os.environ['TF_ENABLE_EAGER_CLIENT_STREAMING_ENQUEUE']='False'
+os.environ['TF_ENABLE_EAGER_CLIENT_STREAMING_ENQUEUE']='False'
 import tensorflow as tf
 import tensorflow.experimental.numpy as tnp
 import tensorflow_addons as tfa
@@ -238,11 +238,11 @@ def main():
             TPU init options
             '''
             options = tf.data.Options()
-            #options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.FILE
+            options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.FILE
             options.deterministic=False
             options.experimental_threading.max_intra_op_parallelism = 1
             mixed_precision.set_global_policy('mixed_bfloat16')
-            options.experimental_slack = True
+            #options.experimental_slack = True
             tf.config.optimizer.set_jit(True)
 
 
