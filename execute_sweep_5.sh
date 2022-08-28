@@ -24,7 +24,7 @@ python3 train_model_aformer_TF_genecentered_separated.py \
             --min_delta=0.001 \
             --model_save_dir="gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/models" \
             --model_save_basename="aformer_initial_tests" \
-            --lr_base="1.0e-07" \
+            --lr_base="5.0e-07" \
             --min_lr="5.0e-12" \
             --optimizer="adamw" \
             --gradient_clip="0.2" \

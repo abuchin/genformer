@@ -833,6 +833,13 @@ def return_dataset_val_holdout(gcs_path,
                                       #buffer_size=1048576,
                                       num_parallel_reads=num_parallel)
     dataset = dataset.with_options(options)
+    dataset = dataset.map(lambda record: deserialize_val(record,
+                                                         input_length,
+                                                         num_TFs,
+                                                         max_shift,
+                                                         output_type),
+                          deterministic=False,
+                          num_parallel_calls=num_parallel)
 
     return dataset.repeat(num_epoch).batch(batch, drop_remainder=True).prefetch(1)
 
