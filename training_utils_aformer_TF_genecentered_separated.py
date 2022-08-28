@@ -761,7 +761,7 @@ def return_dataset(gcs_path,
                           deterministic=False,
                           num_parallel_calls=num_parallel)
 
-    return dataset.repeat(num_epoch).batch(batch,drop_remainder=True).prefetch(tf.data.AUTOTUNE)
+    return dataset.repeat(num_epoch).batch(batch,drop_remainder=True).prefetch(1)
 
 
 def return_dataset_val(gcs_path,
@@ -790,7 +790,7 @@ def return_dataset_val(gcs_path,
 
     dataset = tf.data.TFRecordDataset(files,
                                       compression_type='ZLIB',
-                                      #buffer_size=tf.data.AUTOTUNE,
+                                      buffer_size=1000000,
                                       num_parallel_reads=num_parallel)
     dataset = dataset.with_options(options)
 
@@ -803,7 +803,7 @@ def return_dataset_val(gcs_path,
                           num_parallel_calls=num_parallel)
 
 
-    return dataset.repeat(num_epoch).batch(batch, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
+    return dataset.repeat(num_epoch).batch(batch, drop_remainder=True).prefetch(1)
 
 
 
@@ -832,12 +832,13 @@ def return_dataset_val_holdout(gcs_path,
                                       buffer_size=1000000,
                                       num_parallel_reads=num_parallel)
     options = tf.data.Options()
-    options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.FILE
+    options.experimental_threading.max_intra_op_parallelism = 1
     options.deterministic=False
+    options.experimental_slack = True
     
     dataset = dataset.with_options(options)
 
-    return dataset.repeat(num_epoch).batch(batch, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
+    return dataset.repeat(num_epoch).batch(batch, drop_remainder=True).prefetch(1)
 
 def return_distributed_iterators(heads_dict,
                                  gcs_path,
@@ -1689,7 +1690,8 @@ def return_dataset_interpret(gcs_path,
                                       buffer_size=1000000,
                                       num_parallel_reads=num_parallel)
 
-    dataset 
+
+
 
     dataset = dataset.map(lambda record: deserialize_interpret(record,
                                                          input_length,
@@ -1699,7 +1701,7 @@ def return_dataset_interpret(gcs_path,
                           num_parallel_calls=num_parallel)
 
     dataset = dataset.repeat(num_epoch).batch(batch, 
-                                drop_remainder=True).prefetch(tf.data.AUTOTUNE)
+                                drop_remainder=True).prefetch(1)
     interpret_dist = strategy.experimental_distribute_dataset(dataset)
 
     return iter(interpret_dist)
