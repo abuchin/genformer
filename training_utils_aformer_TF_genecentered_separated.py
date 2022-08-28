@@ -830,7 +830,7 @@ def return_dataset_val_holdout(gcs_path,
 
     dataset = tf.data.TFRecordDataset(files,
                                       compression_type='ZLIB',
-                                      buffer_size=1048576,
+                                      #buffer_size=1048576,
                                       num_parallel_reads=num_parallel)
     dataset = dataset.with_options(options)
 
@@ -1374,7 +1374,7 @@ def make_plots(y_trues,y_preds,
                                        y_preds)[0]
     overall_gene_level_corr_sp = spearmanr(y_trues,
                                        y_preds)[0]
-
+    """
     fig_gene_level,ax_gene_level=plt.subplots(figsize=(6,6))
     data = np.vstack([y_trues,y_preds])
     kernel = stats.gaussian_kde(data)(data)
@@ -1390,6 +1390,9 @@ def make_plots(y_trues,y_preds,
     plt.xlim(0, max(y_trues))
     plt.ylim(0, max(y_trues))
     plt.title("overall correlation, all genes, all cells")
+    """
+
+
     ### now compute correlations across cell types
     across_cells_preds = {}
     across_cells_trues = {}
@@ -1549,7 +1552,7 @@ def make_plots(y_trues,y_preds,
     gene_spec_median_corr_sp = np.nanmedian(genes_specific_corrs_sp)
     
     
-    file_name = file_name_prefix + ".val.out.tsv"
+
     
 
     correlations_cells_df = pd.DataFrame({'cell_type_encoding': correlations_cells.keys(),
