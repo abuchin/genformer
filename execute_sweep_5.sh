@@ -46,7 +46,7 @@ python3 train_model_aformer_TF_genecentered_separated.py \
             --dim=32 \
             --slow_step_frac=0.5 \
             --sync_period=6 \
-            --num_parallel= 768 \
+            --num_parallel=768 \
             --rel_pos_bins=512 \
             --kernel_transformation="relu_kernel_transformation" \
             --kernel_regularizer="0" \

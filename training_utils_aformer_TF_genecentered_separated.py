@@ -814,7 +814,8 @@ def return_dataset_val_holdout(gcs_path,
                        output_type,
                        num_parallel,
                        num_epoch,
-                       num_TFs):
+                       num_TFs,
+                       options):
     """
     return a tf dataset object for given gcs path
     """
@@ -831,11 +832,6 @@ def return_dataset_val_holdout(gcs_path,
                                       compression_type='ZLIB',
                                       buffer_size=1000000,
                                       num_parallel_reads=num_parallel)
-    options = tf.data.Options()
-    options.experimental_threading.max_intra_op_parallelism = 1
-    options.deterministic=False
-    options.experimental_slack = True
-    
     dataset = dataset.with_options(options)
 
     return dataset.repeat(num_epoch).batch(batch, drop_remainder=True).prefetch(1)
@@ -905,7 +901,8 @@ def return_distributed_iterators(heads_dict,
                                                  output_type,
                                                  num_parallel_calls,
                                                  num_epoch,
-                                                 1637)
+                                                 1637,
+                                                 options)
         val_dist_ho = strategy.experimental_distribute_dataset(val_data_holdout)
         val_data_ho_it = iter(val_dist_ho)
             
@@ -1357,10 +1354,10 @@ def make_plots(y_trues,y_preds,
                cell_types, 
                gene_map, 
                file_name_prefix,
-               cell_type_map_file,
-               gene_map_file,
-               gene_symbol_map_file,
-               high_variance_list):
+               cell_type_map_df,
+               gene_map_df,
+               gene_symbol_df,
+               genes_variance_df):
     
     
     unique_preds = {}
@@ -1497,7 +1494,7 @@ def make_plots(y_trues,y_preds,
     genes_specific_corrs_sp = []
     genes_specific_vars = []
     
-    genes_variance_df = variance_gene_parser(high_variance_list)
+    
     high_var_list = genes_variance_df['gene_encoding'].tolist()
     high_variance_corr = []
     high_variance_corr_sp = []
@@ -1560,7 +1557,8 @@ def make_plots(y_trues,y_preds,
                                    'pearsonsr': [v[0] for k,v in correlations_cells.items()]})
 
     correlations_cells_df = cell_type_parser(correlations_cells_df,
-                                             cell_type_map_file)
+                                             cell_type_map_df)
+
 
     #correlations_cells_table = wandb.Table(dataframe=correlations_cells_df)
     #print('logged cells table')
@@ -1570,8 +1568,9 @@ def make_plots(y_trues,y_preds,
                                      'std': [v[0] for k,v in correlations_genes.items()]})
                                    
     correlations_genes_df = gene_map_parser(correlations_genes_df,
-                                            gene_map_file,
-                                            gene_symbol_map_file)
+                                            gene_map_df,
+                                            gene_symbol_df)
+
     
     #correlations_genes_table = wandb.Table(dataframe=correlations_genes_df)
     
@@ -1825,12 +1824,8 @@ def smooth_tensor_1d(input_tensor, smooth_sigma):
 
 
 
-def cell_type_parser(input_df, cell_type_map):
-    cell_type_map_df = pd.read_csv(cell_type_map,sep='\t',header=None)
-    
-    cell_type_map_df.columns = ['cell_type', 
-                                'cell_type_encoding']
-    
+def cell_type_parser(input_df, cell_type_map_df):
+
     input_df= input_df.merge(cell_type_map_df,
                    left_on='cell_type_encoding', right_on='cell_type_encoding')
     return input_df
@@ -1838,17 +1833,7 @@ def cell_type_parser(input_df, cell_type_map):
 
     
 
-def gene_map_parser(input_df, gene_map_file, gene_symbol_map):
-    
-    gene_map_df = pd.read_csv(gene_map_file,sep='\t')
-    
-    gene_map_df.columns = ['ensembl_id', 
-                           'gene_encoding']
-    
-    gene_symbol_df = pd.read_csv(gene_symbol_map,sep='\t')
-    gene_symbol_df.columns = ['ensembl_id', 
-                              'symbol']
-    
+def gene_map_parser(input_df, gene_map_df, gene_symbol_df):
     gene_map_df = gene_map_df.merge(gene_symbol_df,
                                     left_on = 'ensembl_id',
                                     right_on = 'ensembl_id')
@@ -1856,8 +1841,7 @@ def gene_map_parser(input_df, gene_map_file, gene_symbol_map):
     input_df = input_df.merge(gene_map_df,
                               left_on='gene_encoding',
                               right_on='gene_encoding')
-                              
-                              
+                                   
     return input_df
 
 
