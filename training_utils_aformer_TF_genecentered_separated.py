@@ -1585,7 +1585,7 @@ def make_plots(y_trues,y_preds,
                         fig_cell_spec,fig_gene_spec,\
                             correlations_cells_df,correlations_genes_df,\
                                 high_variance_corr_med,high_variance_corr_sp_med,\
-                                    low_variance_corr_med,low_variance_corr_sp_med,fig_gene_level
+                                    low_variance_corr_med,low_variance_corr_sp_med
 
 
 

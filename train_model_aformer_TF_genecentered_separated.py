@@ -585,14 +585,13 @@ def main():
                                 gene_corr,gene_corr_sp,\
                                     cell_fig,gene_fig,cells_df,genes_df,\
                                         h_var_corr,h_var_corr_sp,\
-                                            low_var_corr,low_var_corr_sp,\
-                                                fig_gene_level=\
-                                                    training_utils.make_plots(y_trues,y_preds,
-                                                    cell_types,gene_map, 
-                                                    'hg',cell_type_map_df, 
-                                                    gene_map_df, 
-                                                    gene_symbol_df,
-                                                    genes_variance_df)
+                                            low_var_corr,low_var_corr_sp=\
+                                                training_utils.make_plots(y_trues,y_preds,
+                                                                        cell_types,gene_map, 
+                                                                        'hg',cell_type_map_df, 
+                                                                        gene_map_df, 
+                                                                        gene_symbol_df,
+                                                                        genes_variance_df)
                 print('returned correlation metrics from make plots function')
                 wandb.log({'hg_val_loss': metric_dict['hg_val'].result().numpy(),
                            'hg_overall_rho': overall_corr,
@@ -633,14 +632,13 @@ def main():
                                     gene_corr_ho,gene_corr_sp_ho,\
                                         cell_fig_ho,gene_fig_ho,cells_df_ho,genes_df_ho,\
                                             h_var_corr_ho,h_var_corr_sp_ho,\
-                                                low_var_corr_ho,low_var_corr_sp_ho,\
-                                                    fig_gene_level_ho=\
-                                                        training_utils.make_plots(y_trues_ho,y_preds_ho,
-                                                        cell_types_ho,gene_map_ho, 
-                                                        'hg_ho',cell_type_map_df, 
-                                                        gene_map_df, 
-                                                        gene_symbol_df,
-                                                        genes_variance_df)
+                                                low_var_corr_ho,low_var_corr_sp_ho=\
+                                                    training_utils.make_plots(y_trues_ho,y_preds_ho,
+                                                                        cell_types_ho,gene_map_ho, 
+                                                                        'hg_ho',cell_type_map_df, 
+                                                                        gene_map_df, 
+                                                                        gene_symbol_df,
+                                                                        genes_variance_df)
 
 
                     cells_table = wandb.Table(dataframe=cells_df_ho)
@@ -651,7 +649,6 @@ def main():
                     wandb.log({"cell level corr_ho":cell_fig_ho},step=epoch_i)
                     wandb.log({"gene level corrs/var_ho":gene_fig_ho},step=epoch_i)
                     wandb.log({"all genes, all cell-types":cell_fig_ho},step=epoch_i)
-                    wandb.log({"gene level corrs/var holdout":fig_gene_level_ho},step=epoch_i)
                 
                     wandb.log({'hg_val_loss_ho': metric_dict['hg_val_ho'].result().numpy(),
                             'hg_overall_rho_ho': overall_corr_ho,
