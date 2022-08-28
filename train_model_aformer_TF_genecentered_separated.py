@@ -18,7 +18,7 @@ import random
 
 import logging
 from silence_tensorflow import silence_tensorflow
-silence_tensorflow()
+#silence_tensorflow()
 #os.environ['TF_ENABLE_EAGER_CLIENT_STREAMING_ENQUEUE']='False'
 import tensorflow as tf
 import tensorflow.experimental.numpy as tnp

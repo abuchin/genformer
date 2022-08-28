@@ -16,9 +16,9 @@ import random
 
 import multiprocessing
 import logging
-from silence_tensorflow import silence_tensorflow
-silence_tensorflow()
-#os.environ['TF_ENABLE_EAGER_CLIENT_STREAMING_ENQUEUE']='False'
+#from silence_tensorflow import silence_tensorflow
+#silence_tensorflow()
+os.environ['TF_ENABLE_EAGER_CLIENT_STREAMING_ENQUEUE']='False'
 import tensorflow as tf
 import tensorflow.experimental.numpy as tnp
 import tensorflow_addons as tfa
@@ -749,7 +749,7 @@ def return_dataset(gcs_path,
     
     dataset = tf.data.TFRecordDataset(files,
                                       compression_type='ZLIB',
-                                      buffer_size=1000000,
+                                      buffer_size=1048576,
                                       num_parallel_reads=num_parallel)
     dataset = dataset.with_options(options)
 
@@ -790,7 +790,7 @@ def return_dataset_val(gcs_path,
 
     dataset = tf.data.TFRecordDataset(files,
                                       compression_type='ZLIB',
-                                      buffer_size=1000000,
+                                      buffer_size=1048576,
                                       num_parallel_reads=num_parallel)
     dataset = dataset.with_options(options)
 
@@ -830,7 +830,7 @@ def return_dataset_val_holdout(gcs_path,
 
     dataset = tf.data.TFRecordDataset(files,
                                       compression_type='ZLIB',
-                                      buffer_size=1000000,
+                                      buffer_size=1048576,
                                       num_parallel_reads=num_parallel)
     dataset = dataset.with_options(options)
 
@@ -1686,7 +1686,7 @@ def return_dataset_interpret(gcs_path,
 
     dataset = tf.data.TFRecordDataset(files,
                                       compression_type='ZLIB',
-                                      buffer_size=1000000,
+                                      buffer_size=1048576,
                                       num_parallel_reads=num_parallel)
 
 
