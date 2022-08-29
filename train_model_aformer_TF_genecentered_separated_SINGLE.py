@@ -298,13 +298,13 @@ def main():
                 wandb.config.update({"max_seq_length": 512},
                                    allow_val_change=True)
                 BATCH_SIZE_PER_REPLICA=12
-                wandb.config.update({"train_steps":9},
+                wandb.config.update({"train_steps":16},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_h":6},
+                wandb.config.update({"val_steps_h":3},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_ho":37},
+                wandb.config.update({"val_steps_ho":73},
                                    allow_val_change=True)
-                wandb.config.update({"total_steps": 900},
+                wandb.config.update({"total_steps": 800},
                                    allow_val_change=True)
                 
             elif wandb.config.input_length == 131072:
