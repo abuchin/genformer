@@ -154,7 +154,7 @@ def return_train_val_functions_hg_mm(model,
 
             #print(model.trainable_variables)
             gradients = tape.gradient(loss, model.trainable_variables)
-            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamW
+            gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamW
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
             input_grads = input_grad_tape.gradient(output,input_tuple)
@@ -200,7 +200,7 @@ def return_train_val_functions_hg_mm(model,
 
             #print(model.trainable_variables)
             gradients = tape.gradient(loss, model.trainable_variables)
-            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamW
+            gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamW
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
             input_grads = input_grad_tape.gradient(output,input_tuple)
@@ -415,7 +415,7 @@ def return_train_val_functions_hg(model,
 
             #print(model.trainable_variables)
             gradients = tape.gradient(loss, model.trainable_variables)
-            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamW
+            gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamW
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
             input_grads = input_grad_tape.gradient(output,input_tuple)
@@ -577,7 +577,8 @@ def deserialize(serialized_example,input_length,
     data = tf.io.parse_example(serialized_example, feature_map)
 
     ### stochastic sequence shift and gaussian noise
-    shift = random.randrange(0,max_shift,1)
+    seq_base_shift = max_shift // 2
+    shift = seq_base_shift + random.randrange(-5,5,1)
     input_seq_length = input_length + max_shift
     interval_end = input_length + shift
     
@@ -597,7 +598,7 @@ def deserialize(serialized_example,input_length,
     atac = tf.nn.dropout(atac, rate=0.01)
     atac = atac + tf.math.abs(tf.random.normal(tss_tokens.shape, 
                                    mean=0.0, 
-                                   stddev=1.0e-04, dtype=tf.float32))
+                                   stddev=1.0e-05, dtype=tf.float32))
     atac=tf.expand_dims(atac,1)
     sequence = one_hot(tf.strings.substr(data['sequence'],
                                  shift,input_length))
@@ -835,7 +836,7 @@ def return_dataset_val_holdout(gcs_path,
     ho_options = tf.data.Options()
     ho_options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.FILE
     ho_options.deterministic=False
-    #options.experimental_threading.max_intra_op_parallelism = 1
+    options.experimental_threading.max_intra_op_parallelism = 1
     mixed_precision.set_global_policy('mixed_bfloat16')
     tf.config.optimizer.set_jit(True)
     
