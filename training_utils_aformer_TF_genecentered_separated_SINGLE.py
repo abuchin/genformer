@@ -15,9 +15,9 @@ from datetime import datetime
 import random
 
 import multiprocessing
-import logging
-from silence_tensorflow import silence_tensorflow
-silence_tensorflow()
+#import logging
+#from silence_tensorflow import silence_tensorflow
+#silence_tensorflow()
 os.environ['TF_ENABLE_EAGER_CLIENT_STREAMING_ENQUEUE']='False'
 import tensorflow as tf
 import tensorflow.experimental.numpy as tnp
@@ -110,15 +110,15 @@ def return_train_val_functions_hg_mm(model,
     """
 
 
-    metric_dict["hg_tr"]=tf.keras.metrics.Mean("hg_tr_loss",
+    metric_dict["hg_tr"] = tf.keras.metrics.Mean("hg_tr_loss",
                                                  dtype=tf.float32)
-    metric_dict["hg_val"]=tf.keras.metrics.Mean("hg_val_loss",
+    metric_dict["hg_val"] = tf.keras.metrics.Mean("hg_val_loss",
                                                   dtype=tf.float32)
-    metric_dict["hg_val_ho"]=tf.keras.metrics.Mean("hg_val_ho_loss",
+    metric_dict["hg_val_ho"] = tf.keras.metrics.Mean("hg_val_ho_loss",
                                                   dtype=tf.float32)
-    metric_dict["hg_corr_stats"]=metrics.correlation_stats_gene_centered(name='hg_corr_stats')
+    metric_dict["hg_corr_stats"] = metrics.correlation_stats_gene_centered(name='hg_corr_stats')
     
-    metric_dict["hg_corr_stats_ho"]=metrics.correlation_stats_gene_centered(name='hg_corr_stats_ho')
+    metric_dict["hg_corr_stats_ho"] = metrics.correlation_stats_gene_centered(name='hg_corr_stats_ho')
 
     metric_dict["mm_tr"] = tf.keras.metrics.Mean("mm_tr_loss",
                                                  dtype=tf.float32)
@@ -154,15 +154,13 @@ def return_train_val_functions_hg_mm(model,
 
             #print(model.trainable_variables)
             gradients = tape.gradient(loss, model.trainable_variables)
-            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) 
-            # #comment this back in if using adam or adamW
+            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamW
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
             input_grads = input_grad_tape.gradient(output,input_tuple)
             if use_prior and fourier_loss_scale is not None:
                 input_grads_0 = input_grads[0] * seq_inputs
-                fourier_loss_0 = fourier_att_prior_loss(output, input_grads_0, 
-                freq_limit=freq_limit)
+                fourier_loss_0 = fourier_att_prior_loss(output, input_grads_0, freq_limit=freq_limit)
 
                 loss = loss + fourier_loss_scale * fourier_loss_0
 
@@ -202,8 +200,7 @@ def return_train_val_functions_hg_mm(model,
 
             #print(model.trainable_variables)
             gradients = tape.gradient(loss, model.trainable_variables)
-            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) 
-            # #comment this back in if using adam or adamW
+            #gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip) #comment this back in if using adam or adamW
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
             input_grads = input_grad_tape.gradient(output,input_tuple)
@@ -257,15 +254,14 @@ def return_train_val_functions_hg_mm(model,
 
             return target, output, cell_type, gene_map
 
-        ta_pred_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) #tensor array to store preds
-        ta_true_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) #tensor array to store vals
-        ta_celltype_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True) #tensor array to store preds
+        ta_pred_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_true_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
+        ta_celltype_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
         ta_genemap_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
         
         for _ in tf.range(val_steps_h): ## for loop within @tf.fuction for improved TPU performance
-            target_rep, output_rep, \
-                cell_type_rep, gene_map_rep = strategy.run(val_step_hg,
-                                                            args=(next(iterator_hg),))
+            target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step_hg,
+                                                                               args=(next(iterator_hg),))
             
             target_reshape = tf.reshape(strategy.gather(target_rep, axis=0), [-1]) # reshape to 1D
             output_reshape = tf.reshape(strategy.gather(output_rep, axis=0), [-1])
@@ -320,9 +316,8 @@ def return_train_val_functions_hg_mm(model,
         ta_genemap_ho = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
         
         for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
-            target_rep, output_rep, \
-                cell_type_rep, gene_map_rep = strategy.run(val_step_hg_ho,
-                                                        args=(next(iterator_hg_ho),))
+            target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step_hg_ho,
+                                                                               args=(next(iterator_hg_ho),))
             
             target_reshape = tf.reshape(strategy.gather(target_rep, axis=0), [-1]) # reshape to 1D
             output_reshape = tf.reshape(strategy.gather(output_rep, axis=0), [-1])
@@ -381,15 +376,15 @@ def return_train_val_functions_hg(model,
     val_steps is the # steps to fully iterate over validation set
     """
 
-    metric_dict["hg_tr"]=tf.keras.metrics.Mean("hg_tr_loss",
+    metric_dict["hg_tr"] = tf.keras.metrics.Mean("hg_tr_loss",
                                                  dtype=tf.float32)
-    metric_dict["hg_val"]=tf.keras.metrics.Mean("hg_val_loss",
+    metric_dict["hg_val"] = tf.keras.metrics.Mean("hg_val_loss",
                                                   dtype=tf.float32)
-    metric_dict["hg_val_ho"]=tf.keras.metrics.Mean("hg_val_loss_ho",
+    metric_dict["hg_val_ho"] = tf.keras.metrics.Mean("hg_val_loss_ho",
                                                   dtype=tf.float32)
-    metric_dict["hg_corr_stats"]=metrics.correlation_stats_gene_centered(name='hg_corr_stats')
+    metric_dict["hg_corr_stats"] = metrics.correlation_stats_gene_centered(name='hg_corr_stats')
     
-    metric_dict["hg_corr_stats_ho"]=metrics.correlation_stats_gene_centered(name='hg_corr_stats_ho')
+    metric_dict["hg_corr_stats_ho"] = metrics.correlation_stats_gene_centered(name='hg_corr_stats_ho')
 
     
     def dist_train_step(iterator_hg):
@@ -482,9 +477,8 @@ def return_train_val_functions_hg(model,
         ta_genemap_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
 
         for _ in tf.range(val_steps_h): ## for loop within @tf.fuction for improved TPU performance
-            target_rep, output_rep, \
-                cell_type_rep, gene_map_rep = strategy.run(val_step_hg,
-                                                            args=(next(iterator_hg),))
+            target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step_hg,
+                                                                               args=(next(iterator_hg),))
             
             target_reshape = tf.reshape(strategy.gather(target_rep, axis=0), [-1]) # reshape to 1D
             output_reshape = tf.reshape(strategy.gather(output_rep, axis=0), [-1])
@@ -540,9 +534,8 @@ def return_train_val_functions_hg(model,
         ta_genemap_ho = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
         
         for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
-            target_rep, output_rep, \
-                cell_type_rep, gene_map_rep = strategy.run(val_step_hg_ho,
-                                                            args=(next(iterator_hg_ho),))
+            target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step_hg_ho,
+                                                                               args=(next(iterator_hg_ho),))
             
             target_reshape = tf.reshape(strategy.gather(target_rep, axis=0), [-1]) # reshape to 1D
             output_reshape = tf.reshape(strategy.gather(output_rep, axis=0), [-1])
@@ -756,7 +749,7 @@ def return_dataset(gcs_path,
     
     dataset = tf.data.TFRecordDataset(files,
                                       compression_type='ZLIB',
-                                      #buffer_size=1000000,
+                                      buffer_size=1048576,
                                       num_parallel_reads=num_parallel)
     dataset = dataset.with_options(options)
 
@@ -767,9 +760,8 @@ def return_dataset(gcs_path,
                                                      output_type),
                           deterministic=False,
                           num_parallel_calls=num_parallel)
-    
-    
-    return dataset.repeat().batch(batch,drop_remainder=True).prefetch(tf.data.AUTOTUNE)
+
+    return dataset.repeat(num_epoch).batch(batch,drop_remainder=True).prefetch(1)
 
 
 def return_dataset_val(gcs_path,
@@ -798,7 +790,7 @@ def return_dataset_val(gcs_path,
 
     dataset = tf.data.TFRecordDataset(files,
                                       compression_type='ZLIB',
-                                      #buffer_size=tf.data.AUTOTUNE,
+                                      buffer_size=1048576,
                                       num_parallel_reads=num_parallel)
     dataset = dataset.with_options(options)
 
@@ -811,7 +803,7 @@ def return_dataset_val(gcs_path,
                           num_parallel_calls=num_parallel)
 
 
-    return dataset.repeat().batch(batch, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
+    return dataset.repeat(num_epoch).batch(batch, drop_remainder=True).prefetch(1)
 
 
 
@@ -820,10 +812,10 @@ def return_dataset_val_holdout(gcs_path,
                        input_length,
                        max_shift,
                        output_type,
-                       options,
                        num_parallel,
                        num_epoch,
-                       num_TFs):
+                       num_TFs,
+                       options):
     """
     return a tf dataset object for given gcs path
     """
@@ -838,10 +830,16 @@ def return_dataset_val_holdout(gcs_path,
 
     dataset = tf.data.TFRecordDataset(files,
                                       compression_type='ZLIB',
-                                      #buffer_size=tf.data.AUTOTUNE,
+                                      #buffer_size=1048576,
                                       num_parallel_reads=num_parallel)
-    dataset = dataset.with_options(options)
-
+    ho_options = tf.data.Options()
+    ho_options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.FILE
+    ho_options.deterministic=False
+    #options.experimental_threading.max_intra_op_parallelism = 1
+    mixed_precision.set_global_policy('mixed_bfloat16')
+    tf.config.optimizer.set_jit(True)
+    
+    dataset = dataset.with_options(ho_options)
     dataset = dataset.map(lambda record: deserialize_val(record,
                                                          input_length,
                                                          num_TFs,
@@ -850,8 +848,7 @@ def return_dataset_val_holdout(gcs_path,
                           deterministic=False,
                           num_parallel_calls=num_parallel)
 
-
-    return dataset.repeat().batch(batch, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
+    return dataset.repeat(num_epoch).batch(batch, drop_remainder=True).prefetch(1)
 
 def return_distributed_iterators(heads_dict,
                                  gcs_path,
@@ -916,10 +913,10 @@ def return_distributed_iterators(heads_dict,
                                                  input_length,
                                                  max_shift,
                                                  output_type,
-                                                 options,
                                                  num_parallel_calls,
                                                  num_epoch,
-                                                 1637)
+                                                 1637,
+                                                 options)
         val_dist_ho = strategy.experimental_distribute_dataset(val_data_holdout)
         val_data_ho_it = iter(val_dist_ho)
             
@@ -1238,16 +1235,16 @@ def parse_args(parser):
                         type=str,
                         default=os.getcwd() + "/references/gencode.v38.gene_transcript_type.tsv",
                         help= 'gene_symbol_encoding')
-    parser.add_argument('--cell_type_map_file',
-                        dest='cell_type_map_file',
-                        type=str,
-                        default=os.getcwd() + "/references/cell_type_map.tsv",
-                        help= 'cell_type_map_file')
     parser.add_argument('--high_variance_list',
                         dest='high_variance_list',
                         type=str,
                         default=os.getcwd() + "/references/HIGH_variance_genes.tsv",
                         help= 'list of high variance genes')
+    parser.add_argument('--cell_type_map_file',
+                        dest='cell_type_map_file',
+                        type=str,
+                        default=os.getcwd() + "/references/cell_type_map.tsv",
+                        help= 'cell_type_map_file')
 
 
     
@@ -1371,10 +1368,10 @@ def make_plots(y_trues,y_preds,
                cell_types, 
                gene_map, 
                file_name_prefix,
-               cell_type_map_file,
-               gene_map_file,
-               gene_symbol_map_file,
-               high_variance_list):
+               cell_type_map_df,
+               gene_map_df,
+               gene_symbol_df,
+               genes_variance_df):
     
     
     unique_preds = {}
@@ -1391,7 +1388,7 @@ def make_plots(y_trues,y_preds,
                                        y_preds)[0]
     overall_gene_level_corr_sp = spearmanr(y_trues,
                                        y_preds)[0]
-
+    """
     fig_gene_level,ax_gene_level=plt.subplots(figsize=(6,6))
     data = np.vstack([y_trues,y_preds])
     kernel = stats.gaussian_kde(data)(data)
@@ -1407,6 +1404,9 @@ def make_plots(y_trues,y_preds,
     plt.xlim(0, max(y_trues))
     plt.ylim(0, max(y_trues))
     plt.title("overall correlation, all genes, all cells")
+    """
+
+
     ### now compute correlations across cell types
     across_cells_preds = {}
     across_cells_trues = {}
@@ -1511,7 +1511,7 @@ def make_plots(y_trues,y_preds,
     genes_specific_corrs_sp = []
     genes_specific_vars = []
     
-    genes_variance_df = variance_gene_parser(high_variance_list)
+    
     high_var_list = genes_variance_df['gene_encoding'].tolist()
     high_variance_corr = []
     high_variance_corr_sp = []
@@ -1566,7 +1566,7 @@ def make_plots(y_trues,y_preds,
     gene_spec_median_corr_sp = np.nanmedian(genes_specific_corrs_sp)
     
     
-    file_name = file_name_prefix + ".val.out.tsv"
+
     
 
     correlations_cells_df = pd.DataFrame({'cell_type_encoding': correlations_cells.keys(),
@@ -1574,7 +1574,8 @@ def make_plots(y_trues,y_preds,
                                    'pearsonsr': [v[0] for k,v in correlations_cells.items()]})
 
     correlations_cells_df = cell_type_parser(correlations_cells_df,
-                                             cell_type_map_file)
+                                             cell_type_map_df)
+
 
     #correlations_cells_table = wandb.Table(dataframe=correlations_cells_df)
     #print('logged cells table')
@@ -1584,8 +1585,9 @@ def make_plots(y_trues,y_preds,
                                      'std': [v[0] for k,v in correlations_genes.items()]})
                                    
     correlations_genes_df = gene_map_parser(correlations_genes_df,
-                                            gene_map_file,
-                                            gene_symbol_map_file)
+                                            gene_map_df,
+                                            gene_symbol_df)
+
     
     #correlations_genes_table = wandb.Table(dataframe=correlations_genes_df)
     
@@ -1597,8 +1599,7 @@ def make_plots(y_trues,y_preds,
                         fig_cell_spec,fig_gene_spec,\
                             correlations_cells_df,correlations_genes_df,\
                                 high_variance_corr_med,high_variance_corr_sp_med,\
-                                    low_variance_corr_med,low_variance_corr_sp_med,fig_gene_level
-
+                                    low_variance_corr_med,low_variance_corr_sp_med
 
 
 
@@ -1702,8 +1703,12 @@ def return_dataset_interpret(gcs_path,
 
     dataset = tf.data.TFRecordDataset(files,
                                       compression_type='ZLIB',
-                                      #buffer_size=tf.data.AUTOTUNE,
+                                      buffer_size=1048576,
                                       num_parallel_reads=num_parallel)
+
+
+
+
     dataset = dataset.map(lambda record: deserialize_interpret(record,
                                                          input_length,
                                                          num_TFs,
@@ -1711,7 +1716,8 @@ def return_dataset_interpret(gcs_path,
                           deterministic=False,
                           num_parallel_calls=num_parallel)
 
-    dataset = dataset.repeat().batch(batch, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
+    dataset = dataset.repeat(num_epoch).batch(batch, 
+                                drop_remainder=True).prefetch(1)
     interpret_dist = strategy.experimental_distribute_dataset(dataset)
 
     return iter(interpret_dist)
@@ -1835,12 +1841,8 @@ def smooth_tensor_1d(input_tensor, smooth_sigma):
 
 
 
-def cell_type_parser(input_df, cell_type_map):
-    cell_type_map_df = pd.read_csv(cell_type_map,sep='\t',header=None)
-    
-    cell_type_map_df.columns = ['cell_type', 
-                                'cell_type_encoding']
-    
+def cell_type_parser(input_df, cell_type_map_df):
+
     input_df= input_df.merge(cell_type_map_df,
                    left_on='cell_type_encoding', right_on='cell_type_encoding')
     return input_df
@@ -1848,17 +1850,7 @@ def cell_type_parser(input_df, cell_type_map):
 
     
 
-def gene_map_parser(input_df, gene_map_file, gene_symbol_map):
-    
-    gene_map_df = pd.read_csv(gene_map_file,sep='\t')
-    
-    gene_map_df.columns = ['ensembl_id', 
-                           'gene_encoding']
-    
-    gene_symbol_df = pd.read_csv(gene_symbol_map,sep='\t')
-    gene_symbol_df.columns = ['ensembl_id', 
-                              'symbol']
-    
+def gene_map_parser(input_df, gene_map_df, gene_symbol_df):
     gene_map_df = gene_map_df.merge(gene_symbol_df,
                                     left_on = 'ensembl_id',
                                     right_on = 'ensembl_id')
@@ -1866,8 +1858,7 @@ def gene_map_parser(input_df, gene_map_file, gene_symbol_map):
     input_df = input_df.merge(gene_map_df,
                               left_on='gene_encoding',
                               right_on='gene_encoding')
-                              
-                              
+                                   
     return input_df
 
 
@@ -1882,5 +1873,7 @@ def variance_gene_parser(input_file):
                               
                               
     return gene_list
+
+
 
 

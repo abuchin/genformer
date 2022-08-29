@@ -15,10 +15,12 @@ import time
 from datetime import datetime
 import random
 
+import pandas as pd
+
 import logging
 from silence_tensorflow import silence_tensorflow
 silence_tensorflow()
-#os.environ['TF_ENABLE_EAGER_CLIENT_STREAMING_ENQUEUE']='False'
+os.environ['TF_ENABLE_EAGER_CLIENT_STREAMING_ENQUEUE']='False'
 import tensorflow as tf
 import tensorflow.experimental.numpy as tnp
 import tensorflow_addons as tfa
@@ -236,10 +238,10 @@ def main():
             '''
             TPU init options
             '''
-            options=tf.data.Options()
-            options.experimental_distribute.auto_shard_policy=tf.data.experimental.AutoShardPolicy.DATA
+            options = tf.data.Options()
+            options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.OFF
             options.deterministic=False
-            options.experimental_threading.max_intra_op_parallelism=1
+            #options.experimental_threading.max_intra_op_parallelism = 1
             mixed_precision.set_global_policy('mixed_bfloat16')
             tf.config.optimizer.set_jit(True)
 
@@ -289,20 +291,20 @@ def main():
                 
                 wandb.config.update({"gcs_path": "gs://picard-testing-176520/65k_genecentered_blacklist0.50_atacnormalized/jurkat_single"},
                                    allow_val_change=True)
-                wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/65k_genecentered_blacklist0.50_atacnormalized/val_holdout/val"},
+                wandb.config.update({"gcs_path_val_ho": "gs://picard-testing-176520/65k_genecentered_blacklist0.50_atacnormalized/val_holdout/preprocessed/val"},
                                    allow_val_change=True)
                 wandb.config.update({"model_save_dir": "gs://picard-testing-176520/65k_genecentered_blacklist0.50_atacnormalized/jurkat_single/jurkat_single_model"},
                                    allow_val_change=True)
                 wandb.config.update({"max_seq_length": 512},
                                    allow_val_change=True)
                 BATCH_SIZE_PER_REPLICA=48
-                wandb.config.update({"train_steps": 3},
+                wandb.config.update({"train_steps": 32},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_h" : 1},
+                wandb.config.update({"val_steps_h" : 6},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_ho" : 10},
+                wandb.config.update({"val_steps_ho" : 146},
                                    allow_val_change=True)
-                wandb.config.update({"total_steps": 150},
+                wandb.config.update({"total_steps": 3200},
                                    allow_val_change=True)
                 
             elif wandb.config.input_length == 131072:
@@ -391,6 +393,19 @@ def main():
             print('global batch size:', GLOBAL_BATCH_SIZE)
             data_it_tr_list=[]
             data_it_val_list=[]
+            
+            genes_variance_df = training_utils.variance_gene_parser(args.high_variance_list)
+            cell_type_map_df = pd.read_csv(args.cell_type_map_file,sep='\t',header=None)
+            cell_type_map_df.columns = ['cell_type', 
+                                        'cell_type_encoding']
+            gene_map_df = pd.read_csv(args.gene_map_file,sep='\t')
+            
+            gene_map_df.columns = ['ensembl_id', 
+                                'gene_encoding']
+            
+            gene_symbol_df = pd.read_csv(args.gene_symbol_map_file,sep='\t')
+            gene_symbol_df.columns = ['ensembl_id', 
+                                    'symbol']
             
             ### create dataset iterators
             heads_dict={}
@@ -549,60 +564,56 @@ def main():
             best_epoch=0
             
             
-            for epoch_i in range(1,wandb.config.num_epochs + 1):
-                start=time.time()
+            for epoch_i in range(1, wandb.config.num_epochs+1):
+                print('starting epoch_', str(epoch_i))
+                start = time.time()
                 if len(orgs) == 1:
-                    lr,it=train_step(data_dict_tr['hg'])
+                    lr, it = train_step(data_dict_tr['hg'])
 
                 else:
-                    lr,it=train_step(data_dict_tr['hg'],
+                    lr, it = train_step(data_dict_tr['hg'],
                                         data_dict_tr['mm'])
 
-                end=time.time()
-                duration=(end - start) / 60.
+                end = time.time()
+                duration = (end - start) / 60.
                 print('completed epoch ' + str(epoch_i))
                 print('hg_train_loss: ' + str(metric_dict['hg_tr'].result().numpy()))
+                wandb.log({'hg_train_loss': metric_dict['hg_tr'].result().numpy()},
+                          step=epoch_i)
+
                 print('training duration(mins): ' + str(duration))
                 
-                start=time.time()
-                if len(orgs) == 1:
-                    val_step(data_dict_val['hg'])
-                else:
-                    val_step(data_dict_val['hg'])
-                    
+
+
+                start = time.time()
+                val_step(data_dict_val['hg'])
                 val_losses.append(metric_dict['hg_val'].result().numpy())
                 val_pearsons.append(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy())
                 
                 print('hg_val_loss: ' + str(metric_dict['hg_val'].result().numpy()))
                 print('hg_val_pearson: ' + str(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy()))
                 print('hg_val_R2: ' + str(metric_dict['hg_corr_stats'].result()['R2'].numpy()))
-                
-
-
-                y_trues=metric_dict['hg_corr_stats'].result()['y_trues'].numpy()
-                y_preds=metric_dict['hg_corr_stats'].result()['y_preds'].numpy()
-                cell_types=metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
-                gene_map=metric_dict['hg_corr_stats'].result()['gene_map'].numpy()
-                
-                
+                y_trues = metric_dict['hg_corr_stats'].result()['y_trues'].numpy()
+                y_preds = metric_dict['hg_corr_stats'].result()['y_preds'].numpy()
+                cell_types = metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
+                gene_map = metric_dict['hg_corr_stats'].result()['gene_map'].numpy()
+                print('returned tensor array values')
                 overall_corr,overall_corr_sp,\
                     low_corr,low_corr_sp,\
                         high_corr,high_corr_sp,\
                             cell_corr,cell_corr_sp,\
                                 gene_corr,gene_corr_sp,\
-                                    cell_fig,gene_fig,cells_df_ho,genes_df,\
+                                    cell_fig,gene_fig,cells_df,genes_df,\
                                         h_var_corr,h_var_corr_sp,\
-                                            low_var_corr,low_var_corr_sp,\
-                                                fig_gene_level=\
-                                                    training_utils.make_plots(y_trues,y_preds,
-                                                    cell_types,gene_map,
-                                                    'hg',args.cell_type_map_file,
-                                                    args.gene_map_file,
-                                                    args.gene_symbol_map_file,
-                                                    args.high_variance_list)
-
-                wandb.log({'hg_train_loss': metric_dict['hg_tr'].result().numpy(),
-                           'hg_val_loss': metric_dict['hg_val'].result().numpy(),
+                                            low_var_corr,low_var_corr_sp=\
+                                                training_utils.make_plots(y_trues,y_preds,
+                                                                        cell_types,gene_map, 
+                                                                        'hg',cell_type_map_df, 
+                                                                        gene_map_df, 
+                                                                        gene_symbol_df,
+                                                                        genes_variance_df)
+                print('returned correlation metrics from make plots function')
+                wandb.log({'hg_val_loss': metric_dict['hg_val'].result().numpy(),
                            'hg_overall_rho': overall_corr,
                            'hg_overall_rho_sp': overall_corr_sp,
                            'hg_low_var': low_var_corr,
@@ -610,22 +621,30 @@ def main():
                            'hg_high_var': h_var_corr,
                            'hg_high_var_sp': h_var_corr_sp,
                            'hg_median_cell_rho': cell_corr,
-                           'hg_median_cell_rho_sp': cell_corr_sp},
+                           'hg_median_cell_rho_sp': cell_corr_sp,
+                           'hg_median_gene_rho': gene_corr,
+                           'hg_median_gene_rho_sp': gene_corr_sp},
                           step=epoch_i)
-                wandb.log({"gene level corrs/var":fig_gene_level},step=epoch_i)
-                
-                if epoch_i % 3 == 0:
-    
-                    dist_val_step_ho(val_ho_it)
+                print('completed wandb logging')
+                end = time.time()
+                duration = (end - start) / 60.
 
-                    print('completed dist_val_step_ho')
+                print('validation duration(mins): ' + str(duration))
+
+                if epoch_i % 2 == 0:
+
+                    start = time.time()
+                    dist_val_step_ho(val_ho_it)
+                    
+                    print('completed dist_val_step')
                     print('hg_val_pearson_ho: ' + str(metric_dict['hg_corr_stats_ho'].result()['pearsonR'].numpy()))
                     print('hg_val_R2_ho: ' + str(metric_dict['hg_corr_stats_ho'].result()['R2'].numpy()))
 
-                    y_trues_ho=metric_dict['hg_corr_stats_ho'].result()['y_trues'].numpy()
-                    y_preds_ho=metric_dict['hg_corr_stats_ho'].result()['y_preds'].numpy()
-                    cell_types_ho=metric_dict['hg_corr_stats_ho'].result()['cell_types'].numpy()
-                    gene_map_ho=metric_dict['hg_corr_stats_ho'].result()['gene_map'].numpy()
+                    y_trues_ho = metric_dict['hg_corr_stats_ho'].result()['y_trues'].numpy()
+                    y_preds_ho = metric_dict['hg_corr_stats_ho'].result()['y_preds'].numpy()
+                    cell_types_ho = metric_dict['hg_corr_stats_ho'].result()['cell_types'].numpy()
+                    gene_map_ho = metric_dict['hg_corr_stats_ho'].result()['gene_map'].numpy()
+                    
                     overall_corr_ho,overall_corr_sp_ho,\
                         low_corr_ho,low_corr_sp_ho,\
                             high_corr_ho,high_corr_sp_ho,\
@@ -633,74 +652,85 @@ def main():
                                     gene_corr_ho,gene_corr_sp_ho,\
                                         cell_fig_ho,gene_fig_ho,cells_df_ho,genes_df_ho,\
                                             h_var_corr_ho,h_var_corr_sp_ho,\
-                                                low_var_corr_ho,low_var_corr_sp_ho,\
-                                                    fig_gene_level_ho=\
-                                                        training_utils.make_plots(y_trues_ho,y_preds_ho,
-                                                                                cell_types_ho,gene_map_ho,
-                                                                                'hg_ho',args.cell_type_map_file,
-                                                                                args.gene_map_file,
-                                                                                args.gene_symbol_map_file,
-                                                                                args.high_variance_list)
-                    wandb.log({'hg_overall_rho_ho': overall_corr_ho,
-                               'hg_overall_rho_sp_ho': overall_corr_sp_ho,
-                               'hg_low_var_ho': low_var_corr_ho,
-                               'hg_low_var_sp_ho': low_var_corr_sp_ho,
-                               'hg_high_var_ho': h_var_corr_ho,
-                               'hg_high_var_sp_ho': h_var_corr_sp_ho,
-                               'hg_low_corr_ho': low_corr_ho,
-                               'hg_low_corr_sp_ho': low_corr_sp_ho,
-                               'hg_high_corr_ho': high_corr_ho,
-                               'hg_high_corr_sp_ho': high_corr_sp_ho,
-                               'hg_median_cell_rho_ho': cell_corr_ho,
-                               'hg_median_cell_rho_sp_ho': cell_corr_sp_ho},
-                              step=epoch_i)
-                    
-                    cells_table=wandb.Table(dataframe=cells_df_ho)
-                    genes_table=wandb.Table(dataframe=genes_df_ho)
+                                                low_var_corr_ho,low_var_corr_sp_ho=\
+                                                    training_utils.make_plots(y_trues_ho,y_preds_ho,
+                                                                        cell_types_ho,gene_map_ho, 
+                                                                        'hg_ho',cell_type_map_df, 
+                                                                        gene_map_df, 
+                                                                        gene_symbol_df,
+                                                                        genes_variance_df)
+
+
+                    cells_table = wandb.Table(dataframe=cells_df_ho)
+                    genes_table = wandb.Table(dataframe=genes_df_ho)
                     
                     wandb.log({"cells_correlations": cells_table},step=epoch_i)
                     wandb.log({"genes_correlations": genes_table},step=epoch_i)
                     wandb.log({"cell level corr_ho":cell_fig_ho},step=epoch_i)
                     wandb.log({"gene level corrs/var_ho":gene_fig_ho},step=epoch_i)
-                    wandb.log({"all genes,all cell-types":cell_fig_ho},step=epoch_i)
-                    wandb.log({"gene level corrs/var holdout":fig_gene_level_ho},step=epoch_i)
+                    wandb.log({"all genes, all cell-types":cell_fig_ho},step=epoch_i)
                 
+                    wandb.log({'hg_val_loss_ho': metric_dict['hg_val_ho'].result().numpy(),
+                            'hg_overall_rho_ho': overall_corr_ho,
+                            'hg_overall_rho_sp_ho': overall_corr_sp_ho,
+                            'hg_low_rho_ho': low_var_corr_ho,
+                            'hg_low_rho_sp_ho': low_var_corr_sp_ho,
+                            'hg_high_rho_ho': h_var_corr_ho,
+                            'hg_high_rho_sp_ho': h_var_corr_sp_ho,
+                            'hg_low_var_ho': low_var_corr_ho,
+                            'hg_low_var_sp_ho': low_var_corr_sp_ho,
+                            'hg_high_var_ho': h_var_corr_ho,
+                            'hg_high_var_sp_ho': h_var_corr_sp_ho,
+                            'hg_median_cell_rho_ho': cell_corr_ho,
+                            'hg_median_cell_rho_sp_ho': cell_corr_sp_ho,
+                            'hg_median_gene_rho_ho': gene_corr_ho,
+                            'hg_median_gene_rho_sp_ho': gene_corr_sp_ho},
+                            step=epoch_i)
+
+
+
+
+                    end = time.time()
+                    duration = (end - start) / 60.
+                    print('validation holdout duration(mins): ' + str(duration))
+
+                    
                 
                 if (epoch_i > 2):
-                    stop_criteria,patience_counter,best_epoch=\
+                    stop_criteria,patience_counter,best_epoch = \
                         training_utils.early_stopping(current_val_loss=val_losses[-1],
-                                                    logged_val_losses=val_losses,
-                                                    current_pearsons=val_pearsons[-1],
-                                                    logged_pearsons=val_pearsons,
-                                                    current_epoch=epoch_i,
-                                                    best_epoch=best_epoch,
-                                                    save_freq=args.savefreq,
-                                                    patience=wandb.config.patience,
-                                                    patience_counter=patience_counter,
-                                                    min_delta=wandb.config.min_delta,
-                                                    model=model,
-                                                    save_directory=wandb.config.model_save_dir,
-                                                    saved_model_basename=wandb.config.model_save_basename)
-                
-                plt.close('all')
+                                                        logged_val_losses=val_losses,
+                                                        current_pearsons=val_pearsons[-1],
+                                                        logged_pearsons=val_pearsons,
+                                                        current_epoch=epoch_i,
+                                                        best_epoch=best_epoch,
+                                                        save_freq=args.savefreq,
+                                                        patience=wandb.config.patience,
+                                                        patience_counter=patience_counter,
+                                                        min_delta=wandb.config.min_delta,
+                                                        model=model,
+                                                        save_directory=wandb.config.model_save_dir,
+                                                        saved_model_basename=wandb.config.model_save_basename)
+                #plt.close('all')
                 print('patience counter at: ' + str(patience_counter))
-                for key,item in metric_dict.items():
+                for key, item in metric_dict.items():
                     item.reset_state()
                 if stop_criteria:
                     print('early stopping at: epoch ' + str(epoch_i))
                     break
-                
-                end=time.time()
-                duration=(end - start) / 60.
-                print('validation duration(mins): ' + str(duration))
                     
             print('saving model at: epoch ' + str(epoch_i))
-            #print('best model was at: epoch ' + str(best_epoch))
-            model.save_weights(wandb.config.model_save_dir + "/" + \
-                                wandb.config.model_save_basename + "_" + \
-                                    wandb.run.name + "/final/saved_model")
-    sweep_id=wandb.sweep(sweep_config,project=args.wandb_project)
-    wandb.agent(sweep_id,function=sweep_train)
+            print('best model was at: epoch ' + str(best_epoch))
+            model.save_weights(wandb.config.model_save_dir + "/" + wandb.config.model_save_basename + "_" + wandb.run.name + "/final/saved_model")
+            file_name = wandb.config.model_save_basename + "." + str(epoch_i) + ".val.out.tsv"
+            df = pd.DataFrame({'y_trues_ho':y_trues_ho, 'y_preds_ho':y_preds_ho,
+                                    'cell_types_ho': cell_types_ho, 'gene_map_ho': gene_map_ho})
+            df.to_csv(file_name, sep='\t',header=True,index=False)
+            command = "gsutil cp " + file_name + " " + wandb.config.model_save_dir
+            subprocess.call(command,shell=True)
+
+    sweep_id = wandb.sweep(sweep_config, project=args.wandb_project)
+    wandb.agent(sweep_id, function=sweep_train)
     #sweep_train()
 
 ##########################################################################
