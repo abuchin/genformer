@@ -259,14 +259,14 @@ def main():
                                     allow_val_change=True)
                 wandb.config.update({"max_seq_length": 128},
                                    allow_val_change=True)
-                BATCH_SIZE_PER_REPLICA=args.batch_size
-                wandb.config.update({"train_steps": 295},
+                BATCH_SIZE_PER_REPLICA=96
+                wandb.config.update({"train_steps": 221},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_h" : 47},
+                wandb.config.update({"val_steps_h" : 35},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_ho" : 7},
+                wandb.config.update({"val_steps_ho" : 5},
                                    allow_val_change=True)
-                wandb.config.update({"total_steps": 29500},
+                wandb.config.update({"total_steps": 11050},
                                    allow_val_change=True)
             elif wandb.config.input_length == 32768:
                 
@@ -279,13 +279,13 @@ def main():
                 wandb.config.update({"max_seq_length": 512},
                                    allow_val_change=True)
                 BATCH_SIZE_PER_REPLICA=64
-                wandb.config.update({"train_steps": 332},
+                wandb.config.update({"train_steps": 331},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_h" : 52},
+                wandb.config.update({"val_steps_h" : 51},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_ho" : 7},
+                wandb.config.update({"val_steps_ho" : 6},
                                    allow_val_change=True)
-                wandb.config.update({"total_steps": 33200},
+                wandb.config.update({"total_steps": 16550},
                                    allow_val_change=True)
 
             elif wandb.config.input_length == 65536:
@@ -448,7 +448,8 @@ def main():
                                         bottleneck_units_tf=wandb.config.bottleneck_units_tf,
                                         heads_dict=heads_dict,
                                         use_rot_emb = rot_emb_bool,
-                                        use_mask_pos = mask_bool)
+                                        use_mask_pos = mask_bool,
+                                        use_tf_acc=wandb.config.use_tf_acc)
             
     
             if wandb.config.optimizer == "adabelief":
