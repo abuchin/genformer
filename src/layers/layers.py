@@ -911,6 +911,7 @@ class headmodule_block(kl.Layer):
                  bottleneck_units_tf: int = 64,
                  bottleneck_units: int = 64,
                  dropout_rate=0.10,
+                 use_tf_acc=False,
                  name: str = 'headmodule_block',
                  **kwargs):
         """Enformer style conv stack block
@@ -928,11 +929,14 @@ class headmodule_block(kl.Layer):
         self.bottleneck_units=bottleneck_units
         self.bottleneck_units_tf=bottleneck_units_tf
         self.dropout_rate=dropout_rate
+        self.use_tf_acc=use_tf_acc
         
-        self.tf_bottleneck = kl.Dense(self.bottleneck_units_tf,
-                                     kernel_initializer=tf.keras.initializers.GlorotNormal(),
-                                     kernel_regularizer=regularizers.L2(self.kernel_regularizer),
-                                     use_bias=False)
+        if self.use_tf_acc:
+            self.tf_bottleneck = kl.Dense(self.bottleneck_units_tf,
+                                        kernel_initializer=tf.keras.initializers.GlorotNormal(),
+                                        kernel_regularizer=regularizers.L2(self.kernel_regularizer),
+                                        use_bias=False)
+            self.dropout_tf = kl.Dropout(rate=self.dropout_rate / 2,**kwargs)
         
         self.gelu = tfa.layers.GELU()
         self.syncbatch_norm_2 = syncbatchnorm(axis=-1,
@@ -943,7 +947,7 @@ class headmodule_block(kl.Layer):
                                             gamma_initializer="ones",
                                             **kwargs)
         
-        self.dropout_tf = kl.Dropout(rate=self.dropout_rate / 2,**kwargs)
+        
         
         self.final_conv = conv1Dblock(num_channels=num_channels_in,
                                         conv_filter_size=1, 
@@ -991,7 +995,8 @@ class headmodule_block(kl.Layer):
             "kernel_regularizer":self.kernel_regularizer,
             "bottleneck_units":self.bottleneck_units,
             "dropout_rate":self.dropout_rate,
-            "bottleneck_units_tf": self.bottleneck_units_tf
+            "bottleneck_units_tf": self.bottleneck_units_tf,
+            "use_tf_acc": self.use_tf_acc
             
         }
         
@@ -1011,12 +1016,15 @@ class headmodule_block(kl.Layer):
         x = self.syncbatch_norm_1(x,training=training)
         x = self.flatten_layer(x, training=training)
         
-        tf_out = self.tf_bottleneck(tf_inputs,training=training)
-        tf_out = self.gelu(tf_out)
-        tf_out = self.syncbatch_norm_2(tf_out,training=training)
-        tf_out = self.dropout_tf(tf_out,training=training)
-        
-        final_out = tf.concat([x,tf_out],axis=1)
+        if self.use_tf_acc:
+            tf_out = self.tf_bottleneck(tf_inputs,training=training)
+            tf_out = self.gelu(tf_out)
+            tf_out = self.syncbatch_norm_2(tf_out,training=training)
+            tf_out = self.dropout_tf(tf_out,training=training)
+            
+            final_out = tf.concat([x,tf_out],axis=1)
+        else:
+            final_out = x
         
         final_out = self.bottleneck_units(final_out,training=training)
         final_out = self.gelu(final_out)

@@ -50,6 +50,7 @@ class aformer(tf.keras.Model):
                  stride=1,
                  TF_inputs_hg=1637,
                  TF_inputs_mm=1366,
+                 use_tf_acc=False,
                  heads_dict: dict = {'hg':0,
                                      'mm':1},
                                      #'rm':2},
@@ -95,6 +96,7 @@ class aformer(tf.keras.Model):
         self.normalize = normalize
         self.seed = seed
         self.stride = stride
+        self.use_tf_acc = use_tf_acc
         
         ### conv stack for sequence inputs
         self.convstack_seq = convstackblock(initial_channels = self.hidden_size // 4,
@@ -145,7 +147,9 @@ class aformer(tf.keras.Model):
                                               dropout_rate=self.dropout_rate,
                                               kernel_regularizer=self.kernel_regularizer,
                                               bottleneck_units_tf=self.bottleneck_units_tf,
-                                              bottleneck_units=self.bottleneck_units, **kwargs) for head in self.heads_dict.keys()}
+                                              bottleneck_units=self.bottleneck_units,
+                                              use_tf_acc=self.use_tf_acc,
+                                              **kwargs) for head in self.heads_dict.keys()}
         
     @property
     def heads(self):
@@ -211,6 +215,7 @@ class aformer(tf.keras.Model):
             "seed":self.seed,
             "TF_inputs_hg":self.TF_inputs_hg,
             "TF_inputs_mm":self.TF_inputs_mm,
+            "use_tf_acc":self.use_tf_acc
             
         }
         
