@@ -58,4 +58,4 @@ python3 train_model_aformer_TF_genecentered_separated.py \
             --fft_prior_scale="0.20" \
             --bottleneck_units="32" \
             --bottleneck_units_tf="32" \
-            --use_tf_acc="False"
+            --use_tf_acc="False,True"

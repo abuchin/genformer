@@ -319,11 +319,11 @@ def main():
                 wandb.config.update({"max_seq_length": 1024},
                                    allow_val_change=True)
                 BATCH_SIZE_PER_REPLICA=24
-                wandb.config.update({"train_steps": 883},
+                wandb.config.update({"train_steps": 882},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_h" : 139},
+                wandb.config.update({"val_steps_h" : 138},
                                    allow_val_change=True)
-                wandb.config.update({"val_steps_ho" : 19},
+                wandb.config.update({"val_steps_ho" : 18},
                                    allow_val_change=True)
                 wandb.config.update({"total_steps": 44150},
                                    allow_val_change=True)
