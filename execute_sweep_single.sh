@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 python3 train_model_aformer_TF_genecentered_separated_SINGLE.py \
-            --tpu_name="node-23" \
+            --tpu_name="node-24" \
             --tpu_zone="us-central1-a" \
             --wandb_project="aformer_initial_tests_single" \
             --wandb_user="njaved" \
@@ -15,7 +15,7 @@ python3 train_model_aformer_TF_genecentered_separated_SINGLE.py \
             --batch_size=72 \
             --num_epochs=30 \
             --train_steps=2 \
-            --warmup_frac=0.05 \
+            --warmup_frac=0.10 \
             --total_steps=100 \
             --val_steps_h=1 \
             --val_steps_ho=7 \
@@ -24,9 +24,9 @@ python3 train_model_aformer_TF_genecentered_separated_SINGLE.py \
             --model_save_dir="gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/models" \
             --model_save_basename="aformer_TF_gene_centered" \
             --lr_base="5.0e-07" \
-            --min_lr="5.0e-10" \
+            --min_lr="5.0e-8" \
             --optimizer="adamw" \
-            --gradient_clip="0.2" \
+            --gradient_clip="0.5" \
             --precision="mixed_bfloat16" \
             --weight_decay_frac="1.0e-05" \
             --epsilon=1.0e-10 \

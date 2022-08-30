@@ -578,7 +578,7 @@ def deserialize(serialized_example,input_length,
 
     ### stochastic sequence shift and gaussian noise
     seq_base_shift = max_shift // 2
-    shift = seq_base_shift + random.randrange(-5,5,1)
+    shift = seq_base_shift + random.randrange(-50,50,1)
     input_seq_length = input_length + max_shift
     interval_end = input_length + shift
     
