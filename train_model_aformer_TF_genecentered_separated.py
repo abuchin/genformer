@@ -238,9 +238,10 @@ def main():
             TPU init options
             '''
             options = tf.data.Options()
-            options.experimental_distribute.auto_shard_policy = tf.data.experimental.AutoShardPolicy.FILE
+            options.experimental_distribute.auto_shard_policy=\
+                tf.data.experimental.AutoShardPolicy.FILE
             options.deterministic=False
-            options.experimental_threading.max_intra_op_parallelism = 1
+            options.experimental_threading.max_intra_op_parallelism=1
             mixed_precision.set_global_policy('mixed_bfloat16')
             #options.experimental_slack = True
             tf.config.optimizer.set_jit(True)
@@ -324,7 +325,7 @@ def main():
                                    allow_val_change=True)
                 wandb.config.update({"val_steps_ho" : 19},
                                    allow_val_change=True)
-                wandb.config.update({"total_steps": 88300},
+                wandb.config.update({"total_steps": 44150},
                                    allow_val_change=True)
                 
             elif wandb.config.input_length == 196608:
@@ -501,8 +502,8 @@ def main():
             #print('freq_limit:', freq_limit)
             if len(orgs) == 1:
                 
-                train_step, val_step, dist_val_step_ho, metric_dict\
-                    =training_utils.return_train_val_functions_hg(model,
+                train_step, val_step, dist_val_step_ho, metric_dict=\
+                    training_utils.return_train_val_functions_hg(model,
                                                                 optimizer,
                                                                 strategy,
                                                                 metric_dict, 
