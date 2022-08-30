@@ -253,13 +253,13 @@ def main():
             num_val=427000
             num_val_ho=56003
 
-            wandb.config.update({"train_steps": num_train // BATCH_SIZE_PER_REPLICA},
+            wandb.config.update({"train_steps": 1},#num_train // BATCH_SIZE_PER_REPLICA},
                                 allow_val_change=True)
-            wandb.config.update({"val_steps_h" : num_val // BATCH_SIZE_PER_REPLICA},
+            wandb.config.update({"val_steps_h" : 1},#num_val // BATCH_SIZE_PER_REPLICA},
                                 allow_val_change=True)
-            wandb.config.update({"val_steps_ho" : num_val // BATCH_SIZE_PER_REPLICA},
+            wandb.config.update({"val_steps_ho" : 1},#num_val // BATCH_SIZE_PER_REPLICA},
                                 allow_val_change=True)
-            wandb.config.update({"total_steps": 100 * num_train // BATCH_SIZE_PER_REPLICA},
+            wandb.config.update({"total_steps": 1},#100 * num_train // BATCH_SIZE_PER_REPLICA},
                                 allow_val_change=True)
 
             if wandb.config.input_length == 16384:

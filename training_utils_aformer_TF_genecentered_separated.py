@@ -1239,12 +1239,12 @@ def parse_args(parser):
                         default=os.getcwd() + "/references/highG_lowA_genes.tsv",
                         help= 'list of high,low variance genes')
     parser.add_argument('--lGhA_variance_list',
-                        dest='hGhA_variance_list',
+                        dest='lGhA_variance_list',
                         type=str,
                         default=os.getcwd() + "/references/lowG_highA_genes.tsv",
                         help= 'list of low,high variance genes')
     parser.add_argument('--lGlA_variance_list',
-                        dest='hGhA_variance_list',
+                        dest='lGlA_variance_list',
                         type=str,
                         default=os.getcwd() + "/references/lowG_lowA_genes.tsv",
                         help= 'list of low,low variance genes')
