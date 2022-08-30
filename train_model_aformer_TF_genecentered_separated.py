@@ -335,12 +335,22 @@ def main():
             data_it_tr_list = []
             data_it_val_list = []
 
-            genes_variance_df = training_utils.variance_gene_parser(args.high_variance_list)
+            hGhAgenes_variance_df = training_utils.variance_gene_parser(args.hGhA_variance_list)
+            hGlAgenes_variance_df = training_utils.variance_gene_parser(args.hGlA_variance_list)
+            lGhAgenes_variance_df = training_utils.variance_gene_parser(args.lGhA_variance_list)
+            lGlAgenes_variance_df = training_utils.variance_gene_parser(args.lGlA_variance_list)
+
+            variance_df_list = [hGhAgenes_variance_df,
+                                hGlAgenes_variance_df,
+                                lGhAgenes_variance_df,
+                                lGlAgenes_variance_df]
+                                
+
             cell_type_map_df = pd.read_csv(args.cell_type_map_file,sep='\t',header=None)
             cell_type_map_df.columns = ['cell_type', 
                                         'cell_type_encoding']
             gene_map_df = pd.read_csv(args.gene_map_file,sep='\t')
-            
+
             gene_map_df.columns = ['ensembl_id', 
                                 'gene_encoding']
             
@@ -540,32 +550,28 @@ def main():
                 cell_types = metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
                 gene_map = metric_dict['hg_corr_stats'].result()['gene_map'].numpy()
                 print('returned tensor array values')
-                overall_corr,overall_corr_sp,\
-                    low_corr,low_corr_sp,\
-                        high_corr,high_corr_sp,\
-                            cell_corr,cell_corr_sp,\
-                                gene_corr,gene_corr_sp,\
-                                    cell_fig,gene_fig,cells_df,genes_df,\
-                                        h_var_corr,h_var_corr_sp,\
-                                            low_var_corr,low_var_corr_sp=\
+
+                dataframes,figures,corrs_by_class,corrs_overall= \
                                                 training_utils.make_plots(y_trues,y_preds,
                                                                         cell_types,gene_map, 
                                                                         'hg',cell_type_map_df, 
                                                                         gene_map_df, 
                                                                         gene_symbol_df,
-                                                                        genes_variance_df)
+                                                                        variance_df_list)
+                correlations_cells_df, correlations_genes_df=dataframes
+                fig_cell_spec, fig_gene_spec=figures 
+                hGhA_corr_med, hGlA_corr_med,lGhA_corr_med,lGlA_corr_med=corrs_by_class
+                overall_gene_level_corr_sp, gene_spec_median_corr_sp, cell_specific_corrs_sp=\
+                    corrs_overall
                 print('returned correlation metrics from make plots function')
                 wandb.log({'hg_val_loss': metric_dict['hg_val'].result().numpy(),
-                           'hg_overall_rho': overall_corr,
-                           'hg_overall_rho_sp': overall_corr_sp,
-                           'hg_low_var': low_var_corr,
-                           'hg_low_var_sp': low_var_corr_sp,
-                           'hg_high_var': h_var_corr,
-                           'hg_high_var_sp': h_var_corr_sp,
-                           'hg_median_cell_rho': cell_corr,
-                           'hg_median_cell_rho_sp': cell_corr_sp,
-                           'hg_median_gene_rho': gene_corr,
-                           'hg_median_gene_rho_sp': gene_corr_sp},
+                           'hg_overall_rho_sp': overall_gene_level_corr_sp,
+                           'hg_hGhA': hGhA_corr_med,
+                           'hg_hGlA': hGlA_corr_med,
+                           'hg_lGhA': lGhA_corr_med,
+                           'hg_lGlA': lGlA_corr_med,
+                           'hg_median_cell_rho_sp': cell_specific_corrs_sp,
+                           'hg_median_gene_rho_sp': gene_spec_median_corr_sp},
                           step=epoch_i)
                 print('completed wandb logging')
                 end = time.time()
@@ -587,51 +593,43 @@ def main():
                     cell_types_ho = metric_dict['hg_corr_stats_ho'].result()['cell_types'].numpy()
                     gene_map_ho = metric_dict['hg_corr_stats_ho'].result()['gene_map'].numpy()
                     
-                    overall_corr_ho,overall_corr_sp_ho,\
-                        low_corr_ho,low_corr_sp_ho,\
-                            high_corr_ho,high_corr_sp_ho,\
-                                cell_corr_ho,cell_corr_sp_ho,\
-                                    gene_corr_ho,gene_corr_sp_ho,\
-                                        cell_fig_ho,gene_fig_ho,cells_df_ho,genes_df_ho,\
-                                            h_var_corr_ho,h_var_corr_sp_ho,\
-                                                low_var_corr_ho,low_var_corr_sp_ho=\
+                    dataframes_ho,figures_ho,corrs_by_class_ho,corrs_overall_ho= \
                                                     training_utils.make_plots(y_trues_ho,y_preds_ho,
-                                                                        cell_types_ho,gene_map_ho, 
-                                                                        'hg_ho',cell_type_map_df, 
-                                                                        gene_map_df, 
-                                                                        gene_symbol_df,
-                                                                        genes_variance_df)
+                                                                            cell_types_ho,gene_map_ho, 
+                                                                            'hg',cell_type_map_df, 
+                                                                            gene_map_df, 
+                                                                            gene_symbol_df,
+                                                                            variance_df_list)
+                    correlations_cells_df_ho, correlations_genes_df_ho=dataframes_ho
+                    fig_cell_spec_ho, fig_gene_spec_ho=figures_ho
+                    hGhA_corr_med_ho,\
+                        hGlA_corr_med_ho,\
+                            lGhA_corr_med_ho,\
+                                lGlA_corr_med_ho=corrs_by_class_ho
 
+                    overall_gene_level_corr_sp_ho,\
+                        gene_spec_median_corr_sp_ho,\
+                            cell_specific_corrs_sp_ho=corrs_overall_ho
 
-                    cells_table = wandb.Table(dataframe=cells_df_ho)
-                    genes_table = wandb.Table(dataframe=genes_df_ho)
+                    print('returned correlation metrics from make plots function')
+                    wandb.log({'hg_val_loss_ho': metric_dict['hg_val_ho'].result().numpy(),
+                            'hg_overall_rho_sp_ho': overall_gene_level_corr_sp_ho,
+                            'hg_hGhA_ho': hGhA_corr_med_ho,
+                            'hg_hGlA_ho': hGlA_corr_med_ho,
+                            'hg_lGhA_ho': lGhA_corr_med_ho,
+                            'hg_lGlA_ho': lGlA_corr_med_ho,
+                            'hg_median_cell_rho_sp_ho': cell_specific_corrs_sp_ho,
+                            'hg_median_gene_rho_sp_ho': gene_spec_median_corr_sp_ho},
+                            step=epoch_i)
+
+                    cells_table = wandb.Table(dataframe=correlations_cells_df_ho)
+                    genes_table = wandb.Table(dataframe=correlations_genes_df_ho)
                     
                     wandb.log({"cells_correlations": cells_table},step=epoch_i)
                     wandb.log({"genes_correlations": genes_table},step=epoch_i)
-                    wandb.log({"cell level corr_ho":cell_fig_ho},step=epoch_i)
-                    wandb.log({"gene level corrs/var_ho":gene_fig_ho},step=epoch_i)
-                    wandb.log({"all genes, all cell-types":cell_fig_ho},step=epoch_i)
+                    wandb.log({"cell level corr_ho":fig_cell_spec_ho},step=epoch_i)
+                    wandb.log({"gene level corrs/var_ho":fig_gene_spec_ho},step=epoch_i)
                 
-                    wandb.log({'hg_val_loss_ho': metric_dict['hg_val_ho'].result().numpy(),
-                            'hg_overall_rho_ho': overall_corr_ho,
-                            'hg_overall_rho_sp_ho': overall_corr_sp_ho,
-                            'hg_low_rho_ho': low_var_corr_ho,
-                            'hg_low_rho_sp_ho': low_var_corr_sp_ho,
-                            'hg_high_rho_ho': h_var_corr_ho,
-                            'hg_high_rho_sp_ho': h_var_corr_sp_ho,
-                            'hg_low_var_ho': low_var_corr_ho,
-                            'hg_low_var_sp_ho': low_var_corr_sp_ho,
-                            'hg_high_var_ho': h_var_corr_ho,
-                            'hg_high_var_sp_ho': h_var_corr_sp_ho,
-                            'hg_median_cell_rho_ho': cell_corr_ho,
-                            'hg_median_cell_rho_sp_ho': cell_corr_sp_ho,
-                            'hg_median_gene_rho_ho': gene_corr_ho,
-                            'hg_median_gene_rho_sp_ho': gene_corr_sp_ho},
-                            step=epoch_i)
-
-
-
-
                     end = time.time()
                     duration = (end - start) / 60.
                     print('validation holdout duration(mins): ' + str(duration))

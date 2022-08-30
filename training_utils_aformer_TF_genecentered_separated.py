@@ -1228,11 +1228,27 @@ def parse_args(parser):
                         type=str,
                         default=os.getcwd() + "/references/gencode.v38.gene_transcript_type.tsv",
                         help= 'gene_symbol_encoding')
-    parser.add_argument('--high_variance_list',
-                        dest='high_variance_list',
+    parser.add_argument('--hGhA_variance_list',
+                        dest='hGhA_variance_list',
                         type=str,
-                        default=os.getcwd() + "/references/HIGH_variance_genes.tsv",
-                        help= 'list of high variance genes')
+                        default=os.getcwd() + "/references/highG_highA_genes.tsv",
+                        help= 'list of high,high variance genes')
+    parser.add_argument('--hGlA_variance_list',
+                        dest='hGlA_variance_list',
+                        type=str,
+                        default=os.getcwd() + "/references/highG_lowA_genes.tsv",
+                        help= 'list of high,low variance genes')
+    parser.add_argument('--lGhA_variance_list',
+                        dest='hGhA_variance_list',
+                        type=str,
+                        default=os.getcwd() + "/references/lowG_highA_genes.tsv",
+                        help= 'list of low,high variance genes')
+    parser.add_argument('--lGlA_variance_list',
+                        dest='hGhA_variance_list',
+                        type=str,
+                        default=os.getcwd() + "/references/lowG_lowA_genes.tsv",
+                        help= 'list of low,low variance genes')
+
     parser.add_argument('--cell_type_map_file',
                         dest='cell_type_map_file',
                         type=str,
@@ -1364,9 +1380,13 @@ def make_plots(y_trues,y_preds,
                cell_type_map_df,
                gene_map_df,
                gene_symbol_df,
-               genes_variance_df):
+               genes_variance_df_list):
     
-    
+    hGhA = genes_variance_df_list[0]
+    hGlA = genes_variance_df_list[1]
+    lGhA = genes_variance_df_list[2]
+    lGlA = genes_variance_df_list[3]
+
     unique_preds = {}
     unique_trues = {}
     for k,x in enumerate(gene_map):
@@ -1377,69 +1397,16 @@ def make_plots(y_trues,y_preds,
     unique_preds = dict(sorted(unique_preds.items()))
     unique_trues = dict(sorted(unique_trues.items()))
 
-    overall_gene_level_corr = pearsonr(y_trues,
-                                       y_preds)[0]
+    #overall_gene_level_corr = pearsonr(y_trues,
+    #                                   y_preds)[0]
     overall_gene_level_corr_sp = spearmanr(y_trues,
                                        y_preds)[0]
-    """
-    fig_gene_level,ax_gene_level=plt.subplots(figsize=(6,6))
-    data = np.vstack([y_trues,y_preds])
-    kernel = stats.gaussian_kde(data)(data)
-
-    sns.scatterplot(
-        x=y_trues,
-        y=y_preds,
-        c=kernel,
-        cmap="viridis")
-    
-    plt.xlabel("true log2(1.0+TPM)")
-    plt.ylabel("predicted log2(1.0+TPM)")
-    plt.xlim(0, max(y_trues))
-    plt.ylim(0, max(y_trues))
-    plt.title("overall correlation, all genes, all cells")
-    """
-
 
     ### now compute correlations across cell types
     across_cells_preds = {}
     across_cells_trues = {}
-    
-    
-    low_y_true_indices = np.where(y_trues < 3.5)
-    low_y_trues = y_trues[low_y_true_indices]
-    low_y_preds = y_preds[low_y_true_indices]
-    
-    low_gene_level_corr = pearsonr(low_y_trues,
-                                       low_y_preds)[0]
-    low_gene_level_corr_sp = spearmanr(low_y_trues,
-                                       low_y_preds)[0]
-    
 
-    high_y_true_indices = np.where(y_trues >= 3.5)
-    high_y_trues = y_trues[high_y_true_indices]
-    high_y_preds = y_preds[high_y_true_indices]
-    
-    high_gene_level_corr = pearsonr(high_y_trues,
-                                    high_y_preds)[0]
-    high_gene_level_corr_sp = spearmanr(high_y_trues,
-                                    high_y_preds)[0]
-    """
-    fig_gene_level_h,ax_gene_level_h=plt.subplots(figsize=(6,6))
-    data = np.vstack([high_y_trues,high_y_preds])
-    kernel = stats.gaussian_kde(data)(data)
 
-    sns.scatterplot(
-        x=high_y_trues,
-        y=high_y_preds,
-        c=kernel,
-        cmap="viridis")
-    
-    plt.xlabel("true log2(1.0+TPM)")
-    plt.ylabel("predicted log2(1.0+TPM)")
-    plt.xlim(0, max(high_y_trues))
-    plt.ylim(0, max(high_y_trues))
-    plt.title("correlation HIGH expression, all genes, all cells")
-    """
     ### now compute correlations across cell types
     across_cells_preds = {}
     across_cells_trues = {}
@@ -1468,7 +1435,7 @@ def make_plots(y_trues,y_preds,
                                      preds)[0]
             spearmansr_val = spearmanr(trues,
                                        preds)[0]
-            cell_specific_corrs.append(pearsonsr_val)
+            #cell_specific_corrs.append(pearsonsr_val)
             cell_specific_corrs_sp.append(spearmansr_val)
             correlations_cells[k] = (pearsonsr_val,spearmansr_val)
 
@@ -1483,7 +1450,7 @@ def make_plots(y_trues,y_preds,
     plt.xlabel("single cell-type cross gene correlations")
     plt.ylabel("count")
     plt.title("log-log pearsonsR")
-    cell_spec_median = np.nanmedian(cell_specific_corrs)
+    #cell_spec_median = np.nanmedian(cell_specific_corrs)
     cell_spec_median_sp = np.nanmedian(cell_specific_corrs_sp)
 
 
@@ -1500,17 +1467,23 @@ def make_plots(y_trues,y_preds,
         else:
             across_genes_preds[gene_name].append(v)
             across_genes_trues[gene_name].append(unique_trues[k])
-    genes_specific_corrs = []
+    #genes_specific_corrs = []
     genes_specific_corrs_sp = []
-    genes_specific_vars = []
+    #genes_specific_vars = []
     
-    
-    high_var_list = genes_variance_df['gene_encoding'].tolist()
-    high_variance_corr = []
-    high_variance_corr_sp = []
-    low_variance_corr = []
-    low_variance_corr_sp = []
-    
+
+    hGhA_var_list = hGhA['gene_encoding'].tolist()
+    hGlA_var_list = hGlA['gene_encoding'].tolist()
+    lGhA_var_list = lGhA['gene_encoding'].tolist()
+    lGlA_var_list = lGlA['gene_encoding'].tolist()
+
+    #high_variance_corr = []
+    hGhA_corr_sp = []
+    hGlA_corr_sp = []
+    lGhA_corr_sp = []
+    lGlA_corr_sp = []
+
+
     for k,v in across_genes_preds.items():
         ## k here is the gene_name
         trues = []
@@ -1524,42 +1497,38 @@ def make_plots(y_trues,y_preds,
                                      preds)[0]
             spearmansr_val = spearmanr(trues,
                                        preds)[0]
-            genes_specific_corrs.append(pearsonsr_val)
+            #genes_specific_corrs.append(pearsonsr_val)
             genes_specific_corrs_sp.append(spearmansr_val)
             
             #print(k,v)
-            if k in high_var_list:
-                #print('appending to high var')
-                high_variance_corr.append(pearsonsr_val)
-                high_variance_corr_sp.append(spearmansr_val)
+            if k in hGhA_var_list:
+                hGhA_corr_sp.append(spearmansr_val)
+            elif k in hGlA_var_list:
+                hGlA_corr_sp.append(spearmansr_val)
+            elif k in lGhA_var_list:
+                lGhA_corr_sp.append(spearmansr_val)
             else:
-                #print('appending to low var')
-                low_variance_corr.append(pearsonsr_val)
-                low_variance_corr_sp.append(spearmansr_val)
+                lGlA_corr_sp.append(spearmansr_val)
                 
             correlations_genes[k] = (pearsonsr_val,spearmansr_val,np.nanstd(trues))
             
-            genes_specific_vars.append(np.nanstd(trues))
         except np.linalg.LinAlgError:
             continue
         except ValueError:
             continue
             
-    high_variance_corr_med = np.nanmedian(high_variance_corr)
-    high_variance_corr_sp_med = np.nanmedian(high_variance_corr_sp)
-    low_variance_corr_med = np.nanmedian(low_variance_corr)
-    low_variance_corr_sp_med = np.nanmedian(low_variance_corr_sp)
-            
+    hGhA_corr_med = np.nanmedian(hGhA_corr_sp)
+    hGlA_corr_med = np.nanmedian(hGlA_corr_sp)
+    lGhA_corr_med = np.nanmedian(lGhA_corr_sp)
+    lGlA_corr_med = np.nanmedian(lGlA_corr_sp)
+
     fig_gene_spec,ax_gene_spec=plt.subplots(figsize=(6,6))
-    sns.histplot(x=np.asarray(genes_specific_corrs), bins=50)
+    sns.histplot(x=np.asarray(genes_specific_corrs_sp), bins=50)
     plt.xlabel("single gene cross cell-type correlations")
     plt.ylabel("count")
     plt.title("log-log pearsonsR")
-    gene_spec_median_corr = np.nanmedian(genes_specific_corrs)
+    #gene_spec_median_corr = np.nanmedian(genes_specific_corrs_sp)
     gene_spec_median_corr_sp = np.nanmedian(genes_specific_corrs_sp)
-    
-    
-
     
 
     correlations_cells_df = pd.DataFrame({'cell_type_encoding': correlations_cells.keys(),
@@ -1582,17 +1551,16 @@ def make_plots(y_trues,y_preds,
                                             gene_symbol_df)
 
     
-    #correlations_genes_table = wandb.Table(dataframe=correlations_genes_df)
+    dataframes = correlations_cells_df, correlations_genes_df
+    figures = fig_cell_spec, fig_gene_spec
+
+    corrs_by_class = hGhA_corr_med,hGlA_corr_med,lGhA_corr_med,lGlA_corr_med
+
+    #return overall_gene_level_corr,overall_gene_level_corr_sp,\
+    corrs_overall = overall_gene_level_corr_sp, gene_spec_median_corr_sp, cell_specific_corrs_sp
+
     
-    return overall_gene_level_corr,overall_gene_level_corr_sp,\
-        low_gene_level_corr,low_gene_level_corr_sp,\
-            high_gene_level_corr,high_gene_level_corr_sp,\
-                cell_spec_median,cell_spec_median_sp,\
-                    gene_spec_median_corr, gene_spec_median_corr_sp,\
-                        fig_cell_spec,fig_gene_spec,\
-                            correlations_cells_df,correlations_genes_df,\
-                                high_variance_corr_med,high_variance_corr_sp_med,\
-                                    low_variance_corr_med,low_variance_corr_sp_med
+    return dataframes,figures,corrs_by_class,corrs_overall
 
 
 
