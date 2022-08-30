@@ -10,10 +10,10 @@ python3 train_model_aformer_TF_genecentered_separated.py \
             --gcs_path="gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/preprocessed" \
             --gcs_path_val_ho="gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/val_holdout/preprocessed/val" \
             --output_heads="hg" \
-            --input_length="16384" \
+            --input_length="196608,65536" \
             --max_shift=300 \
             --target_unit="logTPM" \
-            --batch_size=72 \
+            --batch_size=24 \
             --num_epochs=30 \
             --train_steps=298 \
             --warmup_frac=0.15 \
@@ -58,4 +58,4 @@ python3 train_model_aformer_TF_genecentered_separated.py \
             --fft_prior_scale="0.20" \
             --bottleneck_units="32" \
             --bottleneck_units_tf="32" \
-            --use_tf_acc="False,True"
+            --use_tf_acc="False"
