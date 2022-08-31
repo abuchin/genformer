@@ -1566,7 +1566,7 @@ def make_plots(y_trues,y_preds,
 
 
 def deserialize_interpret(serialized_example, input_length, 
-                    num_TFs,output_type):
+                    num_TFs,output_type, rev_comp):
     """
     Deserialize bytes stored in TFRecordFile.
     """
@@ -1586,8 +1586,7 @@ def deserialize_interpret(serialized_example, input_length,
     }
     data = tf.io.parse_example(serialized_example, feature_map)
 
-    ### stochastic sequence shift and gaussian noise
-    
+
     exons = tf.ensure_shape(tf.io.parse_tensor(data['exons'],
                                               out_type=tf.int32),
                             [input_length,])
@@ -1631,6 +1630,11 @@ def deserialize_interpret(serialized_example, input_length,
     else:
         raise ValueError('input an appropriate input type')
 
+    if rev_comp:
+        atac=tf.reverse(atac,[0])
+        tss_tokens=tf.reverse(tss_tokens,[0])
+        exons=tf.reverse(exons,[0])
+        sequence = rev_comp_one_hot(sequence)
         
     return {
         'inputs': inputs,
@@ -1652,7 +1656,8 @@ def return_dataset_interpret(gcs_path,
                        output_type,
                        num_parallel,
                        num_epoch,
-                       num_TFs):
+                       num_TFs,
+                       rev_comp):
     """
     return a tf dataset object for given gcs path
     """
@@ -1673,7 +1678,8 @@ def return_dataset_interpret(gcs_path,
     dataset = dataset.map(lambda record: deserialize_interpret(record,
                                                          input_length,
                                                          num_TFs,
-                                                         output_type),
+                                                         output_type,
+                                                         rev_comp),
                           deterministic=False,
                           num_parallel_calls=num_parallel)
 
