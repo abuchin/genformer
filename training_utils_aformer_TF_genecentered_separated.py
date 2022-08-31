@@ -1557,7 +1557,7 @@ def make_plots(y_trues,y_preds,
     corrs_by_class = hGhA_corr_med,hGlA_corr_med,lGhA_corr_med,lGlA_corr_med
 
     #return overall_gene_level_corr,overall_gene_level_corr_sp,\
-    corrs_overall = overall_gene_level_corr_sp, gene_spec_median_corr_sp, cell_specific_corrs_sp
+    corrs_overall = overall_gene_level_corr_sp, gene_spec_median_corr_sp, cell_spec_median_sp
 
     
     return dataframes,figures,corrs_by_class,corrs_overall
