@@ -330,22 +330,24 @@ def main():
 
             NUM_REPLICAS = strategy.num_replicas_in_sync
             BATCH_SIZE_PER_REPLICA=wandb.config.batch_size
-            num_train=2712000
+            GLOBAL_BATCH_SIZE = BATCH_SIZE_PER_REPLICA*NUM_REPLICAS
+            print('global batch size:', GLOBAL_BATCH_SIZE)
+            num_train=2505360
             num_val=427000
             num_val_ho=56003
 
-            wandb.config.update({"train_steps": num_train // BATCH_SIZE_PER_REPLICA},
+            wandb.config.update({"train_steps": num_train // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
-            wandb.config.update({"val_steps_h" : num_val // BATCH_SIZE_PER_REPLICA},
+            wandb.config.update({"val_steps_h" : num_val // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
-            wandb.config.update({"val_steps_ho" : num_val_ho // BATCH_SIZE_PER_REPLICA},
+            wandb.config.update({"val_steps_ho" : num_val_ho // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
-            wandb.config.update({"total_steps": 100 * num_train // BATCH_SIZE_PER_REPLICA},
+            wandb.config.update({"total_steps": 100 * num_train // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
             
             
-            GLOBAL_BATCH_SIZE = BATCH_SIZE_PER_REPLICA*NUM_REPLICAS
-            print('global batch size:', GLOBAL_BATCH_SIZE)
+            #GLOBAL_BATCH_SIZE = BATCH_SIZE_PER_REPLICA*NUM_REPLICAS
+            
             data_it_tr_list = []
             data_it_val_list = []
 
