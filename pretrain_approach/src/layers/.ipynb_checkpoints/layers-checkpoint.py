@@ -66,68 +66,7 @@ class crop(kl.Layer):
         out = inputs[..., crop_size:-crop_size, :]
         return out
 
-############################ conv 1D block #####################################
-@tf.keras.utils.register_keras_serializable()
-class conv1Dblock(kl.Layer):
-    def __init__(self,
-                 num_channels: int , 
-                 conv_filter_size: int,
-                 momentum: float,
-                 stride: int = 1,
-                 kernel_regularizer: float = 0.01,
-                 name: str = 'conv1Dblock',
-                 **kwargs):
-        """Enformer style conv block
-        Args:
-            num_channels
-            conv_filter_size
-            momentum: batch norm momentum
-            stride: default 1 for no dim reduction
-            name: Module name.
-        """
-        super().__init__(name=name, **kwargs)
-        self.num_channels = num_channels
-        self.conv_filter_size = conv_filter_size
-        self.momentum = momentum
-        self.stride=stride
-        self.kernel_regularizer=kernel_regularizer
-        
-        self.conv = kl.Conv1D(filters = self.num_channels,
-                              kernel_size = self.conv_filter_size,
-                              strides=self.stride,
-                              padding='same',
-                              kernel_initializer=tf.keras.initializers.GlorotUniform(),
-                              kernel_regularizer=tf.keras.regularizers.L2(self.kernel_regularizer))
-        self.gelu = tfa.layers.GELU()
-        self.batch_norm = syncbatchnorm(axis=-1,
-                                                momentum=self.momentum,
-                                                center=True,
-                                                scale=True,
-                                                beta_initializer="zeros",
-                                                gamma_initializer="ones",
-                                                **kwargs)
 
-    def get_config(self):
-        config = {
-            "num_channels":self.num_channels,
-            "conv_filter_size":self.conv_filter_size,
-            "momentum":self.momentum,
-            "stride":self.stride,
-            "kernel_regularizer":self.kernel_regularizer
-        }
-        base_config = super().get_config()
-        return {**base_config, **config}
-    
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
-    
-    def call(self, inputs, training=None):
-        x = self.conv(inputs)
-        x = self.gelu(x)
-        x = self.batch_norm(x, training=training) 
-        
-        return x
 
 @tf.keras.utils.register_keras_serializable()
 class conv1d_block_dim_reduce(kl.Layer):
@@ -264,7 +203,7 @@ class TransformerBlock(kl.Layer):
         self.kernel_transformation=kernel_transformation 
         self.numerical_stabilizer=numerical_stabilizer
         self.nb_random_features=nb_random_features
-        self.widening=widening
+
         self.dropout_rate=dropout_rate
         
         self.layer_norm = kl.LayerNormalization(axis=-1,
@@ -280,7 +219,7 @@ class TransformerBlock(kl.Layer):
                                                nb_random_features=self.nb_random_features)
         self.dropout = kl.Dropout(rate=self.attention_dropout,**kwargs)
         self.FFN = FFN(num_channels=self.hidden_size,
-                       widening=self.widening,
+                       widening=2,
                        dropout_rate=self.dropout_rate,
                        name='FFN')         
     
@@ -769,119 +708,14 @@ class FixedPositionalEmbedding(tf.keras.layers.Layer):
                        dtype=tf.bfloat16)
 
 
-############################ conv stack block #####################################
-@tf.keras.utils.register_keras_serializable()
-class convstackblock(kl.Layer):
-    def __init__(self,
-                 initial_channels: int,
-                 channels_list: list , 
-                 conv_filter_size_1: int,
-                 conv_filter_size_2: float,
-                 momentum: float,
-                 input_length:int,
-                 stride: int = 1,
-                 kernel_regularizer: float = 0.01,
-                 pooling_type='max',
-                 name: str = 'convstackblock',
-                 **kwargs):
-        """Enformer style conv stack block
-        Args:
-            num_channels
-            conv_filter_size
-            momentum: batch norm momentum
-            stride: default 1 for no dim reduction
-            name: Module name.
-        """
-        super().__init__(name=name, **kwargs)
-        self.initial_channels=initial_channels
-        self.channels_list=channels_list
-        self.conv_filter_size_1=conv_filter_size_1
-        self.conv_filter_size_2=conv_filter_size_2
-        self.stride=stride
-        self.input_length=input_length
-        self.momentum=momentum
-        self.kernel_regularizer=kernel_regularizer
-        self.pooling_type=pooling_type
-        
-        
-        self.stem_initial_conv = kl.Conv1D(filters=self.initial_channels,
-                                           kernel_size=self.conv_filter_size_1,
-                                           strides=self.stride,
-                                           padding='same',
-                                           input_shape=(self.input_length, 5),
-                                           kernel_initializer=tf.keras.initializers.GlorotNormal(),
-                                           kernel_regularizer=regularizers.L2(self.kernel_regularizer)
-                                           )
-        self.stem_gelu = tfa.layers.GELU()
-        
-        self.stem_residual_conv_seq = Residual(conv1Dblock(num_channels=self.initial_channels,
-                                              conv_filter_size=1,stride=1,momentum=self.momentum,
-                                                           kernel_regularizer=self.kernel_regularizer,
-                                              **kwargs,
-                                              name = "stem_conv_block"), name = 'stem_res_conv')
-        
-        self.maxpool = kl.MaxPool1D(pool_size=2,strides=2,padding='valid')
-        
-        
-        self.conv_stack = tf.keras.Sequential()
-        for k, channels in enumerate(self.channels_list):
-            self.conv_stack.add(conv1Dblock(num_channels=channels,
-                                                conv_filter_size=self.conv_filter_size_2,
-                                                stride=1, 
-                                                momentum=self.momentum,
-                                                kernel_regularizer=self.kernel_regularizer, 
-                                                **kwargs, 
-                                            name = f'conv_stack_seq_b_{k}'))
-            self.conv_stack.add(Residual(conv1Dblock(num_channels=channels,
-                                                         conv_filter_size=1, 
-                                                         momentum=self.momentum, 
-                                                         kernel_regularizer=self.kernel_regularizer,
-                                                         **kwargs, 
-                                                     name = f'conv_stack_seq_resb_{k}'),
-                                         name = f'res_{k}'))
-            self.conv_stack.add(kl.MaxPool1D(pool_size=2,strides=2,padding='valid')) # todo: trial attention pooling
-        
-
-    def get_config(self):
-        config = {
-            "initial_channels":self.initial_channels,
-            "channels_list":self.channels_list,
-            "conv_filter_size_1":self.conv_filter_size_1,
-            "conv_filter_size_2":self.conv_filter_size_2,
-            "stride":self.stride,
-            "momentum":self.momentum,
-            "input_length":self.input_length,
-            "kernel_regularizer":self.kernel_regularizer,
-            "pooling_type":self.pooling_type
-            
-        }
-        base_config = super().get_config()
-        return {**base_config, **config}
-    
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
-    
-    def call(self, inputs, training=None):
-        seq_or_atac = inputs
-
-        x = self.stem_initial_conv(seq_or_atac,training=training)
-        x = self.stem_gelu(x)
-        x = self.stem_residual_conv_seq(x,training=training)
-        x = self.maxpool(x, training=training)
-        
-        x = self.conv_stack(x,training=training)
-        
-        return x
-
 
 ############################ output head module #####################################
 @tf.keras.utils.register_keras_serializable()
-class atac_head(kl.Layer):
+class output_head(kl.Layer):
     def __init__(self,
                  dropout_rate: float,
                  output_length: int = 1536,
-                 name: str = 'atac_head_block',
+                 name: str = 'output_head',
                  **kwargs):
         """
         Args:
@@ -892,7 +726,7 @@ class atac_head(kl.Layer):
         self.output_length = output_length
                               
         self.flatten = kl.flatten(data_format = 'channels_last')
-        self.dropout = kl.Dropout(rate=self.dropout_rate / 5,**kwargs)
+        self.dropout = kl.Dropout(rate=self.dropout_rate,**kwargs)
         self.final_dense = kl.Dense(self.output_length,
                                     use_bias=True)
 
@@ -914,40 +748,6 @@ class atac_head(kl.Layer):
         x = self.final_dense(x,training=training)
         return self.final_softplus(x,training=training)
 
-   
-############################ output head module #####################################
-@tf.keras.utils.register_keras_serializable()
-class rna_head(kl.Layer):
-    def __init__(self,
-                 name: str = 'rna_head_block',
-                 **kwargs):
-        """
-        Args:
-
-        """
-        super().__init__(name=name, **kwargs)
-   
-
-        self.conv1d_1_by_1 = kl.Conv1D(1,
-                                       1,
-                                       use_bias=True)
-
-        self.final_softplus = tf.keras.layers.Activation('softplus',
-                                                        dtype=tf.float32)
-        
-    def get_config(self):
-        base_config = super().get_config()
-        return {**base_config, **config}
-    
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
-    
-    def call(self, inputs, training=None):
-        x = self.conv1d_1_by_1(inputs,
-                               training=training)
-        return self.final_softplus(x,
-                                   training=training)
                               
 ############################ tf_module module #####################################
 @tf.keras.utils.register_keras_serializable()

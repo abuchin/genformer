@@ -19,15 +19,14 @@ class aformer(tf.keras.Model):
                  kernel_transformation: 'softmax_kernel_transformation',
                  dropout_rate: float = 0.2,
                  attention_dropout_rate: float = 0.05,
-                 input_length: int = 16384,
+                 input_length: int = 196608,
+                 atac_output_length: int = 1536,
                  num_heads:int = 4,
                  numerical_stabilizer: float =0.001,
                  nb_random_features:int = 256,
                  hidden_size:int = 64,
-                 widening:int = 2,
                  transformer_depth_1:int = 4,
                  transformer_depth_2:int = 4,
-                 momentum: float = 0.90,
                  pre_transf1_channels: int = 128,
                  pre_transf2_channels: int = 32,
                  d_model = 64,
@@ -35,7 +34,6 @@ class aformer(tf.keras.Model):
                  norm=True,
                  dim = 32, 
                  max_seq_length = 1536,
-                 pooling_type='max',
                  # nb_random_features = 64, 
                  rel_pos_bins=128, 
                  kernel_size=None, 
@@ -61,16 +59,10 @@ class aformer(tf.keras.Model):
         self.numerical_stabilizer=numerical_stabilizer
         self.nb_random_features=nb_random_features
         self.hidden_size=hidden_size
-        self.widening=widening
         self.pre_transf1_channels=pre_transf1_channels
         self.pre_transf2_channels=pre_transf2_channels
-        self.transformer_depth=transformer_depth
-        self.momentum=momentum
-        self.channels_list=channels_list
-        self.kernel_regularizer=kernel_regularizer
-        self.heads_dict=heads_dict
-        self.bottleneck_units_tf=bottleneck_units_tf
-        self.bottleneck_units=bottleneck_units
+        self.transformer_depth_1=transformer_depth_1
+        self.transformer_depth_2=transformer_depth_2
         self.norm=norm
         self.d_model = d_model
         self.dim = dim
@@ -107,7 +99,6 @@ class aformer(tf.keras.Model):
                                                    norm=self.norm,
                                                    max_seq_length=self.max_seq_length,
                                                    nb_random_features=self.nb_random_features,
-                                                   widening=self.widening,
                                                    hidden_size=self.hidden_size,
                                                    numerical_stabilizer=self.numerical_stabilizer,
                                                    attention_dropout=self.attention_dropout_rate,
@@ -116,7 +107,9 @@ class aformer(tf.keras.Model):
                                                    use_rot_emb=self.use_rot_emb,
                                                    use_mask_pos=self.use_mask_pos,
                                                    kernel_transformation=self.kernel_transformation,
-                                                   normalize=self.normalize, seed = self.seed, **kwargs)
+                                                   normalize=self.normalize, seed = self.seed, 
+                                                     name = 'transformer_stack1',
+                                                     **kwargs)
         
         self.transformer_stack_2 = Performer_Encoder(num_layers=self.transformer_depth_2,
                                                    num_heads=self.num_heads, 
@@ -134,21 +127,22 @@ class aformer(tf.keras.Model):
                                                    use_rot_emb=self.use_rot_emb,
                                                    use_mask_pos=self.use_mask_pos,
                                                    kernel_transformation=self.kernel_transformation,
-                                                   normalize=self.normalize, seed = self.seed, **kwargs)
+                                                   normalize=self.normalize, seed = self.seed, 
+                                                     name = 'transformer_stack2',
+                                                     **kwargs)
 
         
         ## final conv stack, organism specific
-        self.atac_head = headmodule_block(num_channels_in=2*self.hidden_size,
-                                          momentum=self.momentum,
-                                          dropout_rate=self.dropout_rate,
-                                          kernel_regularizer=self.kernel_regularizer,
-                                          bottleneck_units_tf=self.bottleneck_units_tf,
-                                          bottleneck_units=self.bottleneck_units,
-                                          use_tf_acc=self.use_tf_acc,**kwargs)
+        self.atac_head = output_head(output_length=self.atac_output_length,
+                                     dropout_rate=self.dropout_rate / 5,
+                                     name = 'atac_out_head',
+                                     **kwargs)
         
-    @property
-    def heads(self):
-        return self._heads
+        ## final conv stack, organism specific
+        self.rna_head = output_head(output_length=1,
+                                     dropout_rate=self.dropout_rate / 10,
+                                    name = 'rna_out_head',
+                                     **kwargs)
 
     #@tf.function(input_signature=[tf.TensorSpec([None, SEQUENCE_LENGTH, 5], tf.bfloat16),
     #                              tf.TensorSpec([None, 1572], tf.bfloat16)])
@@ -168,7 +162,7 @@ class aformer(tf.keras.Model):
         ## so we get an input to pre transformer reduction layer of [B x 1536 x 1600]
 
         transformer_input_1 = tf.concat([enformer_conv_out,
-                                       tf_processed],axis=2)
+                                         tf_processed],axis=2)
         
         # pre transformer channel reduction block
         # now dimension will go from [B x 1536 x 128] using 1x1 convolutions
@@ -193,11 +187,12 @@ class aformer(tf.keras.Model):
                                         axis=2)
         transformer_input_2 = self.dim_reduce_block2(transformer_input_2,
                                                     training=training)
-        # transformer_out_1 dimension is [B x 1536 x 1540]
+        # transformer_input_2 dimension is [B x 1536 x 32]
         transformer_input_2 = self.sin_pe(transformer_input_2)
         transformer_out_2,att_matrices_2 = self.transformer_stack_2(transformer_input_2,
                                                                     training=training)
 
+        # transformer_out_2 dimension is [B x 1536 x 32]
         
         rna_output = self.rna_head(transformer_out_2,training=training)
         
@@ -209,28 +204,19 @@ class aformer(tf.keras.Model):
         config = {
             "dropout_rate":self.dropout_rate,
             "input_length": self.input_length,
-            "kernel_regularizer":self.kernel_regularizer,
             "final_out_length": self.final_out_length,
             "num_heads": self.num_heads,
             "hidden_size": self.hidden_size,
             "numerical_stabilizer": self.numerical_stabilizer,
             "kernel_transformation": self.kernel_transformation,
             "nb_random_features": self.nb_random_features,
-            "conv_filter_size_1_seq":self.conv_filter_size_1_seq,
-            "conv_filter_size_2_seq":self.conv_filter_size_2_seq,
-            "conv_filter_size_1_atac":self.conv_filter_size_1_atac,
-            "conv_filter_size_2_atac":self.conv_filter_size_2_atac,
-            "transformer_depth":self.transformer_depth,
-            "widening":self.widening,
-            "kernel_regularizer":self.kernel_regularizer,
-            "momentum":self.momentum,
-            "heads_dict":self.heads_dict,
-            "channels_list":self.channels_list,
+            "transformer_depth_1":self.transformer_depth_1,
+            "transformer_depth_2":self.transformer_depth_2,
+            "pre_transf1_channels":self.pre_transf1_channels,
+            "pre_transf2_channels":self.pre_transf2_channels,
             "d_model":self.d_model,
             "norm":self.norm,
             "dim":self.dim,
-            "bottleneck_units_tf":self.bottleneck_units_tf,
-            "bottleneck_units":self.bottleneck_units,
             "human":self.human,
             "max_seq_length":self.max_seq_length,
             "rel_pos_bins":self.rel_pos_bins,
@@ -239,8 +225,7 @@ class aformer(tf.keras.Model):
             "use_mask_pos":self.use_mask_pos,
             "normalize":self.normalize,
             "seed":self.seed,
-            "TF_inputs_hg":self.TF_inputs_hg,
-            "TF_inputs_mm":self.TF_inputs_mm,
+            "TF_inputs":self.TF_inputs,
             "use_tf_acc":self.use_tf_acc
             
         }
