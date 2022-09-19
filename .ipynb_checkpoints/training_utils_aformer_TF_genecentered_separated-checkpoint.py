@@ -6,7 +6,7 @@ import re
 import argparse
 import collections
 import gzip
-import math
+import math 
 import shutil
 import matplotlib.pyplot as plt
 import wandb
@@ -15,9 +15,9 @@ from datetime import datetime
 import random
 
 import multiprocessing
-import logging
-from silence_tensorflow import silence_tensorflow
-silence_tensorflow()
+#import logging
+#from silence_tensorflow import silence_tensorflow
+#silence_tensorflow()
 os.environ['TF_ENABLE_EAGER_CLIENT_STREAMING_ENQUEUE']='False'
 import tensorflow as tf
 import tensorflow.experimental.numpy as tnp
@@ -80,7 +80,7 @@ def return_train_val_functions_hg_mm(model,
                                metric_dict,
                                train_steps, 
                                val_steps_h,
-                               val_steps_m,
+                               val_steps_ho,
                                global_batch_size,
                                gradient_clip,
                                use_prior,
@@ -114,7 +114,11 @@ def return_train_val_functions_hg_mm(model,
                                                  dtype=tf.float32)
     metric_dict["hg_val"] = tf.keras.metrics.Mean("hg_val_loss",
                                                   dtype=tf.float32)
+    metric_dict["hg_val_ho"] = tf.keras.metrics.Mean("hg_val_ho_loss",
+                                                  dtype=tf.float32)
     metric_dict["hg_corr_stats"] = metrics.correlation_stats_gene_centered(name='hg_corr_stats')
+    
+    metric_dict["hg_corr_stats_ho"] = metrics.correlation_stats_gene_centered(name='hg_corr_stats_ho')
 
     metric_dict["mm_tr"] = tf.keras.metrics.Mean("mm_tr_loss",
                                                  dtype=tf.float32)
@@ -200,7 +204,7 @@ def return_train_val_functions_hg_mm(model,
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
             input_grads = input_grad_tape.gradient(output,input_tuple)
-            if use_prior:
+            if use_prior and fourier_loss_scale is not None:
                 input_grads_0 = input_grads[0] * seq_inputs
                 fourier_loss_0 = fourier_att_prior_loss(output,input_grads_0)
 
@@ -223,7 +227,7 @@ def return_train_val_functions_hg_mm(model,
         return ta_lr.concat(), ta_it.concat()
 
     
-    def dist_val_step(iterator_hg,iterator_mm):
+    def dist_val_step(iterator_hg):
         
         @tf.function(jit_compile=True)
         def val_step_hg(inputs):
@@ -249,43 +253,11 @@ def return_train_val_functions_hg_mm(model,
             metric_dict["hg_val"].update_state(loss)
 
             return target, output, cell_type, gene_map
-        
-        @tf.function(jit_compile=True)
-        def val_step_mm(inputs):
-            target=tf.cast(inputs['target'],dtype=tf.float32)
-            seq_inputs=tf.cast(inputs['inputs'],
-                                 dtype=tf.float32)
-            atac_inputs =tf.cast(inputs['atac'],
-                                 dtype=tf.float32)
-            padding = tf.constant([[0,0],[0,271]])
-            tf_input = tf.cast(inputs['TF_acc'],
-                               dtype=tf.float32)
-            tf_input_pad = tf.pad(tf_input,
-                                  padding,
-                                  "CONSTANT",
-                                  0.0)
-            input_tuple = seq_inputs,atac_inputs,tf_input_pad
-            
-            cell_type = inputs['cell_type']
-            gene_map = inputs['gene_encoded']
 
-            output = tf.cast(model(input_tuple,
-                                   training=False)[0]["mm"],
-                              dtype=tf.float32)
-
-            loss = tf.reduce_sum(regular_mse(output, target),
-                                 axis=0) * (1. / global_batch_size)
-
-            metric_dict["mm_val"].update_state(loss)
-
-            return target, output, cell_type, gene_map
-    
         ta_pred_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
         ta_true_h = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
         ta_celltype_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
         ta_genemap_h = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
-        
-
         
         for _ in tf.range(val_steps_h): ## for loop within @tf.fuction for improved TPU performance
             target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step_hg,
@@ -309,37 +281,64 @@ def return_train_val_functions_hg_mm(model,
         ta_true_h.close()
         ta_celltype_h.close()
         ta_genemap_h.close()
+        
+        
+        
+    def dist_val_step_ho(iterator_hg_ho):
+        @tf.function(jit_compile=True)
+        def val_step_hg_ho(inputs):
+            target=tf.cast(inputs['target'],dtype=tf.float32)
+            seq_inputs=tf.cast(inputs['inputs'],
+                                 dtype=tf.float32)
+            atac_inputs =tf.cast(inputs['atac'],
+                                 dtype=tf.float32)
+            tf_input = tf.cast(inputs['TF_acc'],
+                               dtype=tf.float32)
+            input_tuple = seq_inputs,atac_inputs,tf_input
             
-        ta_pred_m = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
-        ta_true_m = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
-        ta_celltype_m = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
-        ta_genemap_m = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
-            
-        for _ in tf.range(val_steps_m): ## for loop within @tf.fuction for improved TPU performance
-            target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step_mm,
-                                                                               args=(next(iterator_mm),))
+            cell_type = inputs['cell_type']
+            gene_map = inputs['gene_encoded']
+
+            output = tf.cast(model(input_tuple,
+                                   training=False)[0]["hg"],
+                              dtype=tf.float32)
+
+            loss = tf.reduce_sum(regular_mse(output, target),
+                                 axis=0) * (1. / global_batch_size)
+
+            metric_dict["hg_val_ho"].update_state(loss)
+
+            return target, output, cell_type, gene_map
+
+        ta_pred_ho = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_true_ho = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
+        ta_celltype_ho = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_genemap_ho = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
+        
+        for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
+            target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step_hg_ho,
+                                                                               args=(next(iterator_hg_ho),))
             
             target_reshape = tf.reshape(strategy.gather(target_rep, axis=0), [-1]) # reshape to 1D
             output_reshape = tf.reshape(strategy.gather(output_rep, axis=0), [-1])
             cell_type_reshape = tf.reshape(strategy.gather(cell_type_rep, axis=0), [-1])
             gene_map_reshape = tf.reshape(strategy.gather(gene_map_rep, axis=0), [-1])
 
-            ta_pred_m = ta_pred_m.write(_, output_reshape)
-            ta_true_m = ta_true_m.write(_, target_reshape)
-            ta_celltype_m = ta_celltype_m.write(_, cell_type_reshape)
-            ta_genemap_m = ta_genemap_m.write(_, gene_map_reshape)
-        
-        
-        metric_dict["mm_corr_stats"].update_state(ta_true_m.concat(),
-                                                  ta_pred_m.concat(),
-                                                  ta_celltype_m.concat(),
-                                                  ta_genemap_m.concat())
-        ta_pred_m.close()
-        ta_true_m.close()
-        ta_celltype_m.close()
-        ta_genemap_m.close()
+            ta_pred_ho = ta_pred_ho.write(_, output_reshape)
+            ta_true_ho = ta_true_ho.write(_, target_reshape)
+            ta_celltype_ho = ta_celltype_ho.write(_, cell_type_reshape)
+            ta_genemap_ho = ta_genemap_ho.write(_, gene_map_reshape)
+            
+        metric_dict["hg_corr_stats_ho"].update_state(ta_true_ho.concat(),
+                                                  ta_pred_ho.concat(),
+                                                  ta_celltype_ho.concat(),
+                                                  ta_genemap_ho.concat())
+        ta_pred_ho.close()
+        ta_true_ho.close()
+        ta_celltype_ho.close()
+        ta_genemap_ho.close()
 
-    return dist_train_step, dist_val_step, metric_dict
+    return dist_train_step, dist_val_step, dist_val_step_ho, metric_dict
 
 
 def return_train_val_functions_hg(model,
@@ -348,7 +347,7 @@ def return_train_val_functions_hg(model,
                                metric_dict,
                                train_steps, 
                                val_steps_h,
-                               val_steps_m,
+                               val_steps_ho,
                                global_batch_size,
                                gradient_clip,
                                use_prior,
@@ -381,7 +380,12 @@ def return_train_val_functions_hg(model,
                                                  dtype=tf.float32)
     metric_dict["hg_val"] = tf.keras.metrics.Mean("hg_val_loss",
                                                   dtype=tf.float32)
+    metric_dict["hg_val_ho"] = tf.keras.metrics.Mean("hg_val_loss_ho",
+                                                  dtype=tf.float32)
     metric_dict["hg_corr_stats"] = metrics.correlation_stats_gene_centered(name='hg_corr_stats')
+    
+    metric_dict["hg_corr_stats_ho"] = metrics.correlation_stats_gene_centered(name='hg_corr_stats_ho')
+
     
     def dist_train_step(iterator_hg):
         @tf.function(jit_compile=True)
@@ -494,11 +498,67 @@ def return_train_val_functions_hg(model,
         ta_true_h.close()
         ta_celltype_h.close()
         ta_genemap_h.close()
+
+    
+        
+    def dist_val_step_ho(iterator_hg_ho):
+        
+        @tf.function(jit_compile=True)
+        def val_step_hg_ho(inputs):
+            target=tf.cast(inputs['target'],dtype=tf.float32)
+            seq_inputs=tf.cast(inputs['inputs'],
+                                 dtype=tf.float32)
+            atac_inputs =tf.cast(inputs['atac'],
+                                 dtype=tf.float32)
+            tf_input = tf.cast(inputs['TF_acc'],
+                               dtype=tf.float32)
+            input_tuple = seq_inputs,atac_inputs,tf_input
             
+            cell_type = inputs['cell_type']
+            gene_map = inputs['gene_encoded']
 
-    return dist_train_step, dist_val_step, metric_dict
+            output = tf.cast(model(input_tuple,
+                                   training=False)[0]["hg"],
+                              dtype=tf.float32)
 
-def deserialize(serialized_example, input_length, 
+            loss = tf.reduce_sum(regular_mse(output, target),
+                                 axis=0) * (1. / global_batch_size)
+
+            metric_dict["hg_val_ho"].update_state(loss)
+
+            return target, output, cell_type, gene_map
+
+        ta_pred_ho = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_true_ho = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
+        ta_celltype_ho = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_genemap_ho = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
+        
+        for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
+            target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step_hg_ho,
+                                                                               args=(next(iterator_hg_ho),))
+            
+            target_reshape = tf.reshape(strategy.gather(target_rep, axis=0), [-1]) # reshape to 1D
+            output_reshape = tf.reshape(strategy.gather(output_rep, axis=0), [-1])
+            cell_type_reshape = tf.reshape(strategy.gather(cell_type_rep, axis=0), [-1])
+            gene_map_reshape = tf.reshape(strategy.gather(gene_map_rep, axis=0), [-1])
+
+            ta_pred_ho = ta_pred_ho.write(_, output_reshape)
+            ta_true_ho = ta_true_ho.write(_, target_reshape)
+            ta_celltype_ho = ta_celltype_ho.write(_, cell_type_reshape)
+            ta_genemap_ho = ta_genemap_ho.write(_, gene_map_reshape)
+            
+        metric_dict["hg_corr_stats_ho"].update_state(ta_true_ho.concat(),
+                                                  ta_pred_ho.concat(),
+                                                  ta_celltype_ho.concat(),
+                                                  ta_genemap_ho.concat())
+        ta_pred_ho.close()
+        ta_true_ho.close()
+        ta_celltype_ho.close()
+        ta_genemap_ho.close()
+            
+    return dist_train_step,dist_val_step,dist_val_step_ho,metric_dict
+
+def deserialize(serialized_example,input_length, 
                 num_TFs,max_shift,output_type):
     """
     Deserialize bytes stored in TFRecordFile.
@@ -553,7 +613,7 @@ def deserialize(serialized_example, input_length,
                              [num_TFs,])
     TF_acc = TF_acc + tf.math.abs(tf.random.normal(TF_acc.shape, 
                                    mean=0.0, 
-                                   stddev=1.0e-04, dtype=tf.float32))
+                                   stddev=1.0e-06, dtype=tf.float32))
     
     inputs = tf.concat([tf.expand_dims(tss_tokens,1), sequence], axis=1)
 
@@ -602,7 +662,7 @@ def deserialize_val(serialized_example, input_length,
     data = tf.io.parse_example(serialized_example, feature_map)
 
     ### stochastic sequence shift and gaussian noise
-    shift = max_shift
+    shift = max_shift // 2
     input_seq_length = input_length + max_shift
     interval_end = input_length + shift
     
@@ -655,7 +715,7 @@ def deserialize_val(serialized_example, input_length,
     return {
         'inputs': tf.ensure_shape(inputs,[input_length,5]),
         'atac': tf.ensure_shape(atac, [input_length,1]),
-        'target': tf.reshape(target,[-1]),
+        'target': tf.transpose(tf.reshape(target,[-1])),
         'TF_acc': TF_acc,
         'cell_type': tf.transpose(tf.reshape(cell_type,[-1])),
         'gene_encoded': tf.transpose(tf.reshape(gene_encoded,[-1])),
@@ -689,7 +749,7 @@ def return_dataset(gcs_path,
     
     dataset = tf.data.TFRecordDataset(files,
                                       compression_type='ZLIB',
-                                      buffer_size=10000000,
+                                      buffer_size=1048576,
                                       num_parallel_reads=num_parallel)
     dataset = dataset.with_options(options)
 
@@ -700,8 +760,7 @@ def return_dataset(gcs_path,
                                                      output_type),
                           deterministic=False,
                           num_parallel_calls=num_parallel)
-    
-    
+
     return dataset.repeat(num_epoch).batch(batch,drop_remainder=True).prefetch(1)
 
 
@@ -731,7 +790,7 @@ def return_dataset_val(gcs_path,
 
     dataset = tf.data.TFRecordDataset(files,
                                       compression_type='ZLIB',
-                                      buffer_size=100000,
+                                      buffer_size=1048576,
                                       num_parallel_reads=num_parallel)
     dataset = dataset.with_options(options)
 
@@ -744,10 +803,49 @@ def return_dataset_val(gcs_path,
                           num_parallel_calls=num_parallel)
 
 
-    return dataset.repeat(num_epoch).batch(batch, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
+    return dataset.repeat(num_epoch).batch(batch, drop_remainder=True).prefetch(1)
+
+
+
+def return_dataset_val_holdout(gcs_path,
+                       batch,
+                       input_length,
+                       max_shift,
+                       output_type,
+                       num_parallel,
+                       num_epoch,
+                       num_TFs,
+                       options):
+    """
+    return a tf dataset object for given gcs path
+    """
+
+    wc = "*.tfr"
+    
+    list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
+                                                wc)))
+
+    random.shuffle(list_files)
+    files = tf.data.Dataset.list_files(list_files)
+
+    dataset = tf.data.TFRecordDataset(files,
+                                      compression_type='ZLIB',
+                                      #buffer_size=1048576,
+                                      num_parallel_reads=num_parallel)
+    dataset = dataset.with_options(options)
+    dataset = dataset.map(lambda record: deserialize_val(record,
+                                                         input_length,
+                                                         num_TFs,
+                                                         max_shift,
+                                                         output_type),
+                          deterministic=False,
+                          num_parallel_calls=num_parallel)
+
+    return dataset.repeat(num_epoch).batch(batch, drop_remainder=True).prefetch(1)
 
 def return_distributed_iterators(heads_dict,
                                  gcs_path,
+                                 gcs_path_val_ho,
                                  global_batch_size,
                                  input_length,
                                  max_shift,
@@ -791,18 +889,34 @@ def return_distributed_iterators(heads_dict,
                                          num_epoch,
                                          num_tf)
             
-
+            
             train_dist = strategy.experimental_distribute_dataset(tr_data)
             val_dist= strategy.experimental_distribute_dataset(val_data)
-
+            
             tr_data_it = iter(train_dist)
             val_data_it = iter(val_dist)
+            
             data_it_tr_list.append(tr_data_it)
             data_it_val_list.append(val_data_it)
+            
+            
+            
+        val_data_holdout = return_dataset_val_holdout(gcs_path_val_ho,
+                                                 global_batch_size,
+                                                 input_length,
+                                                 max_shift,
+                                                 output_type,
+                                                 num_parallel_calls,
+                                                 num_epoch,
+                                                 1637,
+                                                 options)
+        val_dist_ho = strategy.experimental_distribute_dataset(val_data_holdout)
+        val_data_ho_it = iter(val_dist_ho)
+            
         data_dict_tr = dict(zip(heads_dict.keys(), data_it_tr_list))
         data_dict_val = dict(zip(heads_dict.keys(), data_it_val_list))
 
-        return data_dict_tr, data_dict_val
+        return data_dict_tr, data_dict_val,val_data_ho_it
 
 
 
@@ -897,6 +1011,9 @@ def parse_args(parser):
     parser.add_argument('--gcs_path',
                         dest='gcs_path',
                         help= 'google bucket containing preprocessed data')
+    parser.add_argument('--gcs_path_val_ho',
+                        dest='gcs_path_val_ho',
+                        help= 'google bucket containing validation holdout data')
     parser.add_argument('--output_heads',
                         dest='output_heads',
                         type=str,
@@ -929,8 +1046,8 @@ def parse_args(parser):
                         type=int, help='train_steps')
     parser.add_argument('--val_steps_h', dest = 'val_steps_h',
                         type=int, help='val_steps_h')
-    parser.add_argument('--val_steps_m', dest = 'val_steps_m',
-                        type=int, help='val_steps_m')
+    parser.add_argument('--val_steps_ho', dest = 'val_steps_ho',
+                    type=int, help='val_steps_ho')
     parser.add_argument('--patience', dest = 'patience',
                         type=int, help='patience for early stopping')
     parser.add_argument('--min_delta', dest = 'min_delta',
@@ -1071,10 +1188,10 @@ def parse_args(parser):
                         dest='use_fft_prior',
                         default="True",
                         help= 'use_fft_prior')
-    parser.add_argument('--freq_limit',
-                        dest='freq_limit',
+    parser.add_argument('--freq_limit_scale',
+                        dest='freq_limit_scale',
                         type=str,
-                        default="5000",
+                        default="0.07",
                         help= 'freq_limit')
     parser.add_argument('--fft_prior_scale',
                         dest='fft_prior_scale',
@@ -1111,11 +1228,33 @@ def parse_args(parser):
                         type=str,
                         default=os.getcwd() + "/references/gencode.v38.gene_transcript_type.tsv",
                         help= 'gene_symbol_encoding')
+    parser.add_argument('--hGhA_variance_list',
+                        dest='hGhA_variance_list',
+                        type=str,
+                        default=os.getcwd() + "/references/highG_highA_genes.tsv",
+                        help= 'list of high,high variance genes')
+    parser.add_argument('--hGlA_variance_list',
+                        dest='hGlA_variance_list',
+                        type=str,
+                        default=os.getcwd() + "/references/highG_lowA_genes.tsv",
+                        help= 'list of high,low variance genes')
+    parser.add_argument('--lGhA_variance_list',
+                        dest='lGhA_variance_list',
+                        type=str,
+                        default=os.getcwd() + "/references/lowG_highA_genes.tsv",
+                        help= 'list of low,high variance genes')
+    parser.add_argument('--lGlA_variance_list',
+                        dest='lGlA_variance_list',
+                        type=str,
+                        default=os.getcwd() + "/references/lowG_lowA_genes.tsv",
+                        help= 'list of low,low variance genes')
+
     parser.add_argument('--cell_type_map_file',
                         dest='cell_type_map_file',
                         type=str,
                         default=os.getcwd() + "/references/cell_type_map.tsv",
                         help= 'cell_type_map_file')
+
 
     
     args = parser.parse_args()
@@ -1238,11 +1377,16 @@ def make_plots(y_trues,y_preds,
                cell_types, 
                gene_map, 
                file_name_prefix,
-               cell_type_map_file,
-               gene_map_file,
-               gene_symbol_map_file):
+               cell_type_map_df,
+               gene_map_df,
+               gene_symbol_df,
+               genes_variance_df_list):
     
-    
+    hGhA = genes_variance_df_list[0]
+    hGlA = genes_variance_df_list[1]
+    lGhA = genes_variance_df_list[2]
+    lGlA = genes_variance_df_list[3]
+
     unique_preds = {}
     unique_trues = {}
     for k,x in enumerate(gene_map):
@@ -1253,82 +1397,16 @@ def make_plots(y_trues,y_preds,
     unique_preds = dict(sorted(unique_preds.items()))
     unique_trues = dict(sorted(unique_trues.items()))
 
-    overall_gene_level_corr = pearsonr(y_trues,
-                                       y_preds)[0]
+    #overall_gene_level_corr = pearsonr(y_trues,
+    #                                   y_preds)[0]
     overall_gene_level_corr_sp = spearmanr(y_trues,
                                        y_preds)[0]
 
-    #fig_gene_level,ax_gene_level=plt.subplots(figsize=(6,6))
-    #data = np.vstack([y_trues,y_preds])
-    #kernel = stats.gaussian_kde(data)(data)
-
-    #sns.scatterplot(
-    #    x=y_trues,
-    #    y=y_preds,
-    #    c=kernel,
-    #    cmap="viridis")
-    
-    plt.xlabel("true log2(1.0+TPM)")
-    plt.ylabel("predicted log2(1.0+TPM)")
-    plt.xlim(0, max(y_trues))
-    plt.ylim(0, max(y_trues))
-    plt.title("overall correlation, all genes, all cells")
     ### now compute correlations across cell types
     across_cells_preds = {}
     across_cells_trues = {}
-    
-    
-    low_y_true_indices = np.where(y_trues < 3.5)
-    low_y_trues = y_trues[low_y_true_indices]
-    low_y_preds = y_preds[low_y_true_indices]
-    
-    low_gene_level_corr = pearsonr(low_y_trues,
-                                       low_y_preds)[0]
-    low_gene_level_corr_sp = spearmanr(low_y_trues,
-                                       low_y_preds)[0]
-    
-    """
-    fig_gene_level_l,ax_gene_level_l=plt.subplots(figsize=(6,6))
-    data = np.vstack([low_y_trues,low_y_preds])
-    kernel = stats.gaussian_kde(data)(data)
 
-    sns.scatterplot(
-        x=low_y_trues,
-        y=low_y_preds,
-        c=kernel,
-        cmap="viridis")
-    
-    plt.xlabel("true log2(1.0+TPM)")
-    plt.ylabel("predicted log2(1.0+TPM)")
-    plt.xlim(0, max(low_y_trues))
-    plt.ylim(0, max(low_y_trues))
-    plt.title("correlation LOW expression, all genes, all cells")
-    """
-    high_y_true_indices = np.where(y_trues >= 3.5)
-    high_y_trues = y_trues[high_y_true_indices]
-    high_y_preds = y_preds[high_y_true_indices]
-    
-    high_gene_level_corr = pearsonr(high_y_trues,
-                                    high_y_preds)[0]
-    high_gene_level_corr_sp = spearmanr(high_y_trues,
-                                    high_y_preds)[0]
-    """
-    fig_gene_level_h,ax_gene_level_h=plt.subplots(figsize=(6,6))
-    data = np.vstack([high_y_trues,high_y_preds])
-    kernel = stats.gaussian_kde(data)(data)
 
-    sns.scatterplot(
-        x=high_y_trues,
-        y=high_y_preds,
-        c=kernel,
-        cmap="viridis")
-    
-    plt.xlabel("true log2(1.0+TPM)")
-    plt.ylabel("predicted log2(1.0+TPM)")
-    plt.xlim(0, max(high_y_trues))
-    plt.ylim(0, max(high_y_trues))
-    plt.title("correlation HIGH expression, all genes, all cells")
-    """
     ### now compute correlations across cell types
     across_cells_preds = {}
     across_cells_trues = {}
@@ -1344,7 +1422,7 @@ def make_plots(y_trues,y_preds,
     cell_specific_corrs = []
     cell_specific_corrs_sp = []
     correlations_cells = {}
-
+    
     for k,v in across_cells_preds.items():
         trues = []
         preds = []
@@ -1357,9 +1435,10 @@ def make_plots(y_trues,y_preds,
                                      preds)[0]
             spearmansr_val = spearmanr(trues,
                                        preds)[0]
-            cell_specific_corrs.append(pearsonsr_val)
+            #cell_specific_corrs.append(pearsonsr_val)
             cell_specific_corrs_sp.append(spearmansr_val)
-            correlations_cells[k : pearsonsr_val, spearmansr_val]
+            correlations_cells[k] = (pearsonsr_val,spearmansr_val)
+
 
         except np.linalg.LinAlgError:
             continue
@@ -1371,7 +1450,7 @@ def make_plots(y_trues,y_preds,
     plt.xlabel("single cell-type cross gene correlations")
     plt.ylabel("count")
     plt.title("log-log pearsonsR")
-    cell_spec_median = np.nanmedian(cell_specific_corrs)
+    #cell_spec_median = np.nanmedian(cell_specific_corrs)
     cell_spec_median_sp = np.nanmedian(cell_specific_corrs_sp)
 
 
@@ -1388,10 +1467,25 @@ def make_plots(y_trues,y_preds,
         else:
             across_genes_preds[gene_name].append(v)
             across_genes_trues[gene_name].append(unique_trues[k])
-    genes_specific_corrs = []
+    #genes_specific_corrs = []
     genes_specific_corrs_sp = []
-    genes_specific_vars = []
+    #genes_specific_vars = []
+    
+
+    hGhA_var_list = hGhA['gene_encoding'].tolist()
+    hGlA_var_list = hGlA['gene_encoding'].tolist()
+    lGhA_var_list = lGhA['gene_encoding'].tolist()
+    lGlA_var_list = lGlA['gene_encoding'].tolist()
+
+    #high_variance_corr = []
+    hGhA_corr_sp = []
+    hGlA_corr_sp = []
+    lGhA_corr_sp = []
+    lGlA_corr_sp = []
+
+
     for k,v in across_genes_preds.items():
+        ## k here is the gene_name
         trues = []
         preds = []
         for idx, x in enumerate(v):
@@ -1403,72 +1497,76 @@ def make_plots(y_trues,y_preds,
                                      preds)[0]
             spearmansr_val = spearmanr(trues,
                                        preds)[0]
-            genes_specific_corrs.append(pearsonsr_val)
+            #genes_specific_corrs.append(pearsonsr_val)
             genes_specific_corrs_sp.append(spearmansr_val)
             
-            correlations_genes[k : pearsonsr_val,spearmansr_val]
+            #print(k,v)
+            if k in hGhA_var_list:
+                hGhA_corr_sp.append(spearmansr_val)
+            elif k in hGlA_var_list:
+                hGlA_corr_sp.append(spearmansr_val)
+            elif k in lGhA_var_list:
+                lGhA_corr_sp.append(spearmansr_val)
+            else:
+                lGlA_corr_sp.append(spearmansr_val)
+                
+            correlations_genes[k] = (pearsonsr_val,spearmansr_val,np.nanstd(trues))
             
-            genes_specific_vars.append(np.nanstd(trues))
         except np.linalg.LinAlgError:
             continue
         except ValueError:
             continue
             
+    hGhA_corr_med = np.nanmedian(hGhA_corr_sp)
+    hGlA_corr_med = np.nanmedian(hGlA_corr_sp)
+    lGhA_corr_med = np.nanmedian(lGhA_corr_sp)
+    lGlA_corr_med = np.nanmedian(lGlA_corr_sp)
+
     fig_gene_spec,ax_gene_spec=plt.subplots(figsize=(6,6))
-    sns.histplot(x=np.asarray(genes_specific_corrs), bins=50)
+    sns.histplot(x=np.asarray(genes_specific_corrs_sp), bins=50)
     plt.xlabel("single gene cross cell-type correlations")
     plt.ylabel("count")
     plt.title("log-log pearsonsR")
-    gene_spec_median_corr = np.nanmedian(genes_specific_corrs)
+    #gene_spec_median_corr = np.nanmedian(genes_specific_corrs_sp)
     gene_spec_median_corr_sp = np.nanmedian(genes_specific_corrs_sp)
     
-    
-    file_name = file_name_prefix + ".val.out.tsv"
-    
-    
+
     correlations_cells_df = pd.DataFrame({'cell_type_encoding': correlations_cells.keys(),
-                                   'spearmansr': correlations_cells.values()[1],
-                                   'pearsonsr': correlations_cells.values()[0]})
-    
+                                   'spearmansr': [v[1] for k,v in correlations_cells.items()],
+                                   'pearsonsr': [v[0] for k,v in correlations_cells.items()]})
+
     correlations_cells_df = cell_type_parser(correlations_cells_df,
-                                             cell_type_map_file)
-    
-    correlations_cells_table = wandb.Table(columns=['cell_type',
-                                                    'cell_type_encoding',
-                                                    'spearmansr',
-                                                    'pearsonsr'],
-                                           data =[correlations_cells_df['cell_type'].tolist(),
-                                                  correlations_cells_df['cell_type_encoding'].tolist(),
-                                                  correlations_cells_df['spearmansr'].tolist(),
-                                                  correlations_cells_df['pearsonsr'].tolist()])
+                                             cell_type_map_df)
 
 
-    correlations_genes_df= pd.DataFrame({'gene_type_encoding': correlations_genes.keys(),
-                                   'spearmansr': correlations_genes.values()[1],
-                                   'pearsonsr': correlations_genes.values()[0]})
+    #correlations_cells_table = wandb.Table(dataframe=correlations_cells_df)
+    #print('logged cells table')
+    correlations_genes_df = pd.DataFrame({'gene_encoding': correlations_genes.keys(),
+                                   'spearmansr': [v[1] for k,v in correlations_genes.items()],
+                                   'pearsonsr': [v[0] for k,v in correlations_genes.items()],
+                                     'std': [v[0] for k,v in correlations_genes.items()]})
                                    
     correlations_genes_df = gene_map_parser(correlations_genes_df,
-                                            gene_map_file,
-                                            gene_symbol_map_file)
-    
-    correlations_genes_df_table = wandb.Table(columns=['gene_symbol',
-                                                    'gene_encoding',
-                                                    'spearmansr',
-                                                    'pearsonsr'],
-                                           data =[correlations_cells_df['cell_type'].tolist(),
-                                                  correlations_cells_df['cell_type_encoding'].tolist(),
-                                                  correlations_cells_df['spearmansr'].tolist(),
-                                                  correlations_cells_df['pearsonsr'].tolist()])
-    
-    return overall_gene_level_corr,overall_gene_level_corr_sp, low_gene_level_corr,low_gene_level_corr_sp, high_gene_level_corr,high_gene_level_corr_sp, cell_spec_median,cell_spec_median_sp,gene_spec_median_corr, gene_spec_median_corr_sp, fig_cell_spec,fig_gene_spec,correlations_cells_table,correlations_genes_df_table
+                                            gene_map_df,
+                                            gene_symbol_df)
 
+    
+    dataframes = correlations_cells_df, correlations_genes_df
+    figures = fig_cell_spec, fig_gene_spec
 
+    corrs_by_class = hGhA_corr_med,hGlA_corr_med,lGhA_corr_med,lGlA_corr_med
+
+    #return overall_gene_level_corr,overall_gene_level_corr_sp,\
+    corrs_overall = overall_gene_level_corr_sp, gene_spec_median_corr_sp, cell_spec_median_sp
+
+    
+    return dataframes,figures,corrs_by_class,corrs_overall
 
 
 
 
 def deserialize_interpret(serialized_example, input_length, 
-                    output_length,num_TFs,max_shift,output_type):
+                    num_TFs,output_type, rev_comp):
     """
     Deserialize bytes stored in TFRecordFile.
     """
@@ -1488,96 +1586,109 @@ def deserialize_interpret(serialized_example, input_length,
     }
     data = tf.io.parse_example(serialized_example, feature_map)
 
-    ### stochastic sequence shift and gaussian noise
-    shift = 500#random.randrange(0,max_shift,1)
-    input_seq_length = input_length + max_shift
-    interval_end = input_length + shift
-    
-    atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
-                                              out_type=tf.float32),
-                           [input_seq_length,])
-    atac = tf.slice(atac, [shift],[input_length])
-    
+
     exons = tf.ensure_shape(tf.io.parse_tensor(data['exons'],
                                               out_type=tf.int32),
-                            [input_seq_length,])
-    exons = tf.cast(tf.slice(exons, [shift],[input_length]),dtype=tf.float32)
+                            [input_length,])
+    #exons = tf.cast(tf.slice(exons, [shift],[input_length]),dtype=tf.float32)
     
-    sequence = one_hot(tf.strings.substr(data['sequence'],
-                                         shift,input_length))
+    tss_tokens = tf.cast(tf.ensure_shape(tf.io.parse_tensor(data['tss_tokens'],
+                                              out_type=tf.int32),
+                            [input_length,]),
+                         dtype=tf.float32)
+
+    atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
+                                              out_type=tf.float32),
+                           [input_length,])
+    
+    atac=tf.expand_dims(atac,1)
+
+    sequence = one_hot(data['sequence'])
+    if rev_comp:
+        atac=tf.reverse(atac,[0])
+        tss_tokens=tf.reverse(tss_tokens,[0])
+        exons=tf.reverse(exons,[0])
+        sequence = rev_comp_one_hot(data['sequence'])
     
     TF_acc = tf.ensure_shape(tf.io.parse_tensor(data['TF_acc'],
                                               out_type=tf.float32),
                              [num_TFs,])
     
-    inputs = tf.concat([tf.expand_dims(atac, 1), sequence], axis=1)
-    inputs = tf.concat([tf.expand_dims(exons,1), inputs], axis=1)
+    inputs = tf.concat([tf.expand_dims(tss_tokens,1), sequence], axis=1)
     
     TPM = tf.io.parse_tensor(data['TPM'],out_type=tf.float32)
-    TPM_uqn = tf.io.parse_tensor(data['TPM_uqn'],out_type=tf.float32) 
+    TPM_uqn = tf.io.parse_tensor(data['TPM_uqn'],out_type=tf.float32)
+    gene_mean = tf.io.parse_tensor(data['gene_mean'],out_type=tf.float32)
+    gene_std = tf.io.parse_tensor(data['gene_std'],out_type=tf.float32)
+    #print(tf.io.parse_tensor(data['cell_type'],out_type=tf.int32))s
+    cell_type = tf.io.parse_tensor(data['cell_type'],out_type=tf.int32)
+    #print(data['cell_type'])
+    gene_encoded = tf.io.parse_tensor(data['gene_encoded'],out_type=tf.int32)
+
+    #print(TPM)
     if output_type == 'logTPM':
-        target = log10(1.0 + TPM)
+        target = log2(1.0 + tf.math.maximum(0.0,TPM))
     elif output_type == 'zTPM':
-        gene_mean = tf.io.parse_tensor(data['gene_mean'],out_type=tf.float32)
-        gene_std = tf.io.parse_tensor(data['gene_std'],out_type=tf.float32)
-        target = (TPM - gene_mean) / gene_std
+        target = (tf.math.maximum(0.0,TPM) - gene_mean) / gene_std
     elif output_type == 'logTPM_uqn':
-        target = log10(1.0 + TPM_uqn)
+        target = log2(1.0 + tf.math.maximum(0.0,TPM_uqn))
     else:
         raise ValueError('input an appropriate input type')
-    
-    tss_tokens = tf.ensure_shape(tf.io.parse_tensor(data['tss_tokens'],
-                                              out_type=tf.int32),
-                            [input_seq_length,])
-    tss_tokens = tf.slice(tss_tokens, [shift],[input_length])
+
+
         
     return {
         'inputs': inputs,
+        'atac': atac,
         'target': target,
         'TF_acc': TF_acc,
-        'cell_type': tf.io.parse_tensor(data['cell_type'],out_type=tf.int32),
-        'gene_encoded': tf.io.parse_tensor(data['gene_encoded'],out_type=tf.int32),
-        'tss_tokens': tss_tokens,
-        'interval': data['interval']
+        'exons': input_length,
+        'cell_type': cell_type,
+        'gene_encoded': gene_encoded,
+        'tss_tokens': tss_tokens
+        #'interval': data['interval']
     }
 
+
 def return_dataset_interpret(gcs_path,
-                             input_length,
-                             output_length_pre,
-                             crop_size,
-                             out_length,
-                             options,
-                             num_parallel,
-                             num_epoch,
-                             seed,
-                             num_TFs):
+                             strategy,
+                       batch,
+                       input_length,
+                       output_type,
+                       num_parallel,
+                       num_epoch,
+                       num_TFs,
+                       rev_comp):
     """
     return a tf dataset object for given gcs path
     """
-    
-    list_files = tf.io.gfile.glob(gcs_path)
 
+    list_files = (tf.io.gfile.glob(os.path.join(gcs_path)))
+
+    random.shuffle(list_files)
     files = tf.data.Dataset.list_files(list_files)
 
     dataset = tf.data.TFRecordDataset(files,
                                       compression_type='ZLIB',
-                                      buffer_size=100000,
+                                      buffer_size=1048576,
                                       num_parallel_reads=num_parallel)
-    dataset = dataset.with_options(options)
+
+
+
 
     dataset = dataset.map(lambda record: deserialize_interpret(record,
-                                                               input_length,
-                                                               output_length_pre,
-                                                               crop_size,
-                                                               out_length,
-                                                               seed,
-                                                               num_TFs),
+                                                         input_length,
+                                                         num_TFs,
+                                                         output_type,
+                                                         rev_comp),
                           deterministic=False,
                           num_parallel_calls=num_parallel)
 
+    dataset = dataset.repeat(num_epoch).batch(batch, 
+                                drop_remainder=True).prefetch(1)
+    interpret_dist = strategy.experimental_distribute_dataset(dataset)
 
-    return dataset.repeat(num_epoch).batch(1, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
-
+    return iter(interpret_dist)
 
 def log10(x):
     numerator = tf.math.log(x)
@@ -1698,34 +1809,39 @@ def smooth_tensor_1d(input_tensor, smooth_sigma):
 
 
 
-def cell_type_parser(input_df, cell_type_map):
-    cell_type_map_df = pd.read_csv(cell_type_map,sep='\t',header=None)
-    
-    cell_type_map_df.columns = ['cell_type','cell_type_encoding']
-    
-    input_df= input_df.merge(correlations_cells_df,
+def cell_type_parser(input_df, cell_type_map_df):
+
+    input_df= input_df.merge(cell_type_map_df,
                    left_on='cell_type_encoding', right_on='cell_type_encoding')
     return input_df
 
 
     
 
-def gene_map_parser(input_df, gene_map_file, gene_symbol_map):
-    
-    gene_map_df = pd.read_csv(gene_map_file,sep='\t')
-    
-    gene_map_df.columns = ['ensembl_id', 'gene_symbol']
-    
-    gene_symbol_df = pd.read_csv(gene_symbol_map,sep='\t')
-    gene_symbol_df.columns = ['ensembl_id', 'gene_encoding']
-    
+def gene_map_parser(input_df, gene_map_df, gene_symbol_df):
     gene_map_df = gene_map_df.merge(gene_symbol_df,
                                     left_on = 'ensembl_id',
                                     right_on = 'ensembl_id')
     
     input_df = input_df.merge(gene_map_df,
-                              left_on='gene_type_encoding',
+                              left_on='gene_encoding',
                               right_on='gene_encoding')
-                              
-                              
+                                   
     return input_df
+
+
+
+def variance_gene_parser(input_file):
+    
+    gene_list = pd.read_csv(input_file,sep='\t')
+    
+    gene_list.columns = ['ensembl_id', 
+                           'gene_encoding']
+
+                              
+                              
+    return gene_list
+
+
+
+

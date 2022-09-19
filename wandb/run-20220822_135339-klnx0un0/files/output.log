@@ -1,0 +1,166 @@
+[34m[1mwandb[39m[22m: [33mWARNING[39m Config item 'input_length' was locked by 'sweep' (ignored update).
+[34m[1mwandb[39m[22m: [33mWARNING[39m Config item 'precision' was locked by 'sweep' (ignored update).
+[34m[1mwandb[39m[22m: [33mWARNING[39m Config item 'use_tf_acc' was locked by 'sweep' (ignored update).
+global batch size: 576
+val ho it
+<tensorflow.python.distribute.input_lib.DistributedIterator object at 0x7f24bc406110>
+freq_limit: 1146
+{'beta1': 0.9, 'beta2': 0.999, 'bottleneck_units': 32, 'bottleneck_units_tf': 32, 'conv_channel_list': [48, 48, 56, 56, 64, 64], 'conv_filter_size_1_atac': 15, 'conv_filter_size_1_seq': 15, 'conv_filter_size_2_atac': 5, 'conv_filter_size_2_seq': 5, 'dim': 32, 'dropout': 0.25, 'epsilon': 1e-10, 'fft_prior_scale': 0.2, 'freq_limit_scale': 0.07, 'gradient_clip': 0.2, 'hidden_size': 128, 'input_length': 16384, 'kernel_regularizer': 1e-05, 'kernel_transformation': 'relu_kernel_transformation,softmax_kernel_transformation', 'lr_base': 5e-05, 'min_lr': 5e-12, 'momentum': 0.9, 'num_heads': 4, 'num_random_features': 128, 'num_transformer_layers': 2, 'optimizer': 'adamw', 'organisms': 'hg', 'precision': 'mixed_bfloat16', 'rectify': 'True', 'rel_pos_bins': 512, 'use_fft_prior': True, 'use_tf_acc': True, 'weight_decay_frac': 0.01, 'tpu': 'node-15', 'gcs_path': 'gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/jurkat_test', 'gcs_path_val_ho': 'gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/val_holdout/val', 'target_unit': 'logTPM', 'max_shift': 300, 'output_heads': 'hg', 'num_epochs': 20, 'train_steps': 23, 'val_steps_h': 4, 'val_steps_ho': 4, 'batch_size': 72, 'warmup_frac': 0.1, 'total_steps': 1150, 'patience': 30, 'min_delta': 0.001, 'model_save_dir': 'gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/JURKAT_single_model', 'model_save_basename': 'aformer_TF_gene_centered', 'sync_period': 6, 'slow_step_frac': 0.5, 'use_rot_emb': 'True', 'use_mask_pos': 'False', 'max_seq_length': 128}
+completed epoch 1
+hg_train_loss: 1.6541176
+training duration(mins): 3.40296524365743
+hg_val_loss: 1.3011353
+hg_val_pearson: 0.123171456
+hg_val_R2: [-0.5235299]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+patience counter at: 0
+validation duration(mins): 0.251893417040507
+completed epoch 2
+hg_train_loss: 1.5805215
+training duration(mins): 2.16438577969869
+hg_val_loss: 1.5351253
+hg_val_pearson: 0.3048475
+hg_val_R2: [-0.7684021]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning:
+Mean of empty slice
+patience counter at: 0
+validation duration(mins): 0.1878623366355896
+completed epoch 3
+hg_train_loss: 1.4279822
+training duration(mins): 2.2931142171223957
+hg_val_loss: 1.4279444
+hg_val_pearson: 0.4277433
+hg_val_R2: [-0.6379101]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning:
+Mean of empty slice
+patience counter at: 1
+validation duration(mins): 0.1923053026199341
+completed epoch 4
+hg_train_loss: 1.2512485
+training duration(mins): 2.2777493755022684
+hg_val_loss: 1.1476308
+hg_val_pearson: 0.5274282
+hg_val_R2: [-0.32474923]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning:
+Mean of empty slice
+Saving model...
+patience counter at: 0
+validation duration(mins): 0.2979578097661336
+completed epoch 5
+hg_train_loss: 1.1573967
+training duration(mins): 2.240337375799815
+hg_val_loss: 1.2220073
+hg_val_pearson: 0.56074107
+hg_val_R2: [-0.3924513]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning:
+Mean of empty slice
+patience counter at: 1
+validation duration(mins): 0.18867186705271402
+completed epoch 6
+hg_train_loss: 1.085727
+training duration(mins): 2.2617432634035746
+hg_val_loss: 0.83621234
+hg_val_pearson: 0.5846882
+hg_val_R2: [0.04680222]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning:
+Mean of empty slice
+patience counter at: 0
+validation duration(mins): 0.19372204144795735
+completed epoch 7
+hg_train_loss: 1.0327885
+training duration(mins): 2.264266224702199
+hg_val_loss: 0.7087574
+hg_val_pearson: 0.62179285
+hg_val_R2: [0.17746747]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning:
+Mean of empty slice
+patience counter at: 0
+validation duration(mins): 0.1952683170636495
+completed epoch 8
+hg_train_loss: 0.9966501
+training duration(mins): 2.221147354443868
+hg_val_loss: 0.68319356
+hg_val_pearson: 0.62963307
+hg_val_R2: [0.20381266]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning:
+Mean of empty slice
+Saving model...
+patience counter at: 0
+validation duration(mins): 0.3047447840372721
+completed epoch 9
+hg_train_loss: 0.97541255
+training duration(mins): 2.266643782456716
+hg_val_loss: 0.685115
+hg_val_pearson: 0.6403175
+hg_val_R2: [0.2086733]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning:
+Mean of empty slice
+patience counter at: 1
+validation duration(mins): 0.19065320491790771
+completed epoch 10
+hg_train_loss: 0.94905347
+training duration(mins): 2.216887398560842
+hg_val_loss: 0.6875403
+hg_val_pearson: 0.6323375
+hg_val_R2: [0.21078831]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning:
+Mean of empty slice
+patience counter at: 2
+validation duration(mins): 0.18861245314280192
+completed epoch 11
+hg_train_loss: 0.93575037
+training duration(mins): 2.206667061646779
+hg_val_loss: 0.66541785
+hg_val_pearson: 0.650823
+hg_val_R2: [0.22954881]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning:
+Mean of empty slice
+patience counter at: 0
+validation duration(mins): 0.18898044029871622
+completed epoch 12
+hg_train_loss: 0.9281746
+training duration(mins): 2.2944390376408896
+hg_val_loss: 0.6787244
+hg_val_pearson: 0.6459281
+hg_val_R2: [0.230524]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning:
+Mean of empty slice
+patience counter at: 1
+validation duration(mins): 0.1900322437286377
+completed epoch 13
+hg_train_loss: 0.91899145
+training duration(mins): 2.2523136456807453
+hg_val_loss: 0.6901386
+hg_val_pearson: 0.6431183
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning:
+Mean of empty slice
+hg_val_R2: [0.217273]
+patience counter at: 2
+validation duration(mins): 0.18993815978368123
+completed epoch 14
+hg_train_loss: 0.9065247
+training duration(mins): 2.2228555917739867
+hg_val_loss: 0.65811837
+hg_val_pearson: 0.6534815
+hg_val_R2: [0.22784752]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning:
+Mean of empty slice
+patience counter at: 0
+validation duration(mins): 0.1912201722462972
+completed epoch 15
+hg_train_loss: 0.9005155
+training duration(mins): 2.334006973107656
+hg_val_loss: 0.646078
+hg_val_pearson: 0.658962
+hg_val_R2: [0.25558263]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning:
+Mean of empty slice
+patience counter at: 0
+validation duration(mins): 0.20305447181065878
+[34m[1mwandb[39m[22m: Ctrl + C detected. Stopping sweep.
+Exception ignored in: <module 'threading' from '/opt/conda/lib/python3.7/threading.py'>
+Traceback (most recent call last):
+  File "/opt/conda/lib/python3.7/threading.py", line 1307, in _shutdown
+    lock.acquire()
+KeyboardInterrupt

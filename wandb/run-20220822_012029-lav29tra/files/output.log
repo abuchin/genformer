@@ -1,0 +1,90 @@
+[34m[1mwandb[39m[22m: [33mWARNING[39m Config item 'input_length' was locked by 'sweep' (ignored update).
+[34m[1mwandb[39m[22m: [33mWARNING[39m Config item 'precision' was locked by 'sweep' (ignored update).
+[34m[1mwandb[39m[22m: [33mWARNING[39m Config item 'use_tf_acc' was locked by 'sweep' (ignored update).
+global batch size: 576
+val ho it
+<tensorflow.python.distribute.input_lib.DistributedIterator object at 0x7fc2c46bc910>
+freq_limit: 1146
+{'beta1': 0.9, 'beta2': 0.999, 'bottleneck_units': 32, 'bottleneck_units_tf': 32, 'conv_channel_list': [48, 48, 56, 56, 64, 64], 'conv_filter_size_1_atac': 15, 'conv_filter_size_1_seq': 15, 'conv_filter_size_2_atac': 5, 'conv_filter_size_2_seq': 5, 'dim': 32, 'dropout': 0.25, 'epsilon': 1e-10, 'fft_prior_scale': 0.2, 'freq_limit_scale': 0.07, 'gradient_clip': 0.2, 'hidden_size': 128, 'input_length': 16384, 'kernel_regularizer': 1e-05, 'kernel_transformation': 'relu_kernel_transformation', 'lr_base': 0.0005, 'min_lr': 5e-10, 'momentum': 0.9, 'num_heads': 4, 'num_random_features': 128, 'num_transformer_layers': 1, 'optimizer': 'adamw', 'organisms': 'hg', 'precision': 'mixed_bfloat16', 'rectify': 'True', 'rel_pos_bins': 512, 'use_fft_prior': False, 'use_tf_acc': True, 'weight_decay_frac': 0.01, 'tpu': 'node-15', 'gcs_path': 'gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/preprocessed', 'gcs_path_val_ho': 'gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/val_holdout/val', 'target_unit': 'logTPM', 'max_shift': 300, 'output_heads': 'hg', 'num_epochs': 14, 'train_steps': 5, 'val_steps_h': 47, 'val_steps_ho': 4, 'batch_size': 72, 'warmup_frac': 0.1, 'total_steps': 4172, 'patience': 10, 'min_delta': 0.001, 'model_save_dir': 'gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/models', 'model_save_basename': 'aformer_TF_gene_centered', 'sync_period': 6, 'slow_step_frac': 0.5, 'use_rot_emb': 'True', 'use_mask_pos': 'False', 'max_seq_length': 128}
+completed epoch 1
+hg_train_loss: 1.465807
+training duration(mins): 3.0499758243560793
+hg_val_loss: 1.3079411
+hg_val_pearson: -0.0154964905
+hg_val_R2: [-0.6215123]
+completed dist_val_step
+hg_val_pearson_ho: 0.13929272
+hg_val_R2_ho: [-0.3349589]
+/opt/conda/lib/python3.7/site-packages/scipy/stats/stats.py:4023: PearsonRConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  warnings.warn(PearsonRConstantInputWarning())
+/opt/conda/lib/python3.7/site-packages/scipy/stats/stats.py:4484: SpearmanRConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  warnings.warn(SpearmanRConstantInputWarning())
+/opt/conda/lib/python3.7/site-packages/scipy/stats/stats.py:4023: PearsonRConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  warnings.warn(PearsonRConstantInputWarning())
+/opt/conda/lib/python3.7/site-packages/scipy/stats/stats.py:4484: SpearmanRConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  warnings.warn(SpearmanRConstantInputWarning())
+patience counter at: 0
+validation duration(mins): 0.7772818247477213
+completed epoch 2
+hg_train_loss: 1.3611424
+training duration(mins): 1.9886555155118306
+hg_val_loss: 1.2942556
+hg_val_pearson: 0.091095105
+hg_val_R2: [-0.6208894]
+completed dist_val_step
+hg_val_pearson_ho: 0.09275949
+hg_val_R2_ho: [-0.42348993]
+/opt/conda/lib/python3.7/site-packages/scipy/stats/stats.py:4023: PearsonRConstantInputWarning:
+An input array is constant; the correlation coefficient is not defined.
+/opt/conda/lib/python3.7/site-packages/scipy/stats/stats.py:4484: SpearmanRConstantInputWarning:
+An input array is constant; the correlation coefficient is not defined.
+/opt/conda/lib/python3.7/site-packages/scipy/stats/stats.py:4023: PearsonRConstantInputWarning:
+An input array is constant; the correlation coefficient is not defined.
+/opt/conda/lib/python3.7/site-packages/scipy/stats/stats.py:4484: SpearmanRConstantInputWarning:
+An input array is constant; the correlation coefficient is not defined.
+patience counter at: 0
+validation duration(mins): 0.5581052740414937
+completed epoch 3
+hg_train_loss: 1.3455456
+training duration(mins): 1.9324259559313457
+hg_val_loss: 1.3146156
+hg_val_pearson: 0.089894585
+hg_val_R2: [-0.6232283]
+completed dist_val_step
+hg_val_pearson_ho: 0.098894045
+hg_val_R2_ho: [-0.44436848]
+/opt/conda/lib/python3.7/site-packages/scipy/stats/stats.py:4023: PearsonRConstantInputWarning:
+An input array is constant; the correlation coefficient is not defined.
+/opt/conda/lib/python3.7/site-packages/scipy/stats/stats.py:4484: SpearmanRConstantInputWarning:
+An input array is constant; the correlation coefficient is not defined.
+/opt/conda/lib/python3.7/site-packages/scipy/stats/stats.py:4023: PearsonRConstantInputWarning:
+An input array is constant; the correlation coefficient is not defined.
+/opt/conda/lib/python3.7/site-packages/scipy/stats/stats.py:4484: SpearmanRConstantInputWarning:
+An input array is constant; the correlation coefficient is not defined.
+patience counter at: 1
+validation duration(mins): 0.5997577667236328
+completed epoch 4
+hg_train_loss: 1.2930208
+training duration(mins): 1.9667482495307922
+hg_val_loss: 1.360206
+hg_val_pearson: 0.05968579
+hg_val_R2: [-0.63290644]
+completed dist_val_step
+hg_val_pearson_ho: 0.09669346
+hg_val_R2_ho: [-0.41153646]
+/opt/conda/lib/python3.7/site-packages/scipy/stats/stats.py:4023: PearsonRConstantInputWarning:
+An input array is constant; the correlation coefficient is not defined.
+/opt/conda/lib/python3.7/site-packages/scipy/stats/stats.py:4484: SpearmanRConstantInputWarning:
+An input array is constant; the correlation coefficient is not defined.
+/opt/conda/lib/python3.7/site-packages/scipy/stats/stats.py:4023: PearsonRConstantInputWarning:
+An input array is constant; the correlation coefficient is not defined.
+/opt/conda/lib/python3.7/site-packages/scipy/stats/stats.py:4484: SpearmanRConstantInputWarning:
+An input array is constant; the correlation coefficient is not defined.
+patience counter at: 2
+validation duration(mins): 0.551962387561798
+[34m[1mwandb[39m[22m: Ctrl + C detected. Stopping sweep.
+Exception ignored in: <module 'threading' from '/opt/conda/lib/python3.7/threading.py'>
+Traceback (most recent call last):
+  File "/opt/conda/lib/python3.7/threading.py", line 1307, in _shutdown
+    lock.acquire()
+KeyboardInterrupt

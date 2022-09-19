@@ -1,0 +1,202 @@
+wandb_version: 1
+
+_wandb:
+  desc: null
+  value:
+    cli_version: 0.13.1
+    framework: keras
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    python_version: 3.7.10
+    start_time: 1661137656.879784
+    t:
+      1:
+      - 2
+      - 3
+      - 55
+      2:
+      - 2
+      - 3
+      - 55
+      3:
+      - 2
+      - 16
+      - 17
+      - 19
+      - 23
+      - 37
+      4: 3.7.10
+      5: 0.13.1
+      8:
+      - 5
+batch_size:
+  desc: null
+  value: 72
+beta1:
+  desc: null
+  value: 0.9
+beta2:
+  desc: null
+  value: 0.999
+bottleneck_units:
+  desc: null
+  value: 32
+bottleneck_units_tf:
+  desc: null
+  value: 32
+conv_channel_list:
+  desc: null
+  value:
+  - 48
+  - 48
+  - 56
+  - 56
+  - 64
+  - 64
+conv_filter_size_1_atac:
+  desc: null
+  value: 15
+conv_filter_size_1_seq:
+  desc: null
+  value: 15
+conv_filter_size_2_atac:
+  desc: null
+  value: 5
+conv_filter_size_2_seq:
+  desc: null
+  value: 5
+dim:
+  desc: null
+  value: 32
+dropout:
+  desc: null
+  value: 0.25
+epsilon:
+  desc: null
+  value: 1.0e-10
+fft_prior_scale:
+  desc: null
+  value: 0.2
+freq_limit_scale:
+  desc: null
+  value: 0.07
+gcs_path:
+  desc: null
+  value: gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/preprocessed
+gcs_path_val_ho:
+  desc: null
+  value: gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/val_holdout/val
+gradient_clip:
+  desc: null
+  value: 0.2
+hidden_size:
+  desc: null
+  value: 128
+input_length:
+  desc: null
+  value: 16384
+kernel_regularizer:
+  desc: null
+  value: 1.0e-05
+kernel_transformation:
+  desc: null
+  value: relu_kernel_transformation,softmax_kernel_transformation
+lr_base:
+  desc: null
+  value: 5.0e-05
+max_seq_length:
+  desc: null
+  value: 128
+max_shift:
+  desc: null
+  value: 300
+min_delta:
+  desc: null
+  value: 0.001
+min_lr:
+  desc: null
+  value: 5.0e-12
+model_save_basename:
+  desc: null
+  value: aformer_TF_gene_centered
+model_save_dir:
+  desc: null
+  value: gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/models
+momentum:
+  desc: null
+  value: 0.9
+num_epochs:
+  desc: null
+  value: 20
+num_heads:
+  desc: null
+  value: 4
+num_random_features:
+  desc: null
+  value: 256
+num_transformer_layers:
+  desc: null
+  value: 2
+optimizer:
+  desc: null
+  value: adamw
+organisms:
+  desc: null
+  value: hg
+output_heads:
+  desc: null
+  value: hg
+patience:
+  desc: null
+  value: 30
+precision:
+  desc: null
+  value: mixed_bfloat16
+rectify:
+  desc: null
+  value: 'True'
+rel_pos_bins:
+  desc: null
+  value: 512
+slow_step_frac:
+  desc: null
+  value: 0.5
+sync_period:
+  desc: null
+  value: 6
+target_unit:
+  desc: null
+  value: logTPM
+total_steps:
+  desc: null
+  value: 1150
+tpu:
+  desc: null
+  value: node-15
+train_steps:
+  desc: null
+  value: 23
+use_fft_prior:
+  desc: null
+  value: true
+use_mask_pos:
+  desc: null
+  value: 'False'
+use_rot_emb:
+  desc: null
+  value: 'True'
+use_tf_acc:
+  desc: null
+  value: true
+val_steps_h:
+  desc: null
+  value: 4
+val_steps_ho:
+  desc: null
+  value: 4
+warmup_frac:
+  desc: null
+  value: 0.4
+weight_decay_frac:
+  desc: null
+  value: 0.01

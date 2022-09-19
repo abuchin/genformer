@@ -1604,6 +1604,11 @@ def deserialize_interpret(serialized_example, input_length,
     atac=tf.expand_dims(atac,1)
 
     sequence = one_hot(data['sequence'])
+    if rev_comp:
+        atac=tf.reverse(atac,[0])
+        tss_tokens=tf.reverse(tss_tokens,[0])
+        exons=tf.reverse(exons,[0])
+        sequence = rev_comp_one_hot(data['sequence'])
     
     TF_acc = tf.ensure_shape(tf.io.parse_tensor(data['TF_acc'],
                                               out_type=tf.float32),
@@ -1630,11 +1635,7 @@ def deserialize_interpret(serialized_example, input_length,
     else:
         raise ValueError('input an appropriate input type')
 
-    if rev_comp:
-        atac=tf.reverse(atac,[0])
-        tss_tokens=tf.reverse(tss_tokens,[0])
-        exons=tf.reverse(exons,[0])
-        sequence = rev_comp_one_hot(sequence)
+
         
     return {
         'inputs': inputs,

@@ -1,0 +1,225 @@
+[34m[1mwandb[39m[22m: [33mWARNING[39m Config item 'input_length' was locked by 'sweep' (ignored update).
+[34m[1mwandb[39m[22m: [33mWARNING[39m Config item 'precision' was locked by 'sweep' (ignored update).
+[34m[1mwandb[39m[22m: [33mWARNING[39m Config item 'use_tf_acc' was locked by 'sweep' (ignored update).
+global batch size: 576
+val ho it
+<tensorflow.python.distribute.input_lib.DistributedIterator object at 0x7f4b0845a210>
+freq_limit: 1146
+{'beta1': 0.9, 'beta2': 0.999, 'bottleneck_units': 32, 'bottleneck_units_tf': 32, 'conv_channel_list': [48, 48, 56, 56, 64, 64], 'conv_filter_size_1_atac': 15, 'conv_filter_size_1_seq': 15, 'conv_filter_size_2_atac': 5, 'conv_filter_size_2_seq': 5, 'dim': 32, 'dropout': 0.25, 'epsilon': 1e-10, 'fft_prior_scale': 0.2, 'freq_limit_scale': 0.07, 'gradient_clip': 0.2, 'hidden_size': 128, 'input_length': 16384, 'kernel_regularizer': 1e-05, 'kernel_transformation': 'relu_kernel_transformation', 'lr_base': 5e-05, 'min_lr': 5e-12, 'momentum': 0.9, 'num_heads': 4, 'num_random_features': 128, 'num_transformer_layers': 2, 'optimizer': 'adamw', 'organisms': 'hg', 'precision': 'mixed_bfloat16', 'rectify': 'True', 'rel_pos_bins': 512, 'use_fft_prior': True, 'use_tf_acc': True, 'weight_decay_frac': 0.0001, 'tpu': 'node-15', 'gcs_path': 'gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/jurkat_test', 'gcs_path_val_ho': 'gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/val_holdout/val', 'target_unit': 'logTPM', 'max_shift': 300, 'output_heads': 'hg', 'num_epochs': 25, 'train_steps': 23, 'val_steps_h': 4, 'val_steps_ho': 98, 'batch_size': 72, 'warmup_frac': 0.1, 'total_steps': 1150, 'patience': 30, 'min_delta': 0.001, 'model_save_dir': 'gs://picard-testing-176520/16k_genecentered_blacklist0.50_atacnormalized/JURKAT_single_model', 'model_save_basename': 'aformer_TF_gene_centered', 'sync_period': 6, 'slow_step_frac': 0.5, 'use_rot_emb': 'True', 'use_mask_pos': 'False', 'max_seq_length': 128}
+completed epoch 1
+hg_train_loss: 1.6024963
+training duration(mins): 3.4211170077323914
+hg_val_loss: 1.6889017
+hg_val_pearson: 0.10752356
+hg_val_R2: [-0.97757447]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+patience counter at: 0
+validation duration(mins): 0.23876623312632242
+completed epoch 2
+hg_train_loss: 1.4988667
+training duration(mins): 2.2984134833017986
+hg_val_loss: 1.7036507
+hg_val_pearson: 0.25331643
+hg_val_R2: [-0.9625367]
+patience counter at: 0
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+validation duration(mins): 0.22072966893513998
+completed epoch 3
+hg_train_loss: 1.322435
+training duration(mins): 2.284562619527181
+hg_val_loss: 0.9171816
+hg_val_pearson: 0.48362902
+hg_val_R2: [-0.05204439]
+patience counter at: 0
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+validation duration(mins): 0.22428723176320395
+completed epoch 4
+hg_train_loss: 1.1432482
+training duration(mins): 2.384109659989675
+hg_val_loss: 0.79858387
+hg_val_pearson: 0.53162575
+hg_val_R2: [0.07816744]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+Saving model...
+patience counter at: 0
+validation duration(mins): 0.33585667610168457
+completed epoch 5
+hg_train_loss: 0.99510485
+training duration(mins): 2.3070045510927835
+hg_val_loss: 0.7454483
+hg_val_pearson: 0.56990033
+hg_val_R2: [0.15057766]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+patience counter at: 0
+validation duration(mins): 0.21982052326202392
+completed epoch 6
+hg_train_loss: 0.9036687
+training duration(mins): 2.320284144083659
+hg_val_loss: 0.71403146
+hg_val_pearson: 0.5824014
+hg_val_R2: [0.1860761]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+patience counter at: 0
+validation duration(mins): 0.22140458424886067
+completed epoch 7
+hg_train_loss: 0.84048426
+training duration(mins): 2.334360579649607
+hg_val_loss: 0.6535182
+hg_val_pearson: 0.61204314
+hg_val_R2: [0.24157405]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+patience counter at: 0
+validation duration(mins): 0.22705478668212892
+completed epoch 8
+hg_train_loss: 0.8035151
+training duration(mins): 2.2777636488278707
+hg_val_loss: 0.617906
+hg_val_pearson: 0.6221445
+hg_val_R2: [0.27989835]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+Saving model...
+patience counter at: 0
+validation duration(mins): 0.3163822213808695
+completed epoch 9
+hg_train_loss: 0.77235514
+training duration(mins): 2.3191084106763205
+hg_val_loss: 0.60965943
+hg_val_pearson: 0.6285852
+hg_val_R2: [0.29582667]
+patience counter at: 0
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+validation duration(mins): 0.21893113454182941
+completed epoch 10
+hg_train_loss: 0.74461895
+training duration(mins): 2.276254959901174
+hg_val_loss: 0.6150384
+hg_val_pearson: 0.6252142
+/home/jupyter/dev/aformer/training_utils_aformer_TF_genecentered_separated_SINGLE.py:1539: RuntimeWarning: More than 20 figures have been opened. Figures created through the pyplot interface (`matplotlib.pyplot.figure`) are retained until explicitly closed and may consume too much memory. (To control this warning, see the rcParam `figure.max_open_warning`).
+  fig_gene_spec,ax_gene_spec=plt.subplots(figsize=(6,6))
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+hg_val_R2: [0.29354662]
+patience counter at: 1
+validation duration(mins): 0.21937071879704792
+completed epoch 11
+hg_train_loss: 0.71818984
+training duration(mins): 2.2643900394439695
+hg_val_loss: 0.5824935
+hg_val_pearson: 0.63984174
+hg_val_R2: [0.3259915]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+patience counter at: 0
+validation duration(mins): 0.22196193933486938
+completed epoch 12
+hg_train_loss: 0.7028851
+training duration(mins): 2.3916814804077147
+hg_val_loss: 0.59501433
+hg_val_pearson: 0.63786066
+hg_val_R2: [0.32542688]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+patience counter at: 1
+validation duration(mins): 0.21713652610778808
+completed epoch 13
+hg_train_loss: 0.6884479
+training duration(mins): 2.3225938002268474
+hg_val_loss: 0.5941634
+hg_val_pearson: 0.6381347
+hg_val_R2: [0.32596076]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+patience counter at: 2
+validation duration(mins): 0.22043444315592448
+completed epoch 14
+hg_train_loss: 0.66310847
+training duration(mins): 2.2935556093851726
+hg_val_loss: 0.5587822
+hg_val_pearson: 0.6476396
+hg_val_R2: [0.34454143]
+patience counter at: 0
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+validation duration(mins): 0.2207864244778951
+completed epoch 15
+hg_train_loss: 0.6549891
+training duration(mins): 2.4126916964848837
+hg_val_loss: 0.57067084
+hg_val_pearson: 0.64491975
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+hg_val_R2: [0.34246743]
+patience counter at: 1
+validation duration(mins): 0.21834927399953205
+completed epoch 16
+hg_train_loss: 0.63232785
+training duration(mins): 2.3079362988471983
+hg_val_loss: 0.5577843
+hg_val_pearson: 0.65083754
+hg_val_R2: [0.34948558]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+patience counter at: 2
+validation duration(mins): 0.21872785886128743
+completed epoch 17
+hg_train_loss: 0.623398
+training duration(mins): 2.2643889665603636
+hg_val_loss: 0.5706348
+hg_val_pearson: 0.64719105
+hg_val_R2: [0.34634483]
+patience counter at: 3
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+validation duration(mins): 0.2217684547106425
+completed epoch 18
+hg_train_loss: 0.6019994
+training duration(mins): 2.2875431100527446
+hg_val_loss: 0.5569629
+hg_val_pearson: 0.65393513
+hg_val_R2: [0.35735565]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+patience counter at: 4
+validation duration(mins): 0.22339362303415936
+completed epoch 19
+hg_train_loss: 0.5902011
+training duration(mins): 2.3972707192103067
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+hg_val_loss: 0.5717027
+hg_val_pearson: 0.6506464
+hg_val_R2: [0.35027206]
+patience counter at: 5
+validation duration(mins): 0.2210918426513672
+completed epoch 20
+hg_train_loss: 0.5832722
+training duration(mins): 2.2920118014017743
+hg_val_loss: 0.5727514
+hg_val_pearson: 0.64772785
+hg_val_R2: [0.34944332]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+patience counter at: 6
+validation duration(mins): 0.22438737948735554
+completed epoch 21
+hg_train_loss: 0.56752723
+training duration(mins): 2.266616773605347
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+hg_val_loss: 0.5435455
+hg_val_pearson: 0.6591663
+hg_val_R2: [0.36682057]
+patience counter at: 0
+validation duration(mins): 0.22703808943430584
+completed epoch 22
+hg_train_loss: 0.56474614
+training duration(mins): 2.2876580079396565

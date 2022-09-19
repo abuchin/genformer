@@ -1,0 +1,74 @@
+wandb_version: 1
+
+beta1:
+  value: 0.9
+beta2:
+  value: 0.999
+bottleneck_units:
+  value: 32
+bottleneck_units_tf:
+  value: 32
+conv_channel_list:
+  value:
+  - 48
+  - 48
+  - 56
+  - 56
+  - 64
+  - 64
+conv_filter_size_1_atac:
+  value: 15
+conv_filter_size_1_seq:
+  value: 15
+conv_filter_size_2_atac:
+  value: 5
+conv_filter_size_2_seq:
+  value: 5
+dim:
+  value: 32
+dropout:
+  value: 0.25
+epsilon:
+  value: 1.0e-10
+fft_prior_scale:
+  value: 0.2
+freq_limit_scale:
+  value: 0.07
+gradient_clip:
+  value: 0.2
+hidden_size:
+  value: 128
+input_length:
+  value: 16384
+kernel_regularizer:
+  value: 0
+kernel_transformation:
+  value: relu_kernel_transformation
+lr_base:
+  value: 5.0e-07
+min_lr:
+  value: 5.0e-08
+momentum:
+  value: 0.9
+num_heads:
+  value: 4
+num_random_features:
+  value: 128
+num_transformer_layers:
+  value: 1
+optimizer:
+  value: adamw
+organisms:
+  value: hg
+precision:
+  value: mixed_bfloat16
+rectify:
+  value: 'True'
+rel_pos_bins:
+  value: 512
+use_fft_prior:
+  value: true
+use_tf_acc:
+  value: false
+weight_decay_frac:
+  value: 1.0e-05

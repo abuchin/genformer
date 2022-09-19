@@ -1,0 +1,8 @@
+[34m[1mwandb[39m[22m: [33mWARNING[39m Config item 'input_length' was locked by 'sweep' (ignored update).
+[34m[1mwandb[39m[22m: [33mWARNING[39m Config item 'precision' was locked by 'sweep' (ignored update).
+[34m[1mwandb[39m[22m: [33mWARNING[39m Config item 'use_tf_acc' was locked by 'sweep' (ignored update).
+completed epoch 1
+hg_train_loss: 1.7151891
+hg_val_loss: 1.1465971
+hg_val_pearson: 0.13645509
+hg_val_R2: [-0.5894319]

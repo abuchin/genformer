@@ -1,0 +1,35 @@
+[34m[1mwandb[39m[22m: [33mWARNING[39m Config item 'input_length' was locked by 'sweep' (ignored update).
+[34m[1mwandb[39m[22m: [33mWARNING[39m Config item 'precision' was locked by 'sweep' (ignored update).
+[34m[1mwandb[39m[22m: [33mWARNING[39m Config item 'use_tf_acc' was locked by 'sweep' (ignored update).
+global batch size: 384
+val ho it
+<tensorflow.python.distribute.input_lib.DistributedIterator object at 0x7f4c6455e890>
+freq_limit: 4587
+{'beta1': 0.9, 'beta2': 0.999, 'bottleneck_units': 32, 'bottleneck_units_tf': 32, 'conv_channel_list': [48, 48, 56, 56, 64, 64], 'conv_filter_size_1_atac': 15, 'conv_filter_size_1_seq': 15, 'conv_filter_size_2_atac': 5, 'conv_filter_size_2_seq': 5, 'dim': 32, 'dropout': 0.25, 'epsilon': 1e-10, 'fft_prior_scale': 0.2, 'freq_limit_scale': 0.07, 'gradient_clip': 0.2, 'hidden_size': 128, 'input_length': 65536, 'kernel_regularizer': 0, 'kernel_transformation': 'relu_kernel_transformation', 'lr_base': 5e-07, 'min_lr': 5e-12, 'momentum': 0.9, 'num_heads': 4, 'num_random_features': 128, 'num_transformer_layers': 2, 'optimizer': 'adamw', 'organisms': 'hg', 'precision': 'mixed_bfloat16', 'rectify': 'True', 'rel_pos_bins': 512, 'use_fft_prior': True, 'use_tf_acc': True, 'weight_decay_frac': 1e-05, 'tpu': 'node-23', 'gcs_path': 'gs://picard-testing-176520/65k_genecentered_blacklist0.50_atacnormalized/jurkat_single', 'gcs_path_val_ho': 'gs://picard-testing-176520/65k_genecentered_blacklist0.50_atacnormalized/val_holdout/preprocessed/val', 'target_unit': 'logTPM', 'max_shift': 300, 'output_heads': 'hg', 'num_epochs': 25, 'train_steps': 32, 'val_steps_h': 6, 'val_steps_ho': 146, 'batch_size': 72, 'warmup_frac': 0.05, 'total_steps': 3200, 'patience': 6, 'min_delta': 0.001, 'model_save_dir': 'gs://picard-testing-176520/65k_genecentered_blacklist0.50_atacnormalized/jurkat_single/jurkat_single_model', 'model_save_basename': 'aformer_TF_gene_centered', 'sync_period': 6, 'slow_step_frac': 0.5, 'use_rot_emb': 'True', 'use_mask_pos': 'False', 'max_seq_length': 512}
+starting epoch_ 1
+completed epoch 1
+hg_train_loss: 1.7276233
+training duration(mins): 3.763413421312968
+hg_val_loss: 1.6710477
+hg_val_pearson: 0.07890161
+hg_val_R2: [-0.90925395]
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+returned tensor array values
+returned correlation metrics from make plots function
+completed wandb logging
+validation duration(mins): 0.25922398567199706
+patience counter at: 0
+starting epoch_ 2
+completed epoch 2
+hg_train_loss: 1.7225281
+training duration(mins): 2.534742311636607
+hg_val_loss: 1.5750332
+hg_val_pearson: 0.004897801
+hg_val_R2: [-0.77596843]
+returned tensor array values
+/opt/conda/lib/python3.7/site-packages/numpy/lib/nanfunctions.py:1117: RuntimeWarning: Mean of empty slice
+  return np.nanmean(a, axis, out=out, keepdims=keepdims)
+returned correlation metrics from make plots function
+completed wandb logging
+validation duration(mins): 0.2179284691810608

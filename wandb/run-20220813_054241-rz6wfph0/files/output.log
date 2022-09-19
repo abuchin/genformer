@@ -1,0 +1,24 @@
+[34m[1mwandb[39m[22m: [33mWARNING[39m Config item 'input_length' was locked by 'sweep' (ignored update).
+[34m[1mwandb[39m[22m: [33mWARNING[39m Config item 'precision' was locked by 'sweep' (ignored update).
+[34m[1mwandb[39m[22m: [33mWARNING[39m Config item 'use_tf_acc' was locked by 'sweep' (ignored update).
+/opt/conda/lib/python3.7/site-packages/scipy/stats/stats.py:4023: PearsonRConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  warnings.warn(PearsonRConstantInputWarning())
+/opt/conda/lib/python3.7/site-packages/scipy/stats/stats.py:4484: SpearmanRConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  warnings.warn(SpearmanRConstantInputWarning())
+/opt/conda/lib/python3.7/site-packages/scipy/stats/stats.py:4023: PearsonRConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  warnings.warn(PearsonRConstantInputWarning())
+/opt/conda/lib/python3.7/site-packages/scipy/stats/stats.py:4484: SpearmanRConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  warnings.warn(SpearmanRConstantInputWarning())
+completed epoch 1
+hg_train_loss: 1.5121326
+hg_val_loss: 1.0702648
+hg_val_pearson: -0.014612181
+hg_val_R2: [-0.6606585]
+patience counter at: 0
+duration(mins): 3.5991230090459188
+[34m[1mwandb[39m[22m: Ctrl + C detected. Stopping sweep.
+Exception ignored in: <module 'threading' from '/opt/conda/lib/python3.7/threading.py'>
+Traceback (most recent call last):
+  File "/opt/conda/lib/python3.7/threading.py", line 1307, in _shutdown
+    lock.acquire()
+KeyboardInterrupt
