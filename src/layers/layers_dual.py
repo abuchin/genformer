@@ -15,6 +15,14 @@ from tensorflow.keras import regularizers
 from tensorflow.keras.layers.experimental import SyncBatchNormalization as syncbatchnorm
 
 @tf.keras.utils.register_keras_serializable()
+class pt_init(tf.keras.initializers.Initializer):
+    def __init__(self, input_arr):
+        self.input_arr = input_arr
+
+    def __call__(self):
+        return self.input_arr
+
+@tf.keras.utils.register_keras_serializable()
 class Residual(kl.Layer):
     def __init__(self, 
                  layer :  kl.Layer,
@@ -108,13 +116,13 @@ class conv1d_block_dim_reduce(kl.Layer):
         x = self.conv(inputs)
         x = self.gelu(x)
         x = self.batch_norm(x, training=training) 
-        return x
+        return tf.cast(x,
+                       dtype=tf.bfloat16)
 
 @tf.keras.utils.register_keras_serializable()
 class FFN(kl.Layer):
     def __init__(self, 
                  num_channels: int, 
-                 widening: int, 
                  dropout_rate: float,
                  name: str = 'FFN',
                  **kwargs):
@@ -128,7 +136,7 @@ class FFN(kl.Layer):
             name: Module name.
         """
         self.ffn_channels = num_channels
-        self.ffn_widening = widening
+        self.ffn_widening = 2
         self.ffn_dropout = dropout_rate
             
         self.FFN_layer_norm = kl.LayerNormalization(axis=-1,
@@ -174,7 +182,6 @@ class TransformerBlock(kl.Layer):
                  attention_dropout: float,
                  numerical_stabilizer: float,
                  nb_random_features: int,
-                 widening: int,
                  dropout_rate: float,
                  kernel_transformation: str = 'relu_kernel_transformation',
                  name = 'transformer_layer',
@@ -187,11 +194,7 @@ class TransformerBlock(kl.Layer):
             attention_dropout: post attention layer dropout rate
             numerical_stabilizer: small float for stability
             nb_random_features: dim for projection matrix
-            widening: scaling factor for how many channels to start w/
-                      e.g. widening = 2, num_channels = 12 means start w/ 24
             dropout_rate: transformer MLP dropout rate
-            widening: scaling factor for how many channels to start w/
-                      e.g. widening = 2, num_channels = 12 means start w/ 24
             dropout_rate: dropout rate used throughout network
             kernel_transformation: softmax or relu kernel transform for fast att.
             positional_encoding_type: absolute sinusoidal or relative(rotary)
@@ -230,7 +233,6 @@ class TransformerBlock(kl.Layer):
             "attention_dropout":self.attention_dropout,
             "numerical_stabilizer":self.numerical_stabilizer,
             "nb_random_features":self.nb_random_features,
-            "widening":self.widening,
             "gen_dropout_rate":self.gen_dropout_rate,
             "kernel_transformation":self.kernel_transformation
         }
@@ -273,7 +275,6 @@ class Performer(kl.Layer):
                  numerical_stabilizer: float,
                  nb_random_features: int,
                  max_seq_length: int,
-                 widening: int,
                  rel_pos_bins=None,
                  kernel_transformation: str = 'relu_kernel_transformation',
                  use_mask_pos: bool = False,
@@ -291,9 +292,6 @@ class Performer(kl.Layer):
             widening: scaling factor for how many channels to start w/
                       e.g. widening = 2, num_channels = 12 means start w/ 24
             dropout_rate: transformer MLP dropout rate
-            widening: scaling factor for how many channels to start w/
-                      e.g. widening = 2, num_channels = 12 means start w/ 24
-            dropout_rate: dropout rate used throughout network
             kernel_transformation: softmax or relu kernel transform for fast att.
             positional_encoding_type: absolute sinusoidal or relative(rotary)
             name: Module name.
@@ -305,7 +303,6 @@ class Performer(kl.Layer):
         self.numerical_stabilizer=numerical_stabilizer
         self.max_seq_length = max_seq_length
         self.nb_random_features=nb_random_features
-        self.widening=widening
         self.rel_pos_bins = rel_pos_bins
         self.use_rot_emb=use_rot_emb
         self.use_mask_pos=use_mask_pos
@@ -333,7 +330,6 @@ class Performer(kl.Layer):
                                                    **kwargs)
         self.dropout = kl.Dropout(rate=self.attention_dropout,**kwargs)
         self.FFN = FFN(num_channels=self.hidden_size,
-                       widening=self.widening,
                        dropout_rate=self.attention_dropout,
                        name='FFN',
                        **kwargs)         
@@ -345,7 +341,6 @@ class Performer(kl.Layer):
             "attention_dropout":self.attention_dropout,
             "numerical_stabilizer":self.numerical_stabilizer,
             "nb_random_features":self.nb_random_features,
-            "widening":self.widening,
             "kernel_transformation":self.kernel_transformation,
             "max_seq_length":self.max_seq_length,
             "rel_pos_bins":self.rel_pos_bins,
@@ -396,7 +391,6 @@ class Performer_Encoder(kl.Layer):
                  d_model,
                  max_seq_length,
                  nb_random_features,
-                 widening,
                  hidden_size,
                  numerical_stabilizer,
                  attention_dropout = .1,
@@ -424,8 +418,6 @@ class Performer_Encoder(kl.Layer):
             widening: scaling factor for how many channels to start w/
                       e.g. widening = 2, num_channels = 12 means start w/ 24
             dropout_rate: transformer MLP dropout rate
-            widening: scaling factor for how many channels to start w/
-                      e.g. widening = 2, num_channels = 12 means start w/ 24
             dropout_rate: dropout rate used throughout network
             kernel_transformation: softmax or relu kernel transform for fast att.
             positional_encoding_type: absolute sinusoidal or relative(rotary)
@@ -446,7 +438,6 @@ class Performer_Encoder(kl.Layer):
         self.use_mask_pos=use_mask_pos
         self.normalize=normalize
         self.norm=norm
-        self.widening=widening
         self.kernel_transformation=kernel_transformation
         self.seed=seed
         
@@ -457,7 +448,6 @@ class Performer_Encoder(kl.Layer):
                                  attention_dropout=self.attention_dropout, 
                                  numerical_stabilizer=self.numerical_stabilizer,
                                  nb_random_features=self.nb_random_features,
-                                 widening=self.widening,
                                  max_seq_length=self.max_seq_length,
                                  rel_pos_bins=self.rel_pos_bins,
                                  kernel_transformation=self.kernel_transformation,
@@ -503,7 +493,6 @@ class Performer_Encoder(kl.Layer):
             "attention_dropout":self.attention_dropout,
             "numerical_stabilizer":self.numerical_stabilizer,
             "nb_random_features":self.nb_random_features,
-            "widening":self.widening,
             "kernel_transformation":self.kernel_transformation,
             "num_layers":self.num_layers,
             "dim":self.dim,
@@ -577,7 +566,6 @@ class Performer_Encoder(kl.Layer):
 @tf.keras.utils.register_keras_serializable()
 class abs_sin_PE(kl.Layer):
     def __init__(self, 
-                 positional_dropout_rate: float, 
                  name: str='sinusoidal_pos_encoding', 
                  **kwargs):
         """basic absolute sinusoidal PE layer
@@ -585,17 +573,12 @@ class abs_sin_PE(kl.Layer):
             positional_dropout_rate: dropout rate for positional embeddings
         """
         super().__init__(name=name,**kwargs)
-        self._positional_dropout_rate = positional_dropout_rate
-        self._dropout = kl.Dropout(rate=self._positional_dropout_rate,**kwargs)
         
     def build(self, input_shape):
         self._pe = utils.sinusoidal(input_shape)
         super(abs_sin_PE,self).build(input_shape)
 
     def get_config(self):
-        config = {
-            "dropout":self._positional_dropout_rate
-        }
         base_config = super().get_config()
         return{**base_config, **config}
     @classmethod
@@ -603,8 +586,7 @@ class abs_sin_PE(kl.Layer):
         return cls(**config)
 
     def call(self, inputs, training=None):
-        return self._dropout(self._pe + inputs,
-                             training=training)
+        return tf.cast(self._pe,dtype=tf.bfloat16) + tf.cast(inputs,dtype=tf.bfloat16)
 
 
 @tf.keras.utils.register_keras_serializable()
@@ -640,9 +622,10 @@ class rotary_PE(kl.Layer):
 @tf.keras.utils.register_keras_serializable()
 class SoftmaxPooling1D(kl.Layer):
     def __init__(self, pool_size: int = 2, 
-                 w_init_scale: float = 2.0,  
+                 w_init_scale: float = 2.0,
+                 k_init=None,
                  per_channel: bool = True,
-                 name: str='attention_pool'):
+                 name: str='SoftmaxPooling1D'):
         """Softmax pooling from enformer
         Args:
           pool_size: Pooling size, same as in Max/AvgPooling.
@@ -658,7 +641,8 @@ class SoftmaxPooling1D(kl.Layer):
         self._per_channel=per_channel
         self._w_init_scale = w_init_scale
         self._logit_linear = None
-
+        self._k_init=k_init
+        
     def build(self, input_shape):
         num_features = input_shape[-1]
         if self._per_channel:
@@ -667,8 +651,9 @@ class SoftmaxPooling1D(kl.Layer):
             units=1
         self._logit_linear = kl.Dense(units=units,
                                       use_bias=False,
-                                      kernel_initializer=tf.keras.initializers.Identity(gain=self._w_init_scale))
-        super(attention_pool, self).build(input_shape)
+                                      trainable=False,
+                                      kernel_initializer=self._k_init if (self._k_init is not None) else tf.keras.initializers.Identity(gain=self._w_init_scale))
+        super(SoftmaxPooling1D,self).build(input_shape)
                                             
     ### revisit 
     def call(self, inputs):
@@ -707,14 +692,31 @@ class FixedPositionalEmbedding(tf.keras.layers.Layer):
         return tf.cast(self.emb[None, :x.shape[1], :],
                        dtype=tf.bfloat16)
 
+class TargetLengthCrop1D(kl.Layer):
+    """Crop sequence to match the desired target length."""
 
+    def __init__(self,
+               target_length: int = 896,
+               name: str = 'target_length_crop'):
+        super().__init__(name=name)
+        self._target_length = target_length
+
+    def call(self, inputs):
+        if self._target_length is None:
+            return inputs
+        trim = (1536 - self._target_length) // 2
+        if trim < 0:
+            raise ValueError('inputs longer than target length')
+        elif trim == 0:
+            return inputs
+        else:
+            return inputs[..., trim:-trim, :]
 
 ############################ output head module #####################################
 @tf.keras.utils.register_keras_serializable()
-class output_head(kl.Layer):
+class output_head_rna(kl.Layer):
     def __init__(self,
                  dropout_rate: float,
-                 output_length: int = 1536,
                  name: str = 'output_head',
                  **kwargs):
         """
@@ -723,15 +725,12 @@ class output_head(kl.Layer):
         """
         super().__init__(name=name, **kwargs)
         self.dropout_rate = dropout_rate
-        self.output_length = output_length
                               
-        self.flatten = kl.flatten(data_format = 'channels_last')
+        self.Flatten = kl.Flatten(data_format = 'channels_last')
         self.dropout = kl.Dropout(rate=self.dropout_rate,**kwargs)
-        self.final_dense = kl.Dense(self.output_length,
+        self.final_dense = kl.Dense(units=1,
                                     use_bias=True)
-
-        self.final_softplus = tf.keras.layers.Activation('softplus',
-                                                        dtype=tf.float32)
+        self.final_softplus = tf.keras.layers.Activation('softplus')
         
     def get_config(self):
         base_config = super().get_config()
@@ -742,10 +741,38 @@ class output_head(kl.Layer):
         return cls(**config)
     
     def call(self, inputs, training=None):
-        x = self.flatten(inputs,
+        x = self.Flatten(inputs,
                          training=training)
         x = self.dropout(x,training=training)
         x = self.final_dense(x,training=training)
+        return self.final_softplus(x,training=training)
+    
+    
+@tf.keras.utils.register_keras_serializable()
+class output_head_atac(kl.Layer):
+    def __init__(self,
+                 name: str = 'output_head_atac',
+                 **kwargs):
+        """
+        Args:
+
+        """
+        super().__init__(name=name, **kwargs)
+        
+        self.final_dense = kl.Dense(units=1,
+                                    use_bias=True)
+        self.final_softplus = tf.keras.layers.Activation('softplus')
+        
+    def get_config(self):
+        base_config = super().get_config()
+        return {**base_config, **config}
+    
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+    
+    def call(self, inputs, training=None):
+        x = self.final_dense(inputs,training=training)
         return self.final_softplus(x,training=training)
 
 
@@ -754,7 +781,7 @@ class output_head(kl.Layer):
 class tf_module(kl.Layer):
     def __init__(self,
                  TF_inputs: int = 128,
-                 dropout_rate: float = 0.05,
+                 dropout_rate: float = 0.1,
                  name: str = 'headmodule_block',
                  **kwargs):
         """Enformer style conv stack block
@@ -769,19 +796,11 @@ class tf_module(kl.Layer):
         self.TF_inputs=TF_inputs
         self.dropout_rate=dropout_rate
         
-        self.dense_1 = kl.Dense(self.TF_inputs,
-                                 use_bias=False)
-        self.dense_2 = kl.Dense(self.TF_inputs // 2,
-                                 use_bias=False)
+        self.dense_1 = kl.Dense(units=self.TF_inputs,
+                                use_bias=False)
         
         self.gelu = tfa.layers.GELU()
         self.syncbatch_norm_1 = syncbatchnorm(axis=-1,
-                                            center=True,
-                                            scale=True,
-                                            beta_initializer="zeros",
-                                            gamma_initializer="ones",
-                                            **kwargs)
-        self.syncbatch_norm_2 = syncbatchnorm(axis=-1,
                                             center=True,
                                             scale=True,
                                             beta_initializer="zeros",
@@ -809,61 +828,6 @@ class tf_module(kl.Layer):
         x = self.gelu(x)
         x = self.syncbatch_norm_1(x,training=training)
         x = self.dropout(x,training=training)
-        x = self.dense_2(inputs,training=training)
-        x = self.gelu(x)
-        x = self.syncbatch_norm_2(x,training=training)
-        x = self.dropout(x,training=training)
         return x
 
     
-
-# ########################### enformer modules for freezing #####################################
-
-
-def enf_conv_block(filters, width=1, w_init='glorot_uniform', padding='same', name='conv_block', **kwargs):
-    return tf.keras.Sequential([
-      tf.keras.layers.BatchNormalization(),
-      tfa.layers.GELU(),
-      tf.keras.layers.Conv1D(filters, width, kernel_initializer=w_init, padding=padding, **kwargs)
-    ], name=name)
-
-
-@tf.keras.utils.register_keras_serializable()
-class enformer_pretrained(kl.Layer):
-    def __init__(self,
-                 name: str = 'enformer_pretrained',
-                 **kwargs):
-        super().__init__(name=name, **kwargs)
-
-        stem = tf.keras.Sequential([
-            tf.keras.layers.Conv1D(1536 // 2, 15, padding='same'),
-            Residual(enf_conv_block(1536  // 2, 1, name='pointwise_conv_block')),
-            SoftmaxPooling1D(per_channel=True,w_init_scale=2.0,pool_size=2),
-        ], name='stem')
-        
-        filter_list = [768, 896, 1024, 1280, 1536]
-        
-        conv_tower = tf.keras.Sequential([
-            tf.keras.Sequential([
-                enf_conv_block(num_filters, 5, padding='same'),
-                Residual(enf_conv_block(num_filters, 1, name='pointwise_conv_block')),
-                SoftmaxPooling1D(per_channel=True,w_init_scale=2.0,pool_size=2),
-                ],
-                       name=f'conv_tower_block_{i}')
-            for i, num_filters in enumerate(filter_list)], name='conv_tower')
-        
-        self.trunk = tf.keras.Sequential([stem,
-                                  conv_tower],
-                                 name='trunk')
-        
-    def get_config(self):
-        base_config = super().get_config()
-        return {**base_config, **config}
-    
-
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
-    
-    def call(self, inputs, training=None):
-        return(self.trunk(inputs,training=training))

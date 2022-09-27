@@ -1,0 +1,39 @@
+#!/bin/bash -l
+
+python3 train_model_aformer_TF_expression.py \
+            --tpu_name="node-1" \
+            --tpu_zone="us-central1-a" \
+            --wandb_project="aformer_TF_gene_centered_test" \
+            --wandb_user="njaved" \
+            --wandb_sweep_name="aformer_TF_gene_centered_test" \
+            --gcs_project="picard-testing-176520" \
+            --gcs_path="gs://picard-testing-176520/196k_genecentered_blacklist0.25_atacnormalized/preprocessed" \
+            --input_length=196608 \
+            --max_shift=20 \
+            --batch_size=6 \
+            --num_epochs=100 \
+            --train_steps=50 \
+            --warmup_frac=0.025 \
+            --val_steps=25 \
+            --patience=30 \
+            --min_delta=0.001 \
+            --model_save_dir="gs://picard-testing-176520/196k_genecentered_blacklist0.25/models" \
+            --model_save_basename="aformer_TF_gene_centered" \
+            --lr_base="5.0e-04" \
+            --min_lr="1.0e-06" \
+            --gradient_clip="0.2" \
+            --weight_decay_frac="5.0e-06" \
+            --epsilon=1.0e-14 \
+            --transformer_depth_1="2" \
+            --transformer_depth_2="4" \
+            --pre_transf1_channels="256" \
+            --pre_transf2_channels="64" \
+            --dropout_rate="0.20" \
+            --attention_dropout_rate="0.05" \
+            --num_heads="4" \
+            --num_random_features="256" \
+            --hidden_size="256" \
+            --dim=64 \
+            --kernel_transformation="relu_kernel_transformation" \
+            --savefreq=10 \
+            --TF_inputs=32
