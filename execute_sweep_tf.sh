@@ -36,4 +36,5 @@ python3 train_model_aformer_TF_expression.py \
             --dim=64 \
             --kernel_transformation="relu_kernel_transformation" \
             --savefreq=10 \
-            --TF_inputs=32
+            --TF_inputs=32 \
+            --checkpoint_path="sonnet_weights"

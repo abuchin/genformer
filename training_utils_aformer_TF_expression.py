@@ -33,8 +33,6 @@ import pandas as pd
 import src.utils
 import seaborn as sns
 
-import src.enformer_nomod as enformer
-
 from scipy.stats.stats import pearsonr, spearmanr
 from scipy.stats import linregress
 from scipy import stats
