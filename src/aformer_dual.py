@@ -27,6 +27,7 @@ class aformer(tf.keras.Model):
                  hidden_size:int = 128,
                  transformer_depth_1:int = 4,
                  transformer_depth_2:int = 4,
+                 shared_transformer_depth:int = 4,
                  pre_transf_channels: int = 128,
                  d_model = 128,
                  TF_inputs=128,
@@ -63,6 +64,7 @@ class aformer(tf.keras.Model):
         self.pre_transf_channels=pre_transf_channels
         self.transformer_depth_1=transformer_depth_1
         self.transformer_depth_2=transformer_depth_2
+        self.shared_transformer_depth=shared_transformer_depth
         self.norm=norm
         self.d_model = d_model
         self.dim = dim
@@ -187,7 +189,29 @@ class aformer(tf.keras.Model):
         
         self.sin_pe2 = abs_sin_PE(name='sin_pe2',
                                   **kwargs)
+        self.sin_pe3 = abs_sin_PE(name='sin_pe3',
+                                  **kwargs)
+        
+        self.shared_transformer = Performer_Encoder(num_layers=self.shared_transformer_depth,
+                                                   num_heads=self.num_heads, 
+                                                   dim = self.dim,
+                                                   d_model=self.d_model,
+                                                   norm=self.norm,
+                                                   max_seq_length=self.max_seq_length,
+                                                   nb_random_features=self.nb_random_features,
+                                                   hidden_size=self.hidden_size,
+                                                   numerical_stabilizer=self.numerical_stabilizer,
+                                                   attention_dropout=self.attention_dropout_rate,
+                                                   rel_pos_bins=self.rel_pos_bins,
+                                                   use_rot_emb=self.use_rot_emb,
+                                                   use_mask_pos=self.use_mask_pos,
+                                                   kernel_transformation=self.kernel_transformation,
+                                                   normalize=self.normalize, seed = self.seed,
+                                                     name = 'shared_transformer',
+                                                     **kwargs)
 
+
+        
         self.transformer_stack_1 = Performer_Encoder(num_layers=self.transformer_depth_1,
                                                    num_heads=self.num_heads, 
                                                    dim = self.dim,
@@ -261,12 +285,15 @@ class aformer(tf.keras.Model):
                                        tf_processed],axis=2)
         enformer_conv_out = self.dim_reduce_block(enformer_conv_out,
                                                    training=training)
+        shared_transformer_out = self.sin_pe1(enformer_conv_out)
+        shared_transformer_out = self.shared_transformer(shared_transformer_out,
+                                                         training=training)
 
         ### transformer 1 is atac output
         if atac_train:
         
             ## add on absolute PEs here, will also add on RPE within transformer stack
-            transformer_input_1 = self.sin_pe1(enformer_conv_out)
+            transformer_input_1 = self.sin_pe2(shared_transformer_out)
             transformer_out_1, att_matrices_1 = self.transformer_stack_1(transformer_input_1,
                                                                         training=training)
         
@@ -284,7 +311,7 @@ class aformer(tf.keras.Model):
         ### now feed out transformer_out_1 into the RNA transformer after appending w/ TSSs, exons, introns, ATAC
         ## transformer_out_1 dimension is [B x 1536 x 132]
         if rna_train: 
-            transformer_input_2 = tf.concat([enformer_conv_out,
+            transformer_input_2 = tf.concat([shared_transformer_out,
                                              atac_output,
                                              TSSs,
                                              exons],
@@ -293,7 +320,7 @@ class aformer(tf.keras.Model):
             transformer_input_2 = self.dim_reduce_block2(transformer_input_2,
                                                          training=training)
             
-            transformer_input_2 = self.sin_pe2(transformer_input_2)
+            transformer_input_2 = self.sin_pe3(transformer_input_2)
             transformer_out_2,att_matrices_2 = self.transformer_stack_2(transformer_input_2,
                                                                         training=training)
 

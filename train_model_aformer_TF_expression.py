@@ -85,11 +85,17 @@ def main():
                 'transformer_depth_2':{
                     'values': [int(x) for x in args.transformer_depth_2.split(',')]
                 },
+                'shared_transformer_depth':{
+                    'values': [int(x) for x in args.shared_transformer_depth.split(',')]
+                },
                 'pre_transf_channels':{
                     'values': [int(x) for x in args.pre_transf_channels.split(',')]
                 },
                 'num_heads':{
                     'values': [int(x) for x in args.num_heads.split(',')]
+                },
+                'TF_inputs':{
+                    'values': [int(x) for x in args.TF_inputs.split(',')]
                 },
                 'hidden_size': {
                     'values':[int(x) for x in args.hidden_size.split(',')]
@@ -162,11 +168,6 @@ def main():
             wandb.config.model_save_basename=args.model_save_basename
             wandb.config.max_shift=args.max_shift
             
-            wandb.config.transformer_depth_1=args.transformer_depth_1
-            wandb.config.transformer_depth_2=args.transformer_depth_2
-            wandb.config.pre_transf_channels=args.pre_transf_channels
-            wandb.config.TF_inputs = args.TF_inputs
-            
             wandb.run.name = '_'.join(['load_init-' + str(wandb.config.load_init),
                                        str(wandb.config.train_mode),
                                        'freeze-' + str(wandb.config.freeze_conv_layers),
@@ -174,6 +175,7 @@ def main():
                                        'LR-' + str(wandb.config.lr_base),
                                        'T.1-' + str(wandb.config.transformer_depth_1),
                                        'T.2-' + str(wandb.config.transformer_depth_2),
+                                       'ST-' + str(wandb.config.shared_transformer_depth),
                                        'TD-' + str(wandb.config.pre_transf_channels),
                                        'D-' + str(wandb.config.dropout_rate),
                                        'AD-' + str(wandb.config.attention_dropout_rate),
@@ -196,8 +198,8 @@ def main():
             BATCH_SIZE_PER_REPLICA=wandb.config.batch_size
             GLOBAL_BATCH_SIZE = BATCH_SIZE_PER_REPLICA*NUM_REPLICAS
             print('global batch size:', GLOBAL_BATCH_SIZE)
-            num_train=977500
-            num_val=153000
+            num_train=50#977500
+            num_val=50#153000
             num_val_ho=96#4192000
 
             wandb.config.update({"train_steps": num_train // GLOBAL_BATCH_SIZE},
@@ -253,6 +255,7 @@ def main():
                                     dim=wandb.config.dim,
                                     transformer_depth_1=wandb.config.transformer_depth_1,
                                     transformer_depth_2=wandb.config.transformer_depth_2,
+                                    shared_transformer_depth=wandb.config.shared_transformer_depth,
                                     pre_transf_channels=wandb.config.pre_transf_channels,
                                     TF_inputs=wandb.config.TF_inputs,
                                     inits=inits,

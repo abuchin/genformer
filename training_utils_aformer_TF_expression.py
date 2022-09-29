@@ -218,7 +218,9 @@ def return_train_val_functions(model,
                         model.stem_res_conv.trainable_variables + \
                         model.stem_pool.trainable_variables + \
                         model.conv_tower.trainable_variables + \
-                        model.dim_reduce_block.trainable_variables
+                        model.dim_reduce_block.trainable_variables + \
+                        model.shared_transformer.trainable_variables
+            
             atac_vars = model.transformer_stack_1.trainable_variables + \
                         model.final_pointwise_atac.trainable_variables +\
                         model.tf_module.trainable_variables + \
@@ -312,7 +314,8 @@ def return_train_val_functions(model,
                         model.stem_res_conv.trainable_variables + \
                         model.stem_pool.trainable_variables + \
                         model.conv_tower.trainable_variables + \
-                        model.dim_reduce_block.trainable_variables 
+                        model.dim_reduce_block.trainable_variables + \
+                        model.shared_transformer.trainable_variables
             
             rna_vars = model.transformer_stack_2.trainable_variables + \
                         model.final_pointwise_rna.trainable_variables +\
@@ -1328,13 +1331,18 @@ def parse_args(parser):
                         dest='transformer_depth_2',
                         type=str,
                         help= 'transformer_depth_2')
+    parser.add_argument('--shared_transformer_depth',
+                        dest='shared_transformer_depth',
+                        type=str,
+                        help= 'shared_transformer_depth')
+    
     parser.add_argument('--pre_transf_channels',
                         dest='pre_transf_channels',
                         type=str,
                         help= 'pre_transf_channels')
     parser.add_argument('--TF_inputs',
                         dest='TF_inputs',
-                        type=int,
+                        type=str,
                         help= 'TF_inputs')
     
     parser.add_argument('--epsilon',
