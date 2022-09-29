@@ -42,4 +42,4 @@ python3 train_model_aformer_TF_expression.py \
             --freeze_conv_layers="True" \
             --use_tf_module="True" \
             --rna_loss_scale="0.50" \
-            --checkpoint_path="sonnet_weights"
+            --checkpoint_path="sonnet_weights

@@ -186,7 +186,6 @@ class aformer(tf.keras.Model):
 
         self.sin_pe1 = abs_sin_PE(name='sin_pe1',
                                   **kwargs)
-        
         self.sin_pe2 = abs_sin_PE(name='sin_pe2',
                                   **kwargs)
         self.sin_pe3 = abs_sin_PE(name='sin_pe3',
@@ -285,16 +284,15 @@ class aformer(tf.keras.Model):
                                        tf_processed],axis=2)
         enformer_conv_out = self.dim_reduce_block(enformer_conv_out,
                                                    training=training)
-        shared_transformer_out = self.sin_pe1(enformer_conv_out)
-        shared_transformer_out = self.shared_transformer(shared_transformer_out,
-                                                         training=training)
+        enformer_conv_out = self.sin_pe1(enformer_conv_out)
+        shared_transformer_out,att_matrices_shared = self.shared_transformer(enformer_conv_out,
+                                                                             training=training)
 
         ### transformer 1 is atac output
         if atac_train:
-        
             ## add on absolute PEs here, will also add on RPE within transformer stack
             transformer_input_1 = self.sin_pe2(shared_transformer_out)
-            transformer_out_1, att_matrices_1 = self.transformer_stack_1(transformer_input_1,
+            transformer_out_1, att_matrices_1 = self.transformer_stack_1(shared_transformer_out,
                                                                         training=training)
         
             atac_output = self.final_pointwise_atac(transformer_out_1,
