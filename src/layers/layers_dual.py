@@ -86,20 +86,19 @@ class conv1d_block_dim_reduce(kl.Layer):
 
         super().__init__(name=name, **kwargs)
         self.num_channels_out = num_channels_out
-
-        
-        self.conv = kl.Conv1D(filters = self.num_channels_out,
-                              kernel_size = 1,
-                              strides=1,
-                              padding='same',
-                              kernel_initializer=tf.keras.initializers.GlorotUniform())
-        self.gelu = tfa.layers.GELU()
         self.batch_norm = syncbatchnorm(axis=-1,
                                         center=True,
                                         scale=True,
                                         beta_initializer="zeros",
                                         gamma_initializer="ones",
                                         **kwargs)
+        self.gelu = tfa.layers.GELU()
+        self.conv = kl.Conv1D(filters = self.num_channels_out,
+                              kernel_size = 1,
+                              strides=1,
+                              padding='same',
+                              kernel_initializer=tf.keras.initializers.GlorotUniform())
+        
 
     def get_config(self):
         config = {
@@ -396,7 +395,6 @@ class Performer_Encoder(kl.Layer):
                  attention_dropout = .1,
                  num_realization=1,
                  rel_pos_bins=None,
-                 kernel_size=None,
                  use_rot_emb=False,
                  use_mask_pos=False,
                  normalize=False,
@@ -716,18 +714,15 @@ class TargetLengthCrop1D(kl.Layer):
 @tf.keras.utils.register_keras_serializable()
 class output_head_rna(kl.Layer):
     def __init__(self,
-                 dropout_rate: float,
-                 name: str = 'output_head',
+                 name: str = 'output_head_rna',
                  **kwargs):
         """
         Args:
 
         """
         super().__init__(name=name, **kwargs)
-        self.dropout_rate = dropout_rate
                               
         self.Flatten = kl.Flatten(data_format = 'channels_last')
-        self.dropout = kl.Dropout(rate=self.dropout_rate,**kwargs)
         self.final_dense = kl.Dense(units=1,
                                     use_bias=True)
         self.final_softplus = tf.keras.layers.Activation('softplus')
@@ -743,7 +738,6 @@ class output_head_rna(kl.Layer):
     def call(self, inputs, training=None):
         x = self.Flatten(inputs,
                          training=training)
-        x = self.dropout(x,training=training)
         x = self.final_dense(x,training=training)
         return self.final_softplus(x,training=training)
     
@@ -798,15 +792,11 @@ class tf_module(kl.Layer):
         
         self.dense_1 = kl.Dense(units=self.TF_inputs,
                                 use_bias=False)
-        
+        self.dense_2 = kl.Dense(units=self.TF_inputs // 2,
+                                use_bias=False)
+        self.dense_3 = kl.Dense(units=self.TF_inputs // 4,
+                                use_bias=False)
         self.gelu = tfa.layers.GELU()
-        self.syncbatch_norm_1 = syncbatchnorm(axis=-1,
-                                            center=True,
-                                            scale=True,
-                                            beta_initializer="zeros",
-                                            gamma_initializer="ones",
-                                            **kwargs)
-        
         self.dropout = kl.Dropout(rate=self.dropout_rate,**kwargs)
 
     def get_config(self):
@@ -826,7 +816,12 @@ class tf_module(kl.Layer):
     def call(self, inputs, training=None):
         x = self.dense_1(inputs,training=training)
         x = self.gelu(x)
-        x = self.syncbatch_norm_1(x,training=training)
+        x = self.dropout(x,training=training)
+        x = self.dense_2(x,training=training)
+        x = self.gelu(x)
+        x = self.dropout(x,training=training)
+        x = self.dense_3(x,training=training)
+        x = self.gelu(x)
         x = self.dropout(x,training=training)
         return x
 

@@ -71,16 +71,7 @@ def main():
                     'values': [float(x) for x in args.attention_dropout_rate.split(',')]
                 },
                 'lr_base': {
-                    'values':[float(x) for x in args.lr_base1.split(',')]
-                },
-                'lr_base2_ratio': {
-                    'values':[float(x) for x in args.lr_base2_ratio.split(',')]
-                },
-                'lr_base3_ratio': {
-                    'values':[float(x) for x in args.lr_base3_ratio.split(',')]
-                },
-                'min_lr': {
-                    'values':[float(x) for x in args.min_lr.split(',')]
+                    'values':[float(x) for x in args.lr_base.split(',')]
                 },
                 'gradient_clip': {
                     'values': [float(x) for x in args.gradient_clip.split(',')]
@@ -94,11 +85,8 @@ def main():
                 'transformer_depth_2':{
                     'values': [int(x) for x in args.transformer_depth_2.split(',')]
                 },
-                'pre_transf1_channels':{
-                    'values': [int(x) for x in args.pre_transf1_channels.split(',')]
-                },
-                'pre_transf2_channels':{
-                    'values': [int(x) for x in args.pre_transf2_channels.split(',')]
+                'pre_transf_channels':{
+                    'values': [int(x) for x in args.pre_transf_channels.split(',')]
                 },
                 'num_heads':{
                     'values': [int(x) for x in args.num_heads.split(',')]
@@ -120,7 +108,20 @@ def main():
                 },
                 'load_init': {
                     'values':[bool(x) for x in args.load_init.split(',')]
+                },
+                'train_mode': {
+                    'values':[args.train_mode]
+                },
+                'freeze_conv_layers': {
+                    'values':[bool(x) for x in args.freeze_conv_layers.split(',')]
+                },
+                'use_tf_module': {
+                    'values':[bool(x) for x in args.use_tf_module.split(',')]
+                },
+                'rna_loss_scale': {
+                    'values':[float(x) for x in args.rna_loss_scale.split(',')]
                 }
+                
             }
     }
 
@@ -163,18 +164,22 @@ def main():
             
             wandb.config.transformer_depth_1=args.transformer_depth_1
             wandb.config.transformer_depth_2=args.transformer_depth_2
-            wandb.config.pre_transf1_channels=args.pre_transf1_channels
-            wandb.config.pre_transf2_channels=args.pre_transf2_channels
+            wandb.config.pre_transf_channels=args.pre_transf_channels
             wandb.config.TF_inputs = args.TF_inputs
             
-            wandb.run.name = '_'.join(['LR' + str(wandb.config.lr_base),
-                                       'T.1' + str(wandb.config.transformer_depth_1),
-                                       'T.2' + str(wandb.config.transformer_depth_2),
-                                       'TC.1' + str(wandb.config.pre_transf1_channels),
-                                       'TC.2' + str(wandb.config.pre_transf1_channels),
-                                       'D' + str(wandb.config.dropout_rate),
-                                       'AD' + str(wandb.config.attention_dropout_rate),
-                                       'HS' + str(wandb.config.hidden_size)])
+            wandb.run.name = '_'.join(['load_init-' + str(wandb.config.load_init),
+                                       str(wandb.config.train_mode),
+                                       'freeze-' + str(wandb.config.freeze_conv_layers),
+                                       'TF_in-' + str(wandb.config.use_tf_module),
+                                       'LR-' + str(wandb.config.lr_base),
+                                       'T.1-' + str(wandb.config.transformer_depth_1),
+                                       'T.2-' + str(wandb.config.transformer_depth_2),
+                                       'TD-' + str(wandb.config.pre_transf_channels),
+                                       'D-' + str(wandb.config.dropout_rate),
+                                       'AD-' + str(wandb.config.attention_dropout_rate),
+                                       'HS-' + str(wandb.config.hidden_size),
+                                       'RNA_loss_scale-' + str(wandb.config.rna_loss_scale)])
+
             '''
             TPU init options
             '''
@@ -191,13 +196,15 @@ def main():
             BATCH_SIZE_PER_REPLICA=wandb.config.batch_size
             GLOBAL_BATCH_SIZE = BATCH_SIZE_PER_REPLICA*NUM_REPLICAS
             print('global batch size:', GLOBAL_BATCH_SIZE)
-            num_train=1219000
-            num_val=427000
+            num_train=977500
+            num_val=153000
             num_val_ho=96#4192000
 
             wandb.config.update({"train_steps": num_train // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
             wandb.config.update({"val_steps" : num_val // GLOBAL_BATCH_SIZE},
+                                allow_val_change=True)
+            wandb.config.update({"val_steps_ho" : num_val_ho // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
             wandb.config.update({"total_steps": 100 * num_train // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
@@ -232,7 +239,7 @@ def main():
                 inits=training_utils.get_initializers(args.checkpoint_path)
             else:
                 inits=None
-            
+
             model = aformer.aformer(kernel_transformation=wandb.config.kernel_transformation,
                                     dropout_rate=wandb.config.dropout_rate,
                                     attention_dropout_rate=wandb.config.attention_dropout_rate,
@@ -246,16 +253,15 @@ def main():
                                     dim=wandb.config.dim,
                                     transformer_depth_1=wandb.config.transformer_depth_1,
                                     transformer_depth_2=wandb.config.transformer_depth_2,
-                                    pre_transf1_channels=wandb.config.pre_transf1_channels,
-                                    pre_transf2_channels=wandb.config.pre_transf2_channels,
+                                    pre_transf_channels=wandb.config.pre_transf_channels,
                                     TF_inputs=wandb.config.TF_inputs,
                                     inits=inits,
-                                    load_init=wandb.config.load_init)
-                                    
+                                    load_init=wandb.config.load_init,
+                                    freeze_conv_layers=wandb.config.freeze_conv_layers)
 
             scheduler= tf.keras.optimizers.schedules.CosineDecay(
                 initial_learning_rate=wandb.config.lr_base,
-                decay_steps=wandb.config.total_steps, alpha=(wandb.config.min_lr / wandb.config.lr_base))
+                decay_steps=wandb.config.total_steps, alpha=0.10)
             scheduler=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps,
                                          decay_schedule_fn=scheduler)
@@ -269,11 +275,14 @@ def main():
 
             optimizer = tfa.optimizers.AdamW(learning_rate=scheduler,
                                              weight_decay=scheduler_wd)
-
-
+            
+            
             metric_dict = {}
-
-            train_step, val_step, metric_dict=\
+            if wandb.config.use_tf_module:
+                train_step_atac, val_step_atac,\
+                    train_step_rna,val_step_rna,\
+                        train_step_both,val_step_both,\
+                            metric_dict = \
                 training_utils.return_train_val_functions(model,
                                                           optimizer,
                                                           strategy,
@@ -282,7 +291,23 @@ def main():
                                                           wandb.config.val_steps,
                                                           wandb.config.val_steps_ho,
                                                           GLOBAL_BATCH_SIZE,
-                                                          wandb.config.gradient_clip)
+                                                          wandb.config.gradient_clip,
+                                                          rna_loss_scale=wandb.config.rna_loss_scale)
+            else:
+                train_step_atac, val_step_atac,\
+                    train_step_rna,val_step_rna,\
+                        train_step_both,val_step_both,\
+                            metric_dict = \
+                training_utils.return_train_val_functions_notf(model,
+                                                               optimizer,
+                                                               strategy,
+                                                               metric_dict,
+                                                               wandb.config.train_steps,
+                                                               wandb.config.val_steps,
+                                                               wandb.config.val_steps_ho,
+                                                               GLOBAL_BATCH_SIZE,
+                                                               wandb.config.gradient_clip,
+                                                               rna_loss_scale=wandb.config.rna_loss_scale)
 
 
             global_step = 0
@@ -292,12 +317,17 @@ def main():
             patience_counter = 0
             stop_criteria = False
             best_epoch = 0
-            
+            train_mode = wandb.config.train_mode
             
             for epoch_i in range(1, wandb.config.num_epochs+1):
                 print('starting epoch_', str(epoch_i))
                 start = time.time()
-                train_step(data_dict_tr)
+                if train_mode == 'atac_only':
+                    train_step_atac(data_dict_tr)
+                elif train_mode == 'rna_only':
+                    train_step_rna(data_dict_tr)
+                else:
+                    train_step_both(data_dict_tr)
                 
                 end = time.time()
                 duration = (end - start) / 60.
@@ -309,40 +339,58 @@ def main():
                 print('training duration(mins): ' + str(duration))
                 
                 start = time.time()
-                val_step(data_dict_val)
+                if train_mode == 'atac_only':
+                    val_step_atac(data_dict_val)
+                    val_pearsons.append(metric_dict['hg_pearsonsR_ATAC'].result()['PearsonR'].numpy())
+                    pearsons_atac = metric_dict['hg_pearsonsR_ATAC'].result()['PearsonR'].numpy()
+                    pearsons_R2= metric_dict['hg_R2_ATAC'].result()['R2'].numpy()
+                    print('hg_ATAC_pearsons: ' + str(pearsons_atac))
+                    print('hg_ATAC_R2: ' + str(pearsons_R2))
+                    print('returned correlation metrics from make plots function')
+                    wandb.log({'hg_ATAC_pearsons': pearsons_atac,
+                               'hg_ATAC_R2': pearsons_R2},
+                              step=epoch_i)
+                elif train_mode == 'rna_only':
+                    val_step_rna(data_dict_val)
+                    val_pearsons.append(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy())
+                    print('hg_RNA_pearson: ' + str(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy()))
+                    print('hg_RNA_R2: ' + str(metric_dict['hg_corr_stats'].result()['R2'].numpy()))
+                else:
+                    val_step_both(data_dict_val)
+                    val_pearsons.append(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy()) ## for joint we care more about RNA
+                    print('hg_ATAC_pearsons: ' + str(metric_dict['hg_pearsonsR_ATAC'].result()['PearsonR'].numpy()))
+                    print('hg_ATAC_R2: ' + str(metric_dict['hg_R2_ATAC'].result()['R2'].numpy()))
+                    print('hg_RNA_pearson: ' + str(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy()))
+                    print('hg_RNA_R2: ' + str(metric_dict['hg_corr_stats'].result()['R2'].numpy()))
+                    
                 val_losses.append(metric_dict['hg_val'].result().numpy())
-                val_pearsons.append(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy())
                 
                 print('hg_val_loss: ' + str(metric_dict['hg_val'].result().numpy()))
-                print('hg_RNA_pearson: ' + str(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy()))
-                print('hg_RNA_R2: ' + str(metric_dict['hg_corr_stats'].result()['R2'].numpy()))
-                print('hg_ATAC_pearsons: ' + str(metric_dict['hg_pearsonsR_ATAC'].result()['PearsonR'].numpy()))
-                print('hg_ATAC_R2: ' + str(metric_dict['hg_R2_ATAC'].result()['R2'].numpy()))
-                y_trues = metric_dict['hg_corr_stats'].result()['y_trues'].numpy()
-                y_preds = metric_dict['hg_corr_stats'].result()['y_preds'].numpy()
-                cell_types = metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
-                gene_map = metric_dict['hg_corr_stats'].result()['gene_map'].numpy()
-
-                dataframes,figures,corrs_overall= \
-                                                training_utils.make_plots(y_trues,y_preds,
-                                                                        cell_types,gene_map, 
-                                                                        'hg',cell_type_map_df, 
-                                                                        gene_map_df, 
-                                                                        gene_symbol_df)
-                correlations_cells_df, correlations_genes_df=dataframes
-                fig_cell_spec, fig_gene_spec=figures 
-
-                overall_gene_level_corr_sp, gene_spec_median_corr_sp, cell_specific_corrs_sp=\
-                    corrs_overall
-                pearsons_atac = metric_dict['hg_pearsonsR_ATAC'].result()['PearsonR'].numpy()
-                print('returned correlation metrics from make plots function')
-                wandb.log({'hg_val_loss': metric_dict['hg_val'].result().numpy(),
-                           'hg_overall_rho_sp': overall_gene_level_corr_sp,
-                           'hg_median_cell_rho_sp': cell_specific_corrs_sp,
-                           'hg_median_gene_rho_sp': gene_spec_median_corr_sp,
-                           'hg_ATAC_pearsons': pearsons_atac},
+                wandb.log({'hg_val_loss': metric_dict['hg_val'].result().numpy()},
                           step=epoch_i)
-                print('completed wandb logging')
+                
+                if train_mode != 'atac_only':
+                    y_trues = metric_dict['hg_corr_stats'].result()['y_trues'].numpy()
+                    y_preds = metric_dict['hg_corr_stats'].result()['y_preds'].numpy()
+                    cell_types = metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
+                    gene_map = metric_dict['hg_corr_stats'].result()['gene_map'].numpy()
+
+                    dataframes,figures,corrs_overall= \
+                                                    training_utils.make_plots(y_trues,y_preds,
+                                                                            cell_types,gene_map, 
+                                                                            'hg',cell_type_map_df, 
+                                                                            gene_map_df, 
+                                                                            gene_symbol_df)
+                    correlations_cells_df, correlations_genes_df=dataframes
+                    fig_cell_spec, fig_gene_spec=figures 
+
+                    overall_gene_level_corr_sp, gene_spec_median_corr_sp, cell_specific_corrs_sp=\
+                        corrs_overall
+                    print('returned correlation metrics from make plots function')
+                    wandb.log({'hg_overall_rho_sp': overall_gene_level_corr_sp,
+                               'hg_median_cell_rho_sp': cell_specific_corrs_sp,
+                               'hg_median_gene_rho_sp': gene_spec_median_corr_sp},
+                              step=epoch_i)
                 end = time.time()
                 duration = (end - start) / 60.
 

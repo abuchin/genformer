@@ -9,81 +9,6 @@ import glob
 import json
 import functools
 
-class correlation_stats(tf.keras.metrics.Metric):
-    def __init__(self, reduce_axis=None, name='correlation_stats'):
-        """contains code for computing 
-            R2, pearsons correlation, and MSE over TSS sites provided
-            in the tss input to the call function
-        """
-        super(correlation_stats, self).__init__(name=name)
-        self._init = None
-
-    def _initialize(self):
-        self._tss_count = self.add_weight(name='tss_count', initializer=None, dtype=tf.int32)
-
-        self._tss_abs = self.add_weight(name='tss_abs', initializer='zeros')
-        self._y_trues = tf.Variable([], shape=(None,), validate_shape=False)
-        self._y_preds = tf.Variable([], shape=(None,), validate_shape=False)
-        self._cell_types = tf.Variable([], shape=(None,), validate_shape=False,dtype=tf.int32)
-        self._gene_map = tf.Variable([], shape=(None,), validate_shape=False,dtype=tf.int32)
-        #self._feature_maps = tf.Variable([], shape=(None,), validate_shape=False,dtype=tf.int32)
-        #self._feature_map_sub = tf.Variable([], shape=(None,), validate_shape=False)
-        #tf.TensorArray(tf.float32, size=0, dynamic_size=True) 
-
-        """
-        originally wanted to compute over each actual val step but having 
-        trouble w/ keeping track of values in tensorarray within tf keras metrics subclass
-        """
-
-    def update_state(self, y_true, y_pred, tss, cell_type,gene_map):
-        if self._init is None:
-            # initialization check.
-            self._initialize()
-        self._init = 1.0
-
-        y_true.shape.assert_is_compatible_with(y_pred.shape)
-        y_true = tf.cast(y_true, 'float32')
-        y_pred = tf.cast(y_pred, 'float32')
-
-        ## ensure no batch dimension, this will preserve order of tensors
-        y_true = tf.reshape(y_true, [-1])
-        y_pred = tf.reshape(y_pred, [-1])
-        tss = tf.reshape(tss, [-1])
-        cell_type=tf.reshape(cell_type,[-1])
-        gene_map=tf.reshape(gene_map,[-1])
-
-        keep_indices = tf.reshape(tf.where(tf.equal(tss, 1)), [-1])
-        
-        y_true_sub = tf.gather(y_true, indices=keep_indices)
-        y_pred_sub = tf.gather(y_pred, indices=keep_indices)
-        tss_sub = tf.gather(tss, indices=keep_indices)
-        cell_type_sub=tf.gather(cell_type,indices=keep_indices)
-        gene_map_sub=tf.gather(gene_map,indices=keep_indices)
-
-        
-        self._y_trues.assign(y_true_sub)
-        self._y_preds.assign(y_pred_sub)
-        
-        self._cell_types.assign(cell_type_sub)
-        self._gene_map.assign(gene_map_sub)
-        
-
-    def result(self):
-        return {'pearsonR': pearsons(self._y_trues, 
-                                     self._y_preds),
-                'R2': r2(self._y_trues, 
-                         self._y_preds),
-                'tss_abs': self._tss_abs,
-                'tss_count': self._tss_count,
-                'y_trues': self._y_trues,
-                'y_preds': self._y_preds,
-                'cell_types': self._cell_types,
-                'gene_map': self._gene_map
-               }
-    #@tf.function
-    def reset_state(self):
-        tf.keras.backend.batch_set_value([(v, 0) for v in self.variables])
-            
             
 def pearsons(y_true, y_pred):
     '''
@@ -133,8 +58,6 @@ def r2(y_true, y_pred):
 #def plot_att(
 
 
-'''
-old metrics from enformer 
 
 def _reduced_shape(shape, axis):
     if axis is None:
@@ -277,100 +200,8 @@ class MetricDict:
 
     def result(self):
         return {k: metric.result() for k, metric in self._metrics.items()}
-'''
 
 
-class correlation_stats_aformer(tf.keras.metrics.Metric):
-    def __init__(self, reduce_axis=None, name='correlation_stats'):
-        super(correlation_stats_aformer, self).__init__(name=name)
-        self._init = None
-
-    def _initialize(self):
-        #self._pearsonsr = tf.Variable([],shape=(None,), validate_shape=False)
-        #self._r2 = tf.Variable([], shape=(None,), validate_shape=False)
-        self._pearsonsr_sum = self.add_weight(name='pearsonsr', initializer=None, dtype=tf.float32)
-        self._r2_sum= self.add_weight(name='r2', initializer=None, dtype=tf.float32)
-        self._total= self.add_weight(name='total', initializer=None, dtype=tf.float32)
-        
-    def update_state(self, y_true, y_pred):
-        
-        if self._init is None:
-            # initialization check.
-            self._initialize()
-        self._init = 1.0
-        
-        y_true.shape.assert_is_compatible_with(y_pred.shape)
-        y_true = tf.cast(y_true, 'float32')
-        y_pred = tf.cast(y_pred, 'float32')
-
-        
-        pearsons_r = pearsons_batch(y_true,y_pred)
-        r2_val = r2_batch(y_true,y_pred)
-        
-        batch_size = tf.reduce_sum(tf.ones_like(r2_val))
-
-        self._pearsonsr_sum.assign_add(tf.reduce_sum(pearsons_r))
-        self._r2_sum.assign_add(tf.reduce_sum(r2_val))
-        self._total.assign_add(tf.cast(batch_size,dtype=tf.float32))
-        
-    def result(self):
-        return {'pearsonR': self._pearsonsr_sum / self._total,
-                'R2': self._r2_sum / self._total
-                #'total': self._total
-               }
-    #@tf.function
-    def reset_state(self):
-        tf.keras.backend.batch_set_value([(v, 0) for v in self.variables])
-    #def reset_state(self):
-    #    for s in self.variables:
-    #        s.assign(tf.zeros(shape=s.shape))
-            
-            
-def pearsons_batch(y_true, y_pred):
-    '''
-    Helper function to compute r2 for tensors of shape (batch, length)
-    '''
-    y_true.shape.assert_is_compatible_with(y_pred.shape)
-    y_true = tf.cast(y_true, 'float32')
-    y_pred = tf.cast(y_pred, 'float32')
-    
-    true_sum = tf.reduce_sum(y_true,axis=1)
-    pred_sum = tf.reduce_sum(y_pred,axis=1)
-    
-    count = tf.reduce_sum(tf.ones_like(y_true),axis=1)
-    
-    true_mean = true_sum / count
-    true_sq_sum = tf.reduce_sum(tf.math.square(y_true),axis=1)
-    pred_mean = pred_sum / count
-    pred_sq_sum = tf.reduce_sum(tf.math.square(y_pred),axis=1)
-    product_sum = tf.reduce_sum(y_true*y_pred, axis=1)
-    
-    covariance = (product_sum - true_mean * pred_sum
-                      - pred_mean * true_sum
-                      + count * true_mean * pred_mean)
-    
-    true_var = true_sq_sum - count * tf.math.square(true_mean)
-    pred_var = pred_sq_sum - count * tf.math.square(pred_mean)
-    tp_var = tf.math.sqrt(true_var) * tf.math.sqrt(pred_var)
-    pearsons = covariance / tp_var
-    
-    #pearsons_not_nan = tf.dtypes.cast(tf.math.logical_not(tf.math.is_nan(pearsons)), dtype=tf.float32)
-    return pearsons
-    
-
-
-def r2_batch(y_true, y_pred):
-    '''
-    Helper function to compute r2 for tensors of shape (batch, length)
-    to do: check descrepancy w/ tensorflow implementation
-    '''
-    y_true.shape.assert_is_compatible_with(y_pred.shape)
-    y_true = tf.cast(y_true, 'float32')
-    y_pred = tf.cast(y_pred, 'float32')
-    residual = tf.reduce_sum(tf.square(y_true - y_pred),axis=1,keepdims=True)
-    total = tf.reduce_sum(tf.square(y_true -  tf.reduce_mean(y_true)),axis=1,keepdims=True)
-    r2 = tf.constant(1.0,dtype=tf.float32) - residual / total
-    return r2#[:,0]
 
 
 
