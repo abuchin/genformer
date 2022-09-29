@@ -71,7 +71,13 @@ def main():
                     'values': [float(x) for x in args.attention_dropout_rate.split(',')]
                 },
                 'lr_base': {
-                    'values':[float(x) for x in args.lr_base.split(',')]
+                    'values':[float(x) for x in args.lr_base1.split(',')]
+                },
+                'lr_base2_ratio': {
+                    'values':[float(x) for x in args.lr_base2_ratio.split(',')]
+                },
+                'lr_base3_ratio': {
+                    'values':[float(x) for x in args.lr_base3_ratio.split(',')]
                 },
                 'min_lr': {
                     'values':[float(x) for x in args.min_lr.split(',')]
