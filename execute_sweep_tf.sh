@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model_aformer_TF_expression.py \
-            --tpu_name="node-1" \
-            --tpu_zone="us-central1-a" \
+            --tpu_name="pod" \
+            --tpu_zone="us-east1-d" \
             --wandb_project="aformer_TF_gene_centered_test" \
             --wandb_user="njaved" \
             --wandb_sweep_name="aformer_TF_gene_centered_test" \
@@ -24,8 +24,9 @@ python3 train_model_aformer_TF_expression.py \
             --gradient_clip="1.0" \
             --weight_decay_frac="5.0e-06" \
             --epsilon=1.0e-14 \
-            --transformer_depth_1="7" \
-            --transformer_depth_2="5" \
+            --transformer_depth_1="2" \
+            --transformer_depth_2="2" \
+            --shared_transformer_depth="3" \
             --pre_transf_channels="768" \
             --dropout_rate="0.20" \
             --attention_dropout_rate="0.05" \
@@ -40,4 +41,5 @@ python3 train_model_aformer_TF_expression.py \
             --load_init="True" \
             --freeze_conv_layers="True" \
             --use_tf_module="True" \
-            --rna_loss_scale="0.50"
+            --rna_loss_scale="0.50" \
+            --checkpoint_path="sonnet_weights"
