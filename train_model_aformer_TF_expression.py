@@ -123,7 +123,7 @@ def main():
                     'values':[parse_bool_str(x) for x in args.load_init.split(',')]
                 },
                 'train_mode': {
-                    'values':[args.train_mode]
+                    'values':[str(x) for x in args.train_mode.split(',')]
                 },
                 'freeze_conv_layers': {
                     'values':[parse_bool_str(x) for x in args.freeze_conv_layers.split(',')]

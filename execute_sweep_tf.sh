@@ -20,9 +20,9 @@ python3 train_model_aformer_TF_expression.py \
             --min_delta=0.001 \
             --model_save_dir="gs://picard-testing-176520/196k_genecentered_blacklist0.30/models" \
             --model_save_basename="aformer_TF_gene_centered" \
-            --lr_base="1.0e-04" \
+            --lr_base="5.0e-05" \
             --gradient_clip="1.0" \
-            --weight_decay_frac="1.0e-06" \
+            --weight_decay_frac="5.0e-06" \
             --epsilon=1.0e-14 \
             --transformer_depth_1="3" \
             --transformer_depth_2="3" \
@@ -37,9 +37,9 @@ python3 train_model_aformer_TF_expression.py \
             --kernel_transformation="softmax_kernel_transformation" \
             --savefreq=10 \
             --TF_inputs=128 \
-            --train_mode="atac_only,atac_rna" \
+            --train_mode="atac_only" \
             --load_init="True" \
-            --freeze_conv_layers="False,True" \
-            --use_tf_module="True" \
+            --freeze_conv_layers="False" \
+            --use_tf_module="False,True" \
             --rna_loss_scale="0.50" \
             --checkpoint_path="sonnet_weights"
