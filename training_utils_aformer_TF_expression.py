@@ -523,7 +523,8 @@ def return_train_val_functions_notf(model,
                                val_steps,
                                val_steps_ho,
                                global_batch_size,
-                               gradient_clip):
+                               gradient_clip,
+                                    rna_loss_scale=None):
     """Returns distributed train and validation functions for
     a given list of organisms
     Args:
