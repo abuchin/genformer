@@ -622,6 +622,7 @@ class SoftmaxPooling1D(kl.Layer):
     def __init__(self, pool_size: int = 2, 
                  w_init_scale: float = 2.0,
                  k_init=None,
+                 train=True,
                  per_channel: bool = True,
                  name: str='SoftmaxPooling1D'):
         """Softmax pooling from enformer
@@ -639,6 +640,7 @@ class SoftmaxPooling1D(kl.Layer):
         self._per_channel=per_channel
         self._w_init_scale = w_init_scale
         self._logit_linear = None
+        self.train=train
         self._k_init=k_init
         
     def build(self, input_shape):
@@ -649,7 +651,7 @@ class SoftmaxPooling1D(kl.Layer):
             units=1
         self._logit_linear = kl.Dense(units=units,
                                       use_bias=False,
-                                      trainable=False,
+                                      trainable=self.train,
                                       kernel_initializer=self._k_init if (self._k_init is not None) else tf.keras.initializers.Identity(gain=self._w_init_scale))
         super(SoftmaxPooling1D,self).build(input_shape)
                                             

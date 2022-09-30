@@ -43,7 +43,7 @@ class aformer(tf.keras.Model):
                  load_init=False,
                  inits=None,
                  filter_list=None,
-                 freeze_conv_layers=True,
+                 freeze_conv_layers=False,
                  name: str = 'aformer',
                  **kwargs):
         """ 'aformer' model based on Enformer for predicting RNA-seq from atac + sequence
@@ -138,6 +138,7 @@ class aformer(tf.keras.Model):
                                           w_init_scale=2.0,
                                           pool_size=2,
                                           k_init=self.inits['stem_pool'] if self.load_init else None,
+                                          train=False if self.freeze_conv_layers else True,
                                           name ='stem_pool')
         
 
@@ -165,6 +166,7 @@ class aformer(tf.keras.Model):
                 SoftmaxPooling1D(per_channel=True,
                                  w_init_scale=2.0,
                                  k_init=self.inits['pool_'+str(i)] if self.load_init else None,
+                                 train=False if self.freeze_conv_layers else True,
                                  pool_size=2),
                 ],
                        name=f'conv_tower_block_{i}')

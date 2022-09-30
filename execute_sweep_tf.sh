@@ -24,9 +24,9 @@ python3 train_model_aformer_TF_expression.py \
             --gradient_clip="1.0" \
             --weight_decay_frac="5.0e-06" \
             --epsilon=1.0e-14 \
-            --transformer_depth_1="3" \
-            --transformer_depth_2="3" \
-            --shared_transformer_depth="3" \
+            --transformer_depth_1="4" \
+            --transformer_depth_2="4" \
+            --shared_transformer_depth="4" \
             --pre_transf_channels="768" \
             --dropout_rate="0.25" \
             --attention_dropout_rate="0.05" \
@@ -34,7 +34,7 @@ python3 train_model_aformer_TF_expression.py \
             --num_random_features="256" \
             --hidden_size="768" \
             --dim=192 \
-            --kernel_transformation="softmax_kernel_transformation" \
+            --kernel_transformation="relu_kernel_transformation" \
             --savefreq=10 \
             --TF_inputs=128 \
             --train_mode="atac_only" \
