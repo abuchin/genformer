@@ -39,6 +39,13 @@ from scipy.stats.stats import pearsonr
 from scipy.stats.stats import spearmanr  
 from scipy import stats
 
+def parse_bool_str(input_str):
+    if input_str == 'False':
+        return False
+    else:
+        return True
+    
+
  ## reformat 
 # ===========================================================================#
 
@@ -113,16 +120,16 @@ def main():
                     'values':[args.epsilon]
                 },
                 'load_init': {
-                    'values':[bool(x) for x in args.load_init.split(',')]
+                    'values':[parse_bool_str(x) for x in args.load_init.split(',')]
                 },
                 'train_mode': {
                     'values':[args.train_mode]
                 },
                 'freeze_conv_layers': {
-                    'values':[bool(x) for x in args.freeze_conv_layers.split(',')]
+                    'values':[parse_bool_str(x) for x in args.freeze_conv_layers.split(',')]
                 },
                 'use_tf_module': {
-                    'values':[bool(x) for x in args.use_tf_module.split(',')]
+                    'values':[parse_bool_str(x) for x in args.use_tf_module.split(',')]
                 },
                 'rna_loss_scale': {
                     'values':[float(x) for x in args.rna_loss_scale.split(',')]
@@ -198,11 +205,11 @@ def main():
             BATCH_SIZE_PER_REPLICA=wandb.config.batch_size
             GLOBAL_BATCH_SIZE = BATCH_SIZE_PER_REPLICA*NUM_REPLICAS
             print('global batch size:', GLOBAL_BATCH_SIZE)
-            num_train=50#977500
-            num_val=50#153000
+            num_train=977500
+            num_val=153000
             num_val_ho=96#4192000
 
-            wandb.config.update({"train_steps": num_train // GLOBAL_BATCH_SIZE},
+            wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE*3)},
                                 allow_val_change=True)
             wandb.config.update({"val_steps" : num_val // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
