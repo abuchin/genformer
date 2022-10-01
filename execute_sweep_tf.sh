@@ -10,7 +10,7 @@ python3 train_model_aformer_TF_expression.py \
             --gcs_path="gs://picard-testing-176520/196k_genecentered_blacklist0.30_atacnormalized/preprocessed" \
             --input_length=196608 \
             --max_shift=20 \
-            --batch_size=6 \
+            --batch_size=4 \
             --num_epochs=60 \
             --train_steps=50 \
             --warmup_frac=0.025 \
@@ -24,8 +24,8 @@ python3 train_model_aformer_TF_expression.py \
             --gradient_clip="1.0" \
             --weight_decay_frac="5.0e-06" \
             --epsilon=1.0e-14 \
-            --transformer_depth_1="4" \
-            --transformer_depth_2="4" \
+            --transformer_depth_1="2" \
+            --transformer_depth_2="2" \
             --shared_transformer_depth="4" \
             --pre_transf_channels="768" \
             --dropout_rate="0.25" \
@@ -41,5 +41,5 @@ python3 train_model_aformer_TF_expression.py \
             --load_init="True" \
             --freeze_conv_layers="False" \
             --use_tf_module="False,True" \
-            --rna_loss_scale="0.50" \
-            --checkpoint_path="sonnet_weights"
+            --rna_loss_scale="0.50" #\
+            #--checkpoint_path="sonnet_weights"
