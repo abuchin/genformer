@@ -716,6 +716,7 @@ class TargetLengthCrop1D(kl.Layer):
 @tf.keras.utils.register_keras_serializable()
 class output_head_rna(kl.Layer):
     def __init__(self,
+                 dropout_rate = 0.10,
                  name: str = 'output_head_rna',
                  **kwargs):
         """
@@ -723,8 +724,14 @@ class output_head_rna(kl.Layer):
 
         """
         super().__init__(name=name, **kwargs)
-                              
+        self.dropout_rate = dropout_rate
+        
         self.Flatten = kl.Flatten(data_format = 'channels_last')
+        self.dense = kl.Dense(units=32,
+                              use_bias=False)
+        self.gelu = tfa.layers.GELU()
+        self.dropout = kl.Dropout(rate=self.dropout_rate,
+                                  **kwargs)
         self.final_dense = kl.Dense(units=1,
                                     use_bias=True)
         self.final_softplus = tf.keras.layers.Activation('softplus')
@@ -740,8 +747,13 @@ class output_head_rna(kl.Layer):
     def call(self, inputs, training=None):
         x = self.Flatten(inputs,
                          training=training)
-        x = self.final_dense(x,training=training)
-        return self.final_softplus(x,training=training)
+        x=self.dense(x)
+        x=self.gelu(x)
+        x=self.dropout(x,training=training)
+        x = self.final_dense(x,
+                             training=training)
+        return self.final_softplus(x,
+                                   training=training)
     
     
 @tf.keras.utils.register_keras_serializable()
@@ -799,7 +811,8 @@ class tf_module(kl.Layer):
         self.dense_3 = kl.Dense(units=self.TF_inputs // 4,
                                 use_bias=False)
         self.gelu = tfa.layers.GELU()
-        self.dropout = kl.Dropout(rate=self.dropout_rate,**kwargs)
+        self.dropout = kl.Dropout(rate=self.dropout_rate,
+                                  **kwargs)
 
     def get_config(self):
         config = {

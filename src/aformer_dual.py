@@ -16,7 +16,7 @@ SEQUENCE_LENGTH=65536
 @tf.keras.utils.register_keras_serializable()
 class aformer(tf.keras.Model):
     def __init__(self,
-                 kernel_transformation = 'softmax_kernel_transformation',
+                 kernel_transformation = 'relu_kernel_transformation',
                  dropout_rate: float = 0.2,
                  attention_dropout_rate: float = 0.05,
                  input_length: int = 196608,
@@ -260,6 +260,7 @@ class aformer(tf.keras.Model):
         self.final_pointwise_rna = enf_conv_block(filters=2*self.pre_transf_channels,
                                                   name = 'final_pointwise_rna')
         self.rna_head = output_head_rna(name = 'rna_out_head',
+                                        dropout_rate = self.dropout_rate,
                                         **kwargs)
         self.crop = TargetLengthCrop1D(target_length=atac_output_length)
         

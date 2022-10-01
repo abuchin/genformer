@@ -219,11 +219,11 @@ def return_train_val_functions(model,
                         model.stem_pool.trainable_variables + \
                         model.conv_tower.trainable_variables + \
                         model.dim_reduce_block.trainable_variables + \
-                        model.shared_transformer.trainable_variables
+                        model.shared_transformer.trainable_variables + \
+                        model.trf_module.trainable_variables
             
             atac_vars = model.transformer_stack_1.trainable_variables + \
                         model.final_pointwise_atac.trainable_variables +\
-                        model.tf_module.trainable_variables + \
                         model.atac_head.trainable_variables
             
             gradients = tape.gradient(loss, conv_vars + atac_vars)
@@ -315,7 +315,8 @@ def return_train_val_functions(model,
                         model.stem_pool.trainable_variables + \
                         model.conv_tower.trainable_variables + \
                         model.dim_reduce_block.trainable_variables + \
-                        model.shared_transformer.trainable_variables
+                        model.shared_transformer.trainable_variables + \
+                        model.trf_module.trainable_variables
             
             rna_vars = model.transformer_stack_2.trainable_variables + \
                         model.final_pointwise_rna.trainable_variables +\
