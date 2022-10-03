@@ -20,6 +20,7 @@ class aformer(tf.keras.Model):
                  dropout_rate: float = 0.2,
                  attention_dropout_rate: float = 0.05,
                  input_length: int = 196608,
+                 atac_length_uncropped=1536,
                  atac_output_length: int = 896,
                  num_heads:int = 4,
                  numerical_stabilizer: float =0.001,
@@ -81,6 +82,7 @@ class aformer(tf.keras.Model):
         self.inits=inits
         self.filter_list = [768, 896, 1024, 1152, 1280, 1536] if self.load_init else filter_list
         self.freeze_conv_layers = freeze_conv_layers
+        self.atac_length_uncropped=atac_length_uncropped
         
         print(self.filter_list)
         
@@ -279,7 +281,7 @@ class aformer(tf.keras.Model):
         tf_processed = tf.expand_dims(tf_processed, 
                                       axis=1)
         tf_processed = tf.tile(tf_processed, 
-                               [1,1536,1])
+                               [1,self.atac_length_uncropped,1])
         if not use_tf_module:
             tf_processed = tf.ones_like(tf_processed)
         

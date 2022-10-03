@@ -147,6 +147,8 @@ def return_train_val_functions(model,
                                val_steps_ho,
                                global_batch_size,
                                gradient_clip,
+                               out_length,
+                               crop_length,
                                rna_loss_scale=None):
     """Returns distributed train and validation functions for
     a given list of organisms
@@ -198,7 +200,7 @@ def return_train_val_functions(model,
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac,target
-            atac = tf.slice(atac, [0,320,0],[-1,896,-1])
+            atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             atac=tf.cast(atac,dtype=tf.float32)
             with tf.GradientTape() as tape:
                 atac_out,rna_out = model(input_tuple,
@@ -252,7 +254,7 @@ def return_train_val_functions(model,
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac,target
-            atac = tf.slice(atac, [0,320,0],[-1,896,-1])
+            atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             atac=tf.cast(atac,dtype=tf.float32)
             
             cell_type = inputs['cell_type']
@@ -293,7 +295,7 @@ def return_train_val_functions(model,
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac,target
-            atac = tf.slice(atac, [0,320,0],[-1,896,-1])
+            atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             atac=tf.cast(atac,dtype=tf.float32)
 
             with tf.GradientTape() as tape:
@@ -345,7 +347,7 @@ def return_train_val_functions(model,
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac,target
-            atac = tf.slice(atac, [0,320,0],[-1,896,-1])
+            atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             atac=tf.cast(atac,dtype=tf.float32)
             
             cell_type = inputs['cell_type']
@@ -408,7 +410,7 @@ def return_train_val_functions(model,
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac,target
-            atac = tf.slice(atac, [0,320,0],[-1,896,-1])
+            atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             atac=tf.cast(atac,dtype=tf.float32)
 
             with tf.GradientTape() as tape:
@@ -451,7 +453,7 @@ def return_train_val_functions(model,
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac,target
-            atac = tf.slice(atac, [0,320,0],[-1,896,-1])
+            atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             atac=tf.cast(atac,dtype=tf.float32)
             
             cell_type = inputs['cell_type']
@@ -525,6 +527,8 @@ def return_train_val_functions_notf(model,
                                val_steps_ho,
                                global_batch_size,
                                gradient_clip,
+                               out_length,
+                               crop_length,
                                     rna_loss_scale=None):
     """Returns distributed train and validation functions for
     a given list of organisms
@@ -576,7 +580,7 @@ def return_train_val_functions_notf(model,
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac,target
-            atac = tf.slice(atac, [0,320,0],[-1,896,-1])
+            atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             with tf.GradientTape() as tape:
                 atac_out,rna_out = model(input_tuple,
                                          atac_train=True,
@@ -633,7 +637,7 @@ def return_train_val_functions_notf(model,
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac,target
             
             
-            atac = tf.slice(atac, [0,320,0],[-1,896,-1])
+            atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             cell_type = inputs['cell_type']
             gene_map = inputs['gene_encoded']
 
@@ -675,7 +679,7 @@ def return_train_val_functions_notf(model,
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression,atac,target
-
+            atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             with tf.GradientTape() as tape:
                 
                 atac_out,rna_out = model(input_tuple,
@@ -725,7 +729,7 @@ def return_train_val_functions_notf(model,
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression,atac,target
-            
+            atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             cell_type = inputs['cell_type']
             gene_map = inputs['gene_encoded']
 
@@ -786,7 +790,7 @@ def return_train_val_functions_notf(model,
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression,atac,target
-
+            atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             with tf.GradientTape() as tape:
                 
                 atac_out,rna_out = model(input_tuple,
@@ -827,7 +831,7 @@ def return_train_val_functions_notf(model,
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression,atac,target
-            
+            atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             cell_type = inputs['cell_type']
             gene_map = inputs['gene_encoded']
 
@@ -947,9 +951,12 @@ def deserialize(serialized_example,input_length, output_length,output_res,
                                                       shift,input_length))
         exons = tf.reverse(exons, [0])
     
-    TF_expression = tf.ensure_shape(tf.io.parse_tensor(data['TF_expression'],
-                                              out_type=tf.float32),
-                             [num_TFs,])
+    TF_expression = tf.math.log(1.0 + TF_expression)
+    ## want to add some noise 
+    TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
+                                                                 mean=0.0,
+                                                                 stdev=1.0e-01,
+                                                                 dtype=tf.float32))
     
 
     TPM = tf.io.parse_tensor(data['TPM'],out_type=tf.float32)
@@ -996,7 +1003,6 @@ def deserialize_val(serialized_example,input_length, output_length,output_res,
     tss_tokens = tf.ensure_shape(tf.io.parse_tensor(data['tss_tokens'],
                                               out_type=tf.int32),
                             [input_seq_length,])
-    
     tss_tokens = tf.cast(tf.slice(tss_tokens, [shift],[input_length]),dtype=tf.float32)
     tss_tokens = tf.reshape(tss_tokens, [output_length,output_res])
     tss_tokens = tf.reduce_max(tss_tokens,axis=1,keepdims=True)
@@ -1017,7 +1023,6 @@ def deserialize_val(serialized_example,input_length, output_length,output_res,
     
 
     cell_type = tf.io.parse_tensor(data['cell_type'],out_type=tf.int32)
-    #print(data['cell_type'])
     gene_encoded = tf.io.parse_tensor(data['gene_encoded'],out_type=tf.int32)
     
     sequence = one_hot(tf.strings.substr(data['sequence'],
@@ -1026,7 +1031,14 @@ def deserialize_val(serialized_example,input_length, output_length,output_res,
     TF_expression = tf.ensure_shape(tf.io.parse_tensor(data['TF_expression'],
                                               out_type=tf.float32),
                              [num_TFs,])
-    
+    ## log transform
+    TF_expression = tf.math.log(1.0 + TF_expression)
+    ## want to add some noise 
+    TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
+                                                                 mean=0.0,
+                                                                 stdev=1.0e-01,
+                                                                 dtype=tf.float32))
+
 
     TPM = tf.io.parse_tensor(data['TPM'],out_type=tf.float32)
     target = log2(1.0 + tf.math.maximum(0.0,TPM))
