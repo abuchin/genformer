@@ -187,7 +187,8 @@ def main():
             wandb.config.model_save_basename=args.model_save_basename
             wandb.config.max_shift=args.max_shift
             
-            wandb.run.name = '_'.join(['load_init-' + str(wandb.config.load_init),
+            wandb.run.name = '_'.join(['input_length-' + str(wandb.config.input_length),
+                                        'load_init-' + str(wandb.config.load_init),
                                        str(wandb.config.train_mode),
                                        'freeze-' + str(wandb.config.freeze_conv_layers),
                                        'TF_in-' + str(wandb.config.use_tf_module),
@@ -204,7 +205,7 @@ def main():
             '''
             TPU init options
             '''
-            print(wandb.config.input_length)
+
             options = tf.data.Options()
             options.experimental_distribute.auto_shard_policy=\
                 tf.data.experimental.AutoShardPolicy.FILE
@@ -243,10 +244,11 @@ def main():
             gene_symbol_df = pd.read_csv(args.gene_symbol_map_file,sep='\t')
             gene_symbol_df.columns = ['ensembl_id',
                                       'symbol']
-            
+
             data_dict_tr,data_dict_val = \
                     training_utils.return_distributed_iterators(wandb.config.gcs_path,
                                                                 wandb.config.gcs_path_val_ho,
+                                                                wandb.config.train_mode,
                                                                 GLOBAL_BATCH_SIZE,
                                                                 wandb.config.input_length,
                                                                 wandb.config.atac_length_uncropped,
@@ -256,7 +258,7 @@ def main():
                                                                 args.num_epochs,
                                                                 strategy,
                                                                 options)
-            
+
             if wandb.config.load_init:
                 inits=training_utils.get_initializers(args.checkpoint_path)
             else:
@@ -323,6 +325,7 @@ def main():
                                                           wandb.config.gradient_clip,
                                                           wandb.config.atac_length_uncropped,
                                                           crop_size,
+                                                          wandb.config.batch_size,
                                                           rna_loss_scale=wandb.config.rna_loss_scale)
             else:
                 train_step_atac, val_step_atac,\
@@ -340,6 +343,7 @@ def main():
                                                                wandb.config.gradient_clip,
                                                               wandb.config.atac_length_uncropped,
                                                               crop_size,
+                                                              wandb.config.batch_size,
                                                                rna_loss_scale=wandb.config.rna_loss_scale)
 
 

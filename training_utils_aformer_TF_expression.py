@@ -149,6 +149,7 @@ def return_train_val_functions(model,
                                gradient_clip,
                                out_length,
                                crop_length,
+                               batch_size,
                                rna_loss_scale=None):
     """Returns distributed train and validation functions for
     a given list of organisms
@@ -194,10 +195,10 @@ def return_train_val_functions(model,
         def train_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            target=tf.cast(inputs['target'],dtype=tf.float32)
-            tss_tokens=tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
+            target=tf.ones((batch_size,1)) #tf.cast(inputs['target'],dtype=tf.float32)
+            tss_tokens=tf.ones_like(atac)#tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
-            exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
+            exons=tf.ones_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac,target
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
@@ -246,10 +247,10 @@ def return_train_val_functions(model,
         def val_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            target=tf.cast(inputs['target'],dtype=tf.float32)
-            tss_tokens=tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
+            target=tf.ones((batch_size,1)) #tf.cast(inputs['target'],dtype=tf.float32)
+            tss_tokens=tf.ones_like(atac)#tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
-            exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
+            exons=tf.ones_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac,target
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
@@ -527,6 +528,7 @@ def return_train_val_functions_notf(model,
                                gradient_clip,
                                out_length,
                                crop_length,
+                               batch_size,
                                     rna_loss_scale=None):
     """Returns distributed train and validation functions for
     a given list of organisms
@@ -572,10 +574,10 @@ def return_train_val_functions_notf(model,
         def train_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            target=tf.cast(inputs['target'],dtype=tf.float32)
-            tss_tokens=tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
+            target=tf.ones((batch_size,1)) #tf.cast(inputs['target'],dtype=tf.float32)
+            tss_tokens=tf.ones_like(atac)#tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
-            exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
+            exons=tf.ones_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac,target
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
@@ -626,10 +628,10 @@ def return_train_val_functions_notf(model,
         def val_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            target=tf.cast(inputs['target'],dtype=tf.float32)
-            tss_tokens=tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
+            target=tf.ones((batch_size,1)) #tf.cast(inputs['target'],dtype=tf.float32)
+            tss_tokens=tf.ones_like(atac)#tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
-            exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
+            exons=tf.ones_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac,target
             
@@ -1136,9 +1138,108 @@ def return_dataset_val(gcs_path,
 
     return dataset.repeat(num_epoch).batch(batch, drop_remainder=True).prefetch(1)
 
+def deserialize_atac(serialized_example,input_length, 
+output_length,output_res,
+                num_TFs,max_shift):
+    """
+    Deserialize bytes stored in TFRecordFile.
+    """
+    feature_map = {
+        'atac': tf.io.FixedLenFeature([], tf.string),
+        'sequence': tf.io.FixedLenFeature([],tf.string),
+        'TF_expression': tf.io.FixedLenFeature([], tf.string)
+    }
+    
+    data = tf.io.parse_example(serialized_example, feature_map)
+
+    ### stochastic sequence shift and gaussian noise
+    shift = random.randrange(0,max_shift,1)
+    input_seq_length = input_length + max_shift
+    interval_end = input_length + shift
+    
+    ### rev_comp
+    rev_comp = random.randrange(0,2)
+    
+    
+    atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
+                                              out_type=tf.float32),
+                           [input_seq_length,])
+    atac = tf.slice(atac, [shift],[input_length])
+    atac = tf.reshape(atac, [output_length, output_res])
+    atac = tf.reduce_sum(atac,axis=1,keepdims=True)
+    
+    sequence = one_hot(tf.strings.substr(data['sequence'],
+                                 shift,input_length))
+    cell_type = tf.io.parse_tensor(data['cell_type'],out_type=tf.int32)
+
+    
+    if rev_comp == 1:
+        atac = tf.reverse(atac,[0])
+        sequence = rev_comp_one_hot(tf.strings.substr(data['sequence'],
+                                                      shift,input_length))
+        
+    TF_expression = tf.ensure_shape(tf.io.parse_tensor(data['TF_expression'],
+                                              out_type=tf.float32),
+                             [num_TFs,])
+    TF_expression = tf.math.log(1.0 + TF_expression)
+    TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
+                                                                 mean=0.0,
+                                                                 stddev=2.5e-01,
+                                                                 dtype=tf.float32))
+    
+    return {
+        'sequence': tf.ensure_shape(sequence,[input_length,4]),
+        'atac': tf.ensure_shape(atac, [output_length,1]),
+        'TF_expression': tf.ensure_shape(TF_expression,[num_TFs]),
+        'cell_type': tf.transpose(tf.reshape(cell_type,[-1]))
+    }
+
+                    
+def return_dataset_atac(gcs_path,
+                       split,
+                       organism,
+                       batch,
+                       input_length,
+                       output_length,
+                       output_res,
+                       max_shift,
+                       options,
+                       num_parallel,
+                       num_epoch,
+                       num_TFs):
+    """
+    return a tf dataset object for given gcs path
+    """
+
+    wc = str(organism) + "*.tfr"
+    
+    list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
+                                                split,
+                                                wc)))
+
+    random.shuffle(list_files)
+    files = tf.data.Dataset.list_files(list_files)
+
+    dataset = tf.data.TFRecordDataset(files,
+                                      compression_type='ZLIB',
+                                      num_parallel_reads=num_parallel)
+    dataset = dataset.with_options(options)
+
+    dataset = dataset.map(lambda record: deserialize_atac(record,
+                                                         input_length,
+                                                         output_length,
+                                                         output_res,
+                                                         num_TFs,
+                                                         max_shift),
+                          deterministic=False,
+                          num_parallel_calls=num_parallel)
+
+    return dataset.repeat(num_epoch).batch(batch, drop_remainder=True).prefetch(1)
+
 
 def return_distributed_iterators(gcs_path,
                                  gcs_path_val_ho,
+                                 data_type,
                                  global_batch_size,
                                  input_length,
                                  output_length,
@@ -1155,40 +1256,75 @@ def return_distributed_iterators(gcs_path,
     with strategy.scope():
         data_it_tr_list = []
         data_it_val_list = []
+        if data_type == 'atac_only':
+            num_tf = 1637
+            tr_data = return_dataset_atac(gcs_path,
+                                    "train", "hg", 
+                                    global_batch_size,
+                                    input_length,
+                                    output_length,
+                                    output_res,
+                                    max_shift,
+                                    options,
+                                    num_parallel_calls,
+                                    num_epoch,
+                                    num_tf)
 
-        num_tf = 1637
-        tr_data = return_dataset(gcs_path,
-                                 "train", "hg", 
-                                 global_batch_size,
-                                 input_length,
-                                 output_length,
-                                 output_res,
-                                 max_shift,
-                                 options,
-                                 num_parallel_calls,
-                                 num_epoch,
-                                 num_tf)
+            val_data = return_dataset_atac(gcs_path,
+                                        "val","hg", 
+                                        global_batch_size,
+                                        input_length,
+                                        output_length,
+                                        output_res,
+                                        max_shift,
+                                        options,
+                                        num_parallel_calls,
+                                        num_epoch,
+                                        num_tf)
 
-        val_data = return_dataset_val(gcs_path,
-                                     "val","hg", 
-                                     global_batch_size,
-                                     input_length,
-                                      output_length,
-                                      output_res,
-                                     max_shift,
-                                     options,
-                                     num_parallel_calls,
-                                     num_epoch,
-                                     num_tf)
+            train_dist = strategy.experimental_distribute_dataset(tr_data)
+            val_dist= strategy.experimental_distribute_dataset(val_data)
 
-        train_dist = strategy.experimental_distribute_dataset(tr_data)
-        val_dist= strategy.experimental_distribute_dataset(val_data)
+            tr_data_it = iter(train_dist)
+            val_data_it = iter(val_dist)
 
-        tr_data_it = iter(train_dist)
-        val_data_it = iter(val_dist)
+            data_it_tr_list.append(tr_data_it)
+            data_it_val_list.append(val_data_it)
 
-        data_it_tr_list.append(tr_data_it)
-        data_it_val_list.append(val_data_it)
+        else: 
+            num_tf = 1637
+            tr_data = return_dataset(gcs_path,
+                                    "train", "hg", 
+                                    global_batch_size,
+                                    input_length,
+                                    output_length,
+                                    output_res,
+                                    max_shift,
+                                    options,
+                                    num_parallel_calls,
+                                    num_epoch,
+                                    num_tf)
+
+            val_data = return_dataset_val(gcs_path,
+                                        "val","hg", 
+                                        global_batch_size,
+                                        input_length,
+                                        output_length,
+                                        output_res,
+                                        max_shift,
+                                        options,
+                                        num_parallel_calls,
+                                        num_epoch,
+                                        num_tf)
+
+            train_dist = strategy.experimental_distribute_dataset(tr_data)
+            val_dist= strategy.experimental_distribute_dataset(val_data)
+
+            tr_data_it = iter(train_dist)
+            val_data_it = iter(val_dist)
+
+            data_it_tr_list.append(tr_data_it)
+            data_it_val_list.append(val_data_it)
 
 
     return tr_data_it, val_data_it
