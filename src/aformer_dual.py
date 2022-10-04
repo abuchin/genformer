@@ -20,8 +20,8 @@ class aformer(tf.keras.Model):
                  dropout_rate: float = 0.2,
                  attention_dropout_rate: float = 0.05,
                  input_length: int = 196608,
-                 atac_length_uncropped=1536,
-                 atac_output_length: int = 896,
+                 atac_length_uncropped: int = 768,
+                 atac_output_length: int = 448,
                  num_heads:int = 4,
                  numerical_stabilizer: float =0.001,
                  nb_random_features:int = 256,
@@ -262,9 +262,9 @@ class aformer(tf.keras.Model):
         self.final_pointwise_rna = enf_conv_block(filters=2*self.pre_transf_channels,
                                                   name = 'final_pointwise_rna')
         self.rna_head = output_head_rna(name = 'rna_out_head',
-                                        dropout_rate = self.dropout_rate,
                                         **kwargs)
-        self.crop = TargetLengthCrop1D(target_length=atac_output_length)
+        #self.crop = TargetLengthCrop1D(uncropped_length=self.atac_length_uncropped,
+        #                               target_length=self.atac_output_length)
         
 
     def call(self, inputs, atac_train, rna_train, use_tf_module, training:bool=True):
@@ -294,50 +294,50 @@ class aformer(tf.keras.Model):
                                                                              training=training)
 
         ### transformer 1 is atac output
-        if atac_train:
-            ## add on absolute PEs here, will also add on RPE within transformer stack
-            transformer_input_1 = self.sin_pe2(shared_transformer_out)
-            transformer_out_1, att_matrices_1 = self.transformer_stack_1(shared_transformer_out,
-                                                                        training=training)
-        
-            atac_output = self.final_pointwise_atac(transformer_out_1,
-                                                    training=training)
-            atac_output = self.dropout(atac_output,
-                                       training=training)
-            atac_output = self.gelu(atac_output,
-                                    training=training)
-            atac_output = self.atac_head(atac_output,
-                                         training=training)
-        else:
-            atac_output = atac
+        #if atac_train:
+        ## add on absolute PEs here, will also add on RPE within transformer stack
+        transformer_input_1 = self.sin_pe2(shared_transformer_out)
+        transformer_out_1, att_matrices_1 = self.transformer_stack_1(transformer_input_1,
+                                                                    training=training)
+
+        atac_output = self.final_pointwise_atac(transformer_out_1,
+                                                training=training)
+        atac_output = self.dropout(atac_output,
+                                   training=training)
+        atac_output = self.gelu(atac_output,
+                                training=training)
+        atac_output = self.atac_head(atac_output,
+                                     training=training)
+        #else:
+        #    atac_output = atac
 
         ### now feed out transformer_out_1 into the RNA transformer after appending w/ TSSs, exons, introns, ATAC
         ## transformer_out_1 dimension is [B x 1536 x 132]
-        if rna_train: 
-            transformer_input_2 = tf.concat([shared_transformer_out,
-                                             atac_output,
-                                             TSSs,
-                                             exons],
-                                            axis=2)
-            
-            transformer_input_2 = self.dim_reduce_block2(transformer_input_2,
-                                                         training=training)
-            
-            transformer_input_2 = self.sin_pe3(transformer_input_2)
-            transformer_out_2,att_matrices_2 = self.transformer_stack_2(transformer_input_2,
-                                                                        training=training)
+        #if rna_train: 
+        transformer_input_2 = tf.concat([shared_transformer_out,
+                                         atac_output,
+                                         TSSs,
+                                         exons],
+                                        axis=2)
 
-            rna_output = self.final_pointwise_rna(transformer_out_2)
-            rna_output = self.dropout(rna_output,
-                                      training=training)
-            rna_output = self.gelu(rna_output,
+        transformer_input_2 = self.dim_reduce_block2(transformer_input_2,
+                                                     training=training)
+
+        transformer_input_2 = self.sin_pe3(transformer_input_2)
+        transformer_out_2,att_matrices_2 = self.transformer_stack_2(transformer_input_2,
+                                                                    training=training)
+
+        rna_output = self.final_pointwise_rna(transformer_out_2)
+        rna_output = self.dropout(rna_output,
+                                  training=training)
+        rna_output = self.gelu(rna_output,
+                               training=training)
+        rna_output = self.rna_head(rna_output,
                                    training=training)
-            rna_output = self.rna_head(rna_output,
-                                       training=training)
-        else:
-            rna_output = target
+        #else:
+        #    rna_output = target
 
-        return self.crop(atac_output), rna_output
+        return atac_output, rna_output
     
 
     def get_config(self):

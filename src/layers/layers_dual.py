@@ -514,6 +514,9 @@ class Performer_Encoder(kl.Layer):
     
     def call(self, x, training=None, **kwargs):
         att_matrices={}
+        if self.norm:
+            x = self.layer_norm(x)
+            
         for idx,layer in enumerate(self.layers):
             if self.use_rot_emb is True:
                 x += self.pos_emb(x)
@@ -524,9 +527,6 @@ class Performer_Encoder(kl.Layer):
             if self.use_mask_pos is True:
                 x,k_prime,q_prime = layer(x, rpe=self.rpe, training=training)
                 att_matrices['layer_' + str(idx)] = (k_prime,q_prime)
-            
-        if self.norm:
-            x = self.layer_norm(x)
             
         return x,att_matrices
     
@@ -696,15 +696,17 @@ class TargetLengthCrop1D(kl.Layer):
     """Crop sequence to match the desired target length."""
 
     def __init__(self,
-               target_length: int = 896,
+               uncropped_length: int = 768,
+               target_length: int = 448,
                name: str = 'target_length_crop'):
         super().__init__(name=name)
         self._target_length = target_length
-
+        self._uncropped_length = uncropped_length
+        
     def call(self, inputs):
         if self._target_length is None:
             return inputs
-        trim = (1536 - self._target_length) // 2
+        trim = (self._uncropped_length - self._target_length) // 2
         if trim < 0:
             raise ValueError('inputs longer than target length')
         elif trim == 0:

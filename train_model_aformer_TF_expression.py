@@ -71,6 +71,9 @@ def main():
                 'goal': 'minimize'
             },
             'parameters': {
+                'input_length': {
+                    'values': [args.input_length]
+                },
                 'dropout_rate': {
                     'values': [float(x) for x in args.dropout_rate.split(',')]
                 },
@@ -83,9 +86,9 @@ def main():
                 'gradient_clip': {
                     'values': [float(x) for x in args.gradient_clip.split(',')]
                 },
-                'weight_decay_frac': {
-                    'values': [float(x) for x in args.weight_decay_frac.split(',')]
-                },
+                #'weight_decay_frac': {
+                #    'values': [float(x) for x in args.weight_decay_frac.split(',')]
+                #},
                 'transformer_depth_1':{
                     'values': [int(x) for x in args.transformer_depth_1.split(',')]
                 },
@@ -133,6 +136,15 @@ def main():
                 },
                 'rna_loss_scale': {
                     'values':[float(x) for x in args.rna_loss_scale.split(',')]
+                },
+                'filter_list': {
+                    'values': [[int(x) for x in args.filter_list.split(',')]]
+                },
+                'atac_length_uncropped': {
+                    'values': [args.atac_length_uncropped]
+                },
+                'atac_output_length': {
+                    'values': [args.atac_output_length]
                 }
                 
             }
@@ -163,9 +175,9 @@ def main():
             wandb.config.gcs_path=args.gcs_path
             wandb.config.gcs_path_val_ho=args.gcs_path_val_ho
             wandb.config.num_epochs=args.num_epochs
-            wandb.config.train_steps=args.train_steps
-            wandb.config.val_steps=args.val_steps
-            wandb.config.val_steps_ho=args.val_steps_ho
+            wandb.config.train_examples=args.train_examples
+            wandb.config.val_examples=args.val_examples
+            wandb.config.val_examples_ho=args.val_examples
             wandb.config.batch_size=args.batch_size
             wandb.config.warmup_frac=args.warmup_frac
             wandb.config.total_steps=args.total_steps
@@ -192,6 +204,7 @@ def main():
             '''
             TPU init options
             '''
+            print(wandb.config.input_length)
             options = tf.data.Options()
             options.experimental_distribute.auto_shard_policy=\
                 tf.data.experimental.AutoShardPolicy.FILE
@@ -205,9 +218,9 @@ def main():
             BATCH_SIZE_PER_REPLICA=wandb.config.batch_size
             GLOBAL_BATCH_SIZE = BATCH_SIZE_PER_REPLICA*NUM_REPLICAS
             print('global batch size:', GLOBAL_BATCH_SIZE)
-            num_train=977500
-            num_val=153000
-            num_val_ho=96#4192000
+            num_train=wandb.config.train_examples
+            num_val=wandb.config.val_examples
+            num_val_ho=wandb.config.val_examples_ho#4192000
 
             wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE*3)},
                                 allow_val_change=True)
@@ -235,8 +248,8 @@ def main():
                     training_utils.return_distributed_iterators(wandb.config.gcs_path,
                                                                 wandb.config.gcs_path_val_ho,
                                                                 GLOBAL_BATCH_SIZE,
-                                                                196608,
-                                                                1536,
+                                                                wandb.config.input_length,
+                                                                wandb.config.atac_length_uncropped,
                                                                 128,
                                                                 wandb.config.max_shift,
                                                                 args.num_parallel,
@@ -252,14 +265,17 @@ def main():
             model = aformer.aformer(kernel_transformation=wandb.config.kernel_transformation,
                                     dropout_rate=wandb.config.dropout_rate,
                                     attention_dropout_rate=wandb.config.attention_dropout_rate,
-                                    input_length=196608,
-                                    atac_output_length=896,
+                                    input_length=wandb.config.input_length,
+                                    atac_length_uncropped=wandb.config.atac_length_uncropped,
+                                    atac_output_length=wandb.config.atac_output_length,
                                     num_heads=wandb.config.num_heads,
                                     numerical_stabilizer=0.0000001,
                                     nb_random_features=wandb.config.num_random_features,
                                     hidden_size=wandb.config.hidden_size,
                                     d_model=wandb.config.hidden_size,
                                     dim=wandb.config.dim,
+                                    max_seq_length=768,
+                                    rel_pos_bins=768,
                                     transformer_depth_1=wandb.config.transformer_depth_1,
                                     transformer_depth_2=wandb.config.transformer_depth_2,
                                     shared_transformer_depth=wandb.config.shared_transformer_depth,
@@ -267,7 +283,8 @@ def main():
                                     TF_inputs=wandb.config.TF_inputs,
                                     inits=inits,
                                     load_init=wandb.config.load_init,
-                                    freeze_conv_layers=wandb.config.freeze_conv_layers)
+                                    freeze_conv_layers=wandb.config.freeze_conv_layers,
+                                    filter_list=wandb.config.filter_list)
 
             scheduler= tf.keras.optimizers.schedules.CosineDecay(
                 initial_learning_rate=wandb.config.lr_base,
@@ -275,18 +292,20 @@ def main():
             scheduler=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps,
                                          decay_schedule_fn=scheduler)
-
+            """
             scheduler_wd= tf.keras.optimizers.schedules.CosineDecay(
                 initial_learning_rate=wandb.config.weight_decay_frac,
                 decay_steps=wandb.config.total_steps, alpha=0.0)
             scheduler_wd=optimizers.WarmUp(initial_learning_rate=wandb.config.weight_decay_frac,
                                          warmup_steps=int(wandb.config.warmup_frac*wandb.config.total_steps),
                                          decay_schedule_fn=scheduler)
+            """
 
-            optimizer = tfa.optimizers.AdamW(learning_rate=scheduler,
-                                             weight_decay=scheduler_wd)
+            optimizer = tf.keras.optimizers.Adam(learning_rate=scheduler)
             
             
+            crop_size = (wandb.config.atac_length_uncropped - \
+                             wandb.config.atac_output_length) // 2
             metric_dict = {}
             if wandb.config.use_tf_module:
                 train_step_atac, val_step_atac,\
@@ -302,6 +321,8 @@ def main():
                                                           wandb.config.val_steps_ho,
                                                           GLOBAL_BATCH_SIZE,
                                                           wandb.config.gradient_clip,
+                                                          wandb.config.atac_length_uncropped,
+                                                          crop_size,
                                                           rna_loss_scale=wandb.config.rna_loss_scale)
             else:
                 train_step_atac, val_step_atac,\
@@ -317,6 +338,8 @@ def main():
                                                                wandb.config.val_steps_ho,
                                                                GLOBAL_BATCH_SIZE,
                                                                wandb.config.gradient_clip,
+                                                              wandb.config.atac_length_uncropped,
+                                                              crop_size,
                                                                rna_loss_scale=wandb.config.rna_loss_scale)
 
 
