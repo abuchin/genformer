@@ -45,4 +45,7 @@ python3 train_model_aformer_TF_expression.py \
             --use_tf_module="True,False" \
             --rna_loss_scale="0.50" \
             --filter_list="192,224,256,288,320,384" \
-            --checkpoint_path="sonnet_weights"
+            --checkpoint_path="sonnet_weights" \
+            --tf_transformer_layers="2" \
+            --tf_heads="8" \
+            --tf_hidden_size="64"
