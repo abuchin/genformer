@@ -33,6 +33,9 @@ class aformer(tf.keras.Model):
                  pre_transf_channels: int = 128,
                  d_model = 128,
                  TF_inputs=128,
+                 tf_transformer_layers = 2,
+                 tf_hidden_size = 32,
+                 tf_heads=8,
                  norm=True,
                  dim = 32, 
                  max_seq_length = 1536,
@@ -84,6 +87,9 @@ class aformer(tf.keras.Model):
         self.freeze_conv_layers = freeze_conv_layers
         self.atac_length_uncropped=atac_length_uncropped
         self.tf_module_kernel=tf_module_kernel
+        self.tf_transformer_layers = tf_transformer_layers
+        self.tf_hidden_size=tf_hidden_size
+        self.tf_heads=tf_heads
         
         print(self.filter_list)
         
@@ -179,6 +185,9 @@ class aformer(tf.keras.Model):
         self.tf_module = tf_module(TF_inputs=self.TF_inputs,
                                    dropout_rate=self.dropout_rate,
                                    tf_module_kernel=self.tf_module_kernel,
+                                   num_layers=self.tf_transformer_layers,
+                                   hidden_size=self.tf_hidden_size,
+                                   num_heads=self.tf_heads,
                                    name='tf_module',
                                    **kwargs)
         

@@ -790,8 +790,8 @@ class tf_module(kl.Layer):
                  dropout_rate: float = 0.1,
                  num_layers: int = 4,
                  num_heads: int = 8,
-                 dim: int = 8,
-                 d_model: int = 64,
+                 #dim: int = 8,
+                 #d_model: int = 64,
                  norm: bool = True,
                  nb_random_features=256,
                  hidden_size=64,
@@ -817,8 +817,9 @@ class tf_module(kl.Layer):
         self.dropout_rate=dropout_rate
         self.num_layers=num_layers
         self.num_heads=num_heads
-        self.dim=dim
-        self.d_model=d_model
+        self.hidden_size=hidden_size
+        self.dim=hidden_size// num_heads
+        self.d_model=hidden_size
         self.norm=norm
         self.nb_random_features=nb_random_features
         self.numerical_stabilizer=numerical_stabilizer
@@ -828,7 +829,6 @@ class tf_module(kl.Layer):
         self.seed=seed
         self.conv1_dim=conv1_dim
         self.conv2_dim=conv2_dim
-        self.hidden_size=hidden_size
         
         self.batch_norm1 = syncbatchnorm(axis=-1,
                                         center=True,

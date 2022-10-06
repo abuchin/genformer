@@ -119,8 +119,17 @@ def main():
                 'tf_module_kernel': {
                     'values':[args.tf_module_kernel]
                 },
+                'tf_transformer_layers': {
+                    'values':[int(x) for x in args.tf_transformer_layers.split(',')]
+                },
+                'tf_hidden_size': {
+                    'values':[int(x) for x in args.tf_hidden_size.tf_transformer_layers.split(',')]
+                },
+                'tf_heads': {
+                    'values':[int(x) for x in args.tf_heads.tf_transformer_layers.split(',')]
+                },
                 'dim': {
-                    'values':[args.dim]
+                    'values':[args.dim.split(',')]
                 },
                 'epsilon': {
                     'values':[args.epsilon]
@@ -290,7 +299,11 @@ def main():
                                     inits=inits,
                                     load_init=wandb.config.load_init,
                                     freeze_conv_layers=wandb.config.freeze_conv_layers,
-                                    filter_list=wandb.config.filter_list)
+                                    filter_list=wandb.config.filter_list,
+                                    tf_transformer_layers=wandb.config.tf_transformer_layers,
+                                    tf_hidden_size=wandb.config.tf_hidden_size,
+                                    tf_heads=wandb.config.tf_heads)
+
 
             scheduler= tf.keras.optimizers.schedules.CosineDecay(
                 initial_learning_rate=wandb.config.lr_base,

@@ -1491,6 +1491,23 @@ def parse_args(parser):
                         dest='TF_inputs',
                         type=str,
                         help= 'TF_inputs')
+    parser.add_argument('--tf_transformer_layers',
+                        dest='tf_transformer_layers',
+                        type=str,
+                        help= 'tf_transformer_layers')
+    parser.add_argument('--tf_hidden_size',
+                        dest='tf_hidden_size',
+                        type=str,
+                        help= 'tf_hidden_size')
+    parser.add_argument('--tf_hidden_size',
+                        dest='tf_hidden_size',
+                        type=str,
+                        help= 'tf_hidden_size')
+    parser.add_argument('--tf_heads',
+                        dest='tf_heads',
+                        type=str,
+                        help= 'tf_heads')
+
     parser.add_argument('--filter_list',
                         dest='filter_list',
                         default="192,224,256,288,320,384",
