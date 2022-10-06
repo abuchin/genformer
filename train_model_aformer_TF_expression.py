@@ -304,7 +304,7 @@ def main():
 
             scheduler= tf.keras.optimizers.schedules.CosineDecay(
                 initial_learning_rate=wandb.config.lr_base,
-                decay_steps=wandb.config.total_steps, alpha=0.10)
+                decay_steps=wandb.config.total_steps, alpha=1.0)
             scheduler=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps,
                                          decay_schedule_fn=scheduler)
