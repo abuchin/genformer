@@ -321,7 +321,6 @@ class Performer(kl.Layer):
                                                    attention_dropout=self.attention_dropout,
                                                    use_rot_emb=self.use_rot_emb,
                                                    use_mask_pos=self.use_mask_pos,
-                                                   max_seq_length=self.max_seq_length,
                                                    normalize=self.normalize,
                                                    kernel_transformation=self.kernel_transformation,
                                                    numerical_stabilizer=self.numerical_stabilizer,
@@ -393,7 +392,6 @@ class Performer_Encoder(kl.Layer):
                  hidden_size,
                  numerical_stabilizer,
                  attention_dropout = .1,
-                 num_realization=1,
                  rel_pos_bins=None,
                  use_rot_emb=False,
                  use_mask_pos=False,
@@ -429,7 +427,6 @@ class Performer_Encoder(kl.Layer):
         self.max_seq_length=max_seq_length
         self.nb_random_features=nb_random_features
         self.attention_dropout=attention_dropout
-        self.num_realization=num_realization
         self.numerical_stabilizer=numerical_stabilizer
         self.rel_pos_bins=rel_pos_bins#None#rel_pos_bins
         self.use_rot_emb=use_rot_emb
@@ -496,7 +493,6 @@ class Performer_Encoder(kl.Layer):
             "dim":self.dim,
             "d_model":self.d_model,
             "max_seq_length":self.max_seq_length,
-            "num_realization":self.num_realization,
             "rel_pos_bins":self.rel_pos_bins,
             "use_rot_emb":self.use_rot_emb,
             "use_mask_pos":self.use_mask_pos,
@@ -790,8 +786,22 @@ class output_head_atac(kl.Layer):
 @tf.keras.utils.register_keras_serializable()
 class tf_module(kl.Layer):
     def __init__(self,
-                 TF_inputs: int = 128,
+                 TF_inputs: int = 96,
                  dropout_rate: float = 0.1,
+                 num_layers: int = 4,
+                 num_heads: int = 8,
+                 dim: int = 8,
+                 d_model: int = 64,
+                 norm: bool = True,
+                 nb_random_features=256,
+                 hidden_size=64,
+                 numerical_stabilizer=1.0e-08,
+                 attention_dropout_rate=0.15,
+                 tf_module_kernel='softmax_kernel_transformation',
+                 normalize=True, 
+                 seed = 5,
+                 conv1_dim=1536,
+                 conv2_dim=64,
                  name: str = 'headmodule_block',
                  **kwargs):
         """Enformer style conv stack block
@@ -805,21 +815,85 @@ class tf_module(kl.Layer):
         super().__init__(name=name, **kwargs)
         self.TF_inputs=TF_inputs
         self.dropout_rate=dropout_rate
+        self.num_layers=num_layers
+        self.num_heads=num_heads
+        self.dim=dim
+        self.d_model=d_model
+        self.norm=norm
+        self.nb_random_features=nb_random_features
+        self.numerical_stabilizer=numerical_stabilizer
+        self.attention_dropout_rate=attention_dropout_rate
+        self.tf_module_kernel=tf_module_kernel
+        self.normalize=normalize
+        self.seed=seed
+        self.conv1_dim=conv1_dim
+        self.conv2_dim=conv2_dim
+        self.hidden_size=hidden_size
         
-        self.dense_1 = kl.Dense(units=self.TF_inputs,
+        self.batch_norm1 = syncbatchnorm(axis=-1,
+                                        center=True,
+                                        scale=True,
+                                        beta_initializer="zeros",
+                                        gamma_initializer="ones",
+                                        **kwargs)
+        self.conv1 = kl.Conv1D(filters = self.conv1_dim,
+                              kernel_size = 1,
+                              strides=1,
+                               data_format='channels_first',
+                              padding='same',
+                              kernel_initializer=tf.keras.initializers.GlorotUniform())
+        self.batch_norm2 = syncbatchnorm(axis=-1,
+                                        center=True,
+                                        scale=True,
+                                        beta_initializer="zeros",
+                                        gamma_initializer="ones",
+                                        **kwargs)
+        self.conv2 = kl.Conv1D(filters = self.conv2_dim,
+                              kernel_size = 1,
+                              strides=1,
+                              padding='same',
+                               data_format='channels_last',
+                              kernel_initializer=tf.keras.initializers.GlorotUniform())
+        
+        self.flatten = kl.Flatten(data_format = 'channels_last')
+        
+        self.dense_2 = kl.Dense(units=self.TF_inputs,
                                 use_bias=False)
-        self.dense_2 = kl.Dense(units=self.TF_inputs // 2,
-                                use_bias=False)
-        self.dense_3 = kl.Dense(units=self.TF_inputs // 4,
+        self.dense_3 = kl.Dense(units=self.TF_inputs // 8,
                                 use_bias=False)
         self.gelu = tfa.layers.GELU()
         self.dropout = kl.Dropout(rate=self.dropout_rate,
                                   **kwargs)
+        
+        self.TF_transformer = Performer_Encoder_noPE(num_layers=self.num_layers,
+                                                     num_heads=self.num_heads,
+                                                     nb_random_features=self.nb_random_features,
+                                                     numerical_stabilizer=self.numerical_stabilizer,
+                                                     attention_dropout=self.attention_dropout_rate,
+                                                     kernel_transformation=self.tf_module_kernel,
+                                                     normalize=self.normalize,
+                                                     d_model=self.d_model,
+                                                     dim=self.dim,
+                                                     hidden_size=self.hidden_size,
+                                                     seed = self.seed,
+                                                     name = 'shared_transformer',
+                                                     **kwargs)
 
     def get_config(self):
         config = {
-            "TF_inputs":self.TF_inputs,
-            "dropout_rate":self.dropout_rate
+            "TF_inputs": self.TF_inputs,
+            "dropout_rate": self.dropout_rate,
+            "num_layers": self.num_layers,
+            "num_heads": self.num_heads,
+            "dim" : self.dim,
+            "d_model": self.d_model,
+            "norm" : self.norm,
+            "nb_random_features": self.nb_random_features,
+            "hidden_size" : self.hidden_size,
+            "numerical_stabilizer" : self.numerical_stabilizer,
+            "attention_dropout" : self.attention_dropout,
+            "kernel_transformation" : self.kernel_transformation,
+            "normalize": self.normalize
             
         }
         base_config = super().get_config()
@@ -831,15 +905,230 @@ class tf_module(kl.Layer):
         return cls(**config)
     
     def call(self, inputs, training=None):
-        x = self.dense_1(inputs,training=training)
+        x = tf.expand_dims(inputs,
+                           axis=2)
+        x = self.conv1(x,
+                       training=training)
+
         x = self.gelu(x)
-        x = self.dropout(x,training=training)
-        x = self.dense_2(x,training=training)
+        x = self.batch_norm1(x,
+                             training=training)
+        x = self.conv2(x,
+                       training=training)
         x = self.gelu(x)
-        x = self.dropout(x,training=training)
-        x = self.dense_3(x,training=training)
+        x = self.batch_norm2(x,training=training)
+        
+        x,tf_att_matrices = self.TF_transformer(x,
+                                training=training)
+        x = self.flatten(x,
+                         training=training)
+        x = self.dropout(x,
+                         training=training)
+        x = self.dense_2(x,
+                         training=training)
         x = self.gelu(x)
-        x = self.dropout(x,training=training)
-        return x
+        x = self.dropout(x,
+                         training=training)
+        x = self.dense_3(x,
+                         training=training)
+        x = self.gelu(x)
+        x = self.dropout(x,
+                         training=training)
+        return x,tf_att_matrices
 
     
+@tf.keras.utils.register_keras_serializable()
+class Performer_Encoder_noPE(kl.Layer):
+    def __init__(self,
+                 num_layers,
+                 num_heads=4,
+                 dim=8,
+                 d_model=32,
+                 nb_random_features=256,
+                 hidden_size=32,
+                 numerical_stabilizer=1.0e-10,
+                 attention_dropout = .1,
+                 normalize=True,
+                 norm=True,
+                 seed=42,
+                 kernel_transformation: str = 'softmax_kernel_transformation',
+                 name = 'performer_stack',
+                 **kwargs):
+        
+        
+        super().__init__(name=name, **kwargs)
+        """Performer Encoder block
+        Args:
+            hidden size: ~channel dimension for transformer input
+            num_heads: num attention heads
+            attention_dropout: post attention layer dropout rate
+            numerical_stabilizer: small float for stability
+            nb_random_features: dim for projection matrix
+            widening: scaling factor for how many channels to start w/
+                      e.g. widening = 2, num_channels = 12 means start w/ 24
+            dropout_rate: transformer MLP dropout rate
+            dropout_rate: dropout rate used throughout network
+            kernel_transformation: softmax or relu kernel transform for fast att.
+            positional_encoding_type: absolute sinusoidal or relative(rotary)
+            name: Module name.
+        """
+        self.num_layers=num_layers
+        self.num_heads=num_heads
+        self.dim=dim
+        self.hidden_size=hidden_size
+        self.d_model=d_model
+        self.nb_random_features=nb_random_features
+        self.attention_dropout=attention_dropout
+        self.numerical_stabilizer=numerical_stabilizer
+        self.normalize=normalize
+        self.norm=norm
+        self.kernel_transformation=kernel_transformation
+        self.seed=seed
+        
+        self.layers = [Performer_nope(d_model=self.d_model, 
+                                 normalize=self.normalize,
+                                 hidden_size=self.hidden_size,
+                                 num_heads=self.num_heads, 
+                                 attention_dropout=self.attention_dropout, 
+                                 numerical_stabilizer=self.numerical_stabilizer,
+                                 nb_random_features=self.nb_random_features,
+                                 kernel_transformation=self.kernel_transformation,
+                                 seed=self.seed,
+                                 **kwargs) for i in range(self.num_layers)]
+        
+        self.layer_norm = kl.LayerNormalization(axis=-1,
+                                                  scale=True,
+                                                  center=True,
+                                                  beta_initializer="zeros",
+                                                  gamma_initializer="ones")
+        
+
+    
+    def get_config(self):
+        config = {
+            "hidden_size":self.hidden_size,
+            "num_heads":self.num_heads,
+            "attention_dropout":self.attention_dropout,
+            "numerical_stabilizer":self.numerical_stabilizer,
+            "nb_random_features":self.nb_random_features,
+            "kernel_transformation":self.kernel_transformation,
+            "num_layers":self.num_layers,
+            "dim":self.dim,
+            "d_model":self.d_model,
+            "normalize":self.normalize,
+            "norm":self.norm,
+            "seed":self.seed
+        }
+
+        base_config = super().get_config()
+        return{**base_config, **config}
+    
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+    
+    def call(self, x, training=None, **kwargs):
+        att_matrices={}
+        x = self.layer_norm(x)
+            
+        for idx,layer in enumerate(self.layers):
+            x,k_prime,q_prime = layer(x, training=training)
+            att_matrices['layer_' + str(idx)] = (k_prime,q_prime)
+            
+        return x,att_matrices
+    
+    
+@tf.keras.utils.register_keras_serializable()
+class Performer_nope(kl.Layer):
+    def __init__(self,
+                 d_model,
+                 normalize,
+                 hidden_size: int,
+                 num_heads: int,
+                 seed: int,
+                 attention_dropout: float,
+                 numerical_stabilizer: float,
+                 nb_random_features: int,
+                 kernel_transformation: str = 'relu_kernel_transformation',
+                 name = 'transformer_layer',
+                 **kwargs):
+        super().__init__(name=name, **kwargs)
+        """Transformer block w/ performer attention
+        Args:
+            hidden size: ~channel dimension for transformer input
+            num_heads: num attention heads
+            attention_dropout: post attention layer dropout rate
+            numerical_stabilizer: small float for stability
+            nb_random_features: dim for projection matrix
+            widening: scaling factor for how many channels to start w/
+                      e.g. widening = 2, num_channels = 12 means start w/ 24
+            dropout_rate: transformer MLP dropout rate
+            kernel_transformation: softmax or relu kernel transform for fast att.
+            positional_encoding_type: absolute sinusoidal or relative(rotary)
+            name: Module name.
+        """
+        self.hidden_size=hidden_size
+        self.num_heads=num_heads
+        self.attention_dropout=attention_dropout
+        self.kernel_transformation=kernel_transformation 
+        self.numerical_stabilizer=numerical_stabilizer
+        self.nb_random_features=nb_random_features
+        self.d_model=d_model
+        self.normalize=normalize
+        self.seed=seed
+        
+        
+        self.layer_norm = kl.LayerNormalization(axis=-1,
+                                                  scale=True,
+                                                  center=True,
+                                                  beta_initializer="zeros",
+                                                  gamma_initializer="ones")
+        self.self_attention = fa_rpe.Attention(hidden_size=self.d_model,
+                                                   num_heads=self.num_heads,
+                                                   nb_random_features=self.nb_random_features,
+                                                   attention_dropout=self.attention_dropout,
+                                                   use_rot_emb=False,
+                                                   use_mask_pos=False,
+                                                   normalize=self.normalize,
+                                                   kernel_transformation=self.kernel_transformation,
+                                                   numerical_stabilizer=self.numerical_stabilizer,
+                                                   seed=self.seed,
+                                                   **kwargs)
+        self.dropout = kl.Dropout(rate=self.attention_dropout,**kwargs)
+        self.FFN = FFN(num_channels=self.hidden_size,
+                       dropout_rate=self.attention_dropout,
+                       name='FFN',
+                       **kwargs)         
+    
+    def get_config(self):
+        config = {
+            "hidden_size":self.hidden_size,
+            "num_heads":self.num_heads,
+            "attention_dropout":self.attention_dropout,
+            "numerical_stabilizer":self.numerical_stabilizer,
+            "nb_random_features":self.nb_random_features,
+            "kernel_transformation":self.kernel_transformation,
+            "d_model":self.d_model,
+            "normalize":self.normalize,
+            "seed":self.seed
+        }
+        base_config = super().get_config()
+        return{**base_config, **config}
+    
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+    
+    def call(self, inputs, rpe=None, training=None, **kwargs):
+        x = self.layer_norm(inputs)
+        x, k_prime, q_prime = self.self_attention(tf.cast(x,dtype=tf.float32),
+                                                  tf.cast(x,dtype=tf.float32),
+                                                  rpe=None,
+                                                  **kwargs)
+
+        x = self.dropout(x, training=training)
+
+        mha_output = x + inputs
+        ## ffn
+        FFN_out = self.FFN(mha_output,training=training,**kwargs)
+        return self.layer_norm(FFN_out + mha_output), k_prime, q_prime
