@@ -456,12 +456,12 @@ def main():
             print('saving model at: epoch ' + str(epoch_i))
             print('best model was at: epoch ' + str(best_epoch))
             model.save_weights(wandb.config.model_save_dir + "/" + wandb.config.model_save_basename + "_" + wandb.run.name + "/final/saved_model")
-            file_name = wandb.config.model_save_basename + "." + str(epoch_i) + ".val.out.tsv"
-            df = pd.DataFrame({'y_trues_ho':y_trues_ho, 'y_preds_ho':y_preds_ho,
-                                    'cell_types_ho': cell_types_ho, 'gene_map_ho': gene_map_ho})
-            df.to_csv(file_name, sep='\t',header=True,index=False)
-            command = "gsutil cp " + file_name + " " + wandb.config.model_save_dir
-            subprocess.call(command,shell=True)
+            #file_name = wandb.config.model_save_basename + "." + str(epoch_i) + ".val.out.tsv"
+            #df = pd.DataFrame({'y_trues':y_trues, 'y_preds_ho':y_preds_ho,
+            #                        'cell_types_ho': cell_types_ho, 'gene_map_ho': gene_map_ho})
+            #df.to_csv(file_name, sep='\t',header=True,index=False)
+            #command = "gsutil cp " + file_name + " " + wandb.config.model_save_dir
+            #subprocess.call(command,shell=True)
 
     sweep_id = wandb.sweep(sweep_config, project=args.wandb_project)
     wandb.agent(sweep_id, function=sweep_train)
