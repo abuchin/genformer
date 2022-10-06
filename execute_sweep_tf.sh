@@ -22,8 +22,8 @@ python3 train_model_aformer_TF_expression.py \
             --min_delta=0.001 \
             --model_save_dir="gs://picard-testing-176520/seqtoatac_98k_73kstride_blacklist0.25/models" \
             --model_save_basename="aformer_TF_ATAC" \
-            --lr_base="2.5e-04" \
-            --gradient_clip="10.0" \
+            --lr_base="1.0e-04" \
+            --gradient_clip="1.0" \
             --epsilon=1.0e-14 \
             --transformer_depth_1="4" \
             --transformer_depth_2="4" \
@@ -35,8 +35,8 @@ python3 train_model_aformer_TF_expression.py \
             --num_random_features="384" \
             --hidden_size="384" \
             --dim=48 \
-            --kernel_transformation="softmax_kernel_transformation" \
-            --tf_module_kernel="softmax_kernel_transformation" \
+            --kernel_transformation="relu_kernel_transformation" \
+            --tf_module_kernel="relu_kernel_transformation" \
             --savefreq=10 \
             --TF_inputs=96 \
             --train_mode="atac_only" \
