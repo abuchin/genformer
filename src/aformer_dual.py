@@ -17,6 +17,7 @@ SEQUENCE_LENGTH=65536
 class aformer(tf.keras.Model):
     def __init__(self,
                  kernel_transformation = 'relu_kernel_transformation',
+                 tf_module_kernel = 'relu_kernel_transformation',
                  dropout_rate: float = 0.2,
                  attention_dropout_rate: float = 0.05,
                  input_length: int = 196608,
@@ -36,7 +37,6 @@ class aformer(tf.keras.Model):
                  dim = 32, 
                  max_seq_length = 1536,
                  rel_pos_bins=1536, 
-                 kernel_size=None, 
                  use_rot_emb = True,
                  use_mask_pos = False, 
                  normalize = True,
@@ -83,6 +83,7 @@ class aformer(tf.keras.Model):
         self.filter_list = [768, 896, 1024, 1152, 1280, 1536] if self.load_init else filter_list
         self.freeze_conv_layers = freeze_conv_layers
         self.atac_length_uncropped=atac_length_uncropped
+        self.tf_module_kernel=tf_module_kernel
         
         print(self.filter_list)
         
@@ -177,6 +178,7 @@ class aformer(tf.keras.Model):
         ### conv stack for atac inputs
         self.tf_module = tf_module(TF_inputs=self.TF_inputs,
                                    dropout_rate=self.dropout_rate,
+                                   tf_module_kernel=self.tf_module_kernel,
                                    name='tf_module',
                                    **kwargs)
         
@@ -212,7 +214,7 @@ class aformer(tf.keras.Model):
                                                    normalize=self.normalize, seed = self.seed,
                                                      name = 'shared_transformer',
                                                      **kwargs)
-
+        
 
         
         self.transformer_stack_1 = Performer_Encoder(num_layers=self.transformer_depth_1,
@@ -272,11 +274,14 @@ class aformer(tf.keras.Model):
         sequence, TSSs, exons, tf_inputs, atac, target = inputs
         x = self.stem_conv(sequence,
                            training=training)
-        x = self.stem_res_conv(x,training=training)
-        x = self.stem_pool(x,training=training)
-        enformer_conv_out = self.conv_tower(x,training=training)
+        x = self.stem_res_conv(x,
+                               training=training)
+        x = self.stem_pool(x,
+                           training=training)
+        enformer_conv_out = self.conv_tower(x,
+                                            training=training)
 
-        tf_processed = self.tf_module(tf_inputs, 
+        tf_processed,tf_att_matrices = self.tf_module(tf_inputs, 
                                       training=training)
         tf_processed = tf.expand_dims(tf_processed, 
                                       axis=1)
@@ -288,7 +293,7 @@ class aformer(tf.keras.Model):
         enformer_conv_out = tf.concat([enformer_conv_out,
                                        tf_processed],axis=2)
         enformer_conv_out = self.dim_reduce_block(enformer_conv_out,
-                                                   training=training)
+                                                  training=training)
         enformer_conv_out = self.sin_pe1(enformer_conv_out)
         shared_transformer_out,att_matrices_shared = self.shared_transformer(enformer_conv_out,
                                                                              training=training)
@@ -358,7 +363,6 @@ class aformer(tf.keras.Model):
             "dim":self.dim,
             "max_seq_length":self.max_seq_length,
             "rel_pos_bins":self.rel_pos_bins,
-            "kernel_size":self.kernel_size,
             "use_rot_emb":self.use_rot_emb,
             "use_mask_pos":self.use_mask_pos,
             "normalize":self.normalize,

@@ -257,7 +257,6 @@ def return_train_val_functions(model,
             atac=tf.cast(atac,dtype=tf.float32)
             
             cell_type = inputs['cell_type']
-            gene_map = inputs['gene_encoded']
 
             atac_out,rna_out = model(input_tuple,
                                      atac_train=True,
@@ -579,7 +578,7 @@ def return_train_val_functions_notf(model,
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             exons=tf.ones_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
-            input_tuple = sequence,tss_tokens,exons, TF_expression, atac,target
+            input_tuple = sequence,tss_tokens,exons, TF_expression, atac, target
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             with tf.GradientTape() as tape:
                 atac_out,rna_out = model(input_tuple,
@@ -638,7 +637,7 @@ def return_train_val_functions_notf(model,
             
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             cell_type = inputs['cell_type']
-            gene_map = inputs['gene_encoded']
+
 
             atac_out,rna_out = model(input_tuple,
                                      atac_train=True,
@@ -891,7 +890,8 @@ def return_train_val_functions_notf(model,
             dist_train_step_rna,dist_val_step_rna,\
                 dist_train_step_both,dist_val_step_both, metric_dict
 
-def deserialize(serialized_example,input_length, output_length,output_res,
+def deserialize(serialized_example,input_length, 
+                output_length,output_res,
                 num_TFs,max_shift):
     """
     Deserialize bytes stored in TFRecordFile.
@@ -905,8 +905,12 @@ def deserialize(serialized_example,input_length, output_length,output_res,
         'tss_tokens': tf.io.FixedLenFeature([], tf.string)
     }
     
+    #print(feature_map)
+    
+    
+    
     data = tf.io.parse_example(serialized_example, feature_map)
-
+    #print(data)
     ### stochastic sequence shift and gaussian noise
     shift = random.randrange(0,max_shift,1)
     input_seq_length = input_length + max_shift
@@ -1139,15 +1143,16 @@ def return_dataset_val(gcs_path,
     return dataset.repeat(num_epoch).batch(batch, drop_remainder=True).prefetch(1)
 
 def deserialize_atac(serialized_example,input_length, 
-output_length,output_res,
-                num_TFs,max_shift):
+                     output_length,output_res,
+                     num_TFs,max_shift):
     """
     Deserialize bytes stored in TFRecordFile.
     """
     feature_map = {
         'atac': tf.io.FixedLenFeature([], tf.string),
         'sequence': tf.io.FixedLenFeature([],tf.string),
-        'TF_expression': tf.io.FixedLenFeature([], tf.string)
+        'TF_expression': tf.io.FixedLenFeature([], tf.string),
+        'cell_type': tf.io.FixedLenFeature([],tf.string)
     }
     
     data = tf.io.parse_example(serialized_example, feature_map)
@@ -1187,6 +1192,7 @@ output_length,output_res,
                                                                  stddev=2.5e-01,
                                                                  dtype=tf.float32))
     
+    
     return {
         'sequence': tf.ensure_shape(sequence,[input_length,4]),
         'atac': tf.ensure_shape(atac, [output_length,1]),
@@ -1216,13 +1222,13 @@ def return_dataset_atac(gcs_path,
     list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
                                                 split,
                                                 wc)))
-
     random.shuffle(list_files)
     files = tf.data.Dataset.list_files(list_files)
 
     dataset = tf.data.TFRecordDataset(files,
                                       compression_type='ZLIB',
                                       num_parallel_reads=num_parallel)
+
     dataset = dataset.with_options(options)
 
     dataset = dataset.map(lambda record: deserialize_atac(record,
@@ -1258,6 +1264,7 @@ def return_distributed_iterators(gcs_path,
         data_it_val_list = []
         if data_type == 'atac_only':
             num_tf = 1637
+            
             tr_data = return_dataset_atac(gcs_path,
                                     "train", "hg", 
                                     global_batch_size,
@@ -1325,7 +1332,6 @@ def return_distributed_iterators(gcs_path,
 
             data_it_tr_list.append(tr_data_it)
             data_it_val_list.append(val_data_it)
-
 
     return tr_data_it, val_data_it
 
@@ -1525,6 +1531,9 @@ def parse_args(parser):
     parser.add_argument('--kernel_transformation',
                         dest='kernel_transformation',
                         help= 'kernel_transformation')
+    parser.add_argument('--tf_module_kernel',
+                        dest='tf_module_kernel',
+                        help= 'tf_module_kernel')
     parser.add_argument('--hidden_size',
                         dest='hidden_size',
                         type=str,

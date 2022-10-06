@@ -116,6 +116,9 @@ def main():
                 'kernel_transformation': {
                     'values':[args.kernel_transformation]
                 },
+                'tf_module_kernel': {
+                    'values':[args.tf_module_kernel]
+                },
                 'dim': {
                     'values':[args.dim]
                 },
@@ -223,7 +226,7 @@ def main():
             num_val=wandb.config.val_examples
             num_val_ho=wandb.config.val_examples_ho#4192000
 
-            wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE*3)},
+            wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE*4)},
                                 allow_val_change=True)
             wandb.config.update({"val_steps" : num_val // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
@@ -265,6 +268,7 @@ def main():
                 inits=None
 
             model = aformer.aformer(kernel_transformation=wandb.config.kernel_transformation,
+                                    tf_module_kernel=wandb.config.tf_module_kernel,
                                     dropout_rate=wandb.config.dropout_rate,
                                     attention_dropout_rate=wandb.config.attention_dropout_rate,
                                     input_length=wandb.config.input_length,
@@ -294,14 +298,7 @@ def main():
             scheduler=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps,
                                          decay_schedule_fn=scheduler)
-            """
-            scheduler_wd= tf.keras.optimizers.schedules.CosineDecay(
-                initial_learning_rate=wandb.config.weight_decay_frac,
-                decay_steps=wandb.config.total_steps, alpha=0.0)
-            scheduler_wd=optimizers.WarmUp(initial_learning_rate=wandb.config.weight_decay_frac,
-                                         warmup_steps=int(wandb.config.warmup_frac*wandb.config.total_steps),
-                                         decay_schedule_fn=scheduler)
-            """
+
 
             optimizer = tf.keras.optimizers.Adam(learning_rate=scheduler)
             
