@@ -219,7 +219,7 @@ def main():
             options.experimental_distribute.auto_shard_policy=\
                 tf.data.experimental.AutoShardPolicy.FILE
             options.deterministic=False
-            options.experimental_threading.max_intra_op_parallelism=1
+            #options.experimental_threading.max_intra_op_parallelism=1
             mixed_precision.set_global_policy('mixed_bfloat16')
             #options.experimental_slack = True
 
@@ -352,6 +352,7 @@ def main():
                                                               crop_size,
                                                               wandb.config.batch_size,
                                                                rna_loss_scale=wandb.config.rna_loss_scale)
+                
 
 
             global_step = 0
