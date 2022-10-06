@@ -1499,15 +1499,10 @@ def parse_args(parser):
                         dest='tf_hidden_size',
                         type=str,
                         help= 'tf_hidden_size')
-    parser.add_argument('--tf_hidden_size',
-                        dest='tf_hidden_size',
-                        type=str,
-                        help= 'tf_hidden_size')
     parser.add_argument('--tf_heads',
                         dest='tf_heads',
                         type=str,
                         help= 'tf_heads')
-
     parser.add_argument('--filter_list',
                         dest='filter_list',
                         default="192,224,256,288,320,384",

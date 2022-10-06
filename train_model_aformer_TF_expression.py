@@ -123,13 +123,10 @@ def main():
                     'values':[int(x) for x in args.tf_transformer_layers.split(',')]
                 },
                 'tf_hidden_size': {
-                    'values':[int(x) for x in args.tf_hidden_size.tf_transformer_layers.split(',')]
+                    'values':[int(x) for x in args.tf_hidden_size.split(',')]
                 },
                 'tf_heads': {
-                    'values':[int(x) for x in args.tf_heads.tf_transformer_layers.split(',')]
-                },
-                'dim': {
-                    'values':[args.dim.split(',')]
+                    'values':[int(x) for x in args.tf_heads.split(',')]
                 },
                 'epsilon': {
                     'values':[args.epsilon]
@@ -288,7 +285,7 @@ def main():
                                     nb_random_features=wandb.config.num_random_features,
                                     hidden_size=wandb.config.hidden_size,
                                     d_model=wandb.config.hidden_size,
-                                    dim=wandb.config.dim,
+                                    dim=wandb.config.hidden_size // wandb.config.num_heads,
                                     max_seq_length=768,
                                     rel_pos_bins=768,
                                     transformer_depth_1=wandb.config.transformer_depth_1,
