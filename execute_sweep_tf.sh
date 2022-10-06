@@ -30,7 +30,7 @@ python3 train_model_aformer_TF_expression.py \
             --shared_transformer_depth="4" \
             --pre_transf_channels="384" \
             --dropout_rate="0.30" \
-            --attention_dropout_rate="0.20" \
+            --attention_dropout_rate="0.30" \
             --num_heads="8" \
             --num_random_features="384" \
             --hidden_size="384" \

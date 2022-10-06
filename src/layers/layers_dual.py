@@ -854,15 +854,25 @@ class tf_module(kl.Layer):
                               padding='same',
                                data_format='channels_last',
                               kernel_initializer=tf.keras.initializers.GlorotUniform())
-        
-        self.flatten = kl.Flatten(data_format = 'channels_last')
+        self.batch_norm3 = syncbatchnorm(axis=-1,
+                                        center=True,
+                                        scale=True,
+                                        beta_initializer="zeros",
+                                        gamma_initializer="ones",
+                                         **kwargs)
+        self.conv3 = kl.Conv1D(filters = 1,
+                              kernel_size = 1,
+                              strides=1,
+                              padding='same',
+                               data_format='channels_last',
+                              kernel_initializer=tf.keras.initializers.GlorotUniform())
         
         self.dense_2 = kl.Dense(units=self.TF_inputs,
                                 use_bias=False)
         self.dense_3 = kl.Dense(units=self.TF_inputs // 8,
                                 use_bias=False)
         self.gelu = tfa.layers.GELU()
-        self.dropout = kl.Dropout(rate=self.dropout_rate,
+        self.dropout = kl.Dropout(rate=self.dropout_rate / 2.0,
                                   **kwargs)
         
         self.TF_transformer = Performer_Encoder_noPE(num_layers=self.num_layers,
@@ -919,11 +929,16 @@ class tf_module(kl.Layer):
         x = self.batch_norm2(x,training=training)
         
         x,tf_att_matrices = self.TF_transformer(x,
-                                training=training)
-        x = self.flatten(x,
-                         training=training)
+                                                training=training)
+        x = self.conv3(x,
+                       training=training)
+        x = self.gelu(x)
+        x = self.batch_norm3(x,training=training)
+                                                
         x = self.dropout(x,
                          training=training)
+        x = tf.squeeze(x,axis=2)
+                                                
         x = self.dense_2(x,
                          training=training)
         x = self.gelu(x)
