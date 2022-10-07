@@ -17,7 +17,6 @@ SEQUENCE_LENGTH=65536
 class aformer(tf.keras.Model):
     def __init__(self,
                  kernel_transformation = 'relu_kernel_transformation',
-                 tf_module_kernel = 'relu_kernel_transformation',
                  dropout_rate: float = 0.2,
                  attention_dropout_rate: float = 0.05,
                  input_length: int = 196608,
@@ -33,9 +32,6 @@ class aformer(tf.keras.Model):
                  pre_transf_channels: int = 128,
                  d_model = 128,
                  TF_inputs=128,
-                 tf_transformer_layers = 2,
-                 tf_hidden_size = 32,
-                 tf_heads=8,
                  norm=True,
                  dim = 32, 
                  max_seq_length = 1536,
@@ -86,10 +82,6 @@ class aformer(tf.keras.Model):
         self.filter_list = [768, 896, 1024, 1152, 1280, 1536] if self.load_init else filter_list
         self.freeze_conv_layers = freeze_conv_layers
         self.atac_length_uncropped=atac_length_uncropped
-        self.tf_module_kernel=tf_module_kernel
-        self.tf_transformer_layers = tf_transformer_layers
-        self.tf_hidden_size=tf_hidden_size
-        self.tf_heads=tf_heads
         
         print(self.filter_list)
         
@@ -184,10 +176,6 @@ class aformer(tf.keras.Model):
         ### conv stack for atac inputs
         self.tf_module = tf_module(TF_inputs=self.TF_inputs,
                                    dropout_rate=self.dropout_rate,
-                                   tf_module_kernel=self.tf_module_kernel,
-                                   num_layers=self.tf_transformer_layers,
-                                   hidden_size=self.tf_hidden_size,
-                                   num_heads=self.tf_heads,
                                    name='tf_module',
                                    **kwargs)
         
@@ -290,7 +278,7 @@ class aformer(tf.keras.Model):
         enformer_conv_out = self.conv_tower(x,
                                             training=training)
 
-        tf_processed,tf_att_matrices = self.tf_module(tf_inputs, 
+        tf_processed = self.tf_module(tf_inputs, 
                                       training=training)
         tf_processed = tf.expand_dims(tf_processed, 
                                       axis=1)
@@ -301,6 +289,7 @@ class aformer(tf.keras.Model):
         
         enformer_conv_out = tf.concat([enformer_conv_out,
                                        tf_processed],axis=2)
+
         enformer_conv_out = self.dim_reduce_block(enformer_conv_out,
                                                   training=training)
         enformer_conv_out = self.sin_pe1(enformer_conv_out)

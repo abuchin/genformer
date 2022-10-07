@@ -786,22 +786,8 @@ class output_head_atac(kl.Layer):
 @tf.keras.utils.register_keras_serializable()
 class tf_module(kl.Layer):
     def __init__(self,
-                 TF_inputs: int = 96,
+                 TF_inputs: int = 128,
                  dropout_rate: float = 0.1,
-                 num_layers: int = 4,
-                 num_heads: int = 8,
-                 #dim: int = 8,
-                 #d_model: int = 64,
-                 norm: bool = True,
-                 nb_random_features=256,
-                 hidden_size=64,
-                 numerical_stabilizer=1.0e-08,
-                 attention_dropout_rate=0.15,
-                 tf_module_kernel='softmax_kernel_transformation',
-                 normalize=True, 
-                 seed = 5,
-                 conv1_dim=1536,
-                 conv2_dim=64,
                  name: str = 'headmodule_block',
                  **kwargs):
         """Enformer style conv stack block
@@ -815,95 +801,21 @@ class tf_module(kl.Layer):
         super().__init__(name=name, **kwargs)
         self.TF_inputs=TF_inputs
         self.dropout_rate=dropout_rate
-        self.num_layers=num_layers
-        self.num_heads=num_heads
-        self.hidden_size=hidden_size
-        self.dim=hidden_size// num_heads
-        self.d_model=hidden_size
-        self.norm=norm
-        self.nb_random_features=nb_random_features
-        self.numerical_stabilizer=numerical_stabilizer
-        self.attention_dropout_rate=attention_dropout_rate
-        self.tf_module_kernel=tf_module_kernel
-        self.normalize=normalize
-        self.seed=seed
-        self.conv1_dim=conv1_dim
-        self.conv2_dim=conv2_dim
         
-        self.batch_norm1 = syncbatchnorm(axis=-1,
-                                        center=True,
-                                        scale=True,
-                                        beta_initializer="zeros",
-                                        gamma_initializer="ones",
-                                        **kwargs)
-        self.conv1 = kl.Conv1D(filters = self.conv1_dim,
-                              kernel_size = 1,
-                              strides=1,
-                               data_format='channels_first',
-                              padding='same',
-                              kernel_initializer=tf.keras.initializers.GlorotUniform())
-        self.batch_norm2 = syncbatchnorm(axis=-1,
-                                        center=True,
-                                        scale=True,
-                                        beta_initializer="zeros",
-                                        gamma_initializer="ones",
-                                        **kwargs)
-        self.conv2 = kl.Conv1D(filters = self.conv2_dim,
-                              kernel_size = 1,
-                              strides=1,
-                              padding='same',
-                               data_format='channels_last',
-                              kernel_initializer=tf.keras.initializers.GlorotUniform())
-        self.batch_norm3 = syncbatchnorm(axis=-1,
-                                        center=True,
-                                        scale=True,
-                                        beta_initializer="zeros",
-                                        gamma_initializer="ones",
-                                         **kwargs)
-        self.conv3 = kl.Conv1D(filters = 1,
-                              kernel_size = 1,
-                              strides=1,
-                              padding='same',
-                               data_format='channels_last',
-                              kernel_initializer=tf.keras.initializers.GlorotUniform())
-        
-        self.dense_2 = kl.Dense(units=self.TF_inputs,
+        self.dense_1 = kl.Dense(units=self.TF_inputs,
                                 use_bias=False)
-        self.dense_3 = kl.Dense(units=self.TF_inputs // 8,
+        self.dense_2 = kl.Dense(units=self.TF_inputs // 2,
+                                use_bias=False)
+        self.dense_3 = kl.Dense(units=self.TF_inputs // 4,
                                 use_bias=False)
         self.gelu = tfa.layers.GELU()
-        self.dropout = kl.Dropout(rate=self.dropout_rate / 2.0,
+        self.dropout = kl.Dropout(rate=self.dropout_rate,
                                   **kwargs)
-        
-        self.TF_transformer = Performer_Encoder_noPE(num_layers=self.num_layers,
-                                                     num_heads=self.num_heads,
-                                                     nb_random_features=self.nb_random_features,
-                                                     numerical_stabilizer=self.numerical_stabilizer,
-                                                     attention_dropout=self.attention_dropout_rate,
-                                                     kernel_transformation=self.tf_module_kernel,
-                                                     normalize=self.normalize,
-                                                     d_model=self.d_model,
-                                                     dim=self.dim,
-                                                     hidden_size=self.hidden_size,
-                                                     seed = self.seed,
-                                                     name = 'shared_transformer',
-                                                     **kwargs)
 
     def get_config(self):
         config = {
-            "TF_inputs": self.TF_inputs,
-            "dropout_rate": self.dropout_rate,
-            "num_layers": self.num_layers,
-            "num_heads": self.num_heads,
-            "dim" : self.dim,
-            "d_model": self.d_model,
-            "norm" : self.norm,
-            "nb_random_features": self.nb_random_features,
-            "hidden_size" : self.hidden_size,
-            "numerical_stabilizer" : self.numerical_stabilizer,
-            "attention_dropout" : self.attention_dropout,
-            "kernel_transformation" : self.kernel_transformation,
-            "normalize": self.normalize
+            "TF_inputs":self.TF_inputs,
+            "dropout_rate":self.dropout_rate
             
         }
         base_config = super().get_config()
@@ -915,41 +827,16 @@ class tf_module(kl.Layer):
         return cls(**config)
     
     def call(self, inputs, training=None):
-        x = tf.expand_dims(inputs,
-                           axis=2)
-        x = self.conv1(x,
-                       training=training)
-
+        x = self.dense_1(inputs,training=training)
         x = self.gelu(x)
-        x = self.batch_norm1(x,
-                             training=training)
-        x = self.conv2(x,
-                       training=training)
+        x = self.dropout(x,training=training)
+        x = self.dense_2(x,training=training)
         x = self.gelu(x)
-        x = self.batch_norm2(x,training=training)
-        
-        x,tf_att_matrices = self.TF_transformer(x,
-                                                training=training)
-        x = self.conv3(x,
-                       training=training)
+        x = self.dropout(x,training=training)
+        x = self.dense_3(x,training=training)
         x = self.gelu(x)
-        x = self.batch_norm3(x,training=training)
-                                                
-        x = self.dropout(x,
-                         training=training)
-        x = tf.squeeze(x,axis=2)
-                                                
-        x = self.dense_2(x,
-                         training=training)
-        x = self.gelu(x)
-        x = self.dropout(x,
-                         training=training)
-        x = self.dense_3(x,
-                         training=training)
-        x = self.gelu(x)
-        x = self.dropout(x,
-                         training=training)
-        return x,tf_att_matrices
+        x = self.dropout(x,training=training)
+        return x
 
     
 @tf.keras.utils.register_keras_serializable()

@@ -1482,7 +1482,6 @@ def parse_args(parser):
                         dest='shared_transformer_depth',
                         type=str,
                         help= 'shared_transformer_depth')
-    
     parser.add_argument('--pre_transf_channels',
                         dest='pre_transf_channels',
                         type=str,
@@ -1491,18 +1490,6 @@ def parse_args(parser):
                         dest='TF_inputs',
                         type=str,
                         help= 'TF_inputs')
-    parser.add_argument('--tf_transformer_layers',
-                        dest='tf_transformer_layers',
-                        type=str,
-                        help= 'tf_transformer_layers')
-    parser.add_argument('--tf_hidden_size',
-                        dest='tf_hidden_size',
-                        type=str,
-                        help= 'tf_hidden_size')
-    parser.add_argument('--tf_heads',
-                        dest='tf_heads',
-                        type=str,
-                        help= 'tf_heads')
     parser.add_argument('--filter_list',
                         dest='filter_list',
                         default="192,224,256,288,320,384",
@@ -1543,9 +1530,6 @@ def parse_args(parser):
     parser.add_argument('--kernel_transformation',
                         dest='kernel_transformation',
                         help= 'kernel_transformation')
-    parser.add_argument('--tf_module_kernel',
-                        dest='tf_module_kernel',
-                        help= 'tf_module_kernel')
     parser.add_argument('--hidden_size',
                         dest='hidden_size',
                         type=str,

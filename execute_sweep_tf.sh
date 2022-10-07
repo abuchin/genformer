@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 python3 train_model_aformer_TF_expression.py \
-            --tpu_name="pod" \
+            --tpu_name="pod-2" \
             --tpu_zone="us-east1-d" \
             --wandb_project="aformer_TF_ATAC" \
             --wandb_user="njaved" \
@@ -14,7 +14,7 @@ python3 train_model_aformer_TF_expression.py \
             --max_shift=20 \
             --batch_size=24 \
             --num_epochs=60 \
-            --train_examples=3587877 \
+            --train_examples=2000000 \
             --warmup_frac=0.01 \
             --val_examples=634035 \
             --val_examples_ho=634035 \
@@ -35,8 +35,7 @@ python3 train_model_aformer_TF_expression.py \
             --num_random_features="384" \
             --hidden_size="384" \
             --dim=48 \
-            --kernel_transformation="relu_kernel_transformation" \
-            --tf_module_kernel="relu_kernel_transformation" \
+            --kernel_transformation="softmax_kernel_transformation" \
             --savefreq=10 \
             --TF_inputs=96 \
             --train_mode="atac_only" \
@@ -45,7 +44,4 @@ python3 train_model_aformer_TF_expression.py \
             --use_tf_module="True,False" \
             --rna_loss_scale="0.50" \
             --filter_list="192,224,256,288,320,384" \
-            --checkpoint_path="sonnet_weights" \
-            --tf_transformer_layers="2" \
-            --tf_heads="8" \
-            --tf_hidden_size="64"
+            --checkpoint_path="sonnet_weights" 

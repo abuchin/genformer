@@ -116,18 +116,6 @@ def main():
                 'kernel_transformation': {
                     'values':[args.kernel_transformation]
                 },
-                'tf_module_kernel': {
-                    'values':[args.tf_module_kernel]
-                },
-                'tf_transformer_layers': {
-                    'values':[int(x) for x in args.tf_transformer_layers.split(',')]
-                },
-                'tf_hidden_size': {
-                    'values':[int(x) for x in args.tf_hidden_size.split(',')]
-                },
-                'tf_heads': {
-                    'values':[int(x) for x in args.tf_heads.split(',')]
-                },
                 'epsilon': {
                     'values':[args.epsilon]
                 },
@@ -274,7 +262,6 @@ def main():
                 inits=None
 
             model = aformer.aformer(kernel_transformation=wandb.config.kernel_transformation,
-                                    tf_module_kernel=wandb.config.tf_module_kernel,
                                     dropout_rate=wandb.config.dropout_rate,
                                     attention_dropout_rate=wandb.config.attention_dropout_rate,
                                     input_length=wandb.config.input_length,
@@ -296,10 +283,7 @@ def main():
                                     inits=inits,
                                     load_init=wandb.config.load_init,
                                     freeze_conv_layers=wandb.config.freeze_conv_layers,
-                                    filter_list=wandb.config.filter_list,
-                                    tf_transformer_layers=wandb.config.tf_transformer_layers,
-                                    tf_hidden_size=wandb.config.tf_hidden_size,
-                                    tf_heads=wandb.config.tf_heads)
+                                    filter_list=wandb.config.filter_list)
 
 
             scheduler= tf.keras.optimizers.schedules.CosineDecay(
