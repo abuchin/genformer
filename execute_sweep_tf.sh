@@ -12,9 +12,9 @@ python3 train_model_aformer_TF_expression.py \
             --atac_length_uncropped=768 \
             --atac_output_length=448 \
             --max_shift=20 \
-            --batch_size=24 \
+            --batch_size=16 \
             --num_epochs=60 \
-            --train_examples=2000000 \
+            --train_examples=3587877 \
             --warmup_frac=0.01 \
             --val_examples=634035 \
             --val_examples_ho=634035 \
@@ -22,12 +22,12 @@ python3 train_model_aformer_TF_expression.py \
             --min_delta=0.001 \
             --model_save_dir="gs://picard-testing-176520/seqtoatac_98k_73kstride_blacklist0.25/models" \
             --model_save_basename="aformer_TF_ATAC" \
-            --lr_base="2.5e-05" \
+            --lr_base="1.0e-05,2.5e-05" \
             --decay_frac="0.75" \
             --gradient_clip="0.2" \
             --epsilon=1.0e-14 \
-            --transformer_depth_1="4" \
-            --transformer_depth_2="4" \
+            --transformer_depth_1="3" \
+            --transformer_depth_2="3" \
             --shared_transformer_depth="4" \
             --pre_transf_channels="576" \
             --dropout_rate="0.30" \
@@ -44,7 +44,7 @@ python3 train_model_aformer_TF_expression.py \
             --train_mode="atac_only" \
             --load_init="False" \
             --freeze_conv_layers="False" \
-            --use_tf_module="True,False" \
+            --use_tf_module="True" \
             --rna_loss_scale="0.50" \
-            --filter_list="256,294,338,388,446,512" \ 
+            --filter_list="256,294,338,388,446,576" \
             --checkpoint_path="sonnet_weights" 
