@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 python3 train_model_aformer_TF_expression.py \
-            --tpu_name="pod-2" \
+            --tpu_name="pod" \
             --tpu_zone="us-east1-d" \
             --wandb_project="aformer_TF_ATAC" \
             --wandb_user="njaved" \
@@ -18,30 +18,33 @@ python3 train_model_aformer_TF_expression.py \
             --warmup_frac=0.01 \
             --val_examples=634035 \
             --val_examples_ho=634035 \
-            --patience=15 \
+            --patience=6 \
             --min_delta=0.001 \
             --model_save_dir="gs://picard-testing-176520/seqtoatac_98k_73kstride_blacklist0.25/models" \
             --model_save_basename="aformer_TF_ATAC" \
-            --lr_base="1.0e-04" \
-            --gradient_clip="1.0" \
+            --lr_base="2.5e-05" \
+            --decay_frac="0.75" \
+            --gradient_clip="0.2" \
             --epsilon=1.0e-14 \
             --transformer_depth_1="4" \
             --transformer_depth_2="4" \
             --shared_transformer_depth="4" \
-            --pre_transf_channels="384" \
+            --pre_transf_channels="576" \
             --dropout_rate="0.30" \
-            --attention_dropout_rate="0.30" \
+            --tf_dropout_rate="0.30" \
+            --attention_dropout_rate="0.15" \
+            --pointwise_dropout_rate="0.10" \
             --num_heads="8" \
-            --num_random_features="384" \
-            --hidden_size="384" \
-            --dim=48 \
+            --num_random_features="576" \
+            --hidden_size="576" \
+            --dim=72 \
             --kernel_transformation="softmax_kernel_transformation" \
             --savefreq=10 \
-            --TF_inputs=96 \
+            --TF_inputs=256 \
             --train_mode="atac_only" \
             --load_init="False" \
             --freeze_conv_layers="False" \
             --use_tf_module="True,False" \
             --rna_loss_scale="0.50" \
-            --filter_list="192,224,256,288,320,384" \
+            --filter_list="256,294,338,388,446,512" \ 
             --checkpoint_path="sonnet_weights" 

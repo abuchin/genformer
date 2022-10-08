@@ -16,8 +16,10 @@ SEQUENCE_LENGTH=65536
 @tf.keras.utils.register_keras_serializable()
 class aformer(tf.keras.Model):
     def __init__(self,
-                 kernel_transformation = 'relu_kernel_transformation',
+                 kernel_transformation = 'softmax_kernel_transformation',
                  dropout_rate: float = 0.2,
+                 tf_dropout_rate: float = 0.2,
+                 pointwise_dropout_rate: float = 0.2,
                  attention_dropout_rate: float = 0.05,
                  input_length: int = 196608,
                  atac_length_uncropped: int = 768,
@@ -36,8 +38,8 @@ class aformer(tf.keras.Model):
                  dim = 32, 
                  max_seq_length = 1536,
                  rel_pos_bins=1536, 
-                 use_rot_emb = True,
-                 use_mask_pos = False, 
+                 use_rot_emb = False,
+                 use_mask_pos = True, 
                  normalize = True,
                  seed = 3,
                  load_init=False,
@@ -56,6 +58,7 @@ class aformer(tf.keras.Model):
         super(aformer, self).__init__(name=name,**kwargs)
         self.kernel_transformation=kernel_transformation
         self.dropout_rate=dropout_rate
+        self.pointwise_dropout_rate=pointwise_dropout_rate
         self.num_heads=num_heads
         self.input_length=input_length
         self.numerical_stabilizer=numerical_stabilizer
@@ -82,6 +85,7 @@ class aformer(tf.keras.Model):
         self.filter_list = [768, 896, 1024, 1152, 1280, 1536] if self.load_init else filter_list
         self.freeze_conv_layers = freeze_conv_layers
         self.atac_length_uncropped=atac_length_uncropped
+        self.tf_dropout_rate=tf_dropout_rate
         
         print(self.filter_list)
         
@@ -175,7 +179,7 @@ class aformer(tf.keras.Model):
         
         ### conv stack for atac inputs
         self.tf_module = tf_module(TF_inputs=self.TF_inputs,
-                                   dropout_rate=self.dropout_rate,
+                                   dropout_rate=self.tf_dropout_rate,
                                    name='tf_module',
                                    **kwargs)
         
@@ -253,7 +257,8 @@ class aformer(tf.keras.Model):
         
         self.final_pointwise_atac = enf_conv_block(filters=2*int(self.filter_list[-1]),
                                                   name = 'final_pointwise_atac')
-        self.dropout = kl.Dropout(rate=0.05,**kwargs)
+        self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
+                                  **kwargs)
         self.gelu = tfa.layers.GELU()
         self.atac_head = output_head_atac(name = 'atac_out_head',
                                           **kwargs)

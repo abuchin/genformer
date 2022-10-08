@@ -1459,6 +1459,10 @@ def parse_args(parser):
                         dest='lr_base',
                         default="1.0e-03",
                         help='lr_base')
+    parser.add_argument('--decay_frac',
+                        dest='decay_frac',
+                        default="0.10",
+                        help='decay_frac')
     parser.add_argument('--warmup_frac', dest = 'warmup_frac',
                         default=0.0,
                         type=float, help='warmup_frac')
@@ -1520,6 +1524,12 @@ def parse_args(parser):
     parser.add_argument('--attention_dropout_rate',
                         dest='attention_dropout_rate',
                         help= 'attention_dropout_rate')
+    parser.add_argument('--tf_dropout_rate',
+                        dest='tf_dropout_rate',
+                        help= 'tf_dropout_rate')
+    parser.add_argument('--pointwise_dropout_rate',
+                        dest='pointwise_dropout_rate',
+                        help= 'pointwise_dropout_rate')
     parser.add_argument('--num_heads',
                         dest='num_heads',
                         help= 'num_heads')
