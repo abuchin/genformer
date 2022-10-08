@@ -38,8 +38,8 @@ class aformer(tf.keras.Model):
                  dim = 32, 
                  max_seq_length = 1536,
                  rel_pos_bins=1536, 
-                 use_rot_emb = False,
-                 use_mask_pos = True, 
+                 use_rot_emb = True,
+                 use_mask_pos = False, 
                  normalize = True,
                  seed = 3,
                  load_init=False,
@@ -261,6 +261,7 @@ class aformer(tf.keras.Model):
                                   **kwargs)
         self.gelu = tfa.layers.GELU()
         self.atac_head = output_head_atac(name = 'atac_out_head',
+                                          dropout_rate = self.dropout_rate,
                                           **kwargs)
         
         self.final_pointwise_rna = enf_conv_block(filters=2*self.pre_transf_channels,

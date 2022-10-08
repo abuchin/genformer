@@ -725,11 +725,13 @@ class output_head_rna(kl.Layer):
         self.dropout_rate = dropout_rate
         
         self.Flatten = kl.Flatten(data_format = 'channels_last')
-        self.dense = kl.Dense(units=32,
+        self.dense1 = kl.Dense(units=64,
                               use_bias=False)
         self.gelu = tfa.layers.GELU()
         self.dropout = kl.Dropout(rate=self.dropout_rate,
                                   **kwargs)
+        self.dense2 = kl.Dense(units=32,
+                              use_bias=False)
         self.final_dense = kl.Dense(units=1,
                                     use_bias=True)
         self.final_softplus = tf.keras.layers.Activation('softplus')
@@ -743,20 +745,21 @@ class output_head_rna(kl.Layer):
         return cls(**config)
     
     def call(self, inputs, training=None):
-        x = self.Flatten(inputs,
-                         training=training)
-        x=self.dense(x)
+        x = self.Flatten(inputs)
+        x=self.dense1(x)
         x=self.gelu(x)
         x=self.dropout(x,training=training)
-        x = self.final_dense(x,
-                             training=training)
-        return self.final_softplus(x,
-                                   training=training)
+        x=self.dense2(x)
+        x=self.gelu(x)
+        x=self.dropout(x,training=training)
+        x = self.final_dense(x)
+        return self.final_softplus(x)
     
     
 @tf.keras.utils.register_keras_serializable()
 class output_head_atac(kl.Layer):
     def __init__(self,
+                 dropout_rate: float = 0.2,
                  name: str = 'output_head_atac',
                  **kwargs):
         """
@@ -764,6 +767,13 @@ class output_head_atac(kl.Layer):
 
         """
         super().__init__(name=name, **kwargs)
+        self.dropout_rate=dropout_rate
+        
+        self.dense1 = kl.Dense(units=16,
+                                    use_bias=True)
+        self.gelu = tfa.layers.GELU()
+        self.dropout = kl.Dropout(rate=self.dropout_rate,
+                                  **kwargs)
         
         self.final_dense = kl.Dense(units=1,
                                     use_bias=True)
@@ -778,8 +788,11 @@ class output_head_atac(kl.Layer):
         return cls(**config)
     
     def call(self, inputs, training=None):
-        x = self.final_dense(inputs,training=training)
-        return self.final_softplus(x,training=training)
+        x = self.dense1(inputs)
+        x = self.gelu(x)
+        x = self.dropout(x,training=training)
+        x = self.final_dense(x)
+        return self.final_softplus(x)
 
 
 ############################ tf_module module #####################################
@@ -794,7 +807,6 @@ class tf_module(kl.Layer):
         Args:
             num_channels
             conv_filter_size
-            momentum: batch norm momentum
             stride: default 1 for no dim reduction
             name: Module name.
         """
@@ -803,8 +815,6 @@ class tf_module(kl.Layer):
         self.dropout_rate=dropout_rate
         
         self.dense_1 = kl.Dense(units=self.TF_inputs,
-                                use_bias=False)
-        self.dense_2 = kl.Dense(units=self.TF_inputs // 2,
                                 use_bias=False)
         self.dense_3 = kl.Dense(units=self.TF_inputs // 4,
                                 use_bias=False)
@@ -827,13 +837,10 @@ class tf_module(kl.Layer):
         return cls(**config)
     
     def call(self, inputs, training=None):
-        x = self.dense_1(inputs,training=training)
+        x = self.dense_1(inputs)
         x = self.gelu(x)
         x = self.dropout(x,training=training)
-        x = self.dense_2(x,training=training)
-        x = self.gelu(x)
-        x = self.dropout(x,training=training)
-        x = self.dense_3(x,training=training)
+        x = self.dense_3(x)
         x = self.gelu(x)
         x = self.dropout(x,training=training)
         return x
