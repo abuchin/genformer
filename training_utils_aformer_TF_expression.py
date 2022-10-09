@@ -139,7 +139,7 @@ consolidate into single simpler function
 """
 
 def return_train_val_functions(model,
-                               optimizer,
+                               optimizers_in,
                                strategy,
                                metric_dict,
                                train_steps, 
@@ -190,6 +190,8 @@ def return_train_val_functions(model,
     
     poisson_loss = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
     
+    optimizer1,optimizer2=optimizers_in
+    
     def dist_train_step_atac(iterator):
         @tf.function(jit_compile=True)
         def train_step(inputs):
@@ -221,6 +223,7 @@ def return_train_val_functions(model,
                         model.stem_pool.trainable_variables + \
                         model.conv_tower.trainable_variables + \
                         model.shared_transformer.trainable_variables + \
+                        model.dim_reduce_block.trainable_variables + \
                         model.tf_module.trainable_variables
             
             atac_vars = model.transformer_stack_1.trainable_variables + \
@@ -229,7 +232,9 @@ def return_train_val_functions(model,
             
             gradients = tape.gradient(loss, conv_vars + atac_vars)
             gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip)
-            optimizer.apply_gradients(zip(gradients, conv_vars+atac_vars))
+            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], conv_vars))
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], atac_vars))
+            
 
             metric_dict["hg_tr"].update_state(loss)
             metric_dict["hg_tr_atac"].update_state(loss)
@@ -262,7 +267,7 @@ def return_train_val_functions(model,
                                      atac_train=True,
                                      rna_train=False,
                                      use_tf_module=True,
-                                     training=True)
+                                     training=False)
 
             atac_out = tf.cast(atac_out,dtype=tf.float32)
             atac = tf.cast(atac,dtype=tf.float32)
@@ -315,6 +320,7 @@ def return_train_val_functions(model,
                         model.stem_pool.trainable_variables + \
                         model.conv_tower.trainable_variables + \
                         model.shared_transformer.trainable_variables + \
+                        model.dim_reduce_block.trainable_variables + \
                         model.tf_module.trainable_variables
             
             rna_vars = model.transformer_stack_2.trainable_variables + \
@@ -324,7 +330,8 @@ def return_train_val_functions(model,
                 
             gradients = tape.gradient(loss, conv_vars + rna_vars)
             gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip)
-            optimizer.apply_gradients(zip(gradients, conv_vars + rna_vars))
+            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], conv_vars))
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], rna_vars))
 
             metric_dict["hg_tr"].update_state(loss)
             metric_dict["hg_tr_rna"].update_state(rna_loss)
@@ -355,7 +362,7 @@ def return_train_val_functions(model,
                                      atac_train=False,
                                      rna_train=True,
                                      use_tf_module=True,
-                                     training=True)
+                                     training=False)
 
             rna_out = tf.cast(rna_out,dtype=tf.float32)
 
@@ -430,9 +437,27 @@ def return_train_val_functions(model,
                 
                 loss = atac_loss + rna_loss_scale * rna_loss
                 
-            gradients = tape.gradient(loss, model.trainable_variables)
+            conv_vars = model.stem_conv.trainable_variables + \
+                        model.stem_res_conv.trainable_variables + \
+                        model.stem_pool.trainable_variables + \
+                        model.conv_tower.trainable_variables + \
+                        model.shared_transformer.trainable_variables + \
+                        model.dim_reduce_block.trainable_variables + \
+                        model.tf_module.trainable_variables
+            
+            rna_vars = model.transformer_stack_2.trainable_variables + \
+                        model.final_pointwise_rna.trainable_variables +\
+                        model.dim_reduce_block2.trainable_variables + \
+                        model.rna_head.trainable_variables
+            
+            atac_vars = model.transformer_stack_1.trainable_variables + \
+                        model.final_pointwise_atac.trainable_variables +\
+                        model.atac_head.trainable_variables
+                
+            gradients = tape.gradient(loss, conv_vars + atac_vars + rna_vars)
             gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip)
-            optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], conv_vars))
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], atac_vars + rna_vars))
 
             metric_dict["hg_tr"].update_state(loss)
 
@@ -517,7 +542,7 @@ def return_train_val_functions(model,
 
 
 def return_train_val_functions_notf(model,
-                               optimizer,
+                               optimizers_in,
                                strategy,
                                metric_dict,
                                train_steps, 
@@ -568,6 +593,8 @@ def return_train_val_functions_notf(model,
     
     poisson_loss = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
     
+    optimizer1,optimizer2=optimizers_in
+    
     def dist_train_step_atac(iterator):
         @tf.function(jit_compile=True)
         def train_step(inputs):
@@ -600,8 +627,8 @@ def return_train_val_functions_notf(model,
                         model.stem_res_conv.trainable_variables + \
                         model.stem_pool.trainable_variables + \
                         model.conv_tower.trainable_variables + \
-                        model.shared_transformer.trainable_variables #+ \
-                        #model.tf_module.trainable_variables
+                        model.shared_transformer.trainable_variables + \
+                        model.dim_reduce_block.trainable_variables 
             
             atac_vars = model.transformer_stack_1.trainable_variables + \
                         model.final_pointwise_atac.trainable_variables +\
@@ -609,7 +636,8 @@ def return_train_val_functions_notf(model,
             
             gradients = tape.gradient(loss, conv_vars + atac_vars)
             gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip)
-            optimizer.apply_gradients(zip(gradients, conv_vars+atac_vars))
+            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], conv_vars))
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], atac_vars))
 
             metric_dict["hg_tr"].update_state(loss)
             metric_dict["hg_tr_atac"].update_state(loss)
@@ -643,7 +671,7 @@ def return_train_val_functions_notf(model,
                                      atac_train=True,
                                      rna_train=False,
                                      use_tf_module=False,
-                                     training=True)
+                                     training=False)
 
             atac_out = tf.cast(atac_out,dtype=tf.float32)
             atac = tf.cast(atac,dtype=tf.float32)
@@ -696,8 +724,8 @@ def return_train_val_functions_notf(model,
                         model.stem_res_conv.trainable_variables + \
                         model.stem_pool.trainable_variables + \
                         model.conv_tower.trainable_variables + \
-                        model.shared_transformer.trainable_variables #+ \
-                        #model.tf_module.trainable_variables
+                        model.shared_transformer.trainable_variables + \
+                        model.dim_reduce_block.trainable_variables 
             
             rna_vars = model.transformer_stack_2.trainable_variables + \
                         model.final_pointwise_rna.trainable_variables +\
@@ -706,7 +734,8 @@ def return_train_val_functions_notf(model,
                 
             gradients = tape.gradient(loss, conv_vars + rna_vars)
             gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip)
-            optimizer.apply_gradients(zip(gradients, conv_vars + rna_vars))
+            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], conv_vars))
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], rna_vars))
 
             metric_dict["hg_tr"].update_state(loss)
             metric_dict["hg_tr_rna"].update_state(rna_loss)
@@ -735,7 +764,7 @@ def return_train_val_functions_notf(model,
                                      atac_train=False,
                                      rna_train=True,
                                      use_tf_module=False,
-                                     training=True)
+                                     training=False)
 
             rna_out = tf.cast(rna_out,dtype=tf.float32)
 
@@ -808,9 +837,26 @@ def return_train_val_functions_notf(model,
                 
                 loss = atac_loss + rna_loss_scale * rna_loss
                 
-            gradients = tape.gradient(loss, model.trainable_variables)
+                conv_vars = model.stem_conv.trainable_variables + \
+                            model.stem_res_conv.trainable_variables + \
+                            model.stem_pool.trainable_variables + \
+                            model.conv_tower.trainable_variables + \
+                            model.shared_transformer.trainable_variables + \
+                            model.dim_reduce_block.trainable_variables
+
+                rna_vars = model.transformer_stack_2.trainable_variables + \
+                            model.final_pointwise_rna.trainable_variables +\
+                            model.dim_reduce_block2.trainable_variables + \
+                            model.rna_head.trainable_variables
+
+                atac_vars = model.transformer_stack_1.trainable_variables + \
+                            model.final_pointwise_atac.trainable_variables +\
+                            model.atac_head.trainable_variables
+                
+            gradients = tape.gradient(loss, conv_vars + atac_vars + rna_vars)
             gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip)
-            optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], conv_vars))
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], atac_vars + rna_vars))
 
             metric_dict["hg_tr"].update_state(loss)
 
@@ -837,7 +883,7 @@ def return_train_val_functions_notf(model,
                                      atac_train=True,
                                      rna_train=True,
                                      use_tf_module=False,
-                                     training=True)
+                                     training=False)
 
             rna_out = tf.cast(rna_out,dtype=tf.float32)
             atac_out = tf.cast(atac_out,dtype=tf.float32)
@@ -904,10 +950,6 @@ def deserialize(serialized_example,input_length,
         'TF_expression': tf.io.FixedLenFeature([], tf.string),
         'tss_tokens': tf.io.FixedLenFeature([], tf.string)
     }
-    
-    #print(feature_map)
-    
-    
     
     data = tf.io.parse_example(serialized_example, feature_map)
     #print(data)
@@ -1189,7 +1231,7 @@ def deserialize_atac(serialized_example,input_length,
     TF_expression = tf.math.log(1.0 + TF_expression)
     TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
                                                                  mean=0.0,
-                                                                 stddev=2.5e-01,
+                                                                 stddev=1.0e-01,
                                                                  dtype=tf.float32))
     
     
@@ -1455,10 +1497,14 @@ def parse_args(parser):
     parser.add_argument('--max_shift',
                     dest='max_shift',
                     type=int)
-    parser.add_argument('--lr_base',
-                        dest='lr_base',
+    parser.add_argument('--lr_base1',
+                        dest='lr_base1',
                         default="1.0e-03",
-                        help='lr_base')
+                        help='lr_base1')
+    parser.add_argument('--lr_base2',
+                        dest='lr_base2',
+                        default="1.0e-03",
+                        help='lr_base2')
     parser.add_argument('--decay_frac',
                         dest='decay_frac',
                         default="0.10",

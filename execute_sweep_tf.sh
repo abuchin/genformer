@@ -22,7 +22,8 @@ python3 train_model_aformer_TF_expression.py \
             --min_delta=0.001 \
             --model_save_dir="gs://picard-testing-176520/seqtoatac_98k_73kstride_blacklist0.25/models" \
             --model_save_basename="aformer_TF_ATAC" \
-            --lr_base="1.0e-05,8.0e-06" \
+            --lr_base1="1.0e-04" \
+            --lr_base2="1.0e-04" \
             --decay_frac="0.75" \
             --gradient_clip="0.2" \
             --epsilon=1.0e-14 \
