@@ -210,7 +210,8 @@ def return_train_val_functions(model,
                             model.stem_pool.trainable_variables + \
                             model.conv_tower.trainable_variables + \
                             model.shared_transformer.trainable_variables + \
-                            model.tf_module.trainable_variables
+                            model.tf_module.trainable_variables + \
+                            model.conv_mix_block.trainable_variables
 
                 atac_vars = model.final_pointwise_atac.trainable_variables + \
                             model.atac_head.trainable_variables
