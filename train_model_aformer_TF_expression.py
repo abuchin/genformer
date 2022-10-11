@@ -268,8 +268,10 @@ def main():
                                                                 strategy,
                                                                 options)
 
+            print('created dataset iterators')
             if wandb.config.load_init:
                 inits=training_utils.get_initializers(args.checkpoint_path)
+                wandb.config.filter_list = [768, 896, 1024, 1152, 1280, 1536]
             else:
                 inits=None
 
@@ -303,7 +305,7 @@ def main():
                                     freeze_conv_layers=wandb.config.freeze_conv_layers,
                                     filter_list=wandb.config.filter_list)
 
-
+            print('initialized model')
             scheduler1= tf.keras.optimizers.schedules.CosineDecay(
                 initial_learning_rate=wandb.config.lr_base1,
                 decay_steps=wandb.config.total_steps, alpha=wandb.config.decay_frac)
@@ -379,7 +381,7 @@ def main():
                                                                rna_loss_scale=wandb.config.rna_loss_scale)
                 
 
-
+            print('finished loading training/val loop functions')
             global_step = 0
             val_losses = []
             val_pearsons = []
@@ -388,16 +390,18 @@ def main():
             stop_criteria = False
             best_epoch = 0
             train_mode = wandb.config.train_mode
-
+            print(wandb.config)
             for epoch_i in range(1, wandb.config.num_epochs+1):
                 if epoch_i == 1:
+                    print('building model')
                     build_step(data_dict_val)
-                    
+                    print('built model')
                     total_params = 0
                     for k in model.trainable_variables:
                         var = k.values[0]
                         total_params += tf.size(var)
                     print('total params: ' + str(total_params)) 
+                
                 
                 print('starting epoch_', str(epoch_i))
                 start = time.time()
