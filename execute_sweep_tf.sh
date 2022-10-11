@@ -12,9 +12,9 @@ python3 train_model_aformer_TF_expression.py \
             --atac_length_uncropped=768 \
             --atac_output_length=448 \
             --max_shift=20 \
-            --batch_size=16 \
+            --batch_size=12 \
             --num_epochs=40 \
-            --train_examples=2500 \
+            --train_examples=3587877 \
             --warmup_frac=0.001 \
             --val_examples=634035 \
             --val_examples_ho=634035 \
@@ -47,4 +47,5 @@ python3 train_model_aformer_TF_expression.py \
             --load_init="True" \
             --freeze_conv_layers="True" \
             --use_tf_module="True" \
-            --rna_loss_scale="0.50"
+            --rna_loss_scale="0.50" \
+            --checkpoint_path="sonnet_weights"
