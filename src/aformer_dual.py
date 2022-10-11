@@ -182,13 +182,13 @@ class aformer(tf.keras.Model):
                                    name='tf_module',
                                    **kwargs)
         
-        #self.dim_reduce_block = conv1d_block_dim_reduce(num_channels_out=self.pre_transf_channels,
-        #                                                 name='dim_reduce_block',
-        #                                                **kwargs)
+        self.conv_mix_block = conv_mix_block(num_channels_out=self.pre_transf_channels,
+                                             name='conv_mix_block',
+                                             **kwargs)
         
-        self.dim_reduce_block2 = conv1d_block_dim_reduce(num_channels_out=self.pre_transf_channels,
-                                                         name='dim_reduce_block2',
-                                                        **kwargs)
+        self.dim_reduce_block2 = conv_mix_block(num_channels_out=self.pre_transf_channels,
+                                                name='dim_reduce_block2',
+                                                **kwargs)
 
         self.sin_pe1 = abs_sin_PE(name='sin_pe1',
                                   **kwargs)
@@ -294,8 +294,8 @@ class aformer(tf.keras.Model):
         enformer_conv_out = tf.concat([enformer_conv_out,
                                        tf_processed],axis=2)
 
-        #enformer_conv_out = self.dim_reduce_block(enformer_conv_out,
-        #                                          training=training)
+        enformer_conv_out = self.conv_mix_block(enformer_conv_out,
+                                                  training=training)
         enformer_conv_out = self.sin_pe1(enformer_conv_out)
         shared_transformer_out,att_matrices_shared = self.shared_transformer(enformer_conv_out,
                                                                              training=training)

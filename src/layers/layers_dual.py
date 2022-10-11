@@ -77,34 +77,28 @@ class crop(kl.Layer):
 
 
 @tf.keras.utils.register_keras_serializable()
-class conv1d_block_dim_reduce(kl.Layer):
+class conv_mix_block(kl.Layer):
     def __init__(self,
                  num_channels_out: int,
                  stride: int = 1,
-                 dropout_rate: float = 0.20,
                  name: str = 'conv1d_block_dim_reduce',
                  **kwargs):
 
         super().__init__(name=name, **kwargs)
         self.num_channels_out = num_channels_out
-        self.dropout_rate = dropout_rate
-        #self.batch_norm = syncbatchnorm(axis=-1,
-        #                                center=True,
-        #                                scale=True,
-        #                                beta_initializer="zeros",
-        #                                gamma_initializer="ones",
-        #                                **kwargs)
-       # self.gelu = tfa.layers.GELU()
-        #self.conv = kl.Conv1D(filters = self.num_channels_out,
-        #                      kernel_size = 1,
-        #                      strides=1,
-        #                      padding='same',
-        #                      kernel_initializer=tf.keras.initializers.GlorotUniform())
-        self.dense1 = kl.Dense(units=self.num_channels_out,
-                               use_bias=False)
+        #self.dropout_rate = dropout_rate
+        self.batch_norm = syncbatchnorm(axis=-1,
+                                        center=True,
+                                        scale=True,
+                                        beta_initializer="zeros",
+                                        gamma_initializer="ones",
+                                        **kwargs)
         self.gelu = tfa.layers.GELU()
-        self.dropout = kl.Dropout(rate=self.dropout_rate,
-                                  **kwargs)
+        self.conv = kl.Conv1D(filters = self.num_channels_out,
+                              kernel_size = 1,
+                              strides=1,
+                              padding='same',
+                              kernel_initializer=tf.keras.initializers.GlorotUniform())
 
     def get_config(self):
         config = {
@@ -118,12 +112,9 @@ class conv1d_block_dim_reduce(kl.Layer):
         return cls(**config)
     
     def call(self, inputs, training=None):
-        #x = self.batch_norm(inputs, training=training) 
-        #x = self.gelu(x)
-        #x = self.conv(x)
-        x = self.dense1(inputs)
+        x = self.batch_norm(inputs, training=training) 
         x = self.gelu(x)
-        x = self.dropout(x,training=training)
+        x = self.conv(x)
         return tf.cast(x,
                        dtype=tf.bfloat16)
 
