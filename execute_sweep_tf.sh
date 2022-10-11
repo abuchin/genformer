@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model_aformer_TF_expression.py \
-            --tpu_name="node-1" \
-            --tpu_zone="us-central1-a" \
+            --tpu_name="pod" \
+            --tpu_zone="us-east1-d" \
             --wandb_project="aformer_TF_ATAC" \
             --wandb_user="njaved" \
             --wandb_sweep_name="aformer_TF_ATAC" \
@@ -12,7 +12,7 @@ python3 train_model_aformer_TF_expression.py \
             --atac_length_uncropped=768 \
             --atac_output_length=448 \
             --max_shift=20 \
-            --batch_size=16 \
+            --batch_size=8 \
             --num_epochs=40 \
             --train_examples=3587877 \
             --warmup_frac=0.001 \
@@ -29,8 +29,8 @@ python3 train_model_aformer_TF_expression.py \
             --gradient_clip="5.0" \
             --epsilon=1.0e-14 \
             --transformer_depth_1="2" \
-            --transformer_depth_2="2" \
-            --shared_transformer_depth="5" \
+            --transformer_depth_2="1" \
+            --shared_transformer_depth="6" \
             --pre_transf_channels="1600" \
             --dropout_rate="0.45" \
             --tf_dropout_rate="0.30" \
