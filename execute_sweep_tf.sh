@@ -1,4 +1,4 @@
-ss#!/bin/bash -l
+#!/bin/bash -l
 
 python3 train_model_aformer_TF_expression.py \
             --tpu_name="pod" \
