@@ -23,14 +23,14 @@ python3 train_model_aformer_TF_expression.py \
             --model_save_dir="gs://picard-testing-176520/seqtoatac_98k_73kstride_blacklist0.25/models" \
             --model_save_basename="aformer_TF_ATAC" \
             --lr_base1="5.0e-06" \
-            --lr_base2="7.5e-05" \
+            --lr_base2="7.5e-05,2.5e-05" \
             --decay_frac="1.0" \
             --weight_decay_frac="0.2" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-14 \
             --transformer_depth_1="2" \
             --transformer_depth_2="2" \
-            --shared_transformer_depth="5,6" \
+            --shared_transformer_depth="5" \
             --pre_transf_channels="1600" \
             --dropout_rate="0.45" \
             --tf_dropout_rate="0.30" \
