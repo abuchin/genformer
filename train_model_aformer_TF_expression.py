@@ -98,6 +98,9 @@ def main():
                 'decay_frac': {
                     'values': [float(x) for x in args.decay_frac.split(',')]
                 },
+                'weight_decay_frac': {
+                    'values': [float(x) for x in args.weight_decay_frac.split(',')]
+                },
                 'transformer_depth_1':{
                     'values': [int(x) for x in args.transformer_depth_1.split(',')]
                 },
@@ -235,7 +238,7 @@ def main():
                                 allow_val_change=True)
             wandb.config.update({"val_steps_ho" : num_val_ho // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
-            wandb.config.update({"total_steps": 100 * num_train // GLOBAL_BATCH_SIZE},
+            wandb.config.update({"total_steps": num_train // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
             
 
@@ -286,6 +289,10 @@ def main():
                                     dim=wandb.config.hidden_size // wandb.config.num_heads,
                                     max_seq_length=768,
                                     rel_pos_bins=768,
+                                    norm=True,
+                                    use_rot_emb = True,
+                                    use_mask_pos = False,
+                                    normalize = True,
                                     transformer_depth_1=wandb.config.transformer_depth_1,
                                     transformer_depth_2=wandb.config.transformer_depth_2,
                                     shared_transformer_depth=wandb.config.shared_transformer_depth,
@@ -303,16 +310,31 @@ def main():
             scheduler1=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base1,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps,
                                          decay_schedule_fn=scheduler1)
-            optimizer1 = tf.keras.optimizers.Adam(learning_rate=scheduler1)
             
+            scheduler1wd= tf.keras.optimizers.schedules.CosineDecay(
+                initial_learning_rate=wandb.config.lr_base1 * wandb.config.weight_decay_frac,
+                decay_steps=wandb.config.total_steps, alpha=wandb.config.decay_frac)
+            scheduler1wd=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base1 * wandb.config.weight_decay_frac,
+                                         warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps,
+                                         decay_schedule_fn=scheduler1wd)
             
+            optimizer1 = tfa.optimizers.AdamW(learning_rate=scheduler1,
+                                              weight_decay=scheduler1wd)
+
             scheduler2= tf.keras.optimizers.schedules.CosineDecay(
                 initial_learning_rate=wandb.config.lr_base2,
                 decay_steps=wandb.config.total_steps, alpha=wandb.config.decay_frac)
             scheduler2=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base2,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps,
                                          decay_schedule_fn=scheduler2)
-            optimizer2 = tf.keras.optimizers.Adam(learning_rate=scheduler2)
+            scheduler2wd= tf.keras.optimizers.schedules.CosineDecay(
+                initial_learning_rate=wandb.config.lr_base2 * wandb.config.weight_decay_frac,
+                decay_steps=wandb.config.total_steps, alpha=wandb.config.decay_frac)
+            scheduler2wd=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base2 * wandb.config.weight_decay_frac,
+                                         warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps,
+                                         decay_schedule_fn=scheduler2wd)
+            optimizer2 = tfa.optimizers.AdamW(learning_rate=scheduler2,
+                                              weight_decay=scheduler2wd)
             
             optimizers_in = optimizer1,optimizer2
             
@@ -323,7 +345,7 @@ def main():
                 train_step_atac, val_step_atac,\
                     train_step_rna,val_step_rna,\
                         train_step_both,val_step_both,\
-                            metric_dict = \
+                            build_step, metric_dict = \
                 training_utils.return_train_val_functions(model,
                                                           optimizers_in,
                                                           strategy,
@@ -341,7 +363,7 @@ def main():
                 train_step_atac, val_step_atac,\
                     train_step_rna,val_step_rna,\
                         train_step_both,val_step_both,\
-                            metric_dict = \
+                            build_step, metric_dict = \
                 training_utils.return_train_val_functions_notf(model,
                                                                optimizers_in,
                                                                strategy,
@@ -366,8 +388,17 @@ def main():
             stop_criteria = False
             best_epoch = 0
             train_mode = wandb.config.train_mode
-            
+
             for epoch_i in range(1, wandb.config.num_epochs+1):
+                if epoch_i == 1:
+                    build_step(data_dict_val)
+                    
+                    total_params = 0
+                    for k in model.trainable_variables:
+                        var = k.values[0]
+                        total_params += tf.size(var)
+                    print('total params: ' + str(total_params)) 
+                
                 print('starting epoch_', str(epoch_i))
                 start = time.time()
                 if train_mode == 'atac_only':

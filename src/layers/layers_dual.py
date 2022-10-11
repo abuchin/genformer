@@ -81,24 +81,30 @@ class conv1d_block_dim_reduce(kl.Layer):
     def __init__(self,
                  num_channels_out: int,
                  stride: int = 1,
+                 dropout_rate: float = 0.20,
                  name: str = 'conv1d_block_dim_reduce',
                  **kwargs):
 
         super().__init__(name=name, **kwargs)
         self.num_channels_out = num_channels_out
-        self.batch_norm = syncbatchnorm(axis=-1,
-                                        center=True,
-                                        scale=True,
-                                        beta_initializer="zeros",
-                                        gamma_initializer="ones",
-                                        **kwargs)
+        self.dropout_rate = dropout_rate
+        #self.batch_norm = syncbatchnorm(axis=-1,
+        #                                center=True,
+        #                                scale=True,
+        #                                beta_initializer="zeros",
+        #                                gamma_initializer="ones",
+        #                                **kwargs)
+       # self.gelu = tfa.layers.GELU()
+        #self.conv = kl.Conv1D(filters = self.num_channels_out,
+        #                      kernel_size = 1,
+        #                      strides=1,
+        #                      padding='same',
+        #                      kernel_initializer=tf.keras.initializers.GlorotUniform())
+        self.dense1 = kl.Dense(units=self.num_channels_out,
+                               use_bias=False)
         self.gelu = tfa.layers.GELU()
-        self.conv = kl.Conv1D(filters = self.num_channels_out,
-                              kernel_size = 1,
-                              strides=1,
-                              padding='same',
-                              kernel_initializer=tf.keras.initializers.GlorotUniform())
-        
+        self.dropout = kl.Dropout(rate=self.dropout_rate,
+                                  **kwargs)
 
     def get_config(self):
         config = {
@@ -112,9 +118,12 @@ class conv1d_block_dim_reduce(kl.Layer):
         return cls(**config)
     
     def call(self, inputs, training=None):
-        x = self.conv(inputs)
+        #x = self.batch_norm(inputs, training=training) 
+        #x = self.gelu(x)
+        #x = self.conv(x)
+        x = self.dense1(inputs)
         x = self.gelu(x)
-        x = self.batch_norm(x, training=training) 
+        x = self.dropout(x,training=training)
         return tf.cast(x,
                        dtype=tf.bfloat16)
 
@@ -393,9 +402,9 @@ class Performer_Encoder(kl.Layer):
                  numerical_stabilizer,
                  attention_dropout = .1,
                  rel_pos_bins=None,
-                 use_rot_emb=False,
+                 use_rot_emb=True,
                  use_mask_pos=False,
-                 normalize=False,
+                 normalize=True,
                  norm=True,
                  seed=42,
                  kernel_transformation: str = 'softmax_kernel_transformation',
@@ -510,9 +519,7 @@ class Performer_Encoder(kl.Layer):
     
     def call(self, x, training=None, **kwargs):
         att_matrices={}
-        if self.norm:
-            x = self.layer_norm(x)
-            
+
         for idx,layer in enumerate(self.layers):
             if self.use_rot_emb is True:
                 x += self.pos_emb(x)
@@ -523,6 +530,9 @@ class Performer_Encoder(kl.Layer):
             if self.use_mask_pos is True:
                 x,k_prime,q_prime = layer(x, rpe=self.rpe, training=training)
                 att_matrices['layer_' + str(idx)] = (k_prime,q_prime)
+                
+        if self.norm:
+            x = self.layer_norm(x)
             
         return x,att_matrices
     
@@ -759,7 +769,6 @@ class output_head_rna(kl.Layer):
 @tf.keras.utils.register_keras_serializable()
 class output_head_atac(kl.Layer):
     def __init__(self,
-                 dropout_rate: float = 0.2,
                  name: str = 'output_head_atac',
                  **kwargs):
         """
@@ -767,13 +776,10 @@ class output_head_atac(kl.Layer):
 
         """
         super().__init__(name=name, **kwargs)
-        self.dropout_rate=dropout_rate
         
         self.dense1 = kl.Dense(units=16,
                                     use_bias=True)
         self.gelu = tfa.layers.GELU()
-        self.dropout = kl.Dropout(rate=self.dropout_rate,
-                                  **kwargs)
         
         self.final_dense = kl.Dense(units=1,
                                     use_bias=True)
@@ -790,7 +796,6 @@ class output_head_atac(kl.Layer):
     def call(self, inputs, training=None):
         x = self.dense1(inputs)
         x = self.gelu(x)
-        x = self.dropout(x,training=training)
         x = self.final_dense(x)
         return self.final_softplus(x)
 
@@ -816,6 +821,8 @@ class tf_module(kl.Layer):
         
         self.dense_1 = kl.Dense(units=self.TF_inputs,
                                 use_bias=False)
+        self.dense_2 = kl.Dense(units=self.TF_inputs // 2,
+                                use_bias=False)
         self.dense_3 = kl.Dense(units=self.TF_inputs // 4,
                                 use_bias=False)
         self.gelu = tfa.layers.GELU()
@@ -826,7 +833,6 @@ class tf_module(kl.Layer):
         config = {
             "TF_inputs":self.TF_inputs,
             "dropout_rate":self.dropout_rate
-            
         }
         base_config = super().get_config()
         return {**base_config, **config}
@@ -839,10 +845,12 @@ class tf_module(kl.Layer):
     def call(self, inputs, training=None):
         x = self.dense_1(inputs)
         x = self.gelu(x)
-        x = self.dropout(x,training=training)
+        x = self.dropout(x,
+                         training=training)
+        x = self.dense_2(x)
+        x = self.gelu(x)
         x = self.dense_3(x)
         x = self.gelu(x)
-        x = self.dropout(x,training=training)
         return x
 
     

@@ -197,75 +197,71 @@ def return_train_val_functions(model,
         def train_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            target=tf.ones((batch_size,1)) #tf.cast(inputs['target'],dtype=tf.float32)
-            tss_tokens=tf.ones_like(atac)#tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
+            tss_tokens=tf.ones_like(atac)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
-            exons=tf.ones_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
+            exons=tf.ones_like(atac)
 
-            input_tuple = sequence,tss_tokens,exons, TF_expression, atac,target
+            input_tuple = sequence,tss_tokens,exons, TF_expression, atac
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             atac=tf.cast(atac,dtype=tf.float32)
-            with tf.GradientTape() as tape:
+            with tf.GradientTape(watch_accessed_variables=False) as tape:
+                conv_vars = model.stem_conv.trainable_variables + \
+                            model.stem_res_conv.trainable_variables + \
+                            model.stem_pool.trainable_variables + \
+                            model.conv_tower.trainable_variables + \
+                            model.shared_transformer.trainable_variables + \
+                            model.tf_module.trainable_variables
+
+                atac_vars = model.final_pointwise_atac.trainable_variables + \
+                            model.atac_head.trainable_variables
+                vars_subset = conv_vars + atac_vars
+                
+                for var in vars_subset:
+                    tape.watch(var)
+                    
                 atac_out,rna_out = model(input_tuple,
-                                         atac_train=True,
-                                         rna_train=False,
                                          use_tf_module=True,
                                          training=True)
                 atac_out = tf.cast(atac_out,dtype=tf.float32)
-                rna_out = tf.cast(rna_out,dtype=tf.float32)
                 atac_loss = tf.reduce_sum(poisson_loss(atac,
                                                        atac_out),
                                          axis=0) * (1. / global_batch_size)
-                loss = atac_loss #+ (rna_loss / 2.0)
+                loss = atac_loss
             
-            conv_vars = model.stem_conv.trainable_variables + \
-                        model.stem_res_conv.trainable_variables + \
-                        model.stem_pool.trainable_variables + \
-                        model.conv_tower.trainable_variables + \
-                        model.shared_transformer.trainable_variables + \
-                        model.dim_reduce_block.trainable_variables + \
-                        model.tf_module.trainable_variables
-            
-            atac_vars = model.transformer_stack_1.trainable_variables + \
-                        model.final_pointwise_atac.trainable_variables +\
-                        model.atac_head.trainable_variables
-            
+
             gradients = tape.gradient(loss, conv_vars + atac_vars)
             gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip)
-            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], conv_vars))
-            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], atac_vars))
             
+            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], 
+                                           conv_vars))
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
+                                           atac_vars))
 
             metric_dict["hg_tr"].update_state(loss)
             metric_dict["hg_tr_atac"].update_state(loss)
-            #metric_dict["hg_tr_rna"].update_state(rna_loss)
         
 
         for _ in tf.range(train_steps): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(train_step, args=(next(iterator),))
 
-
-    
+            
     def dist_val_step_atac(iterator):
         
         @tf.function(jit_compile=True)
         def val_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            target=tf.ones((batch_size,1)) #tf.cast(inputs['target'],dtype=tf.float32)
             tss_tokens=tf.ones_like(atac)#tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             exons=tf.ones_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
-            input_tuple = sequence,tss_tokens,exons, TF_expression, atac,target
+            input_tuple = sequence,tss_tokens,exons, TF_expression, atac
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             atac=tf.cast(atac,dtype=tf.float32)
             
             cell_type = inputs['cell_type']
 
             atac_out,rna_out = model(input_tuple,
-                                     atac_train=True,
-                                     rna_train=False,
                                      use_tf_module=True,
                                      training=False)
 
@@ -301,11 +297,24 @@ def return_train_val_functions(model,
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             atac=tf.cast(atac,dtype=tf.float32)
 
-            with tf.GradientTape() as tape:
+            with tf.GradientTape(watch_accessed_variables=False) as tape:
+                conv_vars = model.stem_conv.trainable_variables + \
+                            model.stem_res_conv.trainable_variables + \
+                            model.stem_pool.trainable_variables + \
+                            model.conv_tower.trainable_variables + \
+                            model.shared_transformer.trainable_variables + \
+                            model.dim_reduce_block.trainable_variables + \
+                            model.tf_module.trainable_variables
+
+                rna_vars = model.transformer_stack_2.trainable_variables + \
+                            model.final_pointwise_rna.trainable_variables +\
+                            model.dim_reduce_block2.trainable_variables + \
+                            model.rna_head.trainable_variables
+                vars_subset = conv_vars + rna_vars
+                for var in vars_subset:
+                    tape.watch(var)
                 
                 atac_out,rna_out = model(input_tuple,
-                                         atac_train=False,
-                                         rna_train=True,
                                          use_tf_module=True,
                                          training=True)
                 
@@ -314,19 +323,6 @@ def return_train_val_functions(model,
                 rna_loss = tf.reduce_sum(regular_mse(rna_out, target),
                                          axis=0) * (1. / global_batch_size)
                 loss = rna_loss
-                
-            conv_vars = model.stem_conv.trainable_variables + \
-                        model.stem_res_conv.trainable_variables + \
-                        model.stem_pool.trainable_variables + \
-                        model.conv_tower.trainable_variables + \
-                        model.shared_transformer.trainable_variables + \
-                        model.dim_reduce_block.trainable_variables + \
-                        model.tf_module.trainable_variables
-            
-            rna_vars = model.transformer_stack_2.trainable_variables + \
-                        model.final_pointwise_rna.trainable_variables +\
-                        model.dim_reduce_block2.trainable_variables + \
-                        model.rna_head.trainable_variables
                 
             gradients = tape.gradient(loss, conv_vars + rna_vars)
             gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip)
@@ -359,8 +355,6 @@ def return_train_val_functions(model,
             gene_map = inputs['gene_encoded']
 
             atac_out,rna_out = model(input_tuple,
-                                     atac_train=False,
-                                     rna_train=True,
                                      use_tf_module=True,
                                      training=False)
 
@@ -418,11 +412,29 @@ def return_train_val_functions(model,
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             atac=tf.cast(atac,dtype=tf.float32)
 
-            with tf.GradientTape() as tape:
+            with tf.GradientTape(watch_accessed_variables=False) as tape:
+                conv_vars = model.stem_conv.trainable_variables + \
+                            model.stem_res_conv.trainable_variables + \
+                            model.stem_pool.trainable_variables + \
+                            model.conv_tower.trainable_variables + \
+                            model.shared_transformer.trainable_variables + \
+                            model.dim_reduce_block.trainable_variables + \
+                            model.tf_module.trainable_variables
+
+                rna_vars = model.transformer_stack_2.trainable_variables + \
+                            model.final_pointwise_rna.trainable_variables +\
+                            model.dim_reduce_block2.trainable_variables + \
+                            model.rna_head.trainable_variables
+                
+                atac_vars = model.transformer_stack_1.trainable_variables + \
+                            model.final_pointwise_atac.trainable_variables + \
+                            model.atac_head.trainable_variables
+                
+                vars_subset = conv_vars + atac_vars + rna_vars
+                for var in vars_subset:
+                    tape.watch(var)
                 
                 atac_out,rna_out = model(input_tuple,
-                                         atac_train=True,
-                                         rna_train=True,
                                          use_tf_module=True,
                                          training=True)
                 
@@ -436,23 +448,6 @@ def return_train_val_functions(model,
                                          axis=0) * (1. / global_batch_size)
                 
                 loss = atac_loss + rna_loss_scale * rna_loss
-                
-            conv_vars = model.stem_conv.trainable_variables + \
-                        model.stem_res_conv.trainable_variables + \
-                        model.stem_pool.trainable_variables + \
-                        model.conv_tower.trainable_variables + \
-                        model.shared_transformer.trainable_variables + \
-                        model.dim_reduce_block.trainable_variables + \
-                        model.tf_module.trainable_variables
-            
-            rna_vars = model.transformer_stack_2.trainable_variables + \
-                        model.final_pointwise_rna.trainable_variables +\
-                        model.dim_reduce_block2.trainable_variables + \
-                        model.rna_head.trainable_variables
-            
-            atac_vars = model.transformer_stack_1.trainable_variables + \
-                        model.final_pointwise_atac.trainable_variables +\
-                        model.atac_head.trainable_variables
                 
             gradients = tape.gradient(loss, conv_vars + atac_vars + rna_vars)
             gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip)
@@ -534,10 +529,32 @@ def return_train_val_functions(model,
         ta_true.close()
         ta_celltype.close()
         ta_genemap.close()
+        
+        
+    def build_step(iterator):
+        @tf.function(jit_compile=True)
+        def val_step(inputs):
+            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
+            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
+            target=tf.ones((batch_size,1)) #tf.cast(inputs['target'],dtype=tf.float32)
+            tss_tokens=tf.ones_like(atac)#tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
+            TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
+            exons=tf.ones_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
+
+            input_tuple = sequence,tss_tokens,exons, TF_expression, atac
+
+            atac_out,rna_out = model(input_tuple,
+                                     use_tf_module=True,
+                                     training=True)
+
+        for _ in tf.range(1): ## for loop within @tf.fuction for improved TPU performance
+            strategy.run(val_step,
+                         args=(next(iterator),))
+            
 
     return dist_train_step_atac, dist_val_step_atac,\
             dist_train_step_rna,dist_val_step_rna,\
-                dist_train_step_both,dist_val_step_both, metric_dict
+                dist_train_step_both,dist_val_step_both, build_step, metric_dict
 
 
 
@@ -1002,7 +1019,7 @@ def deserialize(serialized_example,input_length,
     TF_expression = tf.math.log(1.0 + TF_expression)
     TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
                                                                  mean=0.0,
-                                                                 stddev=2.5e-01,
+                                                                 stddev=5.0e-01,
                                                                  dtype=tf.float32))
     
 
@@ -1080,12 +1097,6 @@ def deserialize_val(serialized_example,input_length, output_length,output_res,
                              [num_TFs,])
     ## log transform
     TF_expression = tf.math.log(1.0 + TF_expression)
-    ## want to add some noise 
-    TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
-                                                                 mean=0.0,
-                                                                 stddev=2.5e-01,
-                                                                 dtype=tf.float32))
-
 
     TPM = tf.io.parse_tensor(data['TPM'],out_type=tf.float32)
     target = log2(1.0 + tf.math.maximum(0.0,TPM))
@@ -1185,7 +1196,7 @@ def return_dataset_val(gcs_path,
     return dataset.repeat(num_epoch).batch(batch, drop_remainder=True).prefetch(1)
 
 def deserialize_atac(serialized_example,input_length, 
-                     output_length,output_res,
+                     output_length,output_res,train_bool,
                      num_TFs,max_shift):
     """
     Deserialize bytes stored in TFRecordFile.
@@ -1229,10 +1240,12 @@ def deserialize_atac(serialized_example,input_length,
                                               out_type=tf.float32),
                              [num_TFs,])
     TF_expression = tf.math.log(1.0 + TF_expression)
-    TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
-                                                                 mean=0.0,
-                                                                 stddev=1.0e-01,
-                                                                 dtype=tf.float32))
+    
+    if train_bool: 
+        TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
+                                                                     mean=0.0,
+                                                                     stddev=5.0e-01,
+                                                                     dtype=tf.float32))
     
     
     return {
@@ -1250,6 +1263,7 @@ def return_dataset_atac(gcs_path,
                        input_length,
                        output_length,
                        output_res,
+                        train_bool,
                        max_shift,
                        options,
                        num_parallel,
@@ -1277,6 +1291,7 @@ def return_dataset_atac(gcs_path,
                                                          input_length,
                                                          output_length,
                                                          output_res,
+                                                         train_bool,
                                                          num_TFs,
                                                          max_shift),
                           deterministic=False,
@@ -1313,6 +1328,7 @@ def return_distributed_iterators(gcs_path,
                                     input_length,
                                     output_length,
                                     output_res,
+                                          True,
                                     max_shift,
                                     options,
                                     num_parallel_calls,
@@ -1325,6 +1341,7 @@ def return_distributed_iterators(gcs_path,
                                         input_length,
                                         output_length,
                                         output_res,
+                                           False,
                                         max_shift,
                                         options,
                                         num_parallel_calls,
@@ -1554,6 +1571,11 @@ def parse_args(parser):
                         type=str,
                         default="0.2",
                         help= 'gradient_clip')
+    parser.add_argument('--weight_decay_frac',
+                        dest='weight_decay_frac',
+                        type=str,
+                        default="0.1",
+                        help= 'weight_decay_frac')
     parser.add_argument('--atac_length_uncropped',
                         dest='atac_length_uncropped',
                         type=int,

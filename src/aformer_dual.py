@@ -87,7 +87,6 @@ class aformer(tf.keras.Model):
         self.atac_length_uncropped=atac_length_uncropped
         self.tf_dropout_rate=tf_dropout_rate
         
-        print(self.filter_list)
         
         def enf_conv_block(filters, 
                            width=1, 
@@ -183,19 +182,15 @@ class aformer(tf.keras.Model):
                                    name='tf_module',
                                    **kwargs)
         
-        self.dim_reduce_block = conv1d_block_dim_reduce(num_channels_out=self.pre_transf_channels,
-                                                         name='dim_reduce_block',
-                                                        **kwargs)
+        #self.dim_reduce_block = conv1d_block_dim_reduce(num_channels_out=self.pre_transf_channels,
+        #                                                 name='dim_reduce_block',
+        #                                                **kwargs)
         
         self.dim_reduce_block2 = conv1d_block_dim_reduce(num_channels_out=self.pre_transf_channels,
-                                                         name='dim_reduce_block',
+                                                         name='dim_reduce_block2',
                                                         **kwargs)
 
         self.sin_pe1 = abs_sin_PE(name='sin_pe1',
-                                  **kwargs)
-        self.sin_pe2 = abs_sin_PE(name='sin_pe2',
-                                  **kwargs)
-        self.sin_pe3 = abs_sin_PE(name='sin_pe3',
                                   **kwargs)
         
         self.shared_transformer = Performer_Encoder(num_layers=self.shared_transformer_depth,
@@ -217,7 +212,7 @@ class aformer(tf.keras.Model):
                                                      **kwargs)
         
 
-        
+        """
         self.transformer_stack_1 = Performer_Encoder(num_layers=self.transformer_depth_1,
                                                    num_heads=self.num_heads, 
                                                    dim = self.dim,
@@ -235,6 +230,7 @@ class aformer(tf.keras.Model):
                                                    normalize=self.normalize, seed = self.seed,
                                                      name = 'transformer_stack1',
                                                      **kwargs)
+        """
         
         self.transformer_stack_2 = Performer_Encoder(num_layers=self.transformer_depth_2,
                                                    num_heads=self.num_heads, 
@@ -255,16 +251,17 @@ class aformer(tf.keras.Model):
                                                      **kwargs)
 
         
-        self.final_pointwise_atac = enf_conv_block(filters=2*int(self.filter_list[-1]),
+        self.final_pointwise_atac = enf_conv_block(filters=int(self.filter_list[-1]) // 4,
+                                                   **kwargs,
                                                   name = 'final_pointwise_atac')
         self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
                                   **kwargs)
         self.gelu = tfa.layers.GELU()
         self.atac_head = output_head_atac(name = 'atac_out_head',
-                                          dropout_rate = self.dropout_rate,
                                           **kwargs)
         
-        self.final_pointwise_rna = enf_conv_block(filters=2*self.pre_transf_channels,
+        self.final_pointwise_rna = enf_conv_block(filters=self.pre_transf_channels // 4,
+                                                  **kwargs,
                                                   name = 'final_pointwise_rna')
         self.rna_head = output_head_rna(name = 'rna_out_head',
                                         **kwargs)
@@ -272,9 +269,10 @@ class aformer(tf.keras.Model):
         #                               target_length=self.atac_output_length)
         
 
-    def call(self, inputs, atac_train, rna_train, use_tf_module, training:bool=True):
+    def call(self, inputs, use_tf_module, training:bool=True):
 
-        sequence, TSSs, exons, tf_inputs, atac, target = inputs
+        sequence, TSSs, exons, tf_inputs, atac = inputs
+        
         x = self.stem_conv(sequence,
                            training=training)
         x = self.stem_res_conv(x,
@@ -290,39 +288,30 @@ class aformer(tf.keras.Model):
                                       axis=1)
         tf_processed = tf.tile(tf_processed, 
                                [1,self.atac_length_uncropped,1])
-        if not use_tf_module:
-            tf_processed = tf.ones_like(tf_processed)
+        #if not use_tf_module:
+        #    tf_processed = tf.ones_like(tf_processed)
         
         enformer_conv_out = tf.concat([enformer_conv_out,
                                        tf_processed],axis=2)
 
-        enformer_conv_out = self.dim_reduce_block(enformer_conv_out,
-                                                  training=training)
+        #enformer_conv_out = self.dim_reduce_block(enformer_conv_out,
+        #                                          training=training)
         enformer_conv_out = self.sin_pe1(enformer_conv_out)
         shared_transformer_out,att_matrices_shared = self.shared_transformer(enformer_conv_out,
                                                                              training=training)
 
-        ### transformer 1 is atac output
-        #if atac_train:
-        ## add on absolute PEs here, will also add on RPE within transformer stack
-        transformer_input_1 = self.sin_pe2(shared_transformer_out)
-        transformer_out_1, att_matrices_1 = self.transformer_stack_1(transformer_input_1,
-                                                                    training=training)
+        #transformer_input_1 = self.sin_pe2(shared_transformer_out)
+        #transformer_out_1, att_matrices_1 = self.transformer_stack_1(shared_transformer_out,
+        #                                                            training=training)
 
-        atac_output = self.final_pointwise_atac(transformer_out_1,
+        atac_output = self.final_pointwise_atac(shared_transformer_out,
                                                 training=training)
         atac_output = self.dropout(atac_output,
                                    training=training)
-        atac_output = self.gelu(atac_output,
-                                training=training)
+        atac_output = self.gelu(atac_output)
         atac_output = self.atac_head(atac_output,
                                      training=training)
-        #else:
-        #    atac_output = atac
-
-        ### now feed out transformer_out_1 into the RNA transformer after appending w/ TSSs, exons, introns, ATAC
-        ## transformer_out_1 dimension is [B x 1536 x 132]
-        #if rna_train: 
+        
         transformer_input_2 = tf.concat([shared_transformer_out,
                                          atac_output,
                                          TSSs,
@@ -332,19 +321,16 @@ class aformer(tf.keras.Model):
         transformer_input_2 = self.dim_reduce_block2(transformer_input_2,
                                                      training=training)
 
-        transformer_input_2 = self.sin_pe3(transformer_input_2)
+        #transformer_input_2 = self.sin_pe3(transformer_input_2)
         transformer_out_2,att_matrices_2 = self.transformer_stack_2(transformer_input_2,
                                                                     training=training)
 
         rna_output = self.final_pointwise_rna(transformer_out_2)
         rna_output = self.dropout(rna_output,
                                   training=training)
-        rna_output = self.gelu(rna_output,
-                               training=training)
+        rna_output = self.gelu(rna_output)
         rna_output = self.rna_head(rna_output,
                                    training=training)
-        #else:
-        #    rna_output = target
 
         return atac_output, rna_output
     
