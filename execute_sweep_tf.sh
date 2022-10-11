@@ -1,4 +1,4 @@
-#!/bin/bash -l
+ss#!/bin/bash -l
 
 python3 train_model_aformer_TF_expression.py \
             --tpu_name="pod" \
@@ -12,9 +12,9 @@ python3 train_model_aformer_TF_expression.py \
             --atac_length_uncropped=768 \
             --atac_output_length=448 \
             --max_shift=20 \
-            --batch_size=8 \
+            --batch_size=16 \
             --num_epochs=40 \
-            --train_examples=3587877 \
+            --train_examples=2500 \
             --warmup_frac=0.001 \
             --val_examples=634035 \
             --val_examples_ho=634035 \
@@ -28,7 +28,7 @@ python3 train_model_aformer_TF_expression.py \
             --weight_decay_frac="0.2" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-14 \
-            --transformer_depth_1="2" \
+            --transformer_depth_1="1" \
             --transformer_depth_2="1" \
             --shared_transformer_depth="6" \
             --pre_transf_channels="1600" \
@@ -47,5 +47,4 @@ python3 train_model_aformer_TF_expression.py \
             --load_init="True" \
             --freeze_conv_layers="True" \
             --use_tf_module="True" \
-            --rna_loss_scale="0.50"  \
-            --checkpoint_path="sonnet_weights"
+            --rna_loss_scale="0.50"
