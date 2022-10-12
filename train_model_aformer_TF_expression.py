@@ -269,7 +269,7 @@ def main():
 
             print('created dataset iterators')
             if wandb.config.load_init:
-                inits=training_utils.get_initializers(args.checkpoint_path)
+                inits=training_utils.get_initializers(args.enformer_checkpoint_path)
                 wandb.config.update({"filter_list": [768, 896, 1024, 1152, 1280, 1536]},
                                     allow_val_change=True)
             else:
@@ -303,6 +303,14 @@ def main():
                                     load_init=wandb.config.load_init,
                                     freeze_conv_layers=wandb.config.freeze_conv_layers,
                                     filter_list=wandb.config.filter_list)
+            
+            if args.checkpoint_path is not None:
+                print('loading checkpointed model')
+                options = tf.train.CheckpointOptions(experimental_io_device="/job:localhost")
+                checkpoint = tf.train.Checkpoint(module=model)#,options=options)
+                tf.saved_model.LoadOptions(experimental_io_device='/job:localhost')
+                latest = tf.train.latest_checkpoint(args.checkpoint_path)
+                checkpoint.restore(latest,options=options).assert_existing_objects_matched()
 
             print('initialized model')
             scheduler1= tf.keras.optimizers.schedules.CosineDecay(

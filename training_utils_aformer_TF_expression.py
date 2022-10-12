@@ -1642,10 +1642,15 @@ def parse_args(parser):
                         type=str,
                         default=os.getcwd() + "/references/cell_type_map.tsv",
                         help= 'cell_type_map_file')
+    parser.add_argument('--enformer_checkpoint_path',
+                        dest='enformer_checkpoint_path',
+                        type=str,
+                        default="/home/jupyter/dev/BE_CD69_paper_2022/enformer_fine_tuning/checkpoint/sonnet_weights",
+                        help= 'enformer_checkpoint_path')
     parser.add_argument('--checkpoint_path',
                         dest='checkpoint_path',
                         type=str,
-                        default="/home/jupyter/dev/BE_CD69_paper_2022/enformer_fine_tuning/checkpoint/sonnet_weights",
+                        default=None,
                         help= 'checkpoint_path')
     parser.add_argument('--load_init',
                         dest='load_init',

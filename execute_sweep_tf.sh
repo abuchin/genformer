@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model_aformer_TF_expression.py \
-            --tpu_name="pod" \
-            --tpu_zone="us-east1-d" \
+            --tpu_name="node-1" \
+            --tpu_zone="us-central1-a" \
             --wandb_project="aformer_TF_ATAC" \
             --wandb_user="njaved" \
             --wandb_sweep_name="aformer_TF_ATAC" \
@@ -12,7 +12,7 @@ python3 train_model_aformer_TF_expression.py \
             --atac_length_uncropped=768 \
             --atac_output_length=448 \
             --max_shift=20 \
-            --batch_size=8 \
+            --batch_size=18 \
             --num_epochs=40 \
             --train_examples=3587877 \
             --warmup_frac=0.001 \
@@ -23,13 +23,13 @@ python3 train_model_aformer_TF_expression.py \
             --model_save_dir="gs://picard-testing-176520/seqtoatac_98k_73kstride_blacklist0.25/models" \
             --model_save_basename="aformer_TF_ATAC" \
             --lr_base1="1.0e-06" \
-            --lr_base2="8.0e-05" \
+            --lr_base2="9.0e-05" \
             --lr_base3="9.0e-05" \
             --decay_frac="0.90" \
             --weight_decay_frac="0.5" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-14 \
-            --transformer_depth_rna="8" \
+            --transformer_depth_rna="4" \
             --shared_transformer_depth="8" \
             --pre_transf_channels="800" \
             --dropout_rate="0.40" \
@@ -45,7 +45,7 @@ python3 train_model_aformer_TF_expression.py \
             --TF_inputs=256 \
             --train_mode="atac_only" \
             --load_init="True" \
-            --freeze_conv_layers="False" \
+            --freeze_conv_layers="True" \
             --use_tf_module="True" \
-            --rna_loss_scale="0.50" \
-            --checkpoint_path="sonnet_weights"
+            --rna_loss_scale="0.50" #\
+            #--enformer_checkpoint_path="sonnet_weights" 
