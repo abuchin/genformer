@@ -92,6 +92,9 @@ def main():
                 'lr_base2': {
                     'values':[float(x) for x in args.lr_base2.split(',')]
                 },
+                'lr_base3': {
+                    'values':[float(x) for x in args.lr_base2.split(',')]
+                },
                 'gradient_clip': {
                     'values': [float(x) for x in args.gradient_clip.split(',')]
                 },
@@ -101,11 +104,8 @@ def main():
                 'weight_decay_frac': {
                     'values': [float(x) for x in args.weight_decay_frac.split(',')]
                 },
-                'transformer_depth_1':{
-                    'values': [int(x) for x in args.transformer_depth_1.split(',')]
-                },
-                'transformer_depth_2':{
-                    'values': [int(x) for x in args.transformer_depth_2.split(',')]
+                'transformer_depth_rna':{
+                    'values': [int(x) for x in args.transformer_depth_rna.split(',')]
                 },
                 'shared_transformer_depth':{
                     'values': [int(x) for x in args.shared_transformer_depth.split(',')]
@@ -165,7 +165,7 @@ def main():
         # Specify the other hyperparameters to the configuration, if any
 
         ## tpu initialization
-        strategy = training_utils.tf_tpu_initialize(args.tpu_name)
+        strategy = training_utils.tf_tpu_initialize(args.tpu_name,args.tpu_zone)
         mixed_precision.set_global_policy('mixed_bfloat16')
         
         ## rest must be w/in strategy scope
@@ -202,9 +202,8 @@ def main():
                                        'freeze-' + str(wandb.config.freeze_conv_layers),
                                        'TF_in-' + str(wandb.config.use_tf_module),
                                        'LR-' + str(wandb.config.lr_base),
-                                       'T.1-' + str(wandb.config.transformer_depth_1),
-                                       'T.2-' + str(wandb.config.transformer_depth_2),
                                        'ST-' + str(wandb.config.shared_transformer_depth),
+                                       'RT.2-' + str(wandb.config.transformer_depth_rna),
                                        'TD-' + str(wandb.config.pre_transf_channels),
                                        'D-' + str(wandb.config.dropout_rate),
                                        'AD-' + str(wandb.config.attention_dropout_rate),
@@ -232,7 +231,7 @@ def main():
             num_val=wandb.config.val_examples
             num_val_ho=wandb.config.val_examples_ho#4192000
 
-            wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE*4)},
+            wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE*2)},
                                 allow_val_change=True)
             wandb.config.update({"val_steps" : num_val // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
@@ -271,7 +270,8 @@ def main():
             print('created dataset iterators')
             if wandb.config.load_init:
                 inits=training_utils.get_initializers(args.checkpoint_path)
-                wandb.config.filter_list = [768, 896, 1024, 1152, 1280, 1536]
+                wandb.config.update({"filter_list": [768, 896, 1024, 1152, 1280, 1536]},
+                                    allow_val_change=True)
             else:
                 inits=None
 
@@ -295,8 +295,7 @@ def main():
                                     use_rot_emb = True,
                                     use_mask_pos = False,
                                     normalize = True,
-                                    transformer_depth_1=wandb.config.transformer_depth_1,
-                                    transformer_depth_2=wandb.config.transformer_depth_2,
+                                    transformer_depth_rna=wandb.config.transformer_depth_rna,
                                     shared_transformer_depth=wandb.config.shared_transformer_depth,
                                     pre_transf_channels=wandb.config.pre_transf_channels,
                                     TF_inputs=wandb.config.TF_inputs,
@@ -322,7 +321,7 @@ def main():
             
             optimizer1 = tfa.optimizers.AdamW(learning_rate=scheduler1,
                                               weight_decay=scheduler1wd)
-
+            #####
             scheduler2= tf.keras.optimizers.schedules.CosineDecay(
                 initial_learning_rate=wandb.config.lr_base2,
                 decay_steps=wandb.config.total_steps, alpha=wandb.config.decay_frac)
@@ -335,10 +334,26 @@ def main():
             scheduler2wd=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base2 * wandb.config.weight_decay_frac,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps,
                                          decay_schedule_fn=scheduler2wd)
+            
             optimizer2 = tfa.optimizers.AdamW(learning_rate=scheduler2,
                                               weight_decay=scheduler2wd)
-            
-            optimizers_in = optimizer1,optimizer2
+            #####
+            scheduler3= tf.keras.optimizers.schedules.CosineDecay(
+                initial_learning_rate=wandb.config.lr_base3,
+                decay_steps=wandb.config.total_steps, alpha=wandb.config.decay_frac)
+            scheduler3=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base3,
+                                         warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps,
+                                         decay_schedule_fn=scheduler3)
+            scheduler3wd= tf.keras.optimizers.schedules.CosineDecay(
+                initial_learning_rate=wandb.config.lr_base3 * wandb.config.weight_decay_frac,
+                decay_steps=wandb.config.total_steps, alpha=wandb.config.decay_frac)
+            scheduler3wd=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base3 * wandb.config.weight_decay_frac,
+                                         warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps,
+                                         decay_schedule_fn=scheduler3wd)
+            optimizer3 = tfa.optimizers.AdamW(learning_rate=scheduler3,
+                                              weight_decay=scheduler3wd)
+            #####
+            optimizers_in = optimizer1,optimizer2,optimizer3
             
             crop_size = (wandb.config.atac_length_uncropped - \
                              wandb.config.atac_output_length) // 2
@@ -375,9 +390,9 @@ def main():
                                                                wandb.config.val_steps_ho,
                                                                GLOBAL_BATCH_SIZE,
                                                                wandb.config.gradient_clip,
-                                                              wandb.config.atac_length_uncropped,
-                                                              crop_size,
-                                                              wandb.config.batch_size,
+                                                               wandb.config.atac_length_uncropped,
+                                                               crop_size,
+                                                               wandb.config.batch_size,
                                                                rna_loss_scale=wandb.config.rna_loss_scale)
                 
 

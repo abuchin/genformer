@@ -47,7 +47,7 @@ from tensorflow.keras import initializers as inits
 
 tf.keras.backend.set_floatx('float32')
 
-def tf_tpu_initialize(tpu_name):
+def tf_tpu_initialize(tpu_name,zone):
     """Initialize TPU and return global batch size for loss calculation
     Args:
         tpu_name
@@ -57,7 +57,7 @@ def tf_tpu_initialize(tpu_name):
     
     try: 
         cluster_resolver = tf.distribute.cluster_resolver.TPUClusterResolver(
-            tpu=tpu_name)
+            tpu=tpu_name,zone=zone)
         tf.config.experimental_connect_to_cluster(cluster_resolver)
         tf.tpu.experimental.initialize_tpu_system(cluster_resolver)
         strategy = tf.distribute.TPUStrategy(cluster_resolver)
@@ -190,7 +190,7 @@ def return_train_val_functions(model,
     
     poisson_loss = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
     
-    optimizer1,optimizer2=optimizers_in
+    optimizer1,optimizer2,optimizer3=optimizers_in
     
     def dist_train_step_atac(iterator):
         @tf.function(jit_compile=True)
@@ -211,7 +211,7 @@ def return_train_val_functions(model,
                             model.conv_tower.trainable_variables + \
                             model.shared_transformer.trainable_variables + \
                             model.tf_module.trainable_variables + \
-                            model.conv_mix_block.trainable_variables
+                            model.conv_mix_block1.trainable_variables
 
                 atac_vars = model.final_pointwise_atac.trainable_variables + \
                             model.atac_head.trainable_variables
@@ -294,7 +294,7 @@ def return_train_val_functions(model,
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
-            input_tuple = sequence,tss_tokens,exons, TF_expression, atac,target
+            input_tuple = sequence,tss_tokens,exons, TF_expression, atac
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             atac=tf.cast(atac,dtype=tf.float32)
 
@@ -304,13 +304,14 @@ def return_train_val_functions(model,
                             model.stem_pool.trainable_variables + \
                             model.conv_tower.trainable_variables + \
                             model.shared_transformer.trainable_variables + \
-                            model.dim_reduce_block.trainable_variables + \
-                            model.tf_module.trainable_variables
+                            model.tf_module.trainable_variables + \
+                            model.conv_mix_block1.trainable_variables
 
-                rna_vars = model.transformer_stack_2.trainable_variables + \
-                            model.final_pointwise_rna.trainable_variables +\
-                            model.dim_reduce_block2.trainable_variables + \
+                rna_vars = model.final_pointwise_rna.trainable_variables + \
+                            model.conv_mix_block2.trainable_variables + \
+                            model.transformer_stack_rna.trainable_variables + \
                             model.rna_head.trainable_variables
+                
                 vars_subset = conv_vars + rna_vars
                 for var in vars_subset:
                     tape.watch(var)
@@ -328,7 +329,7 @@ def return_train_val_functions(model,
             gradients = tape.gradient(loss, conv_vars + rna_vars)
             gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip)
             optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], conv_vars))
-            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], rna_vars))
+            optimizer3.apply_gradients(zip(gradients[len(conv_vars):], rna_vars))
 
             metric_dict["hg_tr"].update_state(loss)
             metric_dict["hg_tr_rna"].update_state(rna_loss)
@@ -348,7 +349,7 @@ def return_train_val_functions(model,
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
-            input_tuple = sequence,tss_tokens,exons, TF_expression, atac,target
+            input_tuple = sequence,tss_tokens,exons, TF_expression, atac
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             atac=tf.cast(atac,dtype=tf.float32)
             
@@ -409,7 +410,7 @@ def return_train_val_functions(model,
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
-            input_tuple = sequence,tss_tokens,exons, TF_expression, atac,target
+            input_tuple = sequence,tss_tokens,exons, TF_expression, atac
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             atac=tf.cast(atac,dtype=tf.float32)
 
@@ -419,16 +420,15 @@ def return_train_val_functions(model,
                             model.stem_pool.trainable_variables + \
                             model.conv_tower.trainable_variables + \
                             model.shared_transformer.trainable_variables + \
-                            model.dim_reduce_block.trainable_variables + \
-                            model.tf_module.trainable_variables
+                            model.tf_module.trainable_variables + \
+                            model.conv_mix_block1.trainable_variables
 
-                rna_vars = model.transformer_stack_2.trainable_variables + \
-                            model.final_pointwise_rna.trainable_variables +\
-                            model.dim_reduce_block2.trainable_variables + \
+                rna_vars = model.final_pointwise_rna.trainable_variables + \
+                            model.conv_mix_block2.trainable_variables + \
+                            model.transformer_stack_rna.trainable_variables + \
                             model.rna_head.trainable_variables
                 
-                atac_vars = model.transformer_stack_1.trainable_variables + \
-                            model.final_pointwise_atac.trainable_variables + \
+                atac_vars = model.final_pointwise_atac.trainable_variables + \
                             model.atac_head.trainable_variables
                 
                 vars_subset = conv_vars + atac_vars + rna_vars
@@ -453,7 +453,8 @@ def return_train_val_functions(model,
             gradients = tape.gradient(loss, conv_vars + atac_vars + rna_vars)
             gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip)
             optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], conv_vars))
-            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], atac_vars + rna_vars))
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):len(conv_vars + atac_vars)], atac_vars))
+            optimizer3.apply_gradients(zip(gradients[len(conv_vars + atac_vars):], rna_vars))
 
             metric_dict["hg_tr"].update_state(loss)
 
@@ -471,7 +472,7 @@ def return_train_val_functions(model,
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
-            input_tuple = sequence,tss_tokens,exons, TF_expression, atac,target
+            input_tuple = sequence,tss_tokens,exons, TF_expression, atac
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             atac=tf.cast(atac,dtype=tf.float32)
             
@@ -745,9 +746,8 @@ def return_train_val_functions_notf(model,
                         model.shared_transformer.trainable_variables + \
                         model.dim_reduce_block.trainable_variables 
             
-            rna_vars = model.transformer_stack_2.trainable_variables + \
+            rna_vars = model.transformer_stack_rna.trainable_variables + \
                         model.final_pointwise_rna.trainable_variables +\
-                        model.dim_reduce_block2.trainable_variables + \
                         model.rna_head.trainable_variables
                 
             gradients = tape.gradient(loss, conv_vars + rna_vars)
@@ -1523,6 +1523,10 @@ def parse_args(parser):
                         dest='lr_base2',
                         default="1.0e-03",
                         help='lr_base2')
+    parser.add_argument('--lr_base3',
+                        dest='lr_base3',
+                        default="1.0e-03",
+                        help='lr_base3')
     parser.add_argument('--decay_frac',
                         dest='decay_frac',
                         default="0.10",
@@ -1538,14 +1542,10 @@ def parse_args(parser):
                         dest='output_length',
                         type=int,
                         help= 'output_length')
-    parser.add_argument('--transformer_depth_1',
-                        dest='transformer_depth_1',
+    parser.add_argument('--transformer_depth_rna',
+                        dest='transformer_depth_rna',
                         type=str,
-                        help= 'transformer_depth_1')
-    parser.add_argument('--transformer_depth_2',
-                        dest='transformer_depth_2',
-                        type=str,
-                        help= 'transformer_depth_2')
+                        help= 'transformer_depth_rna')
     parser.add_argument('--shared_transformer_depth',
                         dest='shared_transformer_depth',
                         type=str,

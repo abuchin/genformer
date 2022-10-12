@@ -715,6 +715,7 @@ class TargetLengthCrop1D(kl.Layer):
 @tf.keras.utils.register_keras_serializable()
 class output_head_rna(kl.Layer):
     def __init__(self,
+                 num_channels_out,
                  dropout_rate = 0.10,
                  name: str = 'output_head_rna',
                  **kwargs):
@@ -724,18 +725,24 @@ class output_head_rna(kl.Layer):
         """
         super().__init__(name=name, **kwargs)
         self.dropout_rate = dropout_rate
+        self.num_channels_out = num_channels_out
         
-        self.Flatten = kl.Flatten(data_format = 'channels_last')
-        self.dense1 = kl.Dense(units=64,
-                              use_bias=False)
+        self.dense1 = kl.Dense(units= self.num_channels_out // 8,
+                               use_bias=False)
+        
+        self.flatten = kl.Flatten(**kwargs)
+        
+        self.dense2 = kl.Dense(units= self.num_channels_out // 16,
+                               use_bias=False)
+        
         self.gelu = tfa.layers.GELU()
         self.dropout = kl.Dropout(rate=self.dropout_rate,
                                   **kwargs)
-        self.dense2 = kl.Dense(units=32,
-                              use_bias=False)
         self.final_dense = kl.Dense(units=1,
                                     use_bias=True)
         self.final_softplus = tf.keras.layers.Activation('softplus')
+        
+        
         
     def get_config(self):
         base_config = super().get_config()
@@ -746,16 +753,20 @@ class output_head_rna(kl.Layer):
         return cls(**config)
     
     def call(self, inputs, training=None):
-        x = self.Flatten(inputs)
-        x=self.dense1(x)
+        x=self.dense1(inputs,training=training)
         x=self.gelu(x)
         x=self.dropout(x,training=training)
+        
+        x=self.flatten(x)
+        
         x=self.dense2(x)
         x=self.gelu(x)
         x=self.dropout(x,training=training)
+        
         x = self.final_dense(x)
         return self.final_softplus(x)
     
+
     
 @tf.keras.utils.register_keras_serializable()
 class output_head_atac(kl.Layer):

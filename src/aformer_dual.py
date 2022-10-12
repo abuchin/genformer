@@ -28,8 +28,7 @@ class aformer(tf.keras.Model):
                  numerical_stabilizer: float =0.001,
                  nb_random_features:int = 256,
                  hidden_size:int = 128,
-                 transformer_depth_1:int = 4,
-                 transformer_depth_2:int = 4,
+                 transformer_depth_rna:int = 4,
                  shared_transformer_depth:int = 4,
                  pre_transf_channels: int = 128,
                  d_model = 128,
@@ -65,8 +64,7 @@ class aformer(tf.keras.Model):
         self.nb_random_features=nb_random_features
         self.hidden_size=hidden_size
         self.pre_transf_channels=pre_transf_channels
-        self.transformer_depth_1=transformer_depth_1
-        self.transformer_depth_2=transformer_depth_2
+        self.transformer_depth_rna=transformer_depth_rna
         self.shared_transformer_depth=shared_transformer_depth
         self.norm=norm
         self.d_model = d_model
@@ -182,73 +180,58 @@ class aformer(tf.keras.Model):
                                    name='tf_module',
                                    **kwargs)
         
-        self.conv_mix_block = conv_mix_block(num_channels_out=self.pre_transf_channels,
+        self.conv_mix_block1 = conv_mix_block(num_channels_out=self.pre_transf_channels,
                                              name='conv_mix_block',
                                              **kwargs)
         
-        self.dim_reduce_block2 = conv_mix_block(num_channels_out=self.pre_transf_channels,
-                                                name='dim_reduce_block2',
-                                                **kwargs)
+        self.conv_mix_block2 = conv_mix_block(num_channels_out=self.pre_transf_channels // 2,
+                                             name='conv_mix_block',
+                                             **kwargs)
+
 
         self.sin_pe1 = abs_sin_PE(name='sin_pe1',
                                   **kwargs)
+        self.sin_pe2 = abs_sin_PE(name='sin_pe2',
+                                  **kwargs)
         
         self.shared_transformer = Performer_Encoder(num_layers=self.shared_transformer_depth,
-                                                   num_heads=self.num_heads, 
-                                                   dim = self.dim,
-                                                   d_model=self.d_model,
-                                                   norm=self.norm,
-                                                   max_seq_length=self.max_seq_length,
-                                                   nb_random_features=self.nb_random_features,
-                                                   hidden_size=self.hidden_size,
-                                                   numerical_stabilizer=self.numerical_stabilizer,
-                                                   attention_dropout=self.attention_dropout_rate,
-                                                   rel_pos_bins=self.rel_pos_bins,
-                                                   use_rot_emb=self.use_rot_emb,
-                                                   use_mask_pos=self.use_mask_pos,
-                                                   kernel_transformation=self.kernel_transformation,
-                                                   normalize=self.normalize, seed = self.seed,
-                                                     name = 'shared_transformer',
-                                                     **kwargs)
+                                                    num_heads=self.num_heads, 
+                                                    dim = self.dim,
+                                                    d_model=self.d_model,
+                                                    norm=self.norm,
+                                                    max_seq_length=self.max_seq_length,
+                                                    nb_random_features=self.nb_random_features,
+                                                    hidden_size=self.hidden_size,
+                                                    numerical_stabilizer=self.numerical_stabilizer,
+                                                    attention_dropout=self.attention_dropout_rate,
+                                                    rel_pos_bins=self.rel_pos_bins,
+                                                    use_rot_emb=self.use_rot_emb,
+                                                    use_mask_pos=self.use_mask_pos,
+                                                    kernel_transformation=self.kernel_transformation,
+                                                    normalize=self.normalize, 
+                                                    seed = self.seed,
+                                                    name = 'shared_transformer',
+                                                    **kwargs)
         
 
-        """
-        self.transformer_stack_1 = Performer_Encoder(num_layers=self.transformer_depth_1,
-                                                   num_heads=self.num_heads, 
-                                                   dim = self.dim,
-                                                   d_model=self.d_model,
-                                                   norm=self.norm,
-                                                   max_seq_length=self.max_seq_length,
-                                                   nb_random_features=self.nb_random_features,
-                                                   hidden_size=self.hidden_size,
-                                                   numerical_stabilizer=self.numerical_stabilizer,
-                                                   attention_dropout=self.attention_dropout_rate,
-                                                   rel_pos_bins=self.rel_pos_bins,
-                                                   use_rot_emb=self.use_rot_emb,
-                                                   use_mask_pos=self.use_mask_pos,
-                                                   kernel_transformation=self.kernel_transformation,
-                                                   normalize=self.normalize, seed = self.seed,
-                                                     name = 'transformer_stack1',
-                                                     **kwargs)
-        """
-        
-        self.transformer_stack_2 = Performer_Encoder(num_layers=self.transformer_depth_2,
-                                                   num_heads=self.num_heads, 
-                                                   dim = self.dim,
-                                                   d_model=self.d_model,
-                                                   norm=self.norm,
-                                                   max_seq_length=self.max_seq_length,
-                                                   nb_random_features=self.nb_random_features,
-                                                   hidden_size=self.hidden_size,
-                                                   numerical_stabilizer=self.numerical_stabilizer,
-                                                   attention_dropout=self.attention_dropout_rate,
-                                                   rel_pos_bins=self.rel_pos_bins,
-                                                   use_rot_emb=self.use_rot_emb,
-                                                   use_mask_pos=self.use_mask_pos,
-                                                   kernel_transformation=self.kernel_transformation,
-                                                   normalize=self.normalize, seed = self.seed, 
-                                                     name = 'transformer_stack2',
-                                                     **kwargs)
+        self.transformer_stack_rna = Performer_Encoder(num_layers=self.transformer_depth_rna,
+                                                       num_heads=self.num_heads, 
+                                                       dim = self.dim // 2,
+                                                       d_model=self.d_model // 2,
+                                                       norm=self.norm,
+                                                       max_seq_length=self.max_seq_length,
+                                                       nb_random_features=self.nb_random_features,
+                                                       hidden_size=self.hidden_size // 2,
+                                                       numerical_stabilizer=self.numerical_stabilizer,
+                                                       attention_dropout=self.attention_dropout_rate,
+                                                       rel_pos_bins=self.rel_pos_bins,
+                                                       use_rot_emb=self.use_rot_emb,
+                                                       use_mask_pos=self.use_mask_pos,
+                                                       kernel_transformation=self.kernel_transformation,
+                                                       normalize=self.normalize, 
+                                                       seed = self.seed,
+                                                       name = 'transformer_stack2',
+                                                       **kwargs)
 
         
         self.final_pointwise_atac = enf_conv_block(filters=int(self.filter_list[-1]) // 4,
@@ -260,15 +243,14 @@ class aformer(tf.keras.Model):
         self.atac_head = output_head_atac(name = 'atac_out_head',
                                           **kwargs)
         
-        self.final_pointwise_rna = enf_conv_block(filters=self.pre_transf_channels // 4,
+        self.final_pointwise_rna = enf_conv_block(filters=self.pre_transf_channels // 8,
                                                   **kwargs,
                                                   name = 'final_pointwise_rna')
-        self.rna_head = output_head_rna(name = 'rna_out_head',
+        self.rna_head = output_head_rna(num_channels_out = self.pre_transf_channels // 16,
+                                        name = 'rna_out_head',
                                         **kwargs)
-        #self.crop = TargetLengthCrop1D(uncropped_length=self.atac_length_uncropped,
-        #                               target_length=self.atac_output_length)
         
-
+        
     def call(self, inputs, use_tf_module, training:bool=True):
 
         sequence, TSSs, exons, tf_inputs, atac = inputs
@@ -288,21 +270,17 @@ class aformer(tf.keras.Model):
                                       axis=1)
         tf_processed = tf.tile(tf_processed, 
                                [1,self.atac_length_uncropped,1])
-        #if not use_tf_module:
-        #    tf_processed = tf.ones_like(tf_processed)
-        
+        if not use_tf_module:
+            tf_processed = tf.ones_like(tf_processed)
+
         enformer_conv_out = tf.concat([enformer_conv_out,
                                        tf_processed],axis=2)
 
-        enformer_conv_out = self.conv_mix_block(enformer_conv_out,
-                                                  training=training)
+        enformer_conv_out = self.conv_mix_block1(enformer_conv_out,
+                                                training=training)
         enformer_conv_out = self.sin_pe1(enformer_conv_out)
         shared_transformer_out,att_matrices_shared = self.shared_transformer(enformer_conv_out,
                                                                              training=training)
-
-        #transformer_input_1 = self.sin_pe2(shared_transformer_out)
-        #transformer_out_1, att_matrices_1 = self.transformer_stack_1(shared_transformer_out,
-        #                                                            training=training)
 
         atac_output = self.final_pointwise_atac(shared_transformer_out,
                                                 training=training)
@@ -317,13 +295,13 @@ class aformer(tf.keras.Model):
                                          TSSs,
                                          exons],
                                         axis=2)
+        
+        transformer_input_2 = self.conv_mix_block2(transformer_input_2,
+                                                   training=training)
 
-        transformer_input_2 = self.dim_reduce_block2(transformer_input_2,
-                                                     training=training)
-
-        #transformer_input_2 = self.sin_pe3(transformer_input_2)
-        transformer_out_2,att_matrices_2 = self.transformer_stack_2(transformer_input_2,
-                                                                    training=training)
+        transformer_input_2 = self.sin_pe2(transformer_input_2)
+        transformer_out_2,att_matrices_2 = self.transformer_stack_rna(transformer_input_2,
+                                                                      training=training)
 
         rna_output = self.final_pointwise_rna(transformer_out_2)
         rna_output = self.dropout(rna_output,
@@ -345,8 +323,8 @@ class aformer(tf.keras.Model):
             "numerical_stabilizer": self.numerical_stabilizer,
             "kernel_transformation": self.kernel_transformation,
             "nb_random_features": self.nb_random_features,
-            "transformer_depth_1":self.transformer_depth_1,
-            "transformer_depth_2":self.transformer_depth_2,
+            "transformer_depth_rna":self.transformer_depth_rna,
+            "shared_transformer_depth" : self.shared_transformer_depth,
             "pre_transf_channels":self.pre_transf_channels,
             "d_model":self.d_model,
             "norm":self.norm,
@@ -372,22 +350,58 @@ class aformer(tf.keras.Model):
     #                              tf.TensorSpec([None, 1572], tf.float32)])
     def predict_on_batch(self, inputs, training:bool=False):
         
-        sequence,atac,tf_inputs = inputs
+        sequence, TSSs, exons, tf_inputs, atac = inputs
         
-        # sequence processing module
-        x_seq = self.convstack_seq(sequence,training=training) ### here dimension is 131072 / 2, C = hidden/size / 2
-        
-        x_atac = self.convstack_atac(atac,training=training)
+        x = self.stem_conv(sequence,
+                           training=training)
+        x = self.stem_res_conv(x,
+                               training=training)
+        x = self.stem_pool(x,
+                           training=training)
+        enformer_conv_out = self.conv_tower(x,
+                                            training=training)
 
-        transformer_input = tf.concat([x_seq,
-                                       x_atac],axis=2)
-        transformer_input = self.sin_pe(transformer_input)
-        
-        x,att_matrices = self.transformer_stack(transformer_input,training=training)
+        tf_processed = self.tf_module(tf_inputs, 
+                                      training=training)
+        tf_processed = tf.expand_dims(tf_processed, 
+                                      axis=1)
+        tf_processed = tf.tile(tf_processed, 
+                               [1,self.atac_length_uncropped,1])
 
-        org_spec_inputs = x,tf_inputs
-        
-        return [{head: head_module(org_spec_inputs,
+        enformer_conv_out = tf.concat([enformer_conv_out,
+                                       tf_processed],axis=2)
+
+        enformer_conv_out = self.conv_mix_block(enformer_conv_out,
+                                                training=training)
+        enformer_conv_out = self.sin_pe1(enformer_conv_out)
+        shared_transformer_out,att_matrices_shared = self.shared_transformer(enformer_conv_out,
+                                                                             training=training)
+
+        atac_output = self.final_pointwise_atac(shared_transformer_out,
+                                                training=training)
+        atac_output = self.dropout(atac_output,
                                    training=training)
-                for head, head_module in self.heads.items()},att_matrices]
+        atac_output = self.gelu(atac_output)
+        atac_output = self.atac_head(atac_output,
+                                     training=training)
+        
+        transformer_input_2 = tf.concat([shared_transformer_out,
+                                     atac_output,
+                                     TSSs,
+                                     exons],
+                                    axis=2)
+
+        transformer_input_2 = self.sin_pe2(transformer_input_2)
+        transformer_out_2,att_matrices_2 = self.transformer_stack_rna(transformer_input_2,
+                                                                      training=training)
+
+        rna_output = self.final_pointwise_rna(transformer_out_2)
+        rna_output = self.dropout(rna_output,
+                                  training=training)
+        rna_output = self.gelu(rna_output)
+        rna_output = self.rna_head(rna_output,
+                                   training=training)
+
+        return atac_output, rna_output, att_matrices_2
+    
 
