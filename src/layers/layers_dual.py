@@ -730,7 +730,7 @@ class output_head_rna(kl.Layer):
         self.dense1 = kl.Dense(units= self.num_channels_out // 8,
                                use_bias=False)
         
-        self.flatten = kl.Flatten(**kwargs)
+        self.gap = kl.GlobalAveragePooling1D(**kwargs)
         
         self.dense2 = kl.Dense(units= self.num_channels_out // 16,
                                use_bias=False)
@@ -757,7 +757,7 @@ class output_head_rna(kl.Layer):
         x=self.gelu(x)
         x=self.dropout(x,training=training)
         
-        x=self.flatten(x)
+        x=self.gap(x)
         
         x=self.dense2(x)
         x=self.gelu(x)
