@@ -31,8 +31,7 @@ import src.optimizers
 import src.schedulers
 import pandas as pd
 import src.utils
-import seaborn as sns
-
+import seaborn as snss
 from scipy.stats.stats import pearsonr, spearmanr
 from scipy.stats import linregress
 from scipy import stats
@@ -1248,7 +1247,11 @@ def deserialize_atac(serialized_example,input_length,
                                                                      stddev=5.0e-01,
                                                                      dtype=tf.float32))
     
+    TF_expression_mean = tf.math.reduce_mean(TF_expression)
+    TF_expression_sd = tf.math.reduce_std(TF_expression)
     
+    TF_expression = (TF_expression - TF_expression_mean) / (TF_expression_sd)
+
     return {
         'sequence': tf.ensure_shape(sequence,[input_length,4]),
         'atac': tf.ensure_shape(atac, [output_length,1]),

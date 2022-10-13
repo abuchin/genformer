@@ -93,7 +93,7 @@ def main():
                     'values':[float(x) for x in args.lr_base2.split(',')]
                 },
                 'lr_base3': {
-                    'values':[float(x) for x in args.lr_base2.split(',')]
+                    'values':[float(x) for x in args.lr_base3.split(',')]
                 },
                 'gradient_clip': {
                     'values': [float(x) for x in args.gradient_clip.split(',')]
