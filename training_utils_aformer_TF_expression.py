@@ -571,7 +571,7 @@ def return_train_val_functions_notf(model,
                                out_length,
                                crop_length,
                                batch_size,
-                                    rna_loss_scale=None):
+                               rna_loss_scale=None):
     """Returns distributed train and validation functions for
     a given list of organisms
     Args:
@@ -611,83 +611,78 @@ def return_train_val_functions_notf(model,
     
     poisson_loss = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
     
-    optimizer1,optimizer2=optimizers_in
+    optimizer1,optimizer2,optimizer3=optimizers_in
     
     def dist_train_step_atac(iterator):
         @tf.function(jit_compile=True)
         def train_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            target=tf.ones((batch_size,1)) #tf.cast(inputs['target'],dtype=tf.float32)
-            tss_tokens=tf.ones_like(atac)#tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
+            tss_tokens=tf.ones_like(atac)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
-            exons=tf.ones_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
+            exons=tf.ones_like(atac)
 
-            input_tuple = sequence,tss_tokens,exons, TF_expression, atac, target
+            input_tuple = sequence,tss_tokens,exons, TF_expression, atac
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
-            with tf.GradientTape() as tape:
+            atac=tf.cast(atac,dtype=tf.float32)
+            with tf.GradientTape(watch_accessed_variables=False) as tape:
+                conv_vars = model.stem_conv.trainable_variables + \
+                            model.stem_res_conv.trainable_variables + \
+                            model.stem_pool.trainable_variables + \
+                            model.conv_tower.trainable_variables + \
+                            model.shared_transformer.trainable_variables + \
+                            model.conv_mix_block1.trainable_variables
+
+                atac_vars = model.final_pointwise_atac.trainable_variables + \
+                            model.atac_head.trainable_variables
+                vars_subset = conv_vars + atac_vars
+                
+                for var in vars_subset:
+                    tape.watch(var)
+                    
                 atac_out,rna_out = model(input_tuple,
-                                         atac_train=True,
-                                         rna_train=False,
                                          use_tf_module=False,
                                          training=True)
                 atac_out = tf.cast(atac_out,dtype=tf.float32)
-                rna_out = tf.cast(rna_out,dtype=tf.float32)
-                atac = tf.cast(atac,dtype=tf.float32)
-                #rna_loss = tf.reduce_sum(regular_mse(rna_out, target),
-                #                         axis=0) * (1. / global_batch_size)
                 atac_loss = tf.reduce_sum(poisson_loss(atac,
                                                        atac_out),
                                          axis=0) * (1. / global_batch_size)
-                loss = atac_loss #+ (rna_loss / 2.0)
+                loss = atac_loss
             
-            conv_vars = model.stem_conv.trainable_variables + \
-                        model.stem_res_conv.trainable_variables + \
-                        model.stem_pool.trainable_variables + \
-                        model.conv_tower.trainable_variables + \
-                        model.shared_transformer.trainable_variables + \
-                        model.dim_reduce_block.trainable_variables 
-            
-            atac_vars = model.transformer_stack_1.trainable_variables + \
-                        model.final_pointwise_atac.trainable_variables +\
-                        model.atac_head.trainable_variables
-            
+
             gradients = tape.gradient(loss, conv_vars + atac_vars)
             gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip)
-            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], conv_vars))
-            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], atac_vars))
+            
+            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], 
+                                           conv_vars))
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
+                                           atac_vars))
 
             metric_dict["hg_tr"].update_state(loss)
             metric_dict["hg_tr_atac"].update_state(loss)
-            #metric_dict["hg_tr_rna"].update_state(rna_loss)
         
 
         for _ in tf.range(train_steps): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(train_step, args=(next(iterator),))
 
-
-    
+            
     def dist_val_step_atac(iterator):
         
         @tf.function(jit_compile=True)
         def val_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            target=tf.ones((batch_size,1)) #tf.cast(inputs['target'],dtype=tf.float32)
             tss_tokens=tf.ones_like(atac)#tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             exons=tf.ones_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
-            input_tuple = sequence,tss_tokens,exons, TF_expression, atac,target
-            
-            
+            input_tuple = sequence,tss_tokens,exons, TF_expression, atac
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
+            atac=tf.cast(atac,dtype=tf.float32)
+            
             cell_type = inputs['cell_type']
 
-
             atac_out,rna_out = model(input_tuple,
-                                     atac_train=True,
-                                     rna_train=False,
                                      use_tf_module=False,
                                      training=False)
 
@@ -708,10 +703,7 @@ def return_train_val_functions_notf(model,
         for _ in tf.range(val_steps): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(val_step,
                          args=(next(iterator),))
-
-        
-        
-        
+#########################
     def dist_train_step_rna(iterator):
         @tf.function(jit_compile=True)
         def train_step(inputs):
@@ -722,13 +714,28 @@ def return_train_val_functions_notf(model,
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
-            input_tuple = sequence,tss_tokens,exons, TF_expression,atac,target
+            input_tuple = sequence,tss_tokens,exons, TF_expression, atac
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
-            with tf.GradientTape() as tape:
+            atac=tf.cast(atac,dtype=tf.float32)
+
+            with tf.GradientTape(watch_accessed_variables=False) as tape:
+                conv_vars = model.stem_conv.trainable_variables + \
+                            model.stem_res_conv.trainable_variables + \
+                            model.stem_pool.trainable_variables + \
+                            model.conv_tower.trainable_variables + \
+                            model.shared_transformer.trainable_variables + \
+                            model.conv_mix_block1.trainable_variables
+
+                rna_vars = model.final_pointwise_rna.trainable_variables + \
+                            model.conv_mix_block2.trainable_variables + \
+                            model.transformer_stack_rna.trainable_variables + \
+                            model.rna_head.trainable_variables
+                
+                vars_subset = conv_vars + rna_vars
+                for var in vars_subset:
+                    tape.watch(var)
                 
                 atac_out,rna_out = model(input_tuple,
-                                         atac_train=False,
-                                         rna_train=True,
                                          use_tf_module=False,
                                          training=True)
                 
@@ -738,21 +745,10 @@ def return_train_val_functions_notf(model,
                                          axis=0) * (1. / global_batch_size)
                 loss = rna_loss
                 
-            conv_vars = model.stem_conv.trainable_variables + \
-                        model.stem_res_conv.trainable_variables + \
-                        model.stem_pool.trainable_variables + \
-                        model.conv_tower.trainable_variables + \
-                        model.shared_transformer.trainable_variables + \
-                        model.dim_reduce_block.trainable_variables 
-            
-            rna_vars = model.transformer_stack_rna.trainable_variables + \
-                        model.final_pointwise_rna.trainable_variables +\
-                        model.rna_head.trainable_variables
-                
             gradients = tape.gradient(loss, conv_vars + rna_vars)
             gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip)
             optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], conv_vars))
-            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], rna_vars))
+            optimizer3.apply_gradients(zip(gradients[len(conv_vars):], rna_vars))
 
             metric_dict["hg_tr"].update_state(loss)
             metric_dict["hg_tr_rna"].update_state(rna_loss)
@@ -772,14 +768,14 @@ def return_train_val_functions_notf(model,
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
-            input_tuple = sequence,tss_tokens,exons, TF_expression,atac,target
+            input_tuple = sequence,tss_tokens,exons, TF_expression, atac
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
+            atac=tf.cast(atac,dtype=tf.float32)
+            
             cell_type = inputs['cell_type']
             gene_map = inputs['gene_encoded']
 
             atac_out,rna_out = model(input_tuple,
-                                     atac_train=False,
-                                     rna_train=True,
                                      use_tf_module=False,
                                      training=False)
 
@@ -833,13 +829,31 @@ def return_train_val_functions_notf(model,
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
-            input_tuple = sequence,tss_tokens,exons, TF_expression,atac,target
+            input_tuple = sequence,tss_tokens,exons, TF_expression, atac
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
-            with tf.GradientTape() as tape:
+            atac=tf.cast(atac,dtype=tf.float32)
+
+            with tf.GradientTape(watch_accessed_variables=False) as tape:
+                conv_vars = model.stem_conv.trainable_variables + \
+                            model.stem_res_conv.trainable_variables + \
+                            model.stem_pool.trainable_variables + \
+                            model.conv_tower.trainable_variables + \
+                            model.shared_transformer.trainable_variables + \
+                            model.conv_mix_block1.trainable_variables
+
+                rna_vars = model.final_pointwise_rna.trainable_variables + \
+                            model.conv_mix_block2.trainable_variables + \
+                            model.transformer_stack_rna.trainable_variables + \
+                            model.rna_head.trainable_variables
+                
+                atac_vars = model.final_pointwise_atac.trainable_variables + \
+                            model.atac_head.trainable_variables
+                
+                vars_subset = conv_vars + atac_vars + rna_vars
+                for var in vars_subset:
+                    tape.watch(var)
                 
                 atac_out,rna_out = model(input_tuple,
-                                         atac_train=True,
-                                         rna_train=True,
                                          use_tf_module=False,
                                          training=True)
                 
@@ -854,26 +868,11 @@ def return_train_val_functions_notf(model,
                 
                 loss = atac_loss + rna_loss_scale * rna_loss
                 
-                conv_vars = model.stem_conv.trainable_variables + \
-                            model.stem_res_conv.trainable_variables + \
-                            model.stem_pool.trainable_variables + \
-                            model.conv_tower.trainable_variables + \
-                            model.shared_transformer.trainable_variables + \
-                            model.dim_reduce_block.trainable_variables
-
-                rna_vars = model.transformer_stack_2.trainable_variables + \
-                            model.final_pointwise_rna.trainable_variables +\
-                            model.dim_reduce_block2.trainable_variables + \
-                            model.rna_head.trainable_variables
-
-                atac_vars = model.transformer_stack_1.trainable_variables + \
-                            model.final_pointwise_atac.trainable_variables +\
-                            model.atac_head.trainable_variables
-                
             gradients = tape.gradient(loss, conv_vars + atac_vars + rna_vars)
             gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip)
             optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], conv_vars))
-            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], atac_vars + rna_vars))
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):len(conv_vars + atac_vars)], atac_vars))
+            optimizer3.apply_gradients(zip(gradients[len(conv_vars + atac_vars):], rna_vars))
 
             metric_dict["hg_tr"].update_state(loss)
 
@@ -891,16 +890,16 @@ def return_train_val_functions_notf(model,
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
-            input_tuple = sequence,tss_tokens,exons, TF_expression,atac,target
+            input_tuple = sequence,tss_tokens,exons, TF_expression, atac
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
+            atac=tf.cast(atac,dtype=tf.float32)
+            
             cell_type = inputs['cell_type']
             gene_map = inputs['gene_encoded']
 
             atac_out,rna_out = model(input_tuple,
-                                     atac_train=True,
-                                     rna_train=True,
                                      use_tf_module=False,
-                                     training=False)
+                                     training=True)
 
             rna_out = tf.cast(rna_out,dtype=tf.float32)
             atac_out = tf.cast(atac_out,dtype=tf.float32)
@@ -948,10 +947,32 @@ def return_train_val_functions_notf(model,
         ta_true.close()
         ta_celltype.close()
         ta_genemap.close()
+        
+        
+    def build_step(iterator):
+        @tf.function(jit_compile=True)
+        def val_step(inputs):
+            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
+            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
+            target=tf.ones((batch_size,1)) #tf.cast(inputs['target'],dtype=tf.float32)
+            tss_tokens=tf.ones_like(atac)#tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
+            TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
+            exons=tf.ones_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
+
+            input_tuple = sequence,tss_tokens,exons, TF_expression, atac
+
+            atac_out,rna_out = model(input_tuple,
+                                     use_tf_module=False,
+                                     training=True)
+
+        for _ in tf.range(1): ## for loop within @tf.fuction for improved TPU performance
+            strategy.run(val_step,
+                         args=(next(iterator),))
+            
 
     return dist_train_step_atac, dist_val_step_atac,\
             dist_train_step_rna,dist_val_step_rna,\
-                dist_train_step_both,dist_val_step_both, metric_dict
+                dist_train_step_both,dist_val_step_both, build_step, metric_dict
 
 def deserialize(serialized_example,input_length, 
                 output_length,output_res,
