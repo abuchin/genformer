@@ -251,7 +251,7 @@ class aformer(tf.keras.Model):
                                         **kwargs)
         
         
-    def call(self, inputs, use_tf_module, training:bool=True):
+    def call(self, inputs, training:bool=True):
 
         sequence, TSSs, exons, tf_inputs, atac = inputs
         
@@ -270,9 +270,7 @@ class aformer(tf.keras.Model):
                                       axis=1)
         tf_processed = tf.tile(tf_processed, 
                                [1,self.atac_length_uncropped,1])
-        if not use_tf_module:
-            tf_processed = tf.ones_like(tf_processed)
-
+        
         enformer_conv_out = tf.concat([enformer_conv_out,
                                        tf_processed],axis=2)
 

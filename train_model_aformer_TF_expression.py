@@ -390,18 +390,18 @@ def main():
                         train_step_both,val_step_both,\
                             build_step, metric_dict = \
                 training_utils.return_train_val_functions_notf(model,
-                                                               optimizers_in,
-                                                               strategy,
-                                                               metric_dict,
-                                                               wandb.config.train_steps,
-                                                               wandb.config.val_steps,
-                                                               wandb.config.val_steps_ho,
-                                                               GLOBAL_BATCH_SIZE,
-                                                               wandb.config.gradient_clip,
-                                                               wandb.config.atac_length_uncropped,
-                                                               crop_size,
-                                                               wandb.config.batch_size,
-                                                               rna_loss_scale=wandb.config.rna_loss_scale)
+                                                          optimizers_in,
+                                                          strategy,
+                                                          metric_dict,
+                                                          wandb.config.train_steps,
+                                                          wandb.config.val_steps,
+                                                          wandb.config.val_steps_ho,
+                                                          GLOBAL_BATCH_SIZE,
+                                                          wandb.config.gradient_clip,
+                                                          wandb.config.atac_length_uncropped,
+                                                          crop_size,
+                                                          wandb.config.batch_size,
+                                                          rna_loss_scale=wandb.config.rna_loss_scale)
                 
 
             print('finished loading training/val loop functions')

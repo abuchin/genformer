@@ -196,9 +196,9 @@ def return_train_val_functions(model,
         def train_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            tss_tokens=tf.ones_like(atac)
+            tss_tokens=tf.zeros_like(atac)#tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
-            exons=tf.ones_like(atac)
+            exons=tf.zeros_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
@@ -220,7 +220,6 @@ def return_train_val_functions(model,
                     tape.watch(var)
                     
                 atac_out,rna_out = model(input_tuple,
-                                         use_tf_module=True,
                                          training=True)
                 atac_out = tf.cast(atac_out,dtype=tf.float32)
                 atac_loss = tf.reduce_sum(poisson_loss(atac,
@@ -251,9 +250,9 @@ def return_train_val_functions(model,
         def val_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            tss_tokens=tf.ones_like(atac)#tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
+            tss_tokens=tf.zeros_like(atac)#tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
-            exons=tf.ones_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
+            exons=tf.zeros_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
@@ -262,7 +261,6 @@ def return_train_val_functions(model,
             cell_type = inputs['cell_type']
 
             atac_out,rna_out = model(input_tuple,
-                                     use_tf_module=True,
                                      training=False)
 
             atac_out = tf.cast(atac_out,dtype=tf.float32)
@@ -316,7 +314,6 @@ def return_train_val_functions(model,
                     tape.watch(var)
                 
                 atac_out,rna_out = model(input_tuple,
-                                         use_tf_module=True,
                                          training=True)
                 
                 rna_out = tf.cast(rna_out,dtype=tf.float32)
@@ -356,7 +353,6 @@ def return_train_val_functions(model,
             gene_map = inputs['gene_encoded']
 
             atac_out,rna_out = model(input_tuple,
-                                     use_tf_module=True,
                                      training=False)
 
             rna_out = tf.cast(rna_out,dtype=tf.float32)
@@ -435,7 +431,6 @@ def return_train_val_functions(model,
                     tape.watch(var)
                 
                 atac_out,rna_out = model(input_tuple,
-                                         use_tf_module=True,
                                          training=True)
                 
                 rna_out = tf.cast(rna_out,dtype=tf.float32)
@@ -479,10 +474,7 @@ def return_train_val_functions(model,
             gene_map = inputs['gene_encoded']
 
             atac_out,rna_out = model(input_tuple,
-                                     atac_train=True,
-                                     rna_train=True,
-                                     use_tf_module=True,
-                                     training=True)
+                                     training=False)
 
             rna_out = tf.cast(rna_out,dtype=tf.float32)
             atac_out = tf.cast(atac_out,dtype=tf.float32)
@@ -545,8 +537,7 @@ def return_train_val_functions(model,
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
 
             atac_out,rna_out = model(input_tuple,
-                                     use_tf_module=True,
-                                     training=True)
+                                     training=False)
 
         for _ in tf.range(1): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(val_step,
@@ -618,9 +609,10 @@ def return_train_val_functions_notf(model,
         def train_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            tss_tokens=tf.ones_like(atac)
+            tss_tokens=tf.zeros_like(atac)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
-            exons=tf.ones_like(atac)
+            TF_expression = tf.zeros_like(TF_expression)
+            exons=tf.zeros_like(atac)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
@@ -641,7 +633,6 @@ def return_train_val_functions_notf(model,
                     tape.watch(var)
                     
                 atac_out,rna_out = model(input_tuple,
-                                         use_tf_module=False,
                                          training=True)
                 atac_out = tf.cast(atac_out,dtype=tf.float32)
                 atac_loss = tf.reduce_sum(poisson_loss(atac,
@@ -672,9 +663,10 @@ def return_train_val_functions_notf(model,
         def val_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            tss_tokens=tf.ones_like(atac)#tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
+            tss_tokens=tf.zeros_like(atac)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
-            exons=tf.ones_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
+            TF_expression = tf.zeros_like(TF_expression)
+            exons=tf.zeros_like(atac)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
@@ -683,7 +675,6 @@ def return_train_val_functions_notf(model,
             cell_type = inputs['cell_type']
 
             atac_out,rna_out = model(input_tuple,
-                                     use_tf_module=False,
                                      training=False)
 
             atac_out = tf.cast(atac_out,dtype=tf.float32)
@@ -712,6 +703,8 @@ def return_train_val_functions_notf(model,
             target=tf.cast(inputs['target'],dtype=tf.float32)
             tss_tokens=tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
+            TF_expression = tf.zeros_like(TF_expression)
+            
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
@@ -736,7 +729,6 @@ def return_train_val_functions_notf(model,
                     tape.watch(var)
                 
                 atac_out,rna_out = model(input_tuple,
-                                         use_tf_module=False,
                                          training=True)
                 
                 rna_out = tf.cast(rna_out,dtype=tf.float32)
@@ -766,6 +758,8 @@ def return_train_val_functions_notf(model,
             target=tf.cast(inputs['target'],dtype=tf.float32)
             tss_tokens=tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
+            TF_expression = tf.zeros_like(TF_expression)
+            
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
@@ -776,7 +770,6 @@ def return_train_val_functions_notf(model,
             gene_map = inputs['gene_encoded']
 
             atac_out,rna_out = model(input_tuple,
-                                     use_tf_module=False,
                                      training=False)
 
             rna_out = tf.cast(rna_out,dtype=tf.float32)
@@ -827,6 +820,8 @@ def return_train_val_functions_notf(model,
             target=tf.cast(inputs['target'],dtype=tf.float32)
             tss_tokens=tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
+            TF_expression = tf.zeros_like(TF_expression)
+            
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
@@ -854,7 +849,6 @@ def return_train_val_functions_notf(model,
                     tape.watch(var)
                 
                 atac_out,rna_out = model(input_tuple,
-                                         use_tf_module=False,
                                          training=True)
                 
                 rna_out = tf.cast(rna_out,dtype=tf.float32)
@@ -888,6 +882,8 @@ def return_train_val_functions_notf(model,
             target=tf.cast(inputs['target'],dtype=tf.float32)
             tss_tokens=tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
+            TF_expression = tf.zeros_like(TF_expression)
+            
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
@@ -898,8 +894,7 @@ def return_train_val_functions_notf(model,
             gene_map = inputs['gene_encoded']
 
             atac_out,rna_out = model(input_tuple,
-                                     use_tf_module=False,
-                                     training=True)
+                                     training=False)
 
             rna_out = tf.cast(rna_out,dtype=tf.float32)
             atac_out = tf.cast(atac_out,dtype=tf.float32)
@@ -954,16 +949,13 @@ def return_train_val_functions_notf(model,
         def val_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            target=tf.ones((batch_size,1)) #tf.cast(inputs['target'],dtype=tf.float32)
-            tss_tokens=tf.ones_like(atac)#tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
+            tss_tokens=tf.ones_like(atac)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             exons=tf.ones_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
-
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
 
             atac_out,rna_out = model(input_tuple,
-                                     use_tf_module=False,
-                                     training=True)
+                                     training=False)
 
         for _ in tf.range(1): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(val_step,
