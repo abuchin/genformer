@@ -12,7 +12,7 @@ python3 train_model_aformer_TF_expression.py \
             --atac_length_uncropped=768 \
             --atac_output_length=448 \
             --max_shift=20 \
-            --batch_size=40 \
+            --batch_size=32 \
             --num_epochs=60 \
             --train_examples=3587877 \
             --warmup_frac=0.001 \
