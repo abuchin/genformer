@@ -47,6 +47,6 @@ python3 train_model_aformer_TF_expression.py \
             --train_mode="atac_only" \
             --load_init="False" \
             --freeze_conv_layers="False" \
-            --use_tf_module="True,False" \
+            --use_tf_module="True" \
             --rna_loss_scale="0.50" \
             --filter_list="192,224,256,288,320,384"

@@ -186,7 +186,7 @@ def main():
             wandb.config.num_epochs=args.num_epochs
             wandb.config.train_examples=args.train_examples
             wandb.config.val_examples=args.val_examples
-            wandb.config.val_examples_ho=args.val_examples
+            wandb.config.val_examples_ho=args.val_examples_ho
             wandb.config.batch_size=args.batch_size
             wandb.config.warmup_frac=args.warmup_frac
             wandb.config.total_steps=args.total_steps
