@@ -179,13 +179,14 @@ def return_train_val_functions(model,
                                                  dtype=tf.float32)
     metric_dict["hg_val"] = tf.keras.metrics.Mean("hg_val_loss",
                                                   dtype=tf.float32)
-    metric_dict["hg_val_ho"] = tf.keras.metrics.Mean("hg_val_loss_ho",
-                                                  dtype=tf.float32)
+    
     metric_dict["hg_corr_stats"] = metrics.correlation_stats_gene_centered(name='hg_corr_stats')
-    
     metric_dict['hg_pearsonsR_ATAC'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
-    
     metric_dict['hg_R2_ATAC'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
+    
+    metric_dict["hg_val_ho"] = tf.keras.metrics.Mean("hg_val_loss_ho", dtype=tf.float32)
+    metric_dict['hg_pearsonsR_ATAC_ho'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
+    metric_dict['hg_R2_ATAC_ho'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
     
     poisson_loss = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
     
@@ -280,6 +281,42 @@ def return_train_val_functions(model,
         for _ in tf.range(val_steps): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(val_step,
                          args=(next(iterator),))
+            
+    def dist_val_step_atac_ho(iterator):
+        @tf.function(jit_compile=True)
+        def val_step(inputs):
+            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
+            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
+            tss_tokens=tf.zeros_like(atac)
+            TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
+            exons=tf.zeros_like(atac)
+
+            input_tuple = sequence,tss_tokens,exons, TF_expression, atac
+            #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
+            atac=tf.cast(atac,dtype=tf.float32)
+            
+            cell_type = inputs['cell_type']
+
+            atac_out,rna_out = model(input_tuple,
+                                     training=False)
+
+            atac_out = tf.cast(atac_out,dtype=tf.float32)
+            atac = tf.cast(atac,dtype=tf.float32)
+
+            atac_loss = tf.reduce_sum(poisson_loss(atac,
+                                                   atac_out),
+                                     axis=0) * (1. / global_batch_size)
+            loss = atac_loss
+            metric_dict['hg_pearsonsR_ATAC_ho'].update_state(atac, 
+                                                          atac_out)
+            metric_dict['hg_R2_ATAC_ho'].update_state(atac, 
+                                                   atac_out)
+            metric_dict["hg_val_ho"].update_state(loss)
+            
+        for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
+            strategy.run(val_step,
+                         args=(next(iterator),))
+            
 #########################
     def dist_train_step_rna(iterator):
         @tf.function(jit_compile=True)
@@ -523,7 +560,6 @@ def return_train_val_functions(model,
         ta_celltype.close()
         ta_genemap.close()
         
-        
     def build_step(iterator):
         @tf.function(jit_compile=True)
         def val_step(inputs):
@@ -544,9 +580,9 @@ def return_train_val_functions(model,
                          args=(next(iterator),))
             
 
-    return dist_train_step_atac, dist_val_step_atac,\
-            dist_train_step_rna,dist_val_step_rna,\
-                dist_train_step_both,dist_val_step_both, build_step, metric_dict
+    return dist_train_step_atac,dist_val_step_atac,dist_val_step_atac_ho,\
+                dist_train_step_rna,dist_val_step_rna,\
+                    dist_train_step_both,dist_val_step_both, build_step, metric_dict
 
 
 
@@ -592,13 +628,17 @@ def return_train_val_functions_notf(model,
                                                  dtype=tf.float32)
     metric_dict["hg_val"] = tf.keras.metrics.Mean("hg_val_loss",
                                                   dtype=tf.float32)
-    metric_dict["hg_val_ho"] = tf.keras.metrics.Mean("hg_val_loss_ho",
-                                                  dtype=tf.float32)
+    
     metric_dict["hg_corr_stats"] = metrics.correlation_stats_gene_centered(name='hg_corr_stats')
     
     metric_dict['hg_pearsonsR_ATAC'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
     
     metric_dict['hg_R2_ATAC'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
+    
+    metric_dict["hg_val_ho"] = tf.keras.metrics.Mean("hg_val_loss_ho",
+                                                  dtype=tf.float32)
+    metric_dict['hg_pearsonsR_ATAC_ho'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
+    metric_dict['hg_R2_ATAC_ho'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
     
     poisson_loss = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
     
@@ -615,8 +655,8 @@ def return_train_val_functions_notf(model,
             exons=tf.zeros_like(atac)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
-            #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             atac=tf.cast(atac,dtype=tf.float32)
+            
             with tf.GradientTape(watch_accessed_variables=False) as tape:
                 conv_vars = model.stem_conv.trainable_variables + \
                             model.stem_res_conv.trainable_variables + \
@@ -694,6 +734,43 @@ def return_train_val_functions_notf(model,
         for _ in tf.range(val_steps): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(val_step,
                          args=(next(iterator),))
+
+    def dist_val_step_atac_ho(iterator):
+        @tf.function(jit_compile=True)
+        def val_step(inputs):
+            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
+            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
+            tss_tokens=tf.zeros_like(atac)
+            TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
+            TF_expression = tf.zeros_like(TF_expression)
+            exons=tf.zeros_like(atac)
+
+            input_tuple = sequence,tss_tokens,exons, TF_expression, atac
+            #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
+            atac=tf.cast(atac,dtype=tf.float32)
+            
+            cell_type = inputs['cell_type']
+
+            atac_out,rna_out = model(input_tuple,
+                                     training=False)
+
+            atac_out = tf.cast(atac_out,dtype=tf.float32)
+            atac = tf.cast(atac,dtype=tf.float32)
+
+            atac_loss = tf.reduce_sum(poisson_loss(atac,
+                                                   atac_out),
+                                     axis=0) * (1. / global_batch_size)
+            loss = atac_loss
+            metric_dict['hg_pearsonsR_ATAC_ho'].update_state(atac, 
+                                                          atac_out)
+            metric_dict['hg_R2_ATAC_ho'].update_state(atac, 
+                                                   atac_out)
+            metric_dict["hg_val_ho"].update_state(loss)
+
+        for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
+            strategy.run(val_step,
+                         args=(next(iterator),))
+            
 #########################
     def dist_train_step_rna(iterator):
         @tf.function(jit_compile=True)
@@ -962,9 +1039,9 @@ def return_train_val_functions_notf(model,
                          args=(next(iterator),))
             
 
-    return dist_train_step_atac, dist_val_step_atac,\
-            dist_train_step_rna,dist_val_step_rna,\
-                dist_train_step_both,dist_val_step_both, build_step, metric_dict
+    return dist_train_step_atac,dist_val_step_atac,dist_val_step_atac_ho,\
+                dist_train_step_rna,dist_val_step_rna,\
+                    dist_train_step_both,dist_val_step_both, build_step, metric_dict
 
 def deserialize(serialized_example,input_length, 
                 output_length,output_res,
@@ -1032,7 +1109,7 @@ def deserialize(serialized_example,input_length,
     TF_expression = tf.math.log(1.0 + TF_expression)
     TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
                                                                  mean=0.0,
-                                                                 stddev=5.0e-01,
+                                                                 stddev=2.5e-01,
                                                                  dtype=tf.float32))
     
 
@@ -1110,6 +1187,10 @@ def deserialize_val(serialized_example,input_length, output_length,output_res,
                              [num_TFs,])
     ## log transform
     TF_expression = tf.math.log(1.0 + TF_expression)
+    TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
+                                                                 mean=0.0,
+                                                                 stddev=2.5e-01,
+                                                                 dtype=tf.float32))
 
     TPM = tf.io.parse_tensor(data['TPM'],out_type=tf.float32)
     target = log2(1.0 + tf.math.maximum(0.0,TPM))
@@ -1253,13 +1334,14 @@ def deserialize_atac(serialized_example,input_length,
                                               out_type=tf.float32),
                              [num_TFs,])
     TF_expression = tf.math.log(1.0 + TF_expression)
+
     
     if train_bool: 
         TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
                                                                      mean=0.0,
-                                                                     stddev=5.0e-01,
+                                                                     stddev=2.5e-01,
                                                                      dtype=tf.float32))
-    
+
     TF_expression_mean = tf.math.reduce_mean(TF_expression)
     TF_expression_sd = tf.math.reduce_std(TF_expression)
     
@@ -1364,13 +1446,27 @@ def return_distributed_iterators(gcs_path,
                                         num_parallel_calls,
                                         num_epoch,
                                         num_tf)
+            
+            val_data_ho = return_dataset_atac(gcs_path_val_ho,
+                                        "val","hg", 
+                                        global_batch_size,
+                                        input_length,
+                                        output_length,
+                                        output_res,
+                                           False,
+                                        max_shift,
+                                        options,
+                                        num_parallel_calls,
+                                        num_epoch,
+                                        num_tf)
 
             train_dist = strategy.experimental_distribute_dataset(tr_data)
             val_dist= strategy.experimental_distribute_dataset(val_data)
-
+            val_dist_ho = strategy.experimental_distribute_dataset(val_data_ho) 
             tr_data_it = iter(train_dist)
             val_data_it = iter(val_dist)
-
+            val_data_it_ho = iter(val_dist_ho)
+            
             data_it_tr_list.append(tr_data_it)
             data_it_val_list.append(val_data_it)
 
@@ -1399,17 +1495,30 @@ def return_distributed_iterators(gcs_path,
                                         num_parallel_calls,
                                         num_epoch,
                                         num_tf)
+            
+            val_data_ho = return_dataset_atac(gcs_path_val_ho,
+                                        "val","hg", 
+                                        global_batch_size,
+                                        input_length,
+                                        output_length,
+                                        output_res,
+                                           False,
+                                        max_shift,
+                                        options,
+                                        num_parallel_calls,
+                                        num_epoch,
+                                        num_tf)
 
             train_dist = strategy.experimental_distribute_dataset(tr_data)
             val_dist= strategy.experimental_distribute_dataset(val_data)
 
+            train_dist = strategy.experimental_distribute_dataset(tr_data)
+            val_dist= strategy.experimental_distribute_dataset(val_data)
+            val_dist_ho = strategy.experimental_distribute_dataset(val_data_ho) 
             tr_data_it = iter(train_dist)
             val_data_it = iter(val_dist)
 
-            data_it_tr_list.append(tr_data_it)
-            data_it_val_list.append(val_data_it)
-
-    return tr_data_it, val_data_it
+    return tr_data_it, val_data_it, val_data_it_ho
 
 
 

@@ -227,6 +227,7 @@ def main():
             BATCH_SIZE_PER_REPLICA=wandb.config.batch_size
             GLOBAL_BATCH_SIZE = BATCH_SIZE_PER_REPLICA*NUM_REPLICAS
             print('global batch size:', GLOBAL_BATCH_SIZE)
+            
             num_train=wandb.config.train_examples
             num_val=wandb.config.val_examples
             num_val_ho=wandb.config.val_examples_ho#4192000
@@ -253,7 +254,7 @@ def main():
             gene_symbol_df.columns = ['ensembl_id',
                                       'symbol']
 
-            data_dict_tr,data_dict_val = \
+            data_dict_tr,data_dict_val,data_dict_val_ho = \
                     training_utils.return_distributed_iterators(wandb.config.gcs_path,
                                                                 wandb.config.gcs_path_val_ho,
                                                                 wandb.config.train_mode,
@@ -367,7 +368,7 @@ def main():
                              wandb.config.atac_output_length) // 2
             metric_dict = {}
             if wandb.config.use_tf_module:
-                train_step_atac, val_step_atac,\
+                train_step_atac,val_step_atac,val_step_atac_ho,\
                     train_step_rna,val_step_rna,\
                         train_step_both,val_step_both,\
                             build_step, metric_dict = \
@@ -385,7 +386,7 @@ def main():
                                                           wandb.config.batch_size,
                                                           rna_loss_scale=wandb.config.rna_loss_scale)
             else:
-                train_step_atac, val_step_atac,\
+                train_step_atac,val_step_atac,val_step_atac_ho,\
                     train_step_rna,val_step_rna,\
                         train_step_both,val_step_both,\
                             build_step, metric_dict = \
@@ -425,7 +426,6 @@ def main():
                         total_params += tf.size(var)
                     print('total params: ' + str(total_params)) 
                 
-                
                 print('starting epoch_', str(epoch_i))
                 start = time.time()
                 if train_mode == 'atac_only':
@@ -447,17 +447,30 @@ def main():
                 start = time.time()
                 if train_mode == 'atac_only':
                     val_step_atac(data_dict_val)
+
+                    
                     val_pearsons.append(metric_dict['hg_pearsonsR_ATAC'].result()['PearsonR'].numpy())
                     pearsons_atac = metric_dict['hg_pearsonsR_ATAC'].result()['PearsonR'].numpy()
                     pearsons_R2= metric_dict['hg_R2_ATAC'].result()['R2'].numpy()
                     print('hg_ATAC_pearsons: ' + str(pearsons_atac))
                     print('hg_ATAC_R2: ' + str(pearsons_R2))
-                    print('returned correlation metrics from make plots function')
                     wandb.log({'hg_ATAC_pearsons': pearsons_atac,
                                'hg_ATAC_R2': pearsons_R2},
                               step=epoch_i)
+
+                    val_step_atac_ho(data_dict_val_ho)
+                    pearsons_atac_ho = metric_dict['hg_pearsonsR_ATAC_ho'].result()['PearsonR'].numpy()
+                    pearsons_R2_ho = metric_dict['hg_R2_ATAC_ho'].result()['R2'].numpy()
+                    print('hg_ATAC_pearsons_ho: ' + str(pearsons_atac_ho))
+                    print('hg_ATAC_R2_ho: ' + str(pearsons_R2_ho))
+                    print('returned correlation metrics from make plots function')
+                    wandb.log({'hg_ATAC_pearsons_ho': pearsons_atac_ho,
+                               'hg_ATAC_R2_ho': pearsons_R2_ho},
+                              step=epoch_i)
+                    
                 elif train_mode == 'rna_only':
                     val_step_rna(data_dict_val)
+                    val_step_rna_ho(data_dict_val_ho)
                     val_pearsons.append(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy())
                     print('hg_RNA_pearson: ' + str(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy()))
                     print('hg_RNA_R2: ' + str(metric_dict['hg_corr_stats'].result()['R2'].numpy()))
