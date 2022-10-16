@@ -50,7 +50,7 @@ python3 train_model_aformer_TF_expression_peaks.py \
             --use_tf_module="True" \
             --rna_loss_scale="0.50" \
             --lambda1="1.0" \
-            --lambda2="0.20" \
+            --lambda2="0.50" \
             --lambda3="0.0" \
             --enformer_checkpoint_path="sonnet_weights"
             #--filter_list="192,224,256,288,320,384"

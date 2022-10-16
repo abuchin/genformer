@@ -304,7 +304,7 @@ def return_train_val_functions(model,
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             peaks = tf.cast(inputs['peaks'],
                             dtype=tf.bfloat16)
-            
+            peaks_weighting = 5.0 * peaks + (1.0 - peaks)
             exons=tf.zeros_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
@@ -353,7 +353,7 @@ def return_train_val_functions(model,
             exons=tf.zeros_like(atac)
             peaks = tf.cast(inputs['peaks'],
                             dtype=tf.bfloat16)
-
+            peaks_weighting = 5.0 * peaks + (1.0 - peaks)
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             atac=tf.cast(atac,dtype=tf.float32)
