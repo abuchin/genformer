@@ -232,6 +232,7 @@ def return_train_val_functions(model,
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             peaks = tf.cast(inputs['peaks'],
                             dtype=tf.bfloat16)
+            peaks_weighting = 5.0 * peaks + (1.0 - peaks)
             exons=tf.zeros_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
@@ -258,10 +259,12 @@ def return_train_val_functions(model,
                 atac_out_reg = tf.cast(atac_out_reg,dtype=tf.float32)
                 atac_out_class = tf.cast(atac_out_class,dtype=tf.float32)
                 atac_loss_reg = lambda1 * tf.reduce_sum(poisson_loss(atac,
-                                                           atac_out_reg),
+                                                                     atac_out_reg,
+                                                                     sample_weight=peaks_weighting),
                                          axis=0) * (1. / global_batch_size)
                 atac_loss_class = lambda2 * tf.reduce_sum(cross_entropy(peaks,
-                                                              atac_out_class),
+                                                                        atac_out_class,
+                                                                        sample_weight=peaks_weighting),
                                          axis=0) * (1. / global_batch_size)
                 corr_coeff_loss = lambda3 * (1.0 - tf.reduce_sum(corr_coef(atac_out_reg,
                                                           atac_out_class)) * (1. / global_batch_size))
@@ -315,10 +318,12 @@ def return_train_val_functions(model,
             atac_out_reg = tf.cast(atac_out_reg,dtype=tf.float32)
             atac_out_class = tf.cast(atac_out_class,dtype=tf.float32)
             atac_loss_reg = lambda1 * tf.reduce_sum(poisson_loss(atac,
-                                                       atac_out_reg),
+                                                                 atac_out_reg,
+                                                                 sample_weight=peaks_weighting),
                                      axis=0) * (1. / global_batch_size)
             atac_loss_class = lambda2 * tf.reduce_sum(cross_entropy(peaks,
-                                                          atac_out_class),
+                                                                    atac_out_class,
+                                                                    sample_weight=peaks_weighting),
                                      axis=0) * (1. / global_batch_size)
             corr_coeff_loss = lambda3 * (1.0 - tf.reduce_sum(corr_coef(atac_out_reg,
                                                       atac_out_class)) * (1. / global_batch_size))
@@ -360,10 +365,12 @@ def return_train_val_functions(model,
             atac_out_reg = tf.cast(atac_out_reg,dtype=tf.float32)
             atac_out_class = tf.cast(atac_out_class,dtype=tf.float32)
             atac_loss_reg = lambda1 * tf.reduce_sum(poisson_loss(atac,
-                                                       atac_out_reg),
+                                                                 atac_out_reg,
+                                                                 sample_weight=peaks_weighting),
                                      axis=0) * (1. / global_batch_size)
             atac_loss_class = lambda2 * tf.reduce_sum(cross_entropy(peaks,
-                                                          atac_out_class),
+                                                                    atac_out_class,
+                                                                    sample_weight=peaks_weighting),
                                      axis=0) * (1. / global_batch_size)
             corr_coeff_loss = lambda3 * (1.0 - tf.reduce_sum(corr_coef(atac_out_reg,
                                                       atac_out_class)) * (1. / global_batch_size))
