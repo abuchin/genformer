@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model_aformer_TF_expression_peaks.py \
-            --tpu_name="node-3" \
-            --tpu_zone="us-central1-a" \
+            --tpu_name="pod" \
+            --tpu_zone="us-east1-d" \
             --wandb_project="aformer_TF_ATAC" \
             --wandb_user="njaved" \
             --wandb_sweep_name="aformer_TF_ATAC" \
@@ -15,10 +15,10 @@ python3 train_model_aformer_TF_expression_peaks.py \
             --max_shift=20 \
             --batch_size=16 \
             --num_epochs=50 \
-            --train_examples=125000 \
+            --train_examples=2627856 \
             --warmup_frac=0.02 \
-            --val_examples=40000 \
-            --val_examples_ho=40000 \
+            --val_examples=461000 \
+            --val_examples_ho=40568 \
             --patience=20 \
             --min_delta=0.00005 \
             --model_save_dir="gs://picard-testing-176520/seqtoatac_98k_73kstride_blacklist0.25_peaks/models" \
