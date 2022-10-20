@@ -52,4 +52,5 @@ python3 train_model_aformer_TF_expression_peaks.py \
             --lambda3="0.0" \
             --freeze_conv_layers="False" \
             --load_init="True" \
-            --atac_peaks_cropped=56
+            --atac_peaks_cropped=56 \
+            --enformer_checkpoint_path="sonnet_weights"
