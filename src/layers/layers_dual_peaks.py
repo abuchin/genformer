@@ -788,9 +788,19 @@ class output_head_atac(kl.Layer):
         self.final_softplus_regression = tf.keras.layers.Activation('softplus')
         
         
+        ### need to dim reduce by factor of 8 before classification
+        ### dimension here is 768
+        ### need to get to dimension of 96
+        ### pool by 8
+        self.pool = SoftmaxPooling1D(per_channel=True,
+                                     w_init_scale=2.0,
+                                     pool_size=8,
+                                     k_init=None,
+                                     train=True)
+        
         self.final_dense_class = kl.Dense(units=1,
-                                    use_bias=True)
-        self.final_sigmoid_class = tf.keras.layers.Activation('sigmoid')
+                                          use_bias=True)
+        #self.final_sigmoid_class = tf.keras.layers.Activation('sigmoid')
         
     def get_config(self):
         base_config = super().get_config()
@@ -804,10 +814,12 @@ class output_head_atac(kl.Layer):
         x = self.dense1(inputs)
         x = self.gelu(x)
         x_reg = self.final_dense_regression(x)
-        x_class = self.final_dense_class(x)
+        
+        x_class = self.pool(x)
+        x_class = self.final_dense_class(x_class)
         
         return self.final_softplus_regression(x_reg),\
-                self.final_sigmoid_class(x_class)
+                x_class
 
 
 ############################ tf_module module #####################################

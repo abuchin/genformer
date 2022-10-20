@@ -250,6 +250,11 @@ class aformer(tf.keras.Model):
                                         name = 'rna_out_head',
                                         **kwargs)
         
+        self.crop_reg = TargetLengthCrop1D(uncropped_length = 768,
+                                           target_length = 448)
+        self.crop_class = TargetLengthCrop1D(uncropped_length = 96,
+                                             target_length = 56)
+        
         
     def call(self, inputs, training:bool=True):
 
@@ -286,7 +291,7 @@ class aformer(tf.keras.Model):
                                    training=training)
         atac_output = self.gelu(atac_output)
         atac_output_reg,atac_output_class = self.atac_head(atac_output,
-                                     training=training)
+                                                           training=training)
         
         transformer_input_2 = tf.concat([shared_transformer_out,
                                          atac_output,
@@ -308,7 +313,7 @@ class aformer(tf.keras.Model):
         rna_output = self.rna_head(rna_output,
                                    training=training)
 
-        return atac_output_reg,atac_output_class,rna_output
+        return self.crop_reg(atac_output_reg), self.crop_class(atac_output_class), rna_output
     
 
     def get_config(self):
@@ -365,11 +370,11 @@ class aformer(tf.keras.Model):
                                       axis=1)
         tf_processed = tf.tile(tf_processed, 
                                [1,self.atac_length_uncropped,1])
-
+        
         enformer_conv_out = tf.concat([enformer_conv_out,
                                        tf_processed],axis=2)
 
-        enformer_conv_out = self.conv_mix_block(enformer_conv_out,
+        enformer_conv_out = self.conv_mix_block1(enformer_conv_out,
                                                 training=training)
         enformer_conv_out = self.sin_pe1(enformer_conv_out)
         shared_transformer_out,att_matrices_shared = self.shared_transformer(enformer_conv_out,
@@ -380,14 +385,17 @@ class aformer(tf.keras.Model):
         atac_output = self.dropout(atac_output,
                                    training=training)
         atac_output = self.gelu(atac_output)
-        atac_output = self.atac_head(atac_output,
-                                     training=training)
+        atac_output_reg,atac_output_class = self.atac_head(atac_output,
+                                                           training=training)
         
         transformer_input_2 = tf.concat([shared_transformer_out,
-                                     atac_output,
-                                     TSSs,
-                                     exons],
-                                    axis=2)
+                                         atac_output,
+                                         TSSs,
+                                         exons],
+                                        axis=2)
+        
+        transformer_input_2 = self.conv_mix_block2(transformer_input_2,
+                                                   training=training)
 
         transformer_input_2 = self.sin_pe2(transformer_input_2)
         transformer_out_2,att_matrices_2 = self.transformer_stack_rna(transformer_input_2,
@@ -400,6 +408,6 @@ class aformer(tf.keras.Model):
         rna_output = self.rna_head(rna_output,
                                    training=training)
 
-        return atac_output, rna_output, att_matrices_2
+        return self.crop_reg(atac_output_reg), self.crop_class(atac_output_class), rna_output, att_matrices_shared, att_matrices_2
     
 

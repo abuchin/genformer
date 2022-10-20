@@ -205,6 +205,8 @@ def main():
             wandb.config.model_save_basename=args.model_save_basename
             wandb.config.max_shift=args.max_shift
             
+            wandb.config.atac_peaks_cropped = args.atac_peaks_cropped
+            
             wandb.run.name = '_'.join(['input_length-' + str(wandb.config.input_length),
                                         'load_init-' + str(wandb.config.load_init),
                                        str(wandb.config.train_mode),
@@ -375,6 +377,8 @@ def main():
             
             crop_size = (wandb.config.atac_length_uncropped - \
                              wandb.config.atac_output_length) // 2
+            peaks_crop = (crop_size / wandb.config.atac_length_uncropped) * wandb.config.atac_peaks_cropped
+            peaks_crop = int(peaks_crop)
             metric_dict = {}
             if wandb.config.use_tf_module:
                 train_step_atac,val_step_atac,val_step_atac_ho,\
@@ -390,8 +394,10 @@ def main():
                                                           wandb.config.val_steps_ho,
                                                           GLOBAL_BATCH_SIZE,
                                                           wandb.config.gradient_clip,
-                                                          wandb.config.atac_length_uncropped,
+                                                          wandb.config.atac_output_length,
                                                           crop_size,
+                                                          wandb.config.atac_peaks_cropped,
+                                                          peaks_crop,
                                                           wandb.config.batch_size,
                                                           wandb.config.lambda1,
                                                           wandb.config.lambda2,
@@ -478,8 +484,23 @@ def main():
                                'hg_ATAC_R2': pearsons_R2,
                                'hg_ATAC_auprc': auprc},
                               step=epoch_i)
-
-                    val_step_atac_ho(data_dict_val_ho)
+            
+                    reg_true,reg_pred, peak_true,peak_pred,cell_types,intervals,count_sds = val_step_atac_ho(data_dict_val_ho)
+                
+                    cell_type_auprcs_median,cell_type_pearsons_median,ax_preds,ax_trues = training_utils.make_atac_plots(reg_pred.numpy(),
+                                                                                                 reg_true.numpy(),
+                                                                                                 peak_pred.numpy(),
+                                                                                                 peak_true.numpy(),
+                                                                                                 count_sds.numpy(),
+                                                                                                 cell_types.numpy(),
+                                                                                                 intervals.numpy())
+                    
+                    wandb.log({"predictions atac high var":wandb.Image(ax_preds)},step=epoch_i)
+                    wandb.log({"true atac high var":wandb.Image(ax_trues)},step=epoch_i)
+                    
+                    print('cell_type_auprcs_median: ' + str(cell_type_auprcs_median))
+                    print('cell_type_pearsons_median: ' + str(cell_type_pearsons_median))
+                
                     pearsons_atac_ho = metric_dict['hg_pearsonsR_ATAC_ho'].result()['PearsonR'].numpy()
                     pearsons_R2_ho = metric_dict['hg_R2_ATAC_ho'].result()['R2'].numpy()
                     auprc_ho = metric_dict['hg_val_AUPRC_ho'].result().numpy()
@@ -490,7 +511,9 @@ def main():
                     print('returned correlation metrics from make plots function')
                     wandb.log({'hg_ATAC_pearsons_ho': pearsons_atac_ho,
                                'hg_ATAC_R2_ho': pearsons_R2_ho,
-                               'hg_ATAC_auprc_ho': auprc_ho},
+                               'hg_ATAC_auprc_ho': auprc_ho,
+                               'cell_type_pearsons_median': cell_type_pearsons_median,
+                               'cell_type_auprcs_median': cell_type_auprcs_median},
                               step=epoch_i)
                     
                 elif train_mode == 'rna_only':

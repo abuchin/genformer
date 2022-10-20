@@ -41,6 +41,10 @@ import scipy.special
 import scipy.stats
 import scipy.ndimage
 
+import numpy as np
+from sklearn import metrics as sklearn_metrics
+
+import seaborn as sns
 
 from tensorflow.keras import initializers as inits
 
@@ -138,7 +142,7 @@ consolidate into single simpler function
 """
 
 
-def corr_coef(x, y, eps = 0):
+def corr_coef(x, y, eps = 1.0e-07):
     x2 = tf.math.square(x)
     y2 = tf.math.square(y)
     xy = x * y
@@ -162,6 +166,8 @@ def return_train_val_functions(model,
                                gradient_clip,
                                out_length,
                                crop_length,
+                               out_length_peak,
+                               crop_length_peak,
                                batch_size,
                                lambda1,
                                lambda2,
@@ -219,7 +225,7 @@ def return_train_val_functions(model,
     metric_dict["hg_val_AUPRC_ho"] = tf.keras.metrics.AUC(curve = 'PR')
     
     poisson_loss = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
-    cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=False,
+    cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True,
                                                        reduction=tf.keras.losses.Reduction.NONE)
     optimizer1,optimizer2,optimizer3=optimizers_in
     
@@ -231,13 +237,23 @@ def return_train_val_functions(model,
             tss_tokens=tf.zeros_like(atac)#tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             peaks = tf.cast(inputs['peaks'],
-                            dtype=tf.bfloat16)
-            peaks_weighting = 5.0 * peaks + (1.0 - peaks)
+                            dtype=tf.float32)
+            
             exons=tf.zeros_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
-            #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
+
             atac=tf.cast(atac,dtype=tf.float32)
+            atac = tf.slice(atac, [0, crop_length,0],[-1, out_length,-1])
+            
+            peaks = tf.slice(peaks, [0,crop_length_peak,0],[-1,out_length_peak,-1])
+            interval_count_sd = tf.cast(inputs['interval_count_sd'],
+                                        dtype=tf.float32)
+            intervals_encoding = tf.cast(inputs['intervals_encoding'],
+                                         dtype=tf.int32)
+            cell_type = tf.cast(inputs['cell_type'],
+                                dtype=tf.int32)
+
             with tf.GradientTape(watch_accessed_variables=False) as tape:
                 conv_vars = model.stem_conv.trainable_variables + \
                             model.stem_res_conv.trainable_variables + \
@@ -249,26 +265,24 @@ def return_train_val_functions(model,
 
                 atac_vars = model.final_pointwise_atac.trainable_variables + \
                             model.atac_head.trainable_variables
+                
                 vars_subset = conv_vars + atac_vars
                 
                 for var in vars_subset:
                     tape.watch(var)
                     
                 atac_out_reg,atac_out_class,rna_out = model(input_tuple,
-                                         training=True)
+                                                            training=True)
                 atac_out_reg = tf.cast(atac_out_reg,dtype=tf.float32)
                 atac_out_class = tf.cast(atac_out_class,dtype=tf.float32)
-                atac_loss_reg = lambda1 * tf.reduce_sum(poisson_loss(atac,
-                                                                     atac_out_reg,
-                                                                     sample_weight=peaks_weighting),
-                                         axis=0) * (1. / global_batch_size)
-                atac_loss_class = lambda2 * tf.reduce_sum(cross_entropy(peaks,
-                                                                        atac_out_class,
-                                                                        sample_weight=peaks_weighting),
-                                         axis=0) * (1. / global_batch_size)
-                corr_coeff_loss = lambda3 * (1.0 - tf.reduce_sum(corr_coef(atac_out_reg,
-                                                          atac_out_class)) * (1. / global_batch_size))
 
+                atac_loss_reg = lambda1 * tf.math.reduce_sum(poisson_loss(atac,
+                                                                          atac_out_reg)) * (1. / global_batch_size)
+                #print(atac_loss_reg.shape)
+                atac_loss_class = lambda2 * tf.math.reduce_sum(cross_entropy(peaks,
+                                                                        atac_out_class)) * (1. / global_batch_size)
+                corr_coeff_loss = lambda3 * (1.0 - tf.math.reduce_sum(corr_coef(atac_out_reg,
+                                                                                atac)) * (1. / global_batch_size))
                 loss = atac_loss_reg + atac_loss_class + corr_coeff_loss 
             
 
@@ -303,30 +317,38 @@ def return_train_val_functions(model,
             tss_tokens=tf.zeros_like(atac)#tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             peaks = tf.cast(inputs['peaks'],
-                            dtype=tf.bfloat16)
+                            dtype=tf.float32)
             peaks_weighting = 5.0 * peaks + (1.0 - peaks)
             exons=tf.zeros_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             atac=tf.cast(atac,dtype=tf.float32)
+            atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
+            
+            
+            peaks = tf.slice(peaks, [0,crop_length_peak,0],[-1,out_length_peak,-1]) 
             
             cell_type = inputs['cell_type']
+            cell_type = tf.cast(cell_type,
+                                dtype=tf.int32)
+            interval_count_sd = tf.cast(inputs['interval_count_sd'],
+                                        dtype=tf.float32)
+            intervals_encoding = tf.cast(inputs['intervals_encoding'],
+                                        dtype=tf.int32)
 
             atac_out_reg,atac_out_class,rna_out = model(input_tuple,
-                                     training=False)
+                                                        training=False)
+            
             atac_out_reg = tf.cast(atac_out_reg,dtype=tf.float32)
             atac_out_class = tf.cast(atac_out_class,dtype=tf.float32)
-            atac_loss_reg = lambda1 * tf.reduce_sum(poisson_loss(atac,
-                                                                 atac_out_reg,
-                                                                 sample_weight=peaks_weighting),
-                                     axis=0) * (1. / global_batch_size)
-            atac_loss_class = lambda2 * tf.reduce_sum(cross_entropy(peaks,
-                                                                    atac_out_class,
-                                                                    sample_weight=peaks_weighting),
-                                     axis=0) * (1. / global_batch_size)
-            corr_coeff_loss = lambda3 * (1.0 - tf.reduce_sum(corr_coef(atac_out_reg,
-                                                      atac_out_class)) * (1. / global_batch_size))
+            atac_loss_reg = lambda1 * tf.math.reduce_sum(poisson_loss(atac,
+                                                                 atac_out_reg)) * (1. / global_batch_size)
+            #print(atac_loss_reg.shape)
+            atac_loss_class = lambda2 * tf.math.reduce_sum(cross_entropy(peaks,
+                                                                    atac_out_class)) * (1. / global_batch_size)
+            corr_coeff_loss = lambda3 * (1.0 - tf.math.reduce_sum(corr_coef(atac_out_reg,
+                                                                       atac)) * (1. / global_batch_size))
 
             loss = atac_loss_reg + atac_loss_class + corr_coeff_loss 
             
@@ -337,11 +359,12 @@ def return_train_val_functions(model,
             metric_dict["hg_val_AUPRC"].update_state(peaks,
                                                      atac_out_class)
             metric_dict["hg_val"].update_state(loss)
-
-
+            
         for _ in tf.range(val_steps): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(val_step,
                          args=(next(iterator),))
+            
+
             
     def dist_val_step_atac_ho(iterator):
         @tf.function(jit_compile=True)
@@ -352,43 +375,73 @@ def return_train_val_functions(model,
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             exons=tf.zeros_like(atac)
             peaks = tf.cast(inputs['peaks'],
-                            dtype=tf.bfloat16)
+                            dtype=tf.float32)
             peaks_weighting = 5.0 * peaks + (1.0 - peaks)
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             atac=tf.cast(atac,dtype=tf.float32)
+            atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
+            peaks = tf.slice(peaks, [0,crop_length_peak,0],[-1,out_length_peak,-1]) 
             
-            cell_type = inputs['cell_type']
-
+            cell_type = tf.cast(inputs['cell_type'],
+                                dtype=tf.int32)
+            interval_count_sd = tf.cast(inputs['interval_count_sd'],
+                                        dtype=tf.float32)
+            intervals_encoding= inputs['intervals_encoding']
+            intervals_encoding = tf.cast(intervals_encoding,
+                                         dtype=tf.int32)
             atac_out_reg,atac_out_class,rna_out = model(input_tuple,
-                                     training=False)
+                                                        training=False)
             atac_out_reg = tf.cast(atac_out_reg,dtype=tf.float32)
             atac_out_class = tf.cast(atac_out_class,dtype=tf.float32)
-            atac_loss_reg = lambda1 * tf.reduce_sum(poisson_loss(atac,
-                                                                 atac_out_reg,
-                                                                 sample_weight=peaks_weighting),
-                                     axis=0) * (1. / global_batch_size)
-            atac_loss_class = lambda2 * tf.reduce_sum(cross_entropy(peaks,
-                                                                    atac_out_class,
-                                                                    sample_weight=peaks_weighting),
-                                     axis=0) * (1. / global_batch_size)
-            corr_coeff_loss = lambda3 * (1.0 - tf.reduce_sum(corr_coef(atac_out_reg,
-                                                      atac_out_class)) * (1. / global_batch_size))
+            atac_loss_reg = lambda1 * tf.math.reduce_sum(poisson_loss(atac,
+                                                                      atac_out_reg)) * (1. / global_batch_size)
+            #print(atac_loss_reg.shape)
+            atac_loss_class = lambda2 * tf.math.reduce_sum(cross_entropy(peaks,
+                                                                         atac_out_class)) * (1. / global_batch_size)
+            corr_coeff_loss = lambda3 * (1.0 - tf.math.reduce_sum(corr_coef(atac_out_reg,
+                                                                            atac)) * (1. / global_batch_size))
 
             loss = atac_loss_reg + atac_loss_class + corr_coeff_loss 
             
             metric_dict['hg_pearsonsR_ATAC_ho'].update_state(atac,
                                                              atac_out_reg)
             metric_dict['hg_R2_ATAC_ho'].update_state(atac, 
-                                                   atac_out_reg)
+                                                      atac_out_reg)
             metric_dict["hg_val_AUPRC_ho"].update_state(peaks,
                                                      atac_out_class)
             metric_dict["hg_val_ho"].update_state(loss)
+            return atac, atac_out_reg, peaks ,atac_out_class,cell_type,intervals_encoding,interval_count_sd#, interval_encoding
             
+        ta_a_true = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_a_pred = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
+        ta_p_true = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_p_pred = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
+        ta_celltype = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_intervals = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
+        ta_count_sds = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
+        
         for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
-            strategy.run(val_step,
-                         args=(next(iterator),))
+            atac_true,atac_pred,peak_true,peak_pred,cell_t,interval_enc,count_sd =  strategy.run(val_step,
+                                                                                                 args=(next(iterator),))
+            ta_a_true_gath = strategy.gather(atac_true, axis=0)# reshape to 1D
+            ta_a_pred_gath = strategy.gather(atac_pred, axis=0)# reshape to 1D
+            ta_p_true_gath = strategy.gather(peak_true, axis=0)# reshape to 1D
+            ta_p_pred_gath = strategy.gather(peak_pred, axis=0)# reshape to 1D
+            ta_celltype_gath = tf.reshape(strategy.gather(cell_t, axis=0), [-1])# reshape to 1D
+            ta_intervals_gath = tf.reshape(strategy.gather(interval_enc, axis=0), [-1])# reshape to 1D
+            ta_count_sds_gath = tf.reshape(strategy.gather(count_sd, axis=0), [-1])# reshape to 1D
             
+            ta_a_true = ta_a_true.write(_, ta_a_true_gath)
+            ta_a_pred = ta_a_pred.write(_, ta_a_pred_gath)
+            ta_p_true = ta_p_true.write(_, ta_p_true_gath)
+            ta_p_pred = ta_p_pred.write(_, ta_p_pred_gath)
+            ta_celltype = ta_celltype.write(_, ta_celltype_gath)
+            ta_intervals = ta_intervals.write(_, ta_intervals_gath)
+            ta_count_sds = ta_count_sds.write(_, ta_count_sds_gath)
+            
+        return ta_a_true.concat(), ta_a_pred.concat(), ta_p_true.concat(), ta_p_pred.concat(), ta_celltype.concat(), ta_intervals.concat(), ta_count_sds.concat()
+        
 #########################
     def dist_train_step_rna(iterator):
         @tf.function(jit_compile=True)
@@ -645,7 +698,7 @@ def return_train_val_functions(model,
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
 
             atac_out_reg,atac_out_class,rna_out = model(input_tuple,
-                                     training=False)
+                                                        training=False)
 
         for _ in tf.range(1): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(val_step,
@@ -1181,7 +1234,7 @@ def deserialize(serialized_example,input_length,
     TF_expression = tf.math.log(1.0 + TF_expression)
     TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
                                                                  mean=0.0,
-                                                                 stddev=2.5e-01,
+                                                                 stddev=1.0e-01,
                                                                  dtype=tf.float32))
     
 
@@ -1261,7 +1314,7 @@ def deserialize_val(serialized_example,input_length, output_length,output_res,
     TF_expression = tf.math.log(1.0 + TF_expression)
     TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
                                                                  mean=0.0,
-                                                                 stddev=2.5e-01,
+                                                                 stddev=1.0e-01,
                                                                  dtype=tf.float32))
 
     TPM = tf.io.parse_tensor(data['TPM'],out_type=tf.float32)
@@ -1372,6 +1425,8 @@ def deserialize_atac(serialized_example,input_length,
         'sequence': tf.io.FixedLenFeature([],tf.string),
         'TF_expression': tf.io.FixedLenFeature([], tf.string),
         'intervals_encoding': tf.io.FixedLenFeature([], tf.string),
+        'interval_count_sd': tf.io.FixedLenFeature([], tf.string),
+        'interval_signal_sd': tf.io.FixedLenFeature([], tf.string),
         'peaks': tf.io.FixedLenFeature([], tf.string),
         'cell_type': tf.io.FixedLenFeature([],tf.string)
         
@@ -1399,16 +1454,18 @@ def deserialize_atac(serialized_example,input_length,
                                               out_type=tf.int32),
                             [input_seq_length,])
     peaks = tf.cast(tf.slice(peaks, [shift],[input_length]),dtype=tf.float32)
-    peaks = tf.reshape(peaks, [output_length,output_res])
+    peaks = tf.reshape(peaks, [output_length // 8, output_res * 8])
     peaks = tf.reduce_sum(peaks,axis=1,keepdims=True)
     
-    peaks = tf.cast(tf.math.greater_equal(peaks, output_res // 4),
+    peaks = tf.cast(tf.math.greater_equal(peaks, output_res * 2),
                     dtype=tf.int32)
     
     sequence = one_hot(tf.strings.substr(data['sequence'],
                                  shift,input_length))
     cell_type = tf.io.parse_tensor(data['cell_type'],out_type=tf.int32)
     intervals_encoding = tf.io.parse_tensor(data['intervals_encoding'],out_type=tf.int32)
+    interval_count_sd = tf.io.parse_tensor(data['interval_count_sd'],out_type=tf.float32)
+    interval_signal_sd = tf.io.parse_tensor(data['interval_signal_sd'],out_type=tf.float32)
     
     if rev_comp == 1:
         atac = tf.reverse(atac,[0])
@@ -1425,7 +1482,7 @@ def deserialize_atac(serialized_example,input_length,
     if train_bool: 
         TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
                                                                      mean=0.0,
-                                                                     stddev=2.5e-01,
+                                                                     stddev=1.0e-01,
                                                                      dtype=tf.float32))
 
     TF_expression_mean = tf.math.reduce_mean(TF_expression)
@@ -1438,8 +1495,11 @@ def deserialize_atac(serialized_example,input_length,
         'atac': tf.ensure_shape(atac, [output_length,1]),
         'TF_expression': tf.ensure_shape(TF_expression,[num_TFs]),
         'cell_type': tf.transpose(tf.reshape(cell_type,[-1])),
-        'peaks': tf.ensure_shape(peaks, [output_length,1]),
-        'intervals_encoding': tf.transpose(tf.reshape(intervals_encoding,[-1]))
+        'peaks': tf.ensure_shape(peaks, [output_length // 8,1]),
+        'intervals_encoding': tf.transpose(tf.reshape(intervals_encoding,[-1])),
+        'interval_count_sd': tf.transpose(tf.reshape(interval_count_sd,[-1])),
+        'interval_signal_sd': tf.transpose(tf.reshape(interval_signal_sd,[-1]))
+        
     }
 
                     
@@ -1905,9 +1965,13 @@ def parse_args(parser):
                         type=str,
                         default="0.5",
                         help= 'lambda3')
+    parser.add_argument('--atac_peaks_cropped',
+                        dest='atac_peaks_cropped',
+                        type=int,
+                        default=96,
+                        help= 'atac_peaks_cropped')
     args = parser.parse_args()
     return parser
-    
     
     
 def one_hot(sequence):
@@ -2143,3 +2207,103 @@ def variance_gene_parser(input_file):
 
 
 
+def make_atac_plots(atac_preds,
+                    atac_trues,
+                    peak_preds,
+                    peak_trues,
+                    count_sds,
+                    cell_types,
+                    intervals):
+    
+    atac_reg_cell_type_trues = {}
+    atac_reg_cell_type_preds = {}
+    atac_class_cell_type_trues = {}
+    atac_class_cell_type_preds = {}
+
+    all_cell_types = []
+    
+    for x,k in enumerate(cell_types):
+        if k not in all_cell_types:
+            all_cell_types.append(k)
+        if k not in atac_reg_cell_type_trues.keys():
+            atac_reg_cell_type_trues[k] = []
+        if k not in atac_class_cell_type_trues.keys():
+            atac_class_cell_type_trues[k] = []
+
+        atac_reg_cell_type_trues[k].append(atac_trues[x])
+        atac_class_cell_type_trues[k].append(peak_trues[x])
+        
+        if k not in atac_reg_cell_type_preds.keys():
+            atac_reg_cell_type_preds[k] = []
+        if k not in atac_class_cell_type_preds.keys():
+            atac_class_cell_type_preds[k] = []
+        atac_reg_cell_type_preds[k].append(atac_preds[x])
+        atac_class_cell_type_preds[k].append(peak_preds[x])
+
+    ## by cell type, AUPRC
+    cell_type_auprcs = []
+    for cell_type in all_cell_types:
+        trues = atac_class_cell_type_trues[cell_type]
+        trues_flat = np.asarray(trues).flatten()
+        preds = atac_class_cell_type_preds[cell_type]
+        preds_flat = np.asarray(preds).flatten()
+        prec,rec,thresholds = sklearn_metrics.precision_recall_curve(
+            trues_flat, tf.nn.sigmoid(preds_flat))
+        auprc = sklearn_metrics.auc(rec,prec)
+        cell_type_auprcs.append(auprc)
+    cell_type_auprcs_median = np.nanmedian(cell_type_auprcs)
+
+    ## by cell type, regression, mean
+    cell_type_pearsons = []
+    for cell_type in all_cell_types:
+        trues = np.asarray(atac_reg_cell_type_trues[cell_type])
+        #print(trues.shape)
+        preds = np.asarray(atac_reg_cell_type_preds[cell_type])
+        #print(preds.shape)
+        sub_arr = []
+        for k in range(trues.shape[0]):
+            true_interval = np.squeeze(np.asarray(trues[k]))
+            pred_interval = np.squeeze(np.asarray(preds[k]))
+            pearsonsr_val = pearsonr(true_interval,
+                                     pred_interval)[0]
+            sub_arr.append(pearsonsr_val)
+        cell_type_pearsons.append(np.nanmedian(sub_arr))
+    cell_type_pearsons_median = np.nanmedian(cell_type_pearsons)
+    max_count_sd_idx = np.argwhere(count_sds == np.max(count_sds)).flatten().tolist()
+    
+    interval_encoding = intervals[max_count_sd_idx[0]]
+    
+    preds_max_count_sd_reg = []
+    trues_max_count_sd_reg = []
+    for entry in max_count_sd_idx:
+        preds_max_count_sd_reg.append(np.squeeze(atac_preds[entry]))
+        trues_max_count_sd_reg.append(np.squeeze(atac_trues[entry]))
+    preds_max_count_sd_reg = np.asarray(preds_max_count_sd_reg)
+    trues_max_count_sd_reg = np.asarray(trues_max_count_sd_reg)
+
+    ax_preds = plot_tracks(preds_max_count_sd_reg,
+                           interval_encoding)
+    ax_trues = plot_tracks(trues_max_count_sd_reg,
+                           interval_encoding)
+    
+    return cell_type_auprcs_median, cell_type_pearsons_median, ax_preds, ax_trues
+
+
+
+def plot_tracks(tracks, interval_encoding, height=1.5):
+    if tracks.shape[0] > 1:
+        fig, axes = plt.subplots(tracks.shape[0], 1, figsize=(20, height * tracks.shape[0]), sharex=True)
+        for ax, y in zip(axes, tracks):
+            ax.fill_between(np.linspace(0, tracks[0].shape[0], num=len(y)), y)
+            sns.despine(top=True, right=True, bottom=True)
+        ax.set_xlabel(str(interval_encoding))
+        plt.tight_layout()
+        return ax
+    else:
+        fig,ax = plt.subplots(figsize=(20,height))
+
+        ax.fill_between(np.linspace(0, tracks[0].shape[0], num=tracks[0].shape[0]), tracks[0])
+        sns.despine(top=True, right=True, bottom=True)
+        ax.set_xlabel(str(interval_encoding))
+        plt.tight_layout()
+        return ax
