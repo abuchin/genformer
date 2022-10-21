@@ -1482,7 +1482,7 @@ def deserialize_atac(serialized_example,input_length,
     if train_bool: 
         TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
                                                                      mean=0.0,
-                                                                     stddev=1.0e-01,
+                                                                     stddev=2.0e-01,
                                                                      dtype=tf.float32))
 
     TF_expression_mean = tf.math.reduce_mean(TF_expression)
@@ -2305,13 +2305,13 @@ def make_atac_plots(atac_preds,
 
 def plot_tracks(tracks, interval_encoding, height=1.5):
 
-    ylim = np.log(1.0+np.amax(tracks))
+    ylim = np.amax(tracks)
 
     if tracks.shape[0] > 1:
         fig, axes = plt.subplots(tracks.shape[0], 1, 
                                  figsize=(20, height * tracks.shape[0]), sharex=True)
         for ax, y in zip(axes, tracks):
-            ax.fill_between(np.linspace(0, tracks[0].shape[0], num=len(y)), np.log(1.0+y))
+            ax.fill_between(np.linspace(0, tracks[0].shape[0], num=len(y)), y)
             sns.despine(top=True, right=True, bottom=True)
         ax.set_xlabel(str(interval_encoding))
         
@@ -2321,7 +2321,7 @@ def plot_tracks(tracks, interval_encoding, height=1.5):
     else:
         fig,ax = plt.subplots(figsize=(20,height))
 
-        ax.fill_between(np.linspace(0, tracks[0].shape[0], num=tracks[0].shape[0]), np.log(1.0+tracks[0]))
+        ax.fill_between(np.linspace(0, tracks[0].shape[0], num=tracks[0].shape[0]), tracks[0])
         sns.despine(top=True, right=True, bottom=True)
         ax.set_xlabel(str(interval_encoding))
         plt.ylim([0, ylim])
