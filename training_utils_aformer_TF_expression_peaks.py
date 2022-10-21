@@ -1703,7 +1703,12 @@ def early_stopping(current_val_loss,
         patience_counter: # of epochs over which val loss hasn't decreased
         best_epoch: best epoch so far 
     """
-    ### check if min_delta satisfied
+    if (current_epoch % save_freq) == 0:
+        print('Saving model...')
+        model_name = save_directory + "/" + \
+                        saved_model_basename + "/iteration_" + \
+                            str(current_epoch) + "/saved_model"
+        model.save_weights(model_name)### check if min_delta satisfied
     try: 
         best_loss = min(logged_val_losses[:-1])
         best_pearsons=max(logged_pearsons[:-1])
@@ -1723,14 +1728,7 @@ def early_stopping(current_val_loss,
 
         best_epoch = np.argmin(logged_val_losses)
         ## save current model
-        if (current_epoch % save_freq) == 0:
-            print('Saving model...')
-            model_name = save_directory + "/" + \
-                            saved_model_basename + "/iteration_" + \
-                                str(current_epoch) + "/saved_model"
-            model.save_weights(model_name)
-            ### write to logging file in saved model dir to model parameters and current epoch info
-            
+
         patience_counter = 0
         stop_criteria = False
     
@@ -2255,6 +2253,7 @@ def make_atac_plots(atac_preds,
 
     ## by cell type, regression, mean
     cell_type_pearsons = []
+    all_pearsons = []
     for cell_type in all_cell_types:
         trues = np.asarray(atac_reg_cell_type_trues[cell_type])
         #print(trues.shape)
@@ -2267,17 +2266,28 @@ def make_atac_plots(atac_preds,
             pearsonsr_val = pearsonr(true_interval,
                                      pred_interval)[0]
             sub_arr.append(pearsonsr_val)
+            all_pearsons.append(pearsonsr_val)
         cell_type_pearsons.append(np.nanmedian(sub_arr))
     cell_type_pearsons_median = np.nanmedian(cell_type_pearsons)
+    
+    ## pearsons histogram
+    fig_atac_ho,ax_atac_ho=plt.subplots(figsize=(6,6))
+    sns.histplot(x=np.asarray(all_pearsons), bins=50)
+    plt.xlabel("pearson's R")
+    plt.ylabel("count")
+    plt.title("hold out cell-type, validation interval pearsons R")
+    
     max_count_sd_idx = np.argwhere(count_sds == np.max(count_sds)).flatten().tolist()
     
     interval_encoding = intervals[max_count_sd_idx[0]]
     
     preds_max_count_sd_reg = []
     trues_max_count_sd_reg = []
+    
     for entry in max_count_sd_idx:
         preds_max_count_sd_reg.append(np.squeeze(atac_preds[entry]))
         trues_max_count_sd_reg.append(np.squeeze(atac_trues[entry]))
+        
     preds_max_count_sd_reg = np.asarray(preds_max_count_sd_reg)
     trues_max_count_sd_reg = np.asarray(trues_max_count_sd_reg)
 
@@ -2286,24 +2296,34 @@ def make_atac_plots(atac_preds,
     ax_trues = plot_tracks(trues_max_count_sd_reg,
                            interval_encoding)
     
-    return cell_type_auprcs_median, cell_type_pearsons_median, ax_preds, ax_trues
+    
+    
+    
+    return cell_type_auprcs_median, cell_type_pearsons_median, ax_preds, ax_trues, fig_atac_ho
 
 
 
 def plot_tracks(tracks, interval_encoding, height=1.5):
+
+    ylim = np.log(1.0+np.amax(tracks))
+
     if tracks.shape[0] > 1:
-        fig, axes = plt.subplots(tracks.shape[0], 1, figsize=(20, height * tracks.shape[0]), sharex=True)
+        fig, axes = plt.subplots(tracks.shape[0], 1, 
+                                 figsize=(20, height * tracks.shape[0]), sharex=True)
         for ax, y in zip(axes, tracks):
-            ax.fill_between(np.linspace(0, tracks[0].shape[0], num=len(y)), y)
+            ax.fill_between(np.linspace(0, tracks[0].shape[0], num=len(y)), np.log(1.0+y))
             sns.despine(top=True, right=True, bottom=True)
         ax.set_xlabel(str(interval_encoding))
+        
+        plt.ylim([0, ylim])
         plt.tight_layout()
         return ax
     else:
         fig,ax = plt.subplots(figsize=(20,height))
 
-        ax.fill_between(np.linspace(0, tracks[0].shape[0], num=tracks[0].shape[0]), tracks[0])
+        ax.fill_between(np.linspace(0, tracks[0].shape[0], num=tracks[0].shape[0]), np.log(1.0+tracks[0]))
         sns.despine(top=True, right=True, bottom=True)
         ax.set_xlabel(str(interval_encoding))
+        plt.ylim([0, ylim])
         plt.tight_layout()
         return ax

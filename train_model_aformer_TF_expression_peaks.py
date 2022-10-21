@@ -243,7 +243,7 @@ def main():
             num_val=wandb.config.val_examples
             num_val_ho=wandb.config.val_examples_ho#4192000
 
-            wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE*2)},
+            wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE)},
                                 allow_val_change=True)
             wandb.config.update({"val_steps" : num_val // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
@@ -487,7 +487,7 @@ def main():
             
                     reg_true,reg_pred, peak_true,peak_pred,cell_types,intervals,count_sds = val_step_atac_ho(data_dict_val_ho)
                 
-                    cell_type_auprcs_median,cell_type_pearsons_median,ax_preds,ax_trues = training_utils.make_atac_plots(reg_pred.numpy(),
+                    cell_type_auprcs_median,cell_type_pearsons_median,ax_preds,ax_trues, fig_atac_ho = training_utils.make_atac_plots(reg_pred.numpy(),
                                                                                                  reg_true.numpy(),
                                                                                                  peak_pred.numpy(),
                                                                                                  peak_true.numpy(),
@@ -497,6 +497,7 @@ def main():
                     
                     wandb.log({"predictions atac high var":wandb.Image(ax_preds)},step=epoch_i)
                     wandb.log({"true atac high var":wandb.Image(ax_trues)},step=epoch_i)
+                    wandb.log({"val holdout, pearsons R": fig_atac_ho},step=epoch_i)
                     
                     print('cell_type_auprcs_median: ' + str(cell_type_auprcs_median))
                     print('cell_type_pearsons_median: ' + str(cell_type_pearsons_median))

@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model_aformer_TF_expression_peaks.py \
-            --tpu_name="pod" \
-            --tpu_zone="us-east1-d" \
+            --tpu_name="node-2" \
+            --tpu_zone="us-central1-a" \
             --wandb_project="aformer_TF_ATAC" \
             --wandb_user="njaved" \
             --wandb_sweep_name="aformer_TF_ATAC" \
@@ -15,16 +15,16 @@ python3 train_model_aformer_TF_expression_peaks.py \
             --max_shift=20 \
             --batch_size=8 \
             --num_epochs=50 \
-            --train_examples=2028000 \
+            --train_examples=3338355 \
             --warmup_frac=0.02 \
             --val_examples=952508 \
             --val_examples_ho=56772 \
             --patience=20 \
-            --min_delta=0.00005 \
+            --min_delta=0.000005 \
             --model_save_dir="gs://picard-testing-176520/seqtoatac_98k_57kstride_blacklist0.25_peaks/models" \
             --model_save_basename="aformer_TF_ATAC" \
-            --lr_base1="8.0e-06" \
-            --lr_base2="7.5e-05" \
+            --lr_base1="2.0e-05" \
+            --lr_base2="1.0e-04" \
             --lr_base3="9.0e-05" \
             --decay_frac="0.25" \
             --weight_decay_frac="0.20" \
@@ -34,7 +34,7 @@ python3 train_model_aformer_TF_expression_peaks.py \
             --shared_transformer_depth="4" \
             --pre_transf_channels="800" \
             --dropout_rate="0.40" \
-            --tf_dropout_rate="0.20" \
+            --tf_dropout_rate="0.25" \
             --attention_dropout_rate="0.15" \
             --pointwise_dropout_rate="0.15" \
             --num_heads="8" \
