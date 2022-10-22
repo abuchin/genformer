@@ -1701,6 +1701,7 @@ def early_stopping(current_val_loss,
         patience_counter: # of epochs over which val loss hasn't decreased
         best_epoch: best epoch so far 
     """
+    print('check whether early stopping/save criteria met')
     if (current_epoch % save_freq) == 0:
         print('Saving model...')
         model_name = save_directory + "/" + \
@@ -2281,7 +2282,6 @@ def make_atac_plots(atac_preds,
     
     interval_encoding = intervals[max_count_sd_idx]
     indices = np.argwhere(intervals == interval_encoding).flatten().tolist()
-    print(len(indices))
     preds_max_count_sd_reg = []
     trues_max_count_sd_reg = []
     
@@ -2296,14 +2296,11 @@ def make_atac_plots(atac_preds,
                            interval_encoding)
     ax_trues = plot_tracks(trues_max_count_sd_reg,
                            interval_encoding)
-    print('plotted')
-
     return cell_type_auprcs_median, cell_type_pearsons_median, ax_preds, ax_trues, fig_atac_ho
 
 
 
 def plot_tracks(tracks, interval_encoding, height=1.5):
-    print(tracks.shape)
     ylim = np.amax(tracks)
 
     if tracks.shape[0] > 1:

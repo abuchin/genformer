@@ -473,17 +473,16 @@ def main():
                     val_step_atac(data_dict_val)
 
                     
-                    val_pearsons.append(metric_dict['hg_pearsonsR_ATAC'].result()['PearsonR'].numpy())
+                    
                     pearsons_atac = metric_dict['hg_pearsonsR_ATAC'].result()['PearsonR'].numpy()
+                    
+                    val_pearsons.append(pearsons_atac)
                     pearsons_R2= metric_dict['hg_R2_ATAC'].result()['R2'].numpy()
                     auprc = metric_dict['hg_val_AUPRC'].result().numpy()
                     print('hg_ATAC_pearsons: ' + str(pearsons_atac))
                     print('hg_ATAC_R2: ' + str(pearsons_R2))
                     print('hg_val_AUPRC: ' + str(auprc))
-                    wandb.log({'hg_ATAC_pearsons': pearsons_atac,
-                               'hg_ATAC_R2': pearsons_R2,
-                               'hg_ATAC_auprc': auprc},
-                              step=epoch_i)
+
             
                     reg_true,reg_pred, peak_true,peak_pred,cell_types,intervals,count_sds = val_step_atac_ho(data_dict_val_ho)
                 
@@ -495,10 +494,7 @@ def main():
                                                                                                  cell_types.numpy(),
                                                                                                  intervals.numpy())
                     
-                    wandb.log({"predictions atac high var":wandb.Image(ax_preds)},step=epoch_i)
-                    wandb.log({"true atac high var":wandb.Image(ax_trues)},step=epoch_i)
-                    wandb.log({"val holdout, pearsons R": fig_atac_ho},step=epoch_i)
-                    
+
                     print('cell_type_auprcs_median: ' + str(cell_type_auprcs_median))
                     print('cell_type_pearsons_median: ' + str(cell_type_pearsons_median))
                 
@@ -510,13 +506,18 @@ def main():
                     print('hg_val_AUPRC_ho: ' + str(auprc_ho))
                     
                     print('returned correlation metrics from make plots function')
-                    wandb.log({'hg_ATAC_pearsons_ho': pearsons_atac_ho,
+                    wandb.log({'hg_ATAC_pearsons': pearsons_atac,
+                               'hg_ATAC_R2': pearsons_R2,
+                               'hg_ATAC_auprc': auprc,
+                               'hg_ATAC_pearsons_ho': pearsons_atac_ho,
                                'hg_ATAC_R2_ho': pearsons_R2_ho,
                                'hg_ATAC_auprc_ho': auprc_ho,
                                'cell_type_pearsons_median': cell_type_pearsons_median,
-                               'cell_type_auprcs_median': cell_type_auprcs_median},
-                              step=epoch_i)
-                    
+                               'cell_type_auprcs_median': cell_type_auprcs_median,
+                               'pred atac high var':wandb.Image(ax_preds),
+                               'true atac high var':wandb.Image(ax_trues),
+                               'val holdout, pearsons R': fig_atac_ho},step=epoch_i)
+                              
                 elif train_mode == 'rna_only':
                     val_step_rna(data_dict_val)
                     val_step_rna_ho(data_dict_val_ho)
