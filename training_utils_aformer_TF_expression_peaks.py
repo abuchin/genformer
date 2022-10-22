@@ -2296,14 +2296,14 @@ def make_atac_plots(atac_preds,
                            interval_encoding)
     ax_trues = plot_tracks(trues_max_count_sd_reg,
                            interval_encoding)
-    
+    print('plotted')
 
     return cell_type_auprcs_median, cell_type_pearsons_median, ax_preds, ax_trues, fig_atac_ho
 
 
 
 def plot_tracks(tracks, interval_encoding, height=1.5):
-
+    print(tracks.shape)
     ylim = np.amax(tracks)
 
     if tracks.shape[0] > 1:
