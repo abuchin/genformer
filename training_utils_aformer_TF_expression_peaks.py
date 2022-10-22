@@ -2236,7 +2236,7 @@ def make_atac_plots(atac_preds,
             atac_class_cell_type_preds[k] = []
         atac_reg_cell_type_preds[k].append(atac_preds[x])
         atac_class_cell_type_preds[k].append(peak_preds[x])
-    print('iterated through cell types')
+
     ## by cell type, AUPRC
     cell_type_auprcs = []
     for cell_type in all_cell_types:
@@ -2249,7 +2249,7 @@ def make_atac_plots(atac_preds,
         auprc = sklearn_metrics.auc(rec,prec)
         cell_type_auprcs.append(auprc)
     cell_type_auprcs_median = np.nanmedian(cell_type_auprcs)
-    print('computed per cell-type auprcs')
+
     ## by cell type, regression, mean
     cell_type_pearsons = []
     all_pearsons = []

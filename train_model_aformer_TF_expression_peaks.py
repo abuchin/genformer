@@ -517,6 +517,7 @@ def main():
                                'pred atac high var':wandb.Image(ax_preds),
                                'true atac high var':wandb.Image(ax_trues),
                                'val holdout, pearsons R': fig_atac_ho},step=epoch_i)
+                    print('wandb logging complete')
                               
                 elif train_mode == 'rna_only':
                     val_step_rna(data_dict_val)
