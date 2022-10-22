@@ -14,11 +14,11 @@ python3 train_model_aformer_TF_expression_peaks.py \
             --atac_output_length=448 \
             --max_shift=20 \
             --batch_size=8 \
-            --num_epochs=50 \
-            --train_examples=10000 \
+            --num_epochs=4 \
+            --train_examples=12000 \
             --warmup_frac=0.02 \
-            --val_examples=2500 \
-            --val_examples_ho=2500 \
+            --val_examples=300 \
+            --val_examples_ho=3000 \
             --patience=20 \
             --min_delta=0.000005 \
             --model_save_dir="gs://picard-testing-176520/seqtoatac_98k_57kstride_blacklist0.25_peaks/models" \
@@ -42,7 +42,7 @@ python3 train_model_aformer_TF_expression_peaks.py \
             --hidden_size="800" \
             --dim=100 \
             --kernel_transformation="softmax_kernel_transformation" \
-            --savefreq=5 \
+            --savefreq=2 \
             --TF_inputs=256 \
             --train_mode="atac_only" \
             --use_tf_module="True" \
