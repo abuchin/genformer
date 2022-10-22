@@ -2258,7 +2258,7 @@ def make_atac_plots(atac_preds,
         preds = np.asarray(atac_reg_cell_type_preds[cell_type])
         #print(preds.shape)
         sub_arr = []
-        for k in range(trues.shape[0]):
+        for k in range(len(trues)):
             true_interval = np.squeeze(np.asarray(trues[k]))
             pred_interval = np.squeeze(np.asarray(preds[k]))
             pearsonsr_val = pearsonr(true_interval,
@@ -2269,8 +2269,10 @@ def make_atac_plots(atac_preds,
     cell_type_pearsons_median = np.nanmedian(cell_type_pearsons)
     print('computed per cell-type pearsons')
     ## pearsons histogram
+    all_pearsons = np.asarray(all_pearsons)
+    print(all_pearsons.shape)
     fig_atac_ho,ax_atac_ho=plt.subplots(figsize=(6,6))
-    sns.histplot(x=np.asarray(all_pearsons), bins=50)
+    sns.histplot(x=all_pearsons, binwidth=0.05)
     plt.xlabel("pearson's R")
     plt.ylabel("count")
     plt.title("hold out cell-type, validation interval pearsons R")
