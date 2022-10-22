@@ -515,8 +515,7 @@ def main():
                                'cell_type_pearsons_median': cell_type_pearsons_median,
                                'cell_type_auprcs_median': cell_type_auprcs_median,
                                'pred atac high var':wandb.Image(ax_preds),
-                               'true atac high var':wandb.Image(ax_trues),
-                               'val holdout, pearsons R': fig_atac_ho},step=epoch_i)
+                               'true atac high var':wandb.Image(ax_trues)},step=epoch_i)
                     print('wandb logging complete')
                               
                 elif train_mode == 'rna_only':
