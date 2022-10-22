@@ -2281,7 +2281,7 @@ def make_atac_plots(atac_preds,
     
     interval_encoding = intervals[max_count_sd_idx]
     indices = np.argwhere(intervals == interval_encoding).flatten().tolist()
-    print(indices.shape)
+    print(len(indices))
     preds_max_count_sd_reg = []
     trues_max_count_sd_reg = []
     
