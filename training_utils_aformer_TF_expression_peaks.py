@@ -2256,8 +2256,7 @@ def make_atac_plots(atac_preds,
         trues = np.asarray(atac_reg_cell_type_trues[cell_type])
         #print(trues.shape)
         preds = np.asarray(atac_reg_cell_type_preds[cell_type])
-        print(trues.shape)
-        print(preds.shape)
+
         sub_arr = []
         for k in range(len(trues)):
             true_interval = np.squeeze(np.asarray(trues[k]))
@@ -2268,21 +2267,21 @@ def make_atac_plots(atac_preds,
             all_pearsons.append(pearsonsr_val)
         cell_type_pearsons.append(np.nanmedian(sub_arr))
     cell_type_pearsons_median = np.nanmedian(cell_type_pearsons)
-    print('computed per cell-type pearsons')
+
     ## pearsons histogram
     all_pearsons = np.asarray(all_pearsons)
-    print(all_pearsons.shape)
+
     fig_atac_ho,ax_atac_ho=plt.subplots(figsize=(6,6))
     sns.histplot(x=all_pearsons, binwidth=0.05)
     plt.xlabel("pearson's R")
     plt.ylabel("count")
     plt.title("hold out cell-type, validation interval pearsons R")
-    print('plotted pearsons histogram')
-    max_count_sd_idx = np.argwhere(count_sds == np.max(count_sds)).flatten().tolist()
+
+    max_count_sd_idx = np.argmax(count_sds)
     
-    interval_encoding = intervals[max_count_sd_idx[0]]
+    interval_encoding = intervals[max_count_sd_idx]
     indices = np.argwhere(intervals == interval_encoding).flatten().tolist()
-    
+    print(indices.shape)
     preds_max_count_sd_reg = []
     trues_max_count_sd_reg = []
     
