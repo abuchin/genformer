@@ -15,10 +15,10 @@ python3 train_model_aformer_TF_expression_peaks.py \
             --max_shift=20 \
             --batch_size=8 \
             --num_epochs=4 \
-            --train_examples=12000 \
+            --train_examples=3338355 \
             --warmup_frac=0.02 \
-            --val_examples=300 \
-            --val_examples_ho=3000 \
+            --val_examples=952508 \
+            --val_examples_ho=56772 \
             --patience=20 \
             --min_delta=0.000005 \
             --model_save_dir="gs://picard-testing-176520/seqtoatac_98k_57kstride_blacklist0.25_peaks/models" \
@@ -52,4 +52,5 @@ python3 train_model_aformer_TF_expression_peaks.py \
             --lambda3="0.20" \
             --freeze_conv_layers="False" \
             --load_init="True" \
-            --atac_peaks_cropped=56 
+            --atac_peaks_cropped=56 \
+            --enformer_checkpoint_path="sonnet_weights"
