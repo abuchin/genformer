@@ -31,7 +31,7 @@ import src.optimizers
 import src.schedulers
 import pandas as pd
 import src.utils
-import seaborn as snss
+import seaborn as sns
 from scipy.stats.stats import pearsonr, spearmanr
 from scipy.stats import linregress
 from scipy import stats
@@ -43,8 +43,6 @@ import scipy.ndimage
 
 import numpy as np
 from sklearn import metrics as sklearn_metrics
-
-import seaborn as sns
 
 from tensorflow.keras import initializers as inits
 
@@ -2237,7 +2235,7 @@ def make_atac_plots(atac_preds,
             atac_class_cell_type_preds[k] = []
         atac_reg_cell_type_preds[k].append(atac_preds[x])
         atac_class_cell_type_preds[k].append(peak_preds[x])
-
+    print('iterated through cell types')
     ## by cell type, AUPRC
     cell_type_auprcs = []
     for cell_type in all_cell_types:
@@ -2250,7 +2248,7 @@ def make_atac_plots(atac_preds,
         auprc = sklearn_metrics.auc(rec,prec)
         cell_type_auprcs.append(auprc)
     cell_type_auprcs_median = np.nanmedian(cell_type_auprcs)
-
+    print('computed per cell-type auprcs')
     ## by cell type, regression, mean
     cell_type_pearsons = []
     all_pearsons = []
@@ -2269,22 +2267,23 @@ def make_atac_plots(atac_preds,
             all_pearsons.append(pearsonsr_val)
         cell_type_pearsons.append(np.nanmedian(sub_arr))
     cell_type_pearsons_median = np.nanmedian(cell_type_pearsons)
-    
+    print('computed per cell-type pearsons')
     ## pearsons histogram
     fig_atac_ho,ax_atac_ho=plt.subplots(figsize=(6,6))
     sns.histplot(x=np.asarray(all_pearsons), bins=50)
     plt.xlabel("pearson's R")
     plt.ylabel("count")
     plt.title("hold out cell-type, validation interval pearsons R")
-    
+    print('plotted pearsons histogram')
     max_count_sd_idx = np.argwhere(count_sds == np.max(count_sds)).flatten().tolist()
     
     interval_encoding = intervals[max_count_sd_idx[0]]
+    indices = np.argwhere(intervals == interval_encoding).flatten().tolist()
     
     preds_max_count_sd_reg = []
     trues_max_count_sd_reg = []
     
-    for entry in max_count_sd_idx:
+    for entry in indices:
         preds_max_count_sd_reg.append(np.squeeze(atac_preds[entry]))
         trues_max_count_sd_reg.append(np.squeeze(atac_trues[entry]))
         
@@ -2296,9 +2295,7 @@ def make_atac_plots(atac_preds,
     ax_trues = plot_tracks(trues_max_count_sd_reg,
                            interval_encoding)
     
-    
-    
-    
+
     return cell_type_auprcs_median, cell_type_pearsons_median, ax_preds, ax_trues, fig_atac_ho
 
 

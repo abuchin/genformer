@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model_aformer_TF_expression_peaks.py \
-            --tpu_name="node-2" \
-            --tpu_zone="us-central1-a" \
+            --tpu_name="pod" \
+            --tpu_zone="us-east1-d" \
             --wandb_project="aformer_TF_ATAC" \
             --wandb_user="njaved" \
             --wandb_sweep_name="aformer_TF_ATAC" \
