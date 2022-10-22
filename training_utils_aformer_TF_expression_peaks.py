@@ -2256,7 +2256,8 @@ def make_atac_plots(atac_preds,
         trues = np.asarray(atac_reg_cell_type_trues[cell_type])
         #print(trues.shape)
         preds = np.asarray(atac_reg_cell_type_preds[cell_type])
-        #print(preds.shape)
+        print(trues.shape)
+        print(preds.shape)
         sub_arr = []
         for k in range(len(trues)):
             true_interval = np.squeeze(np.asarray(trues[k]))
