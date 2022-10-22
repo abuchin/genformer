@@ -31,7 +31,7 @@ python3 train_model_aformer_TF_expression_peaks.py \
             --gradient_clip="5.0" \
             --epsilon=1.0e-14 \
             --transformer_depth_rna="4" \
-            --shared_transformer_depth="4" \
+            --shared_transformer_depth="6" \
             --pre_transf_channels="800" \
             --dropout_rate="0.40" \
             --tf_dropout_rate="0.25" \
@@ -49,7 +49,7 @@ python3 train_model_aformer_TF_expression_peaks.py \
             --rna_loss_scale="0.50" \
             --lambda1="0.10" \
             --lambda2="1.0" \
-            --lambda3="0.0" \
+            --lambda3="0.20" \
             --freeze_conv_layers="False" \
             --load_init="True" \
             --atac_peaks_cropped=56 \
