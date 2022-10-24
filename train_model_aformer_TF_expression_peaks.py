@@ -417,9 +417,14 @@ def main():
                                                           wandb.config.val_steps_ho,
                                                           GLOBAL_BATCH_SIZE,
                                                           wandb.config.gradient_clip,
-                                                          wandb.config.atac_length_uncropped,
+                                                          wandb.config.atac_output_length,
                                                           crop_size,
+                                                          wandb.config.atac_peaks_cropped,
+                                                          peaks_crop,
                                                           wandb.config.batch_size,
+                                                          wandb.config.lambda1,
+                                                          wandb.config.lambda2,
+                                                          wandb.config.lambda3,
                                                           rna_loss_scale=wandb.config.rna_loss_scale)
                 
 
