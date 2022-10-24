@@ -170,6 +170,7 @@ def return_train_val_functions(model,
                                lambda1,
                                lambda2,
                                lambda3,
+                               loss_fn_main='mse',
                                rna_loss_scale=None):
     """Returns distributed train and validation functions for
     a given list of organisms
@@ -222,7 +223,12 @@ def return_train_val_functions(model,
     
     metric_dict["hg_val_AUPRC_ho"] = tf.keras.metrics.AUC(curve = 'PR')
     
-    poisson_loss = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
+    if loss_fn_main = 'mse':
+        loss_fn = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
+    elif loss_fn_main = 'poisson':
+        loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
+    else:
+        raise ValueError('loss_fn_not_implemented')
     cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True,
                                                        reduction=tf.keras.losses.Reduction.NONE)
     optimizer1,optimizer2,optimizer3=optimizers_in
@@ -274,8 +280,11 @@ def return_train_val_functions(model,
                 atac_out_reg = tf.cast(atac_out_reg,dtype=tf.float32)
                 atac_out_class = tf.cast(atac_out_class,dtype=tf.float32)
 
-                atac_loss_reg = lambda1 * tf.math.reduce_sum(poisson_loss(atac,
-                                                                          atac_out_reg)) * (1. / global_batch_size)
+                atac = atac + 1.0e-06
+                atac_out_reg = atac_out_reg + 1.0e-06
+                
+                atac_loss_reg = lambda1 * tf.math.reduce_sum(loss_fn(atac,
+                                                                     atac_out_reg)) * (1. / global_batch_size)
                 #print(atac_loss_reg.shape)
                 atac_loss_class = lambda2 * tf.math.reduce_sum(cross_entropy(peaks,
                                                                         atac_out_class)) * (1. / global_batch_size)
@@ -297,7 +306,7 @@ def return_train_val_functions(model,
             
             metric_dict["hg_tr_bce"].update_state(atac_loss_class)
             metric_dict["hg_tr_corr"].update_state(corr_coeff_loss)
-            metric_dict["hg_tr_mse"].update_state(atac_loss_reg)
+            metric_dict["hg_tr_main"].update_state(atac_loss_reg)
             
             
         
@@ -340,7 +349,9 @@ def return_train_val_functions(model,
             
             atac_out_reg = tf.cast(atac_out_reg,dtype=tf.float32)
             atac_out_class = tf.cast(atac_out_class,dtype=tf.float32)
-            atac_loss_reg = lambda1 * tf.math.reduce_sum(poisson_loss(atac,
+            atac = atac + 1.0e-06
+            atac_out_reg = atac_out_reg + 1.0e-06
+            atac_loss_reg = lambda1 * tf.math.reduce_sum(loss_fn(atac,
                                                                  atac_out_reg)) * (1. / global_batch_size)
             #print(atac_loss_reg.shape)
             atac_loss_class = lambda2 * tf.math.reduce_sum(cross_entropy(peaks,
@@ -392,8 +403,11 @@ def return_train_val_functions(model,
                                                         training=False)
             atac_out_reg = tf.cast(atac_out_reg,dtype=tf.float32)
             atac_out_class = tf.cast(atac_out_class,dtype=tf.float32)
-            atac_loss_reg = lambda1 * tf.math.reduce_sum(poisson_loss(atac,
-                                                                      atac_out_reg)) * (1. / global_batch_size)
+            atac = atac + 1.0e-06
+            atac_out_reg = atac_out_reg + 1.0e-06
+            
+            atac_loss_reg = lambda1 * tf.math.reduce_sum(loss_fn(atac,
+                                                             atac_out_reg)) * (1. / global_batch_size)
             #print(atac_loss_reg.shape)
             atac_loss_class = lambda2 * tf.math.reduce_sum(cross_entropy(peaks,
                                                                          atac_out_class)) * (1. / global_batch_size)
@@ -778,7 +792,12 @@ def return_train_val_functions_notf(model,
     
     metric_dict["hg_val_AUPRC_ho"] = tf.keras.metrics.AUC(curve = 'PR')
     
-    poisson_loss = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
+    if loss_fn_main = 'mse':
+        loss_fn = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
+    elif loss_fn_main = 'poisson':
+        loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
+    else:
+        raise ValueError('loss_fn_not_implemented')
     cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True,
                                                        reduction=tf.keras.losses.Reduction.NONE)
     optimizer1,optimizer2,optimizer3=optimizers_in
@@ -837,8 +856,8 @@ def return_train_val_functions_notf(model,
                 atac_out_reg = tf.cast(atac_out_reg,dtype=tf.float32)
                 atac_out_class = tf.cast(atac_out_class,dtype=tf.float32)
 
-                atac_loss_reg = lambda1 * tf.math.reduce_sum(poisson_loss(atac,
-                                                                          atac_out_reg)) * (1. / global_batch_size)
+                atac_loss_reg = lambda1 * tf.math.reduce_sum(loss_fn(atac,
+                                                                     atac_out_reg)) * (1. / global_batch_size)
                 #print(atac_loss_reg.shape)
                 atac_loss_class = lambda2 * tf.math.reduce_sum(cross_entropy(peaks,
                                                                         atac_out_class)) * (1. / global_batch_size)
@@ -910,7 +929,7 @@ def return_train_val_functions_notf(model,
             
             atac_out_reg = tf.cast(atac_out_reg,dtype=tf.float32)
             atac_out_class = tf.cast(atac_out_class,dtype=tf.float32)
-            atac_loss_reg = lambda1 * tf.math.reduce_sum(poisson_loss(atac,
+            atac_loss_reg = lambda1 * tf.math.reduce_sum(loss_fn(atac,
                                                                  atac_out_reg)) * (1. / global_batch_size)
             #print(atac_loss_reg.shape)
             atac_loss_class = lambda2 * tf.math.reduce_sum(cross_entropy(peaks,
@@ -969,8 +988,8 @@ def return_train_val_functions_notf(model,
                                                         training=False)
             atac_out_reg = tf.cast(atac_out_reg,dtype=tf.float32)
             atac_out_class = tf.cast(atac_out_class,dtype=tf.float32)
-            atac_loss_reg = lambda1 * tf.math.reduce_sum(poisson_loss(atac,
-                                                                      atac_out_reg)) * (1. / global_batch_size)
+            atac_loss_reg = lambda1 * tf.math.reduce_sum(loss_fn(atac,
+                                                                 atac_out_reg)) * (1. / global_batch_size)
             #print(atac_loss_reg.shape)
             atac_loss_class = lambda2 * tf.math.reduce_sum(cross_entropy(peaks,
                                                                          atac_out_class)) * (1. / global_batch_size)
@@ -1596,7 +1615,7 @@ def deserialize_atac(serialized_example,input_length,
     if train_bool: 
         TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
                                                                      mean=0.0,
-                                                                     stddev=2.5,
+                                                                     stddev=5.0,
                                                                      dtype=tf.float32))
     TF_expression = tf.math.log(1.0 + TF_expression)
 
