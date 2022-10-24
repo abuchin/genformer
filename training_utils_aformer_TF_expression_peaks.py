@@ -720,7 +720,12 @@ def return_train_val_functions_notf(model,
                                gradient_clip,
                                out_length,
                                crop_length,
+                               out_length_peak,
+                               crop_length_peak,
                                batch_size,
+                               lambda1,
+                               lambda2,
+                               lambda3,
                                rna_loss_scale=None):
     """Returns distributed train and validation functions for
     a given list of organisms
@@ -747,24 +752,35 @@ def return_train_val_functions_notf(model,
                                                  dtype=tf.float32)
     metric_dict["hg_tr_atac"] = tf.keras.metrics.Mean("hg_tr_loss_atac",
                                                  dtype=tf.float32)
+    
+    
+    metric_dict["hg_tr_bce"] = tf.keras.metrics.Mean("hg_tr_bce",
+                                                 dtype=tf.float32)
+    metric_dict["hg_tr_corr"] = tf.keras.metrics.Mean("hg_tr_corr",
+                                                 dtype=tf.float32)
+    metric_dict["hg_tr_mse"] = tf.keras.metrics.Mean("hg_tr_mse",
+                                                 dtype=tf.float32)
+    
     metric_dict["hg_tr_rna"] = tf.keras.metrics.Mean("hg_tr_loss_rna",
                                                  dtype=tf.float32)
     metric_dict["hg_val"] = tf.keras.metrics.Mean("hg_val_loss",
                                                   dtype=tf.float32)
     
     metric_dict["hg_corr_stats"] = metrics.correlation_stats_gene_centered(name='hg_corr_stats')
-    
     metric_dict['hg_pearsonsR_ATAC'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
-    
     metric_dict['hg_R2_ATAC'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
     
-    metric_dict["hg_val_ho"] = tf.keras.metrics.Mean("hg_val_loss_ho",
-                                                  dtype=tf.float32)
+    metric_dict["hg_val_AUPRC"] = tf.keras.metrics.AUC(curve = 'PR')
+    
+    metric_dict["hg_val_ho"] = tf.keras.metrics.Mean("hg_val_loss_ho", dtype=tf.float32)
     metric_dict['hg_pearsonsR_ATAC_ho'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
     metric_dict['hg_R2_ATAC_ho'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
     
-    poisson_loss = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
+    metric_dict["hg_val_AUPRC_ho"] = tf.keras.metrics.AUC(curve = 'PR')
     
+    poisson_loss = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
+    cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True,
+                                                       reduction=tf.keras.losses.Reduction.NONE)
     optimizer1,optimizer2,optimizer3=optimizers_in
     
     def dist_train_step_atac(iterator):
@@ -772,36 +788,63 @@ def return_train_val_functions_notf(model,
         def train_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            tss_tokens=tf.zeros_like(atac)
+            tss_tokens=tf.zeros_like(atac)#tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             TF_expression = tf.zeros_like(TF_expression)
-            exons=tf.zeros_like(atac)
+            TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
+                                                                     mean=0.0,
+                                                                     stddev=2.5,
+                                                                     dtype=tf.float32))
+            TF_expression = tf.math.log(1.0 + TF_expression)
+            
+            peaks = tf.cast(inputs['peaks'],
+                            dtype=tf.float32)
+            
+            exons=tf.zeros_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
+
             atac=tf.cast(atac,dtype=tf.float32)
+            atac = tf.slice(atac, [0, crop_length,0],[-1, out_length,-1])
             
+            peaks = tf.slice(peaks, [0,crop_length_peak,0],[-1,out_length_peak,-1])
+            interval_count_sd = tf.cast(inputs['interval_count_sd'],
+                                        dtype=tf.float32)
+            intervals_encoding = tf.cast(inputs['intervals_encoding'],
+                                         dtype=tf.int32)
+            cell_type = tf.cast(inputs['cell_type'],
+                                dtype=tf.int32)
+
             with tf.GradientTape(watch_accessed_variables=False) as tape:
                 conv_vars = model.stem_conv.trainable_variables + \
                             model.stem_res_conv.trainable_variables + \
                             model.stem_pool.trainable_variables + \
                             model.conv_tower.trainable_variables + \
                             model.shared_transformer.trainable_variables + \
+                            model.tf_module.trainable_variables + \
                             model.conv_mix_block1.trainable_variables
 
                 atac_vars = model.final_pointwise_atac.trainable_variables + \
                             model.atac_head.trainable_variables
+                
                 vars_subset = conv_vars + atac_vars
                 
                 for var in vars_subset:
                     tape.watch(var)
                     
-                atac_out,rna_out = model(input_tuple,
-                                         training=True)
-                atac_out = tf.cast(atac_out,dtype=tf.float32)
-                atac_loss = tf.reduce_sum(poisson_loss(atac,
-                                                       atac_out),
-                                         axis=0) * (1. / global_batch_size)
-                loss = atac_loss
+                atac_out_reg,atac_out_class,rna_out = model(input_tuple,
+                                                            training=True)
+                atac_out_reg = tf.cast(atac_out_reg,dtype=tf.float32)
+                atac_out_class = tf.cast(atac_out_class,dtype=tf.float32)
+
+                atac_loss_reg = lambda1 * tf.math.reduce_sum(poisson_loss(atac,
+                                                                          atac_out_reg)) * (1. / global_batch_size)
+                #print(atac_loss_reg.shape)
+                atac_loss_class = lambda2 * tf.math.reduce_sum(cross_entropy(peaks,
+                                                                        atac_out_class)) * (1. / global_batch_size)
+                corr_coeff_loss = lambda3 * (1.0 - tf.math.reduce_sum(corr_coef(atac_out_reg,
+                                                                                atac)) * (1. / global_batch_size))
+                loss = atac_loss_reg + atac_loss_class + corr_coeff_loss 
             
 
             gradients = tape.gradient(loss, conv_vars + atac_vars)
@@ -814,6 +857,12 @@ def return_train_val_functions_notf(model,
 
             metric_dict["hg_tr"].update_state(loss)
             metric_dict["hg_tr_atac"].update_state(loss)
+            
+            metric_dict["hg_tr_bce"].update_state(atac_loss_class)
+            metric_dict["hg_tr_corr"].update_state(corr_coeff_loss)
+            metric_dict["hg_tr_mse"].update_state(atac_loss_reg)
+            
+            
         
 
         for _ in tf.range(train_steps): ## for loop within @tf.fuction for improved TPU performance
@@ -826,38 +875,65 @@ def return_train_val_functions_notf(model,
         def val_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            tss_tokens=tf.zeros_like(atac)
+            tss_tokens=tf.zeros_like(atac)#tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             TF_expression = tf.zeros_like(TF_expression)
-            exons=tf.zeros_like(atac)
+            TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
+                                                                     mean=0.0,
+                                                                     stddev=2.5,
+                                                                     dtype=tf.float32))
+            TF_expression = tf.math.log(1.0 + TF_expression)
+            
+            peaks = tf.cast(inputs['peaks'],
+                            dtype=tf.float32)
+            peaks_weighting = 5.0 * peaks + (1.0 - peaks)
+            exons=tf.zeros_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             atac=tf.cast(atac,dtype=tf.float32)
+            atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
+            
+            
+            peaks = tf.slice(peaks, [0,crop_length_peak,0],[-1,out_length_peak,-1]) 
             
             cell_type = inputs['cell_type']
+            cell_type = tf.cast(cell_type,
+                                dtype=tf.int32)
+            interval_count_sd = tf.cast(inputs['interval_count_sd'],
+                                        dtype=tf.float32)
+            intervals_encoding = tf.cast(inputs['intervals_encoding'],
+                                        dtype=tf.int32)
 
-            atac_out,rna_out = model(input_tuple,
-                                     training=False)
+            atac_out_reg,atac_out_class,rna_out = model(input_tuple,
+                                                        training=False)
+            
+            atac_out_reg = tf.cast(atac_out_reg,dtype=tf.float32)
+            atac_out_class = tf.cast(atac_out_class,dtype=tf.float32)
+            atac_loss_reg = lambda1 * tf.math.reduce_sum(poisson_loss(atac,
+                                                                 atac_out_reg)) * (1. / global_batch_size)
+            #print(atac_loss_reg.shape)
+            atac_loss_class = lambda2 * tf.math.reduce_sum(cross_entropy(peaks,
+                                                                    atac_out_class)) * (1. / global_batch_size)
+            corr_coeff_loss = lambda3 * (1.0 - tf.math.reduce_sum(corr_coef(atac_out_reg,
+                                                                       atac)) * (1. / global_batch_size))
 
-            atac_out = tf.cast(atac_out,dtype=tf.float32)
-            atac = tf.cast(atac,dtype=tf.float32)
-
-            atac_loss = tf.reduce_sum(poisson_loss(atac,
-                                                   atac_out),
-                                     axis=0) * (1. / global_batch_size)
-            loss = atac_loss
+            loss = atac_loss_reg + atac_loss_class + corr_coeff_loss 
+            
             metric_dict['hg_pearsonsR_ATAC'].update_state(atac, 
-                                                          atac_out)
+                                                          atac_out_reg)
             metric_dict['hg_R2_ATAC'].update_state(atac, 
-                                                   atac_out)
+                                                   atac_out_reg)
+            metric_dict["hg_val_AUPRC"].update_state(peaks,
+                                                     atac_out_class)
             metric_dict["hg_val"].update_state(loss)
-
-
+            
         for _ in tf.range(val_steps): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(val_step,
                          args=(next(iterator),))
+            
 
+            
     def dist_val_step_atac_ho(iterator):
         @tf.function(jit_compile=True)
         def val_step(inputs):
@@ -866,34 +942,81 @@ def return_train_val_functions_notf(model,
             tss_tokens=tf.zeros_like(atac)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             TF_expression = tf.zeros_like(TF_expression)
+            TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
+                                                                     mean=0.0,
+                                                                     stddev=2.5,
+                                                                     dtype=tf.float32))
+            TF_expression = tf.math.log(1.0 + TF_expression)
+            
             exons=tf.zeros_like(atac)
-
+            peaks = tf.cast(inputs['peaks'],
+                            dtype=tf.float32)
+            peaks_weighting = 5.0 * peaks + (1.0 - peaks)
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
             #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             atac=tf.cast(atac,dtype=tf.float32)
+            atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
+            peaks = tf.slice(peaks, [0,crop_length_peak,0],[-1,out_length_peak,-1]) 
             
-            cell_type = inputs['cell_type']
+            cell_type = tf.cast(inputs['cell_type'],
+                                dtype=tf.int32)
+            interval_count_sd = tf.cast(inputs['interval_count_sd'],
+                                        dtype=tf.float32)
+            intervals_encoding= inputs['intervals_encoding']
+            intervals_encoding = tf.cast(intervals_encoding,
+                                         dtype=tf.int32)
+            atac_out_reg,atac_out_class,rna_out = model(input_tuple,
+                                                        training=False)
+            atac_out_reg = tf.cast(atac_out_reg,dtype=tf.float32)
+            atac_out_class = tf.cast(atac_out_class,dtype=tf.float32)
+            atac_loss_reg = lambda1 * tf.math.reduce_sum(poisson_loss(atac,
+                                                                      atac_out_reg)) * (1. / global_batch_size)
+            #print(atac_loss_reg.shape)
+            atac_loss_class = lambda2 * tf.math.reduce_sum(cross_entropy(peaks,
+                                                                         atac_out_class)) * (1. / global_batch_size)
+            corr_coeff_loss = lambda3 * (1.0 - tf.math.reduce_sum(corr_coef(atac_out_reg,
+                                                                            atac)) * (1. / global_batch_size))
 
-            atac_out,rna_out = model(input_tuple,
-                                     training=False)
-
-            atac_out = tf.cast(atac_out,dtype=tf.float32)
-            atac = tf.cast(atac,dtype=tf.float32)
-
-            atac_loss = tf.reduce_sum(poisson_loss(atac,
-                                                   atac_out),
-                                     axis=0) * (1. / global_batch_size)
-            loss = atac_loss
-            metric_dict['hg_pearsonsR_ATAC_ho'].update_state(atac, 
-                                                          atac_out)
+            loss = atac_loss_reg + atac_loss_class + corr_coeff_loss 
+            
+            metric_dict['hg_pearsonsR_ATAC_ho'].update_state(atac,
+                                                             atac_out_reg)
             metric_dict['hg_R2_ATAC_ho'].update_state(atac, 
-                                                   atac_out)
+                                                      atac_out_reg)
+            metric_dict["hg_val_AUPRC_ho"].update_state(peaks,
+                                                     atac_out_class)
             metric_dict["hg_val_ho"].update_state(loss)
-
-        for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
-            strategy.run(val_step,
-                         args=(next(iterator),))
+            return atac, atac_out_reg, peaks ,atac_out_class,cell_type,intervals_encoding,interval_count_sd#, interval_encoding
             
+        ta_a_true = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_a_pred = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
+        ta_p_true = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_p_pred = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
+        ta_celltype = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_intervals = tf.TensorArray(tf.int32, size=0, dynamic_size=True)
+        ta_count_sds = tf.TensorArray(tf.float32, size=0, dynamic_size=True)
+        
+        for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
+            atac_true,atac_pred,peak_true,peak_pred,cell_t,interval_enc,count_sd =  strategy.run(val_step,
+                                                                                                 args=(next(iterator),))
+            ta_a_true_gath = strategy.gather(atac_true, axis=0)# reshape to 1D
+            ta_a_pred_gath = strategy.gather(atac_pred, axis=0)# reshape to 1D
+            ta_p_true_gath = strategy.gather(peak_true, axis=0)# reshape to 1D
+            ta_p_pred_gath = strategy.gather(peak_pred, axis=0)# reshape to 1D
+            ta_celltype_gath = tf.reshape(strategy.gather(cell_t, axis=0), [-1])# reshape to 1D
+            ta_intervals_gath = tf.reshape(strategy.gather(interval_enc, axis=0), [-1])# reshape to 1D
+            ta_count_sds_gath = tf.reshape(strategy.gather(count_sd, axis=0), [-1])# reshape to 1D
+            
+            ta_a_true = ta_a_true.write(_, ta_a_true_gath)
+            ta_a_pred = ta_a_pred.write(_, ta_a_pred_gath)
+            ta_p_true = ta_p_true.write(_, ta_p_true_gath)
+            ta_p_pred = ta_p_pred.write(_, ta_p_pred_gath)
+            ta_celltype = ta_celltype.write(_, ta_celltype_gath)
+            ta_intervals = ta_intervals.write(_, ta_intervals_gath)
+            ta_count_sds = ta_count_sds.write(_, ta_count_sds_gath)
+            
+        return ta_a_true.concat(), ta_a_pred.concat(), ta_p_true.concat(), ta_p_pred.concat(), ta_celltype.concat(), ta_intervals.concat(), ta_count_sds.concat()
+        
 #########################
     def dist_train_step_rna(iterator):
         @tf.function(jit_compile=True)
@@ -903,8 +1026,6 @@ def return_train_val_functions_notf(model,
             target=tf.cast(inputs['target'],dtype=tf.float32)
             tss_tokens=tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
-            TF_expression = tf.zeros_like(TF_expression)
-            
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
@@ -917,6 +1038,7 @@ def return_train_val_functions_notf(model,
                             model.stem_pool.trainable_variables + \
                             model.conv_tower.trainable_variables + \
                             model.shared_transformer.trainable_variables + \
+                            model.tf_module.trainable_variables + \
                             model.conv_mix_block1.trainable_variables
 
                 rna_vars = model.final_pointwise_rna.trainable_variables + \
@@ -958,8 +1080,6 @@ def return_train_val_functions_notf(model,
             target=tf.cast(inputs['target'],dtype=tf.float32)
             tss_tokens=tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
-            TF_expression = tf.zeros_like(TF_expression)
-            
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
@@ -1020,8 +1140,6 @@ def return_train_val_functions_notf(model,
             target=tf.cast(inputs['target'],dtype=tf.float32)
             tss_tokens=tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
-            TF_expression = tf.zeros_like(TF_expression)
-            
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
@@ -1034,6 +1152,7 @@ def return_train_val_functions_notf(model,
                             model.stem_pool.trainable_variables + \
                             model.conv_tower.trainable_variables + \
                             model.shared_transformer.trainable_variables + \
+                            model.tf_module.trainable_variables + \
                             model.conv_mix_block1.trainable_variables
 
                 rna_vars = model.final_pointwise_rna.trainable_variables + \
@@ -1082,8 +1201,6 @@ def return_train_val_functions_notf(model,
             target=tf.cast(inputs['target'],dtype=tf.float32)
             tss_tokens=tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
-            TF_expression = tf.zeros_like(TF_expression)
-            
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
@@ -1143,19 +1260,20 @@ def return_train_val_functions_notf(model,
         ta_celltype.close()
         ta_genemap.close()
         
-        
     def build_step(iterator):
         @tf.function(jit_compile=True)
         def val_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            tss_tokens=tf.ones_like(atac)
+            target=tf.ones((batch_size,1)) #tf.cast(inputs['target'],dtype=tf.float32)
+            tss_tokens=tf.ones_like(atac)#tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             exons=tf.ones_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
+
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
 
-            atac_out,rna_out = model(input_tuple,
-                                     training=False)
+            atac_out_reg,atac_out_class,rna_out = model(input_tuple,
+                                                        training=False)
 
         for _ in tf.range(1): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(val_step,
@@ -1474,14 +1592,13 @@ def deserialize_atac(serialized_example,input_length,
     TF_expression = tf.ensure_shape(tf.io.parse_tensor(data['TF_expression'],
                                               out_type=tf.float32),
                              [num_TFs,])
-    TF_expression = tf.math.log(1.0 + TF_expression)
 
-    
     if train_bool: 
         TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
                                                                      mean=0.0,
-                                                                     stddev=2.0e-01,
+                                                                     stddev=2.5,
                                                                      dtype=tf.float32))
+    TF_expression = tf.math.log(1.0 + TF_expression)
 
     TF_expression_mean = tf.math.reduce_mean(TF_expression)
     TF_expression_sd = tf.math.reduce_std(TF_expression)
