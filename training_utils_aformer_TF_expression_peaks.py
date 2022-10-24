@@ -203,7 +203,7 @@ def return_train_val_functions(model,
                                                  dtype=tf.float32)
     metric_dict["hg_tr_corr"] = tf.keras.metrics.Mean("hg_tr_corr",
                                                  dtype=tf.float32)
-    metric_dict["hg_tr_mse"] = tf.keras.metrics.Mean("hg_tr_mse",
+    metric_dict["hg_tr_main"] = tf.keras.metrics.Mean("hg_tr_main",
                                                  dtype=tf.float32)
     
     metric_dict["hg_tr_rna"] = tf.keras.metrics.Mean("hg_tr_loss_rna",
@@ -773,7 +773,7 @@ def return_train_val_functions_notf(model,
                                                  dtype=tf.float32)
     metric_dict["hg_tr_corr"] = tf.keras.metrics.Mean("hg_tr_corr",
                                                  dtype=tf.float32)
-    metric_dict["hg_tr_mse"] = tf.keras.metrics.Mean("hg_tr_mse",
+    metric_dict["hg_tr_main"] = tf.keras.metrics.Mean("hg_tr_main",
                                                  dtype=tf.float32)
     
     metric_dict["hg_tr_rna"] = tf.keras.metrics.Mean("hg_tr_loss_rna",
@@ -880,7 +880,7 @@ def return_train_val_functions_notf(model,
             
             metric_dict["hg_tr_bce"].update_state(atac_loss_class)
             metric_dict["hg_tr_corr"].update_state(corr_coeff_loss)
-            metric_dict["hg_tr_mse"].update_state(atac_loss_reg)
+            metric_dict["hg_tr_main"].update_state(atac_loss_reg)
             
             
         

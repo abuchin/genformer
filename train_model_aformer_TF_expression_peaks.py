@@ -469,11 +469,11 @@ def main():
                 print('hg_train_loss: ' + str(metric_dict['hg_tr'].result().numpy()))
                 print('hg_train_loss_bce: ' + str(metric_dict['hg_tr_bce'].result().numpy()))
                 print('hg_train_loss_corr: ' + str(metric_dict['hg_tr_corr'].result().numpy()))
-                print('hg_train_loss_mse: ' + str(metric_dict['hg_tr_mse'].result().numpy()))
+                print('hg_train_loss_main: ' + str(metric_dict['hg_tr_main'].result().numpy()))
                 wandb.log({'hg_train_loss': metric_dict['hg_tr'].result().numpy(),
                           'hg_train_loss_bce': metric_dict['hg_tr_bce'].result().numpy(),
                           'hg_train_loss_corr': metric_dict['hg_tr_corr'].result().numpy(),
-                          'hg_train_loss_mse': metric_dict['hg_tr_mse'].result().numpy()},
+                          'hg_train_loss_main': metric_dict['hg_tr_main'].result().numpy()},
                           step=epoch_i)
 
                 print('training duration(mins): ' + str(duration))
