@@ -794,7 +794,7 @@ def return_train_val_functions_notf(model,
             TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
                                                                      mean=0.0,
                                                                      stddev=2.5,
-                                                                     dtype=tf.float32))
+                                                                     dtype=tf.bfloat16))
             TF_expression = tf.math.log(1.0 + TF_expression)
             
             peaks = tf.cast(inputs['peaks'],
@@ -881,7 +881,7 @@ def return_train_val_functions_notf(model,
             TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
                                                                      mean=0.0,
                                                                      stddev=2.5,
-                                                                     dtype=tf.float32))
+                                                                     dtype=tf.bfloat16))
             TF_expression = tf.math.log(1.0 + TF_expression)
             
             peaks = tf.cast(inputs['peaks'],
@@ -945,7 +945,7 @@ def return_train_val_functions_notf(model,
             TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
                                                                      mean=0.0,
                                                                      stddev=2.5,
-                                                                     dtype=tf.float32))
+                                                                     dtype=tf.bfloat16))
             TF_expression = tf.math.log(1.0 + TF_expression)
             
             exons=tf.zeros_like(atac)
