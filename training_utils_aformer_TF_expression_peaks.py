@@ -223,9 +223,9 @@ def return_train_val_functions(model,
     
     metric_dict["hg_val_AUPRC_ho"] = tf.keras.metrics.AUC(curve = 'PR')
     
-    if loss_fn_main = 'mse':
+    if loss_fn_main == 'mse':
         loss_fn = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
-    elif loss_fn_main = 'poisson':
+    elif loss_fn_main == 'poisson':
         loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
     else:
         raise ValueError('loss_fn_not_implemented')
@@ -724,23 +724,24 @@ def return_train_val_functions(model,
 
 
 def return_train_val_functions_notf(model,
-                               optimizers_in,
-                               strategy,
-                               metric_dict,
-                               train_steps, 
-                               val_steps,
-                               val_steps_ho,
-                               global_batch_size,
-                               gradient_clip,
-                               out_length,
-                               crop_length,
-                               out_length_peak,
-                               crop_length_peak,
-                               batch_size,
-                               lambda1,
-                               lambda2,
-                               lambda3,
-                               rna_loss_scale=None):
+                                    optimizers_in,
+                                    strategy,
+                                    metric_dict,
+                                    train_steps, 
+                                    val_steps,
+                                    val_steps_ho,
+                                    global_batch_size,
+                                    gradient_clip,
+                                    out_length,
+                                    crop_length,
+                                    out_length_peak,
+                                    crop_length_peak,
+                                    batch_size,
+                                    lambda1,
+                                    lambda2,
+                                    lambda3,
+                                    loss_fn_main='mse',
+                                    rna_loss_scale=None):
     """Returns distributed train and validation functions for
     a given list of organisms
     Args:
@@ -792,9 +793,9 @@ def return_train_val_functions_notf(model,
     
     metric_dict["hg_val_AUPRC_ho"] = tf.keras.metrics.AUC(curve = 'PR')
     
-    if loss_fn_main = 'mse':
+    if loss_fn_main == 'mse':
         loss_fn = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
-    elif loss_fn_main = 'poisson':
+    elif loss_fn_main == 'poisson':
         loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
     else:
         raise ValueError('loss_fn_not_implemented')
@@ -2098,6 +2099,11 @@ def parse_args(parser):
                         type=str,
                         default="0.5",
                         help= 'lambda3')
+    parser.add_argument('--loss_type',
+                        dest='loss_type',
+                        type=str,
+                        default="mse",
+                        help= 'loss_type')
     parser.add_argument('--atac_peaks_cropped',
                         dest='atac_peaks_cropped',
                         type=int,
