@@ -163,6 +163,9 @@ def main():
                 },
                 'lambda3': {
                     'values':[float(x) for x in args.lambda3.split(',')]
+                },
+                'loss_type': {
+                    'values':[str(x) for x in args.loss_type.split(',')]
                 }
                 
             }
@@ -402,6 +405,7 @@ def main():
                                                           wandb.config.lambda1,
                                                           wandb.config.lambda2,
                                                           wandb.config.lambda3,
+                                                          loss_fn_main=wandb.config.loss_type,
                                                           rna_loss_scale=wandb.config.rna_loss_scale)
             else:
                 train_step_atac,val_step_atac,val_step_atac_ho,\
@@ -409,23 +413,24 @@ def main():
                         train_step_both,val_step_both,\
                             build_step, metric_dict = \
                 training_utils.return_train_val_functions_notf(model,
-                                                          optimizers_in,
-                                                          strategy,
-                                                          metric_dict,
-                                                          wandb.config.train_steps,
-                                                          wandb.config.val_steps,
-                                                          wandb.config.val_steps_ho,
-                                                          GLOBAL_BATCH_SIZE,
-                                                          wandb.config.gradient_clip,
-                                                          wandb.config.atac_output_length,
-                                                          crop_size,
-                                                          wandb.config.atac_peaks_cropped,
-                                                          peaks_crop,
-                                                          wandb.config.batch_size,
-                                                          wandb.config.lambda1,
-                                                          wandb.config.lambda2,
-                                                          wandb.config.lambda3,
-                                                          rna_loss_scale=wandb.config.rna_loss_scale)
+                                                               optimizers_in,
+                                                               strategy,
+                                                               metric_dict,
+                                                               wandb.config.train_steps,
+                                                               wandb.config.val_steps,
+                                                               wandb.config.val_steps_ho,
+                                                               GLOBAL_BATCH_SIZE,
+                                                               wandb.config.gradient_clip,
+                                                               wandb.config.atac_output_length,
+                                                               crop_size,
+                                                               wandb.config.atac_peaks_cropped,
+                                                               peaks_crop,
+                                                               wandb.config.batch_size,
+                                                               wandb.config.lambda1,
+                                                               wandb.config.lambda2,
+                                                               wandb.config.lambda3,
+                                                               loss_fn_main=wandb.config.loss_type,
+                                                               rna_loss_scale=wandb.config.rna_loss_scale)
                 
 
             print('finished loading training/val loop functions')
