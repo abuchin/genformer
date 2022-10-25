@@ -237,7 +237,7 @@ def return_train_val_functions(model,
     
     def dist_train_step_atac(iterator):
         @tf.function(jit_compile=True)
-        def train_step(inputs,step,total):
+        def train_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
             tss_tokens=tf.zeros_like(atac)#tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
@@ -309,7 +309,7 @@ def return_train_val_functions(model,
             metric_dict["hg_tr_main"].update_state(atac_loss_reg)
             
         for _ in tf.range(train_steps): ## for loop within @tf.fuction for improved TPU performance
-            strategy.run(train_step, args=(next(iterator,_,total),))
+            strategy.run(train_step, args=(next(iterator),))
 
             
     def dist_val_step_atac(iterator):
