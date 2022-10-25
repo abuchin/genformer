@@ -237,7 +237,7 @@ def return_train_val_functions(model,
     
     def dist_train_step_atac(iterator):
         @tf.function(jit_compile=True)
-        def train_step(inputs):
+        def train_step(inputs,step,total):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
             tss_tokens=tf.zeros_like(atac)#tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
@@ -281,7 +281,8 @@ def return_train_val_functions(model,
                                                             training=True)
                 atac_out_reg = tf.cast(atac_out_reg,dtype=tf.float32)
                 atac_out_class = tf.cast(atac_out_class,dtype=tf.float32)
-
+                
+                
                 atac_loss_reg = lambda1 * tf.math.reduce_sum(loss_fn(atac,
                                                                      atac_out_reg)) * (1. / global_batch_size)
                 #print(atac_loss_reg.shape)
@@ -307,11 +308,8 @@ def return_train_val_functions(model,
             metric_dict["hg_tr_corr"].update_state(corr_coeff_loss)
             metric_dict["hg_tr_main"].update_state(atac_loss_reg)
             
-            
-        
-
         for _ in tf.range(train_steps): ## for loop within @tf.fuction for improved TPU performance
-            strategy.run(train_step, args=(next(iterator),))
+            strategy.run(train_step, args=(next(iterator,_,total),))
 
             
     def dist_val_step_atac(iterator):
@@ -2445,7 +2443,7 @@ def make_atac_plots(atac_preds,
     preds_max_count_sd_peaks = np.asarray(preds_max_count_sd_peaks)
     trues_max_count_sd_peaks = np.asarray(trues_max_count_sd_peaks)
 
-    ax_preds_peak = plot_imshow(tf.nn.softmax(preds_max_count_sd_peaks),
+    ax_preds_peak = plot_imshow(tf.nn.sigmoid(preds_max_count_sd_peaks),
                                 interval_encoding)
     ax_trues_peak = plot_imshow(trues_max_count_sd_peaks,
                                 interval_encoding)
