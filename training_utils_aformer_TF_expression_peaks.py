@@ -170,7 +170,7 @@ def return_train_val_functions(model,
                                lambda1,
                                lambda2,
                                lambda3,
-                               loss_fn_main='mse',
+                               loss_fn_main='poisson',
                                rna_loss_scale=None):
     """Returns distributed train and validation functions for
     a given list of organisms
@@ -229,6 +229,8 @@ def return_train_val_functions(model,
         loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
     else:
         raise ValueError('loss_fn_not_implemented')
+    print(loss_fn)
+        
     cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True,
                                                        reduction=tf.keras.losses.Reduction.NONE)
     optimizer1,optimizer2,optimizer3=optimizers_in
@@ -280,9 +282,6 @@ def return_train_val_functions(model,
                 atac_out_reg = tf.cast(atac_out_reg,dtype=tf.float32)
                 atac_out_class = tf.cast(atac_out_class,dtype=tf.float32)
 
-                atac = atac + 1.0e-06
-                atac_out_reg = atac_out_reg + 1.0e-06
-                
                 atac_loss_reg = lambda1 * tf.math.reduce_sum(loss_fn(atac,
                                                                      atac_out_reg)) * (1. / global_batch_size)
                 #print(atac_loss_reg.shape)
@@ -325,7 +324,7 @@ def return_train_val_functions(model,
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             peaks = tf.cast(inputs['peaks'],
                             dtype=tf.float32)
-            peaks_weighting = 5.0 * peaks + (1.0 - peaks)
+            
             exons=tf.zeros_like(atac)#tf.cast(inputs['exons'],dtype=tf.bfloat16)
 
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
@@ -349,8 +348,7 @@ def return_train_val_functions(model,
             
             atac_out_reg = tf.cast(atac_out_reg,dtype=tf.float32)
             atac_out_class = tf.cast(atac_out_class,dtype=tf.float32)
-            atac = atac + 1.0e-06
-            atac_out_reg = atac_out_reg + 1.0e-06
+
             atac_loss_reg = lambda1 * tf.math.reduce_sum(loss_fn(atac,
                                                                  atac_out_reg)) * (1. / global_batch_size)
             #print(atac_loss_reg.shape)
@@ -385,9 +383,9 @@ def return_train_val_functions(model,
             exons=tf.zeros_like(atac)
             peaks = tf.cast(inputs['peaks'],
                             dtype=tf.float32)
-            peaks_weighting = 5.0 * peaks + (1.0 - peaks)
+            
             input_tuple = sequence,tss_tokens,exons, TF_expression, atac
-            #atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
+            
             atac=tf.cast(atac,dtype=tf.float32)
             atac = tf.slice(atac, [0,crop_length,0],[-1,out_length,-1])
             peaks = tf.slice(peaks, [0,crop_length_peak,0],[-1,out_length_peak,-1]) 
@@ -403,9 +401,7 @@ def return_train_val_functions(model,
                                                         training=False)
             atac_out_reg = tf.cast(atac_out_reg,dtype=tf.float32)
             atac_out_class = tf.cast(atac_out_class,dtype=tf.float32)
-            atac = atac + 1.0e-06
-            atac_out_reg = atac_out_reg + 1.0e-06
-            
+
             atac_loss_reg = lambda1 * tf.math.reduce_sum(loss_fn(atac,
                                                              atac_out_reg)) * (1. / global_batch_size)
             #print(atac_loss_reg.shape)
@@ -799,6 +795,7 @@ def return_train_val_functions_notf(model,
         loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
     else:
         raise ValueError('loss_fn_not_implemented')
+    print(loss_fn)
     cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True,
                                                        reduction=tf.keras.losses.Reduction.NONE)
     optimizer1,optimizer2,optimizer3=optimizers_in
@@ -812,9 +809,9 @@ def return_train_val_functions_notf(model,
             TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             TF_expression = tf.zeros_like(TF_expression)
             TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
-                                                                     mean=0.0,
-                                                                     stddev=2.5,
-                                                                     dtype=tf.bfloat16))
+                                                                         mean=0.0,
+                                                                         stddev=2.5,
+                                                                         dtype=tf.bfloat16))
             TF_expression = tf.math.log(1.0 + TF_expression)
             
             peaks = tf.cast(inputs['peaks'],
@@ -1370,7 +1367,7 @@ def deserialize(serialized_example,input_length,
     TF_expression = tf.math.log(1.0 + TF_expression)
     TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
                                                                  mean=0.0,
-                                                                 stddev=1.0e-01,
+                                                                 stddev=2.5,
                                                                  dtype=tf.float32))
     
 
@@ -1616,7 +1613,7 @@ def deserialize_atac(serialized_example,input_length,
     if train_bool: 
         TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
                                                                      mean=0.0,
-                                                                     stddev=5.0,
+                                                                     stddev=2.5,
                                                                      dtype=tf.float32))
     TF_expression = tf.math.log(1.0 + TF_expression)
 
@@ -2102,7 +2099,7 @@ def parse_args(parser):
     parser.add_argument('--loss_type',
                         dest='loss_type',
                         type=str,
-                        default="mse",
+                        default="poisson",
                         help= 'loss_type')
     parser.add_argument('--atac_peaks_cropped',
                         dest='atac_peaks_cropped',
@@ -2436,9 +2433,26 @@ def make_atac_plots(atac_preds,
 
     ax_preds = plot_tracks(preds_max_count_sd_reg,
                            interval_encoding)
-    ax_trues = plot_tracks(trues_max_count_sd_reg,
+    ax_trues = plot_tracks(trues_max_count_sd_reg, ## plot log for trues
                            interval_encoding)
-    return cell_type_auprcs_median, cell_type_pearsons_median, ax_preds, ax_trues, fig_atac_ho
+    
+    preds_max_count_sd_peaks = []
+    trues_max_count_sd_peaks = []
+    for entry in indices:
+        preds_max_count_sd_peaks.append(np.squeeze(peak_preds[entry]))
+        trues_max_count_sd_peaks.append(np.squeeze(peak_trues[entry]))
+        
+    preds_max_count_sd_peaks = np.asarray(preds_max_count_sd_peaks)
+    trues_max_count_sd_peaks = np.asarray(trues_max_count_sd_peaks)
+
+    ax_preds_peak = plot_imshow(tf.nn.softmax(preds_max_count_sd_peaks),
+                                interval_encoding)
+    ax_trues_peak = plot_imshow(trues_max_count_sd_peaks,
+                                interval_encoding)
+    
+    
+    
+    return cell_type_auprcs_median, cell_type_pearsons_median, ax_preds, ax_trues, fig_atac_ho, ax_preds_peak, ax_trues_peak
 
 
 
@@ -2451,9 +2465,9 @@ def plot_tracks(tracks, interval_encoding, height=1.5):
         for ax, y in zip(axes, tracks):
             ax.fill_between(np.linspace(0, tracks[0].shape[0], num=len(y)), y)
             sns.despine(top=True, right=True, bottom=True)
+            ax.set_ylim(0, ylim)
         ax.set_xlabel(str(interval_encoding))
         
-        plt.ylim([0, ylim])
         plt.tight_layout()
         return ax
     else:
@@ -2463,5 +2477,26 @@ def plot_tracks(tracks, interval_encoding, height=1.5):
         sns.despine(top=True, right=True, bottom=True)
         ax.set_xlabel(str(interval_encoding))
         plt.ylim([0, ylim])
+        plt.tight_layout()
+        return ax
+    
+
+def plot_imshow(tracks, interval_encoding, height=1.5):
+    if tracks.shape[0] > 1:
+        fig, axes = plt.subplots(tracks.shape[0], 1, 
+                                 figsize=(20, height * tracks.shape[0]), sharex=True)
+        for ax, y in zip(axes, tracks):
+            ax.imshow(y[tf.newaxis], aspect = "auto", cmap="viridis")
+            sns.despine(top=True, right=True, bottom=True)
+        ax.set_xlabel(str(interval_encoding))
+        
+        plt.tight_layout()
+        return ax
+    else:
+        fig,ax = plt.subplots(figsize=(20,height))
+
+        ax.imshow(tracks, aspect = "auto", cmap="viridis")
+        sns.despine(top=True, right=True, bottom=True)
+        ax.set_xlabel(str(interval_encoding))
         plt.tight_layout()
         return ax

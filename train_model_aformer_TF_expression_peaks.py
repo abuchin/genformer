@@ -496,7 +496,7 @@ def main():
             
                     reg_true,reg_pred, peak_true,peak_pred,cell_types,intervals,count_sds = val_step_atac_ho(data_dict_val_ho)
                 
-                    cell_type_auprcs_median,cell_type_pearsons_median,ax_preds,ax_trues, fig_atac_ho = training_utils.make_atac_plots(reg_pred.numpy(),
+                    cell_type_auprcs_median,cell_type_pearsons_median,ax_preds,ax_trues, fig_atac_ho, ax_preds_peak,ax_trues_peak = training_utils.make_atac_plots(reg_pred.numpy(),
                                                                                                  reg_true.numpy(),
                                                                                                  peak_pred.numpy(),
                                                                                                  peak_true.numpy(),
@@ -525,7 +525,9 @@ def main():
                                'cell_type_pearsons_median': cell_type_pearsons_median,
                                'cell_type_auprcs_median': cell_type_auprcs_median,
                                'pred atac high var':wandb.Image(ax_preds),
-                               'true atac high var':wandb.Image(ax_trues)},step=epoch_i)
+                               'true atac high var':wandb.Image(ax_trues),
+                               'pred atac high var peaks':wandb.Image(ax_preds_peak),
+                               'true atac high var peaks':wandb.Image(ax_trues_peak)},step=epoch_i)
                     print('wandb logging complete')
                               
                 elif train_mode == 'rna_only':
