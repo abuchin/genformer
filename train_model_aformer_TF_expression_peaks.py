@@ -517,9 +517,9 @@ def main():
                     print('hg_val_AUPRC_ho: ' + str(auprc_ho))
                     
                     print('returned correlation metrics from make plots function')
-                    wandb.log({#'hg_ATAC_pearsons': pearsons_atac,
-                               #'hg_ATAC_R2': pearsons_R2,
-                               #'hg_ATAC_auprc': auprc,
+                    wandb.log({'hg_ATAC_pearsons': pearsons_atac,
+                               'hg_ATAC_R2': pearsons_R2,
+                               'hg_ATAC_auprc': auprc,
                                'hg_ATAC_pearsons_ho': pearsons_atac_ho,
                                'hg_ATAC_R2_ho': pearsons_R2_ho,
                                'hg_ATAC_auprc_ho': auprc_ho,
