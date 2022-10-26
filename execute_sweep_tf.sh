@@ -48,7 +48,7 @@ python3 train_model_aformer_TF_expression_peaks.py \
             --use_tf_module="True" \
             --rna_loss_scale="0.50" \
             --lambda1="0.1" \
-            --lambda2="50.0" \
+            --lambda2="10.0" \
             --lambda3="0.0" \
             --freeze_conv_layers="False" \
             --load_init="True" \
