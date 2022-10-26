@@ -480,18 +480,18 @@ def main():
                 
                 start = time.time()
                 if train_mode == 'atac_only':
-                    #val_step_atac(data_dict_val)
+                    val_step_atac(data_dict_val)
 
                     
                     
-                    #pearsons_atac = metric_dict['hg_pearsonsR_ATAC'].result()['PearsonR'].numpy()
+                    pearsons_atac = metric_dict['hg_pearsonsR_ATAC'].result()['PearsonR'].numpy()
                     
-                    #val_pearsons.append(pearsons_atac)
-                    #pearsons_R2= metric_dict['hg_R2_ATAC'].result()['R2'].numpy()
-                    ##auprc = metric_dict['hg_val_AUPRC'].result().numpy()
-                    #print('hg_ATAC_pearsons: ' + str(pearsons_atac))
-                    #print('hg_ATAC_R2: ' + str(pearsons_R2))
-                    #print('hg_val_AUPRC: ' + str(auprc))
+                    val_pearsons.append(pearsons_atac)
+                    pearsons_R2= metric_dict['hg_R2_ATAC'].result()['R2'].numpy()
+                    auprc = metric_dict['hg_val_AUPRC'].result().numpy()
+                    print('hg_ATAC_pearsons: ' + str(pearsons_atac))
+                    print('hg_ATAC_R2: ' + str(pearsons_R2))
+                    print('hg_val_AUPRC: ' + str(auprc))
 
             
                     reg_true,reg_pred, peak_true,peak_pred,cell_types,intervals,count_sds = val_step_atac_ho(data_dict_val_ho)
@@ -509,7 +509,7 @@ def main():
                     print('cell_type_pearsons_median: ' + str(cell_type_pearsons_median))
                 
                     pearsons_atac_ho = metric_dict['hg_pearsonsR_ATAC_ho'].result()['PearsonR'].numpy()
-                    val_pearsons.append(pearsons_atac_ho)
+                    #val_pearsons.append(pearsons_atac_ho)
                     pearsons_R2_ho = metric_dict['hg_R2_ATAC_ho'].result()['R2'].numpy()
                     auprc_ho = metric_dict['hg_val_AUPRC_ho'].result().numpy()
                     print('hg_ATAC_pearsons_ho: ' + str(pearsons_atac_ho))

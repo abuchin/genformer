@@ -53,5 +53,4 @@ python3 train_model_aformer_TF_expression_peaks.py \
             --freeze_conv_layers="False" \
             --load_init="True" \
             --atac_peaks_cropped=56 \
-            --loss_type="poisson" \
-            --enformer_checkpoint_path="sonnet_weights"
+            --loss_type="poisson"
