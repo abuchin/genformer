@@ -779,9 +779,12 @@ class output_head_atac(kl.Layer):
         """
         super().__init__(name=name, **kwargs)
         
-        self.dense1 = kl.Dense(units=16,
+        self.dense1 = kl.Dense(units=128,
                                     use_bias=True)
         self.gelu = tfa.layers.GELU()
+        
+        self.dense2 = kl.Dense(units=16,
+                                    use_bias=True)
         
         self.final_dense_regression = kl.Dense(units=1,
                                     use_bias=True)
@@ -792,13 +795,13 @@ class output_head_atac(kl.Layer):
         ### dimension here is 768
         ### need to get to dimension of 96
         ### pool by 8
-        self.pool = SoftmaxPooling1D(per_channel=True,
-                                     w_init_scale=2.0,
-                                     pool_size=8,
-                                     k_init=None,
-                                     train=True)
-        
-        self.final_dense_class = kl.Dense(units=1,
+        #self.pool = SoftmaxPooling1D(per_channel=True,
+        #                             w_init_scale=2.0,
+        #                             pool_size=8,
+        #                             k_init=None,
+        #                             train=True)
+        self.flatten = kl.Flatten()
+        self.final_dense_class = kl.Dense(units=96,
                                           use_bias=True)
         #self.final_sigmoid_class = tf.keras.layers.Activation('sigmoid')
         
@@ -813,13 +816,16 @@ class output_head_atac(kl.Layer):
     def call(self, inputs, training=None):
         x = self.dense1(inputs)
         x = self.gelu(x)
+        x = self.dense2(x)
+        x = self.gelu(x)
+        
         x_reg = self.final_dense_regression(x)
+
+        x_class = self.flatten(x)
         
-        x_class = self.pool(x)
         x_class = self.final_dense_class(x_class)
-        
         return self.final_softplus_regression(x_reg),\
-                x_class
+                                            tf.expand_dims(x_class,axis=2)
 
 
 ############################ tf_module module #####################################
@@ -867,8 +873,7 @@ class tf_module(kl.Layer):
     def call(self, inputs, training=None):
         x = self.dense_1(inputs)
         x = self.gelu(x)
-        x = self.dropout(x,
-                         training=training)
+        x = self.dropout(x,training=training)
         x = self.dense_2(x)
         x = self.gelu(x)
         x = self.dense_3(x)

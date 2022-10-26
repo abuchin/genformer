@@ -24,10 +24,10 @@ python3 train_model_aformer_TF_expression_peaks.py \
             --model_save_dir="gs://picard-testing-176520/seqtoatac_98k_57kstride_blacklist0.25_peaks/models" \
             --model_save_basename="aformer_TF_ATAC" \
             --lr_base1="2.5e-05" \
-            --lr_base2="3.0e-04" \
+            --lr_base2="5.0e-04" \
             --lr_base3="9.0e-05" \
-            --decay_frac="0.50" \
-            --weight_decay_frac="0.35" \
+            --decay_frac="0.90" \
+            --weight_decay_frac="0.50" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-14 \
             --transformer_depth_rna="4" \
@@ -36,7 +36,7 @@ python3 train_model_aformer_TF_expression_peaks.py \
             --dropout_rate="0.45" \
             --tf_dropout_rate="0.30" \
             --attention_dropout_rate="0.20" \
-            --pointwise_dropout_rate="0.20" \
+            --pointwise_dropout_rate="0.05" \
             --num_heads="8" \
             --num_random_features="256" \
             --hidden_size="960" \
@@ -47,8 +47,8 @@ python3 train_model_aformer_TF_expression_peaks.py \
             --train_mode="atac_only" \
             --use_tf_module="True" \
             --rna_loss_scale="0.50" \
-            --lambda1="0.01" \
-            --lambda2="1.0" \
+            --lambda1="0.1" \
+            --lambda2="50.0" \
             --lambda3="0.0" \
             --freeze_conv_layers="False" \
             --load_init="True" \

@@ -259,7 +259,7 @@ def return_train_val_functions(model,
                                          dtype=tf.int32)
             cell_type = tf.cast(inputs['cell_type'],
                                 dtype=tf.int32)
-
+            
             with tf.GradientTape(watch_accessed_variables=False) as tape:
                 conv_vars = model.stem_conv.trainable_variables + \
                             model.stem_res_conv.trainable_variables + \

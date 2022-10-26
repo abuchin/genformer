@@ -45,6 +45,7 @@ class aformer(tf.keras.Model):
                  inits=None,
                  filter_list=None,
                  freeze_conv_layers=False,
+                 use_performer=True,
                  name: str = 'aformer',
                  **kwargs):
         """ 'aformer' model based on Enformer for predicting RNA-seq from atac + sequence
