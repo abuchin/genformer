@@ -16,44 +16,35 @@ SEQUENCE_LENGTH=65536
 @tf.keras.utils.register_keras_serializable()
 class aformer(tf.keras.Model):
     def __init__(self,
-                 kernel_transformation: 'softmax_kernel_transformation',
+                 kernel_transformation = 'softmax_kernel_transformation',
                  dropout_rate: float = 0.2,
-                 positional_dropout_rate: float = 0.1,
-                 input_length: int = 16384,
+                 tf_dropout_rate: float = 0.2,
+                 pointwise_dropout_rate: float = 0.2,
+                 attention_dropout_rate: float = 0.05,
+                 input_length: int = 196608,
+                 dim_reduce_length: int = 768,
                  num_heads:int = 4,
                  numerical_stabilizer: float =0.001,
                  nb_random_features:int = 256,
-                 hidden_size:int = 64,
-                 widening:int = 2,
-                 conv_filter_size_1_seq:int = 17,
-                 conv_filter_size_2_seq:int = 5,
-                 conv_filter_size_1_atac:int=50,
-                 conv_filter_size_2_atac: int=5,
-                 transformer_depth:int = 4,
-                 momentum: float = 0.90,
-                 channels_list: list = [36, 36, 48, 48, 64],
-                 kernel_regularizer: float = 0.01,
-                 d_model = 64,
-                 bottleneck_units_tf=64,
-                 bottleneck_units=64,
+                 hidden_size:int = 128,
+                 shared_transformer_depth:int = 4,
+                 pre_transf_channels: int = 128,
+                 d_model = 128,
+                 TF_inputs=128,
                  norm=True,
                  dim = 32, 
-                 max_seq_length = 4096,
-                 pooling_type='max',
-                 # nb_random_features = 64, 
-                 rel_pos_bins=128, 
-                 kernel_size=None, 
+                 max_seq_length = 1536,
+                 rel_pos_bins=1536, 
                  use_rot_emb = True,
                  use_mask_pos = False, 
                  normalize = True,
                  seed = 3,
-                 stride=1,
-                 TF_inputs_hg=1637,
-                 TF_inputs_mm=1366,
-                 use_tf_acc=False,
-                 heads_dict: dict = {'hg':0,
-                                     'mm':1},
-                                     #'rm':2},
+                 load_init=False,
+                 inits=None,
+                 filter_list_seq=None,
+                 #filter_list_atac=None,
+                 freeze_conv_layers=False,
+                 use_performer=True,
                  name: str = 'aformer',
                  **kwargs):
         """ 'aformer' model based on Enformer for predicting RNA-seq from atac + sequence
@@ -66,156 +57,286 @@ class aformer(tf.keras.Model):
         super(aformer, self).__init__(name=name,**kwargs)
         self.kernel_transformation=kernel_transformation
         self.dropout_rate=dropout_rate
+        self.pointwise_dropout_rate=pointwise_dropout_rate
         self.num_heads=num_heads
         self.input_length=input_length
         self.numerical_stabilizer=numerical_stabilizer
         self.nb_random_features=nb_random_features
         self.hidden_size=hidden_size
-        self.widening=widening
-        self.conv_filter_size_1_seq=conv_filter_size_1_seq
-        self.conv_filter_size_2_seq=conv_filter_size_2_seq
-        self.conv_filter_size_1_atac=conv_filter_size_1_atac
-        self.conv_filter_size_2_atac=conv_filter_size_2_atac
-        self.positional_dropout_rate=positional_dropout_rate
-        self.pooling_type=pooling_type
-        self.transformer_depth=transformer_depth
-        self.momentum=momentum
-        self.channels_list=channels_list
-        self.kernel_regularizer=kernel_regularizer
-        self.heads_dict=heads_dict
-        self.bottleneck_units_tf=bottleneck_units_tf
-        self.bottleneck_units=bottleneck_units
+        self.pre_transf_channels=pre_transf_channels
+        self.shared_transformer_depth=shared_transformer_depth
         self.norm=norm
         self.d_model = d_model
         self.dim = dim
         self.max_seq_length = max_seq_length
         self.rel_pos_bins = rel_pos_bins
-        self.kernel_size = kernel_size
         self.use_rot_emb = use_rot_emb
         self.use_mask_pos = use_mask_pos
         self.normalize = normalize
         self.seed = seed
-        self.stride = stride
-        self.use_tf_acc = use_tf_acc
+        self.TF_inputs=TF_inputs
+        self.attention_dropout_rate=attention_dropout_rate
+        self.dim_reduce_length=dim_reduce_length
+        self.load_init=load_init
+        self.inits=inits
+        self.filter_list_seq = [768, 896, 1024, 1152, 1280, 1536] if self.load_init else filter_list_seq
+        #self.filter_list_atac = filter_list_atac
+        self.freeze_conv_layers = freeze_conv_layers
+        self.dim_reduce_length=dim_reduce_length
+        self.tf_dropout_rate=tf_dropout_rate
+        
+        
+        def enf_conv_block(filters, 
+                           width=1, 
+                           w_init='glorot_uniform', 
+                           padding='same', 
+                           name='conv_block',
+                           beta_init=None,
+                           gamma_init=None,
+                           mean_init=None,
+                           var_init=None,
+                           kernel_init=None,
+                           bias_init=None,
+                           train=True,
+                           **kwargs):
+            return tf.keras.Sequential([
+              syncbatchnorm(axis=-1,
+                            center=True,
+                            scale=True,
+                            beta_initializer=beta_init if self.load_init else "zeros",
+                            gamma_initializer=gamma_init if self.load_init else "ones",
+                            trainable=train,
+                            moving_mean_initializer=mean_init if self.load_init else "zeros",
+                            moving_variance_initializer=var_init if self.load_init else "ones",
+                            **kwargs),
+              tfa.layers.GELU(),
+              tf.keras.layers.Conv1D(filters,
+                                     width, 
+                                     kernel_initializer=kernel_init if self.load_init else w_init,
+                                     bias_initializer=bias_init if self.load_init else bias_init,
+                                     trainable=train,
+                                     padding=padding, **kwargs)
+            ], name=name)
         
         ### conv stack for sequence inputs
-        self.convstack_seq = convstackblock(initial_channels = self.hidden_size // 4,
-                                            channels_list=self.channels_list,
-                                            conv_filter_size_1=self.conv_filter_size_1_seq,
-                                            conv_filter_size_2=self.conv_filter_size_2_seq,
-                                            momentum=self.momentum,
-                                            input_length=self.input_length,
-                                            stride=self.stride,
-                                            kernel_regularizer=self.kernel_regularizer,
-                                            pooling_type=self.pooling_type, **kwargs)
+        self.stem_conv = tf.keras.layers.Conv1D(filters= int(self.filter_list_seq[-1]) // 2,
+                                   kernel_size=15,
+                                   kernel_initializer=self.inits['stem_conv_k'] if self.load_init else 'glorot_uniform',
+                                   bias_initializer=self.inits['stem_conv_b'] if self.load_init else 'zeros',
+                                   strides=1,
+                                   trainable=False if self.freeze_conv_layers else True,
+                                   padding='same')
+                                   #data_format='channels_last')
+        self.stem_res_conv=Residual(enf_conv_block(int(self.filter_list_seq[-1]) // 2, 1,
+                                                   beta_init=self.inits['stem_res_conv_BN_b'] if self.load_init else None,
+                                                   gamma_init=self.inits['stem_res_conv_BN_g'] if self.load_init else None,
+                                                   mean_init=self.inits['stem_res_conv_BN_m'] if self.load_init else None,
+                                                   var_init=self.inits['stem_res_conv_BN_v'] if self.load_init else None,
+                                                   kernel_init=self.inits['stem_res_conv_k'] if self.load_init else None,
+                                                   bias_init=self.inits['stem_res_conv_b'] if self.load_init else None,
+                                                   train=False if self.freeze_conv_layers else True,
+                                                   name='pointwise_conv_block'))
+        self.stem_pool = SoftmaxPooling1D(per_channel=True,
+                                          w_init_scale=2.0,
+                                          pool_size=2,
+                                          k_init=self.inits['stem_pool'] if self.load_init else None,
+                                          train=False if self.freeze_conv_layers else True,
+                                          name ='stem_pool')
+
+
+
+        ### conv stack for atac inputs
+        """
+        self.atac_stem_conv = tf.keras.layers.Conv1D(filters= int(self.filter_list_atac[-1]) // 2,
+                                   kernel_size=15,
+                                   kernel_initializer='glorot_uniform',
+                                   bias_initializer='zeros',
+                                   strides=1,
+                                   trainable=True,
+                                   padding='same')
+                                   #data_format='channels_last')
+        self.atac_stem_res_conv=Residual(enf_conv_block(int(self.filter_list_atac[-1]) // 2, 1,
+                                                   train=True,
+                                                   name='atac_pointwise_conv_block'))
+        self.atac_stem_pool = SoftmaxPooling1D(per_channel=True,
+                                          w_init_scale=2.0,
+                                          pool_size=2,
+                                          k_init= None,
+                                          train=True,
+                                          name ='atac_stem_pool')
+        
+        """
+
+        self.conv_tower_seq = tf.keras.Sequential([
+            tf.keras.Sequential([
+                enf_conv_block(num_filters, 
+                               5, 
+                               beta_init=self.inits['BN1_b_' + str(i)] if self.load_init else None,
+                               gamma_init=self.inits['BN1_g_' + str(i)] if self.load_init else None,
+                               mean_init=self.inits['BN1_b_' + str(i)] if self.load_init else None,
+                               var_init=self.inits['BN1_v_' + str(i)] if self.load_init else None,
+                               kernel_init=self.inits['conv1_k_' + str(i)] if self.load_init else None,
+                               bias_init=self.inits['conv1_b_' + str(i)] if self.load_init else None,
+                               train=False if self.freeze_conv_layers else True,
+                               padding='same'),
+                Residual(enf_conv_block(num_filters, 1, 
+                                       beta_init=self.inits['BN2_b_' + str(i)] if self.load_init else None,
+                                       gamma_init=self.inits['BN2_g_' + str(i)] if self.load_init else None,
+                                       mean_init=self.inits['BN2_b_' + str(i)] if self.load_init else None,
+                                       var_init=self.inits['BN2_v_' + str(i)] if self.load_init else None,
+                                       kernel_init=self.inits['conv2_k_' + str(i)] if self.load_init else None,
+                                       bias_init=self.inits['conv2_b_' + str(i)] if self.load_init else None,
+                                        train=False if self.freeze_conv_layers else True,
+                                        name='pointwise_conv_block')),
+                SoftmaxPooling1D(per_channel=True,
+                                 w_init_scale=2.0,
+                                 k_init=self.inits['pool_'+str(i)] if self.load_init else None,
+                                 train=False if self.freeze_conv_layers else True,
+                                 pool_size=2),
+                ],
+                       name=f'conv_tower_block_{i}')
+            for i, num_filters in enumerate(self.filter_list_seq)], name='conv_tower')
         
         ### conv stack for atac inputs
-        self.convstack_atac = convstackblock(initial_channels = self.hidden_size // 4,
-                                            channels_list=self.channels_list,
-                                            conv_filter_size_1=self.conv_filter_size_1_atac,
-                                            conv_filter_size_2=self.conv_filter_size_2_atac,
-                                            momentum=self.momentum,
-                                            input_length=self.input_length,
-                                            stride=self.stride,
-                                            kernel_regularizer=self.kernel_regularizer,
-                                            pooling_type=self.pooling_type, **kwargs)
-                                        
-        self.sin_pe = abs_sin_PE(self.positional_dropout_rate, **kwargs)
-
-        self.transformer_stack = Performer_Encoder(num_layers=self.transformer_depth,
-                                                   num_heads=self.num_heads, 
-                                                   dim = self.dim,
-                                                   d_model=self.d_model,
-                                                   norm=self.norm,
-                                                   max_seq_length=self.max_seq_length,
-                                                   nb_random_features=self.nb_random_features,
-                                                   widening=self.widening,
-                                                   hidden_size=self.hidden_size,
-                                                   numerical_stabilizer=self.numerical_stabilizer,
-                                                   attention_dropout=self.dropout_rate / 5,
-                                                   rel_pos_bins=self.rel_pos_bins,
-                                                   kernel_size=self.kernel_size,
-                                                   use_rot_emb=self.use_rot_emb,
-                                                   use_mask_pos=self.use_mask_pos,
-                                                   kernel_transformation=self.kernel_transformation,
-                                                   normalize=self.normalize, seed = self.seed, **kwargs)
-
+        """
+        self.conv_tower_atac = tf.keras.Sequential([
+            tf.keras.Sequential([
+                enf_conv_block(num_filters, 
+                               5, 
+                               padding='same'),
+                Residual(enf_conv_block(num_filters, 1, 
+                                        name='atac_pointwise_conv_block')),
+                SoftmaxPooling1D(per_channel=True,
+                                 w_init_scale=2.0,
+                                 train=True,
+                                 pool_size=2),
+                ],
+                       name=f'atac_conv_tower_block_{i}')
+            for i, num_filters in enumerate(self.filter_list_atac)], name='atac_conv_tower')
+        """
+        self.tf_module = tf_module(TF_inputs=self.TF_inputs,
+                                   dropout_rate=self.tf_dropout_rate,
+                                   name='tf_module',
+                                   **kwargs)
         
-        ## final conv stack, organism specific
-        self._heads = {head: headmodule_block(num_channels_in=2*self.hidden_size,
-                                              momentum=self.momentum,
-                                              dropout_rate=self.dropout_rate,
-                                              kernel_regularizer=self.kernel_regularizer,
-                                              bottleneck_units_tf=self.bottleneck_units_tf,
-                                              bottleneck_units=self.bottleneck_units,
-                                              use_tf_acc=self.use_tf_acc,
-                                              **kwargs) for head in self.heads_dict.keys()}
-        
-    @property
-    def heads(self):
-        return self._heads
+        self.conv_mix_block = conv_mix_block(num_channels_out=self.pre_transf_channels,
+                                             name='conv_mix_block',
+                                             **kwargs)
+    
 
-    #@tf.function(input_signature=[tf.TensorSpec([None, SEQUENCE_LENGTH, 5], tf.bfloat16),
-    #                              tf.TensorSpec([None, 1572], tf.bfloat16)])
+        self.sin_pe = abs_sin_PE(name='sin_pe',
+                                  **kwargs)
+        
+        self.shared_transformer = Performer_Encoder(num_layers=self.shared_transformer_depth,
+                                                    num_heads=self.num_heads, 
+                                                    dim = self.dim,
+                                                    d_model=self.d_model,
+                                                    norm=self.norm,
+                                                    max_seq_length=self.max_seq_length,
+                                                    nb_random_features=self.nb_random_features,
+                                                    hidden_size=self.hidden_size,
+                                                    numerical_stabilizer=self.numerical_stabilizer,
+                                                    attention_dropout=self.attention_dropout_rate,
+                                                    rel_pos_bins=self.rel_pos_bins,
+                                                    use_rot_emb=self.use_rot_emb,
+                                                    use_mask_pos=self.use_mask_pos,
+                                                    kernel_transformation=self.kernel_transformation,
+                                                    normalize=self.normalize, 
+                                                    seed = self.seed,
+                                                    name = 'shared_transformer',
+                                                    **kwargs)
+
+
+
+        self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
+                                  **kwargs)
+        self.gelu = tfa.layers.GELU()
+
+        self.final_pointwise_rna = enf_conv_block(filters=self.pre_transf_channels // 8,
+                                                  **kwargs,
+                                                  name = 'final_pointwise_rna')
+        self.rna_head = output_head_rna(num_channels_out = self.pre_transf_channels // 16,
+                                        name = 'rna_out_head',
+                                        **kwargs)
+        
+        
     def call(self, inputs, training:bool=True):
-        
-        sequence,atac,tf_inputs = inputs
-        
-        # sequence processing module
-        x_seq = self.convstack_seq(sequence,training=training) ### here dimension is 131072 / 2, C = hidden/size / 2
-        
-        x_atac = self.convstack_atac(atac,training=training)
 
-        transformer_input = tf.concat([x_seq,
-                                       x_atac],axis=2)
-        transformer_input = self.sin_pe(transformer_input)
+        sequence, TSSs, exons, tf_inputs, atac = inputs
         
-        x,att_matrices = self.transformer_stack(transformer_input,training=training)
 
-        org_spec_inputs = x,tf_inputs
+        ### seq convs
+        x = self.stem_conv(sequence,
+                           training=training)
+        x = self.stem_res_conv(x,
+                               training=training)
+        x = self.stem_pool(x,
+                           training=training)
+        enformer_conv_out = self.conv_tower_seq(x,
+                                            training=training)
+
+        ### atac convs
+        """
+        x_atac = self.atac_stem_conv(atac,
+                           training=training)
+        x_atac = self.atac_stem_res_conv(x_atac,
+                               training=training)
+        x_atac = self.atac_stem_pool(x_atac,
+                           training=training)
+        atac_conv_out = self.conv_tower_atac(x_atac,
+                                            training=training)
+        """
+        tf_processed = self.tf_module(tf_inputs, 
+                                      training=training)
+        tf_processed = tf.expand_dims(tf_processed, 
+                                      axis=1)
+        tf_processed = tf.tile(tf_processed, 
+                               [1,self.dim_reduce_length,1])
         
-        return [{head: head_module(org_spec_inputs,
+        enformer_conv_out = tf.concat([enformer_conv_out,
+                                       atac,
+                                       tf_processed,
+                                       TSSs,
+                                       exons],axis=2)
+
+        enformer_conv_out = self.conv_mix_block(enformer_conv_out,
+                                                training=training)
+        enformer_conv_out = self.sin_pe(enformer_conv_out)
+        shared_transformer_out,att_matrices_shared = self.shared_transformer(enformer_conv_out,
+                                                                             training=training)
+
+        rna_output = self.final_pointwise_rna(shared_transformer_out)
+        rna_output = self.dropout(rna_output,
+                                  training=training)
+        rna_output = self.gelu(rna_output)
+        rna_output = self.rna_head(rna_output,
                                    training=training)
-                for head, head_module in self.heads.items()},att_matrices]
+
+        return rna_output
     
 
     def get_config(self):
         config = {
             "dropout_rate":self.dropout_rate,
             "input_length": self.input_length,
-            "kernel_regularizer":self.kernel_regularizer,
-            "final_out_length": self.final_out_length,
+            "dim_reduce_length": self.dim_reduce_length,
             "num_heads": self.num_heads,
             "hidden_size": self.hidden_size,
             "numerical_stabilizer": self.numerical_stabilizer,
             "kernel_transformation": self.kernel_transformation,
             "nb_random_features": self.nb_random_features,
-            "conv_filter_size_1_seq":self.conv_filter_size_1_seq,
-            "conv_filter_size_2_seq":self.conv_filter_size_2_seq,
-            "conv_filter_size_1_atac":self.conv_filter_size_1_atac,
-            "conv_filter_size_2_atac":self.conv_filter_size_2_atac,
-            "transformer_depth":self.transformer_depth,
-            "widening":self.widening,
-            "kernel_regularizer":self.kernel_regularizer,
-            "momentum":self.momentum,
-            "heads_dict":self.heads_dict,
-            "channels_list":self.channels_list,
+            "shared_transformer_depth" : self.shared_transformer_depth,
+            "pre_transf_channels":self.pre_transf_channels,
             "d_model":self.d_model,
             "norm":self.norm,
             "dim":self.dim,
-            "bottleneck_units_tf":self.bottleneck_units_tf,
-            "bottleneck_units":self.bottleneck_units,
-            "human":self.human,
             "max_seq_length":self.max_seq_length,
             "rel_pos_bins":self.rel_pos_bins,
-            "kernel_size":self.kernel_size,
             "use_rot_emb":self.use_rot_emb,
             "use_mask_pos":self.use_mask_pos,
             "normalize":self.normalize,
             "seed":self.seed,
-            "TF_inputs_hg":self.TF_inputs_hg,
-            "TF_inputs_mm":self.TF_inputs_mm,
-            "use_tf_acc":self.use_tf_acc
+            "TF_inputs":self.TF_inputs
             
         }
         
@@ -230,22 +351,55 @@ class aformer(tf.keras.Model):
     #                              tf.TensorSpec([None, 1572], tf.float32)])
     def predict_on_batch(self, inputs, training:bool=False):
         
-        sequence,atac,tf_inputs = inputs
+        sequence, TSSs, exons, tf_inputs, atac = inputs
         
-        # sequence processing module
-        x_seq = self.convstack_seq(sequence,training=training) ### here dimension is 131072 / 2, C = hidden/size / 2
-        
-        x_atac = self.convstack_atac(atac,training=training)
 
-        transformer_input = tf.concat([x_seq,
-                                       x_atac],axis=2)
-        transformer_input = self.sin_pe(transformer_input)
-        
-        x,att_matrices = self.transformer_stack(transformer_input,training=training)
+        ### seq convs
+        x = self.stem_conv(sequence,
+                           training=training)
+        x = self.stem_res_conv(x,
+                               training=training)
+        x = self.stem_pool(x,
+                           training=training)
+        enformer_conv_out = self.conv_tower(x,
+                                            training=training)
 
-        org_spec_inputs = x,tf_inputs
+        ### atac convs
+        x_atac = self.stem_conv(atac,
+                           training=training)
+        x_atac = self.stem_res_conv(x_atac,
+                               training=training)
+        x_atac = self.stem_pool(x_atac,
+                           training=training)
+        atac_conv_out = self.conv_tower(x_atac,
+                                            training=training)
+
+        tf_processed = self.tf_module(tf_inputs, 
+                                      training=training)
+        tf_processed = tf.expand_dims(tf_processed, 
+                                      axis=1)
+        tf_processed = tf.tile(tf_processed, 
+                               [1,self.dim_reduce_length,1])
         
-        return [{head: head_module(org_spec_inputs,
+        enformer_conv_out = tf.concat([enformer_conv_out,
+                                        atac_conv_out,
+                                        tf_processed,
+                                        TSSs,
+                                        exons],axis=2)
+
+        enformer_conv_out = self.conv_mix_block(enformer_conv_out,
+                                                training=training)
+        enformer_conv_out = self.sin_pe(enformer_conv_out)
+        shared_transformer_out,att_matrices_shared = self.shared_transformer(enformer_conv_out,
+                                                                             training=training)
+
+        rna_output = self.final_pointwise_rna(shared_transformer_out)
+        rna_output = self.dropout(rna_output,
+                                  training=training)
+        rna_output = self.gelu(rna_output)
+        rna_output = self.rna_head(rna_output,
                                    training=training)
-                for head, head_module in self.heads.items()},att_matrices]
+
+        return rna_output, att_matrices_shared
+    
 
