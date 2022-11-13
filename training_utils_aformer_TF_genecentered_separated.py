@@ -344,7 +344,7 @@ def return_train_val_functions(model,
         ta_celltype_ho = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
         ta_genemap_ho = tf.TensorArray(tf.int32, size=0, dynamic_size=True)            
 
-        for _ in tf.range(val_steps): ## for loop within @tf.fuction for improved TPU performance
+        for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
             target_rep, output_rep, cell_type_rep, gene_map_rep = strategy.run(val_step,
                                                                                args=(next(iterator),))
             

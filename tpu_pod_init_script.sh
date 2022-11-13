@@ -10,7 +10,7 @@ sudo pip3 install tqdm
 sudo pip3 install scipy
 sudo pip3 install wandb
 sudo pip3 install plotly
-sudo pip3 install sklearn
+sudo pip3 install scikit-learn
 sudo pip3 install tensorboard-plugin-profile==2.4.0
 export TPU_NAME=pod
 export ZONE=us-east1-d 
