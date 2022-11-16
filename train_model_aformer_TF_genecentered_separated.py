@@ -187,7 +187,7 @@ def main():
             wandb.config.model_save_basename=args.model_save_basename
             wandb.config.max_shift=args.max_shift
             
-            wandb.run.name = '_'.join(['input_length-' + str(wandb.config.input_length),
+            run_name = '_'.join(['input_length-' + str(wandb.config.input_length),
                                         'load_init-' + str(wandb.config.load_init),
                                        'freeze-' + str(wandb.config.freeze_conv_layers),
                                        'TF_in-' + str(wandb.config.use_tf_module),
@@ -197,6 +197,8 @@ def main():
                                        'D-' + str(wandb.config.dropout_rate),
                                        'AD-' + str(wandb.config.attention_dropout_rate),
                                        'HS-' + str(wandb.config.hidden_size)])
+            wandb.run.name = run_name
+            base_name = wandb.config.model_save_basename + "_" + run_name
 
             '''
             TPU init options
@@ -229,18 +231,6 @@ def main():
             wandb.config.update({"total_steps": num_train // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
             
-
-            cell_type_map_df = pd.read_csv(args.cell_type_map_file,sep='\t',header=None)
-            cell_type_map_df.columns = ['cell_type', 
-                                        'cell_type_encoding']
-            gene_map_df = pd.read_csv(args.gene_map_file,sep='\t')
-
-            gene_map_df.columns = ['ensembl_id', 
-                                'gene_encoding']
-            
-            #gene_symbol_df = pd.read_csv(args.gene_symbol_map_file,sep='\t')
-            #gene_symbol_df.columns = ['ensembl_id',
-            #                          'symbol']
 
             data_dict_tr,data_dict_val,data_dict_val_ho = \
                     training_utils.return_distributed_iterators(wandb.config.gcs_path,
@@ -402,28 +392,34 @@ def main():
                 cell_types = metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
                 gene_map = metric_dict['hg_corr_stats'].result()['gene_map'].numpy()
 
-                figures,corrs_overall= training_utils.make_plots(y_trues,y_preds,
-                                                                 cell_types,gene_map)
-
+                corrs_overall= training_utils.make_plots(y_trues,
+                                                         y_preds,
+                                                         cell_types,
+                                                         gene_map,
+                                                         val_holdout=False)
                 
-                fig_cell_spec, fig_gene_spec=figures 
-
-                overall_gene_level_corr_sp, gene_spec_median_corr_sp, cell_specific_corrs_sp=\
-                    corrs_overall
+                overall_gene_level_corr_sp, \
+                    cell_spec_median_corrs_sp, \
+                    cell_spec_median_corrs, \
+                    gene_spec_median_corrs_sp, \
+                    gene_spec_median_corrs = corrs_overall
+                
                 print('returned correlation metrics from make plots function')
-                print('hg_median_gene_rho_sp_ho: ' + str(gene_spec_median_corr_sp))
+                print('hg_median_gene_rho_sp: ' + str(gene_spec_median_corrs_sp))
 
                 wandb.log({'hg_overall_rho_sp': overall_gene_level_corr_sp,
-                           'hg_median_cell_rho_sp': cell_specific_corrs_sp,
-                           'hg_median_gene_rho_sp': gene_spec_median_corr_sp},
+                           'hg_median_cell_rho_sp': cell_spec_median_corrs_sp,
+                           'hg_median_cell_rho': cell_spec_median_corrs,
+                           'hg_median_gene_rho_sp': gene_spec_median_corrs_sp,
+                           'hg_median_gene_rho': gene_spec_median_corrs},
                           step=epoch_i)
                 #####
                 
                 
                 ##### validation HOLDOUT
                 val_step_ho(data_dict_val_ho)
-                print('hg_RNA_pearson_ho: ' + str(metric_dict['hg_corr_stats_ho'].result()['pearsonR'].numpy()))
-                print('hg_RNA_R2_ho: ' + str(metric_dict['hg_corr_stats_ho'].result()['R2'].numpy()))
+                print('hg_RNA_pearson_HO: ' + str(metric_dict['hg_corr_stats_ho'].result()['pearsonR'].numpy()))
+                print('hg_RNA_R2_HO: ' + str(metric_dict['hg_corr_stats_ho'].result()['R2'].numpy()))
 
                 y_trues = metric_dict['hg_corr_stats_ho'].result()['y_trues'].numpy()
                 y_preds = metric_dict['hg_corr_stats_ho'].result()['y_preds'].numpy()
@@ -431,19 +427,34 @@ def main():
                 gene_map = metric_dict['hg_corr_stats_ho'].result()['gene_map'].numpy()
 
                 figures,corrs_overall= training_utils.make_plots(y_trues,y_preds,
-                                                                 cell_types,gene_map)
-
+                                                                 cell_types,gene_map,
+                                                                 val_holdout=True,
+                                                                 cell_type_map_overall=args.cell_type_map,
+                                                                 gene_map_overall=args.gene_map_overall,
+                                                                 gene_map_var_breakdown=args.gene_map_var_breakdown)
                 
-                fig_cell_spec, fig_gene_spec=figures 
+                
+                fig_cell_spec, fig_gene_spec, fig_overall,fig_var_breakdown=figures 
 
-                overall_gene_level_corr_sp, gene_spec_median_corr_sp, cell_specific_corrs_sp=\
-                    corrs_overall
+                overall_gene_level_corr_sp, \
+                    cell_spec_median_corrs_sp, \
+                    cell_spec_median_corrs, \
+                    gene_spec_median_corrs_sp, \
+                    gene_spec_median_corrs = corrs_overall
+                
                 print('returned correlation metrics from make plots function')
-                print('hg_median_gene_rho_sp_ho: ' + str(gene_spec_median_corr_sp))
+                print('hg_median_gene_rho_sp_ho: ' + str(gene_spec_median_corrs_sp))
 
                 wandb.log({'hg_overall_rho_sp_ho': overall_gene_level_corr_sp,
-                           'hg_median_cell_rho_sp_ho': cell_specific_corrs_sp,
-                           'hg_median_gene_rho_sp_ho': gene_spec_median_corr_sp},
+                           'hg_median_cell_rho_sp_ho': cell_spec_median_corrs_sp,
+                           'hg_median_cell_rho_ho': cell_spec_median_corrs,
+                           'hg_median_gene_rho_sp_ho': gene_spec_median_corrs_sp,
+                           'hg_median_gene_rho_ho': gene_spec_median_corrs},
+                          step=epoch_i)
+                wandb.log({'hg_OVERALL_correlation': fig_overall,
+                           'hg_variance_breakdown': fig_var_breakdown,
+                           'hg_cross_dataset_dist': fig_gene_spec,
+                           'hg_cross_gene_dist': fig_cell_spec},
                           step=epoch_i)
                 end = time.time()
                 duration = (end - start) / 60.
@@ -464,7 +475,7 @@ def main():
                                                         min_delta=wandb.config.min_delta,
                                                         model=model,
                                                         save_directory=wandb.config.model_save_dir,
-                                                        saved_model_basename=wandb.config.model_save_basename)
+                                                        saved_model_basename=base_name)
                 #plt.close('all')
                 print('patience counter at: ' + str(patience_counter))
                 for key, item in metric_dict.items():
@@ -475,7 +486,7 @@ def main():
                     
             print('saving model at: epoch ' + str(epoch_i))
             print('best model was at: epoch ' + str(best_epoch))
-            model.save_weights(wandb.config.model_save_dir + "/" + wandb.config.model_save_basename + "_" + wandb.run.name + "/final/saved_model")
+            model.save_weights(wandb.config.model_save_dir + "/" + base_name + "/final/saved_model")
 
     sweep_id = wandb.sweep(sweep_config, project=args.wandb_project)
     wandb.agent(sweep_id, function=sweep_train)

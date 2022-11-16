@@ -936,16 +936,21 @@ def parse_args(parser):
                         type=int,
                         default=0,
                         help= 'total_steps')
-    parser.add_argument('--gene_map_file',
-                        dest='gene_map_file',
+    parser.add_argument('--gene_map_overall',
+                        dest='gene_map_overall',
                         type=str,
-                        default=os.getcwd() + "/references/hg38_gene_map.tsv",
-                        help= 'gene_map_file')
-    parser.add_argument('--cell_type_map_file',
-                        dest='cell_type_map_file',
+                        default=os.getcwd() + "/references/hg38_gene_map_gencode.tsv",
+                        help= 'gene_map_overall')
+    parser.add_argument('--gene_map_var_breakdown',
+                        dest='gene_map_var_breakdown',
+                        type=str,
+                        help= 'gene_map_var_breakdown',
+                        default=os.getcwd() + "/references/merged_gene_map_VALHOLDOUT.tsv")
+    parser.add_argument('--cell_type_map',
+                        dest='cell_type_map',
                         type=str,
                         default=os.getcwd() + "/references/cell_type_map.tsv",
-                        help= 'cell_type_map_file')
+                        help= 'cell_type_map')
     parser.add_argument('--enformer_checkpoint_path',
                         dest='enformer_checkpoint_path',
                         type=str,
@@ -1032,137 +1037,96 @@ def rev_comp_one_hot(sequence):
 
 
     
-def make_plots(y_trues,y_preds, 
+def make_plots(y_trues,
+               y_preds, 
                cell_types, 
-               gene_map):
+               gene_map,
+               val_holdout=False,
+               cell_type_map_overall=None,
+               gene_map_overall=None,
+               gene_map_var_breakdown=None):
 
-    unique_preds = {}
-    unique_trues = {}
-    for k,x in enumerate(gene_map):
-        unique_preds[(cell_types[k],x)] = y_preds[k]
-        unique_trues[(cell_types[k],x)] = y_trues[k]
-
-    unique_preds = dict(sorted(unique_preds.items()))
-    unique_trues = dict(sorted(unique_trues.items()))
-
-    #overall_gene_level_corr = pearsonr(y_trues,
-    #                                   y_preds)[0]
+    results_df = pd.DataFrame()
+    results_df['true'] = y_trues
+    results_df['pred'] = y_preds
+    results_df['gene_encoding'] =gene_map
+    results_df['cell_type_encoding'] = cell_types
+    
+    
+    ## compute the overall correlation
     overall_gene_level_corr_sp = spearmanr(y_trues,
-                                       y_preds)[0]
-
-    ### now compute correlations across cell types
-    across_cells_preds = {}
-    across_cells_trues = {}
-
-
-    ### now compute correlations across cell types
-    across_cells_preds = {}
-    across_cells_trues = {}
+                                           y_preds)[0]
     
-    for k,v in unique_preds.items():
-        cell_t,gene_name = k
-        if cell_t not in across_cells_preds.keys():
-            across_cells_preds[cell_t] = []
-            across_cells_trues[cell_t] = []
-        else:
-            across_cells_preds[cell_t].append(v)
-            across_cells_trues[cell_t].append(unique_trues[k])
+    cell_specific_corrs_sp=results_df.groupby('cell_type_encoding')[['true','pred']].corr(method='spearman').unstack().iloc[:,1].tolist()
 
-    cell_specific_corrs_sp = []
-    correlations_cells = {}
+    cell_specific_corrs=results_df.groupby('cell_type_encoding')[['true','pred']].corr(method='pearson').unstack().iloc[:,1].tolist()
+
+    gene_specific_corrs_sp=results_df.groupby('gene_encoding')[['true','pred']].corr(method='spearman').unstack().iloc[:,1].tolist()
+    gene_specific_corrs=results_df.groupby('gene_encoding')[['true','pred']].corr(method='pearson').unstack().iloc[:,1].tolist()
     
-    for k,v in across_cells_preds.items():
-        trues = []
-        preds = []
-        for idx,x in enumerate(v):
-            #if len(x) > 0:
-            preds.append(x)
-            trues.append(across_cells_trues[k][idx])
-        try:
-            spearmansr_val = spearmanr(trues,
-                                       preds)[0]
-            #cell_specific_corrs.append(pearsonsr_val)
-            cell_specific_corrs_sp.append(spearmansr_val)
-            correlations_cells[k] = (spearmansr_val)
-
-
-        except np.linalg.LinAlgError:
-            continue
-        except ValueError:
-            continue
-
-    fig_cell_spec,ax_cell_spec=plt.subplots(figsize=(6,6))
-    sns.histplot(x=np.asarray(cell_specific_corrs_sp), bins=50)
-    plt.xlabel("single cell-type cross gene correlations")
-    plt.ylabel("count")
-    plt.title("log-log pearsonsR")
-    cell_spec_median_sp = np.nanmedian(cell_specific_corrs_sp)
-
-
-    ### now compute correlations across genes
-    across_genes_preds = {}
-    across_genes_trues = {}
-    correlations_genes = {}
-    
-    for k,v in unique_preds.items():
-        cell_t,gene_name = k
-        if gene_name not in across_genes_preds.keys():
-            across_genes_preds[gene_name] = []
-            across_genes_trues[gene_name] = []
-        else:
-            across_genes_preds[gene_name].append(v)
-            across_genes_trues[gene_name].append(unique_trues[k])
-
-    genes_specific_corrs_sp = []
-
-    for k,v in across_genes_preds.items():
-        ## k here is the gene_name
-        trues = []
-        preds = []
-        for idx, x in enumerate(v):
-            preds.append(x)
-            trues.append(across_genes_trues[k][idx])
-        try: 
-            spearmansr_val = spearmanr(trues,
-                                       preds)[0]
-            genes_specific_corrs_sp.append(spearmansr_val)
-                
-            correlations_genes[k] = (spearmansr_val,np.nanstd(trues))
+    corrs_overall = overall_gene_level_corr_sp, \
+                        np.nanmedian(cell_specific_corrs_sp), \
+                        np.nanmedian(cell_specific_corrs), \
+                        np.nanmedian(gene_specific_corrs_sp), \
+                        np.nanmedian(gene_specific_corrs)
+                        
             
-        except np.linalg.LinAlgError:
-            continue
-        except ValueError:
-            continue
+    if val_holdout:
+        fig_overall,ax_overall=plt.subplots(figsize=(6,6))
+        data = np.vstack([y_trues,y_preds])
+        kernel = stats.gaussian_kde(data)(data)
+        sns.scatterplot(
+            x=y_trues,
+            y=y_preds,
+            c=kernel,
+            cmap="viridis")
+        plt.xlabel("log-true")
+        plt.ylabel("pred")
+        plt.title("overall gene corr")
+        
+        fig_gene_spec,ax_gene_spec=plt.subplots(figsize=(6,6))
+        sns.histplot(x=np.asarray(gene_specific_corrs_sp), bins=50)
+        plt.xlabel("single gene cross cell-type correlations")
+        plt.ylabel("count")
+        plt.title("log-log spearmanR")
 
-    fig_gene_spec,ax_gene_spec=plt.subplots(figsize=(6,6))
-    sns.histplot(x=np.asarray(genes_specific_corrs_sp), bins=50)
-    plt.xlabel("single gene cross cell-type correlations")
-    plt.ylabel("count")
-    plt.title("log-log spearmanR")
-    gene_spec_median_corr_sp = np.nanmedian(genes_specific_corrs_sp)
+        fig_cell_spec,ax_cell_spec=plt.subplots(figsize=(6,6))
+        sns.histplot(x=np.asarray(cell_specific_corrs_sp), bins=50)
+        plt.xlabel("single cell-type cross gene correlations")
+        plt.ylabel("count")
+        plt.title("log-log spearmanR")
+        
+        ### by coefficient variation breakdown
+        
+        df = results_df.groupby('gene_encoding')[['true','pred']].corr(method='pearson').unstack().iloc[:,1].to_frame()
+        df['gene_encoding']=df.index
+        df.reset_index(drop = True, inplace = True)
+        df.columns=['cor','gene_encoding']
+        
+        df = gene_map_parser(df,
+                             gene_map_overall)
+        df = valholdout_gene_map_parse(df,
+                                       gene_map_var_breakdown)
     
-    """
-    correlations_cells_df = pd.DataFrame({'cell_type_encoding': correlations_cells.keys(),
-                                   'spearmansr': [v[1] for k,v in correlations_cells.items()]})
+        fig_var_breakdown,ax_var_breakdown=plt.subplots(figsize=(6,6))
+        #kernel = stats.gaussian_kde(data)(data)
+        df['coef_var_decile']=pd.cut(df['coef_var'],
+                                           bins=10,
+                                           include_lowest=True)
 
-    correlations_cells_df = cell_type_parser(correlations_cells_df,
-                                             cell_type_map_df)
+        sns.boxplot(
+            x=df['coef_var_decile'],
+            y=df['cor'])
+        plt.xlabel("coefficient_variation_holdout")
+        plt.ylabel("correlation, pearsons")
+        plt.title("coef variation gene vs. cross-dataset correlation")
+        
+        figures = fig_cell_spec, fig_gene_spec, fig_overall,fig_var_breakdown
+        
+        return figures, corrs_overall
 
-    correlations_genes_df = pd.DataFrame({'gene_encoding': correlations_genes.keys(),
-                                   'spearmansr': [v[1] for k,v in correlations_genes.items()],
-                                     'std': [v[0] for k,v in correlations_genes.items()]})
-                                   
-    correlations_genes_df = gene_map_parser(correlations_genes_df,
-                                            gene_map_df)
     
-    
-    dataframes = correlations_cells_df, correlations_genes_df
-    """
-    figures = fig_cell_spec, fig_gene_spec
-
-    corrs_overall = overall_gene_level_corr_sp, gene_spec_median_corr_sp, cell_spec_median_sp
-
-    return figures,corrs_overall
+    return corrs_overall
 
 def log2(x):
     numerator = tf.math.log(x)
@@ -1170,8 +1134,10 @@ def log2(x):
     return numerator / denominator
 
 
-def cell_type_parser(input_df, cell_type_map_df):
-
+def cell_type_parser(input_df, cell_type_map_file):
+    cell_type_map_df = pd.read_csv(cell_type_map_file,sep='\t',header=None)
+    cell_type_map_df.columns = ['cell_type','cell_type_encoding']
+    
     input_df= input_df.merge(cell_type_map_df,
                    left_on='cell_type_encoding', right_on='cell_type_encoding')
     return input_df
@@ -1179,8 +1145,12 @@ def cell_type_parser(input_df, cell_type_map_df):
 
     
 
-def gene_map_parser(input_df, gene_map_df):
-    input_df = input_df.merge(gene_map_df,
+def gene_map_parser(input_df, gene_map_file):
+
+    gene_map_overall = pd.read_csv(gene_map_file,sep='\t',header=None)
+    gene_map_overall.columns = ['ensembl_id','gene_encoding']
+    
+    input_df = input_df.merge(gene_map_overall,
                               left_on='gene_encoding',
                               right_on='gene_encoding')
                                    
@@ -1188,174 +1158,22 @@ def gene_map_parser(input_df, gene_map_df):
 
 
 
-def variance_gene_parser(input_file):
+def valholdout_gene_map_parse(input_df, val_map_file):
     
-    gene_list = pd.read_csv(input_file,sep='\t')
+    val_map_df = pd.read_csv(val_map_file,sep='\t',header=None)
     
-    gene_list.columns = ['ensembl_id', 
-                           'gene_encoding']
-
-                              
-                              
-    return gene_list
-
-
-
-
-def make_atac_plots(atac_preds,
-                    atac_trues,
-                    peak_preds,
-                    peak_trues,
-                    count_sds,
-                    cell_types,
-                    intervals):
-    
-    atac_reg_cell_type_trues = {}
-    atac_reg_cell_type_preds = {}
-    atac_class_cell_type_trues = {}
-    atac_class_cell_type_preds = {}
-
-    all_cell_types = []
-    
-    for x,k in enumerate(cell_types):
-        if k not in all_cell_types:
-            all_cell_types.append(k)
-        if k not in atac_reg_cell_type_trues.keys():
-            atac_reg_cell_type_trues[k] = []
-        if k not in atac_class_cell_type_trues.keys():
-            atac_class_cell_type_trues[k] = []
-
-        atac_reg_cell_type_trues[k].append(atac_trues[x])
-        atac_class_cell_type_trues[k].append(peak_trues[x])
-        
-        if k not in atac_reg_cell_type_preds.keys():
-            atac_reg_cell_type_preds[k] = []
-        if k not in atac_class_cell_type_preds.keys():
-            atac_class_cell_type_preds[k] = []
-        atac_reg_cell_type_preds[k].append(atac_preds[x])
-        atac_class_cell_type_preds[k].append(peak_preds[x])
-
-    ## by cell type, AUPRC
-    cell_type_auprcs = []
-    for cell_type in all_cell_types:
-        trues = atac_class_cell_type_trues[cell_type]
-        trues_flat = np.asarray(trues).flatten()
-        preds = atac_class_cell_type_preds[cell_type]
-        preds_flat = np.asarray(preds).flatten()
-        prec,rec,thresholds = sklearn_metrics.precision_recall_curve(
-            trues_flat, tf.nn.sigmoid(preds_flat))
-        auprc = sklearn_metrics.auc(rec,prec)
-        cell_type_auprcs.append(auprc)
-    cell_type_auprcs_median = np.nanmedian(cell_type_auprcs)
-
-    ## by cell type, regression, mean
-    cell_type_pearsons = []
-    all_pearsons = []
-    for cell_type in all_cell_types:
-        trues = np.asarray(atac_reg_cell_type_trues[cell_type])
-        #print(trues.shape)
-        preds = np.asarray(atac_reg_cell_type_preds[cell_type])
-
-        sub_arr = []
-        for k in range(len(trues)):
-            true_interval = np.squeeze(np.asarray(trues[k]))
-            pred_interval = np.squeeze(np.asarray(preds[k]))
-            pearsonsr_val = pearsonr(true_interval,
-                                     pred_interval)[0]
-            sub_arr.append(pearsonsr_val)
-            all_pearsons.append(pearsonsr_val)
-        cell_type_pearsons.append(np.nanmedian(sub_arr))
-    cell_type_pearsons_median = np.nanmedian(cell_type_pearsons)
-
-    ## pearsons histogram
-    all_pearsons = np.asarray(all_pearsons)
-
-    fig_atac_ho,ax_atac_ho=plt.subplots(figsize=(6,6))
-    sns.histplot(x=all_pearsons, binwidth=0.05)
-    plt.xlabel("pearson's R")
-    plt.ylabel("count")
-    plt.title("hold out cell-type, validation interval pearsons R")
-
-    max_count_sd_idx = np.argmax(count_sds)
-    
-    interval_encoding = intervals[max_count_sd_idx]
-    indices = np.argwhere(intervals == interval_encoding).flatten().tolist()
-    preds_max_count_sd_reg = []
-    trues_max_count_sd_reg = []
-    
-    for entry in indices:
-        preds_max_count_sd_reg.append(np.squeeze(atac_preds[entry]))
-        trues_max_count_sd_reg.append(np.squeeze(atac_trues[entry]))
-        
-    preds_max_count_sd_reg = np.asarray(preds_max_count_sd_reg)
-    trues_max_count_sd_reg = np.asarray(trues_max_count_sd_reg)
-
-    ax_preds = plot_tracks(preds_max_count_sd_reg,
-                           interval_encoding)
-    ax_trues = plot_tracks(trues_max_count_sd_reg, ## plot log for trues
-                           interval_encoding)
-    
-    preds_max_count_sd_peaks = []
-    trues_max_count_sd_peaks = []
-    for entry in indices:
-        preds_max_count_sd_peaks.append(np.squeeze(peak_preds[entry]))
-        trues_max_count_sd_peaks.append(np.squeeze(peak_trues[entry]))
-        
-    preds_max_count_sd_peaks = np.asarray(preds_max_count_sd_peaks)
-    trues_max_count_sd_peaks = np.asarray(trues_max_count_sd_peaks)
-
-    ax_preds_peak = plot_imshow(tf.nn.sigmoid(preds_max_count_sd_peaks),
-                                interval_encoding)
-    ax_trues_peak = plot_imshow(trues_max_count_sd_peaks,
-                                interval_encoding)
+    val_map_df.columns = ['ensembl_id', 
+                          'atac_tss_corr',
+                          'corr_class',
+                          'gene_var',
+                          'gene_mean',
+                          'nonzero',
+                          'coef_var']
     
     
-    
-    return cell_type_auprcs_median, cell_type_pearsons_median, ax_preds, ax_trues, fig_atac_ho, ax_preds_peak, ax_trues_peak
+    val_map_df = input_df.merge(val_map_df,
+                              left_on='ensembl_id',
+                              right_on='ensembl_id')
 
+    return val_map_df
 
-
-def plot_tracks(tracks, interval_encoding, height=1.5):
-    ylim = np.amax(tracks)
-
-    if tracks.shape[0] > 1:
-        fig, axes = plt.subplots(tracks.shape[0], 1, 
-                                 figsize=(20, height * tracks.shape[0]), sharex=True)
-        for ax, y in zip(axes, tracks):
-            ax.fill_between(np.linspace(0, tracks[0].shape[0], num=len(y)), y)
-            sns.despine(top=True, right=True, bottom=True)
-            ax.set_ylim(0, ylim)
-        ax.set_xlabel(str(interval_encoding))
-        
-        plt.tight_layout()
-        return ax
-    else:
-        fig,ax = plt.subplots(figsize=(20,height))
-
-        ax.fill_between(np.linspace(0, tracks[0].shape[0], num=tracks[0].shape[0]), tracks[0])
-        sns.despine(top=True, right=True, bottom=True)
-        ax.set_xlabel(str(interval_encoding))
-        plt.ylim([0, ylim])
-        plt.tight_layout()
-        return ax
-    
-
-def plot_imshow(tracks, interval_encoding, height=1.5):
-    if tracks.shape[0] > 1:
-        fig, axes = plt.subplots(tracks.shape[0], 1, 
-                                 figsize=(20, height * tracks.shape[0]), sharex=True)
-        for ax, y in zip(axes, tracks):
-            ax.imshow(y[tf.newaxis], aspect = "auto", cmap="viridis")
-            sns.despine(top=True, right=True, bottom=True)
-        ax.set_xlabel(str(interval_encoding))
-        
-        plt.tight_layout()
-        return ax
-    else:
-        fig,ax = plt.subplots(figsize=(20,height))
-
-        ax.imshow(tracks, aspect = "auto", cmap="viridis")
-        sns.despine(top=True, right=True, bottom=True)
-        ax.set_xlabel(str(interval_encoding))
-        plt.tight_layout()
-        return ax
