@@ -21,8 +21,10 @@ class aformer(tf.keras.Model):
                  tf_dropout_rate: float = 0.2,
                  pointwise_dropout_rate: float = 0.2,
                  attention_dropout_rate: float = 0.05,
+                 #peaks_dropout_rate: float = 0.15,
                  input_length: int = 196608,
-                 dim_reduce_length: int = 768,
+                 dim_reduce_length_seq: int = 768,
+                 peaks_reduce_dim: int= 64,
                  num_heads:int = 4,
                  numerical_stabilizer: float =0.001,
                  nb_random_features:int = 256,
@@ -30,7 +32,6 @@ class aformer(tf.keras.Model):
                  shared_transformer_depth:int = 4,
                  pre_transf_channels: int = 128,
                  d_model = 128,
-                 TF_inputs=128,
                  norm=True,
                  dim = 32, 
                  max_seq_length = 1536,
@@ -42,9 +43,7 @@ class aformer(tf.keras.Model):
                  load_init=False,
                  inits=None,
                  filter_list_seq=None,
-                 #filter_list_atac=None,
                  freeze_conv_layers=False,
-                 use_performer=True,
                  name: str = 'aformer',
                  **kwargs):
         """ 'aformer' model based on Enformer for predicting RNA-seq from atac + sequence
@@ -74,16 +73,15 @@ class aformer(tf.keras.Model):
         self.use_mask_pos = use_mask_pos
         self.normalize = normalize
         self.seed = seed
-        self.TF_inputs=TF_inputs
+        #self.peaks_dropout_rate=peaks_dropout_rate
         self.attention_dropout_rate=attention_dropout_rate
-        self.dim_reduce_length=dim_reduce_length
+        self.peaks_reduce_dim=peaks_reduce_dim
         self.load_init=load_init
         self.inits=inits
         self.filter_list_seq = [768, 896, 1024, 1152, 1280, 1536] if self.load_init else filter_list_seq
         #self.filter_list_atac = filter_list_atac
         self.freeze_conv_layers = freeze_conv_layers
-        self.dim_reduce_length=dim_reduce_length
-        self.tf_dropout_rate=tf_dropout_rate
+        self.dim_reduce_length_seq=dim_reduce_length_seq
         
         
         def enf_conv_block(filters, 
@@ -214,8 +212,7 @@ class aformer(tf.keras.Model):
                        name=f'atac_conv_tower_block_{i}')
             for i, num_filters in enumerate(self.filter_list_atac)], name='atac_conv_tower')
         """
-        self.tf_module = tf_module(TF_inputs=self.TF_inputs,
-                                   dropout_rate=self.tf_dropout_rate,
+        self.peaks_module = peaks_module(reduce_channels=self.peaks_reduce_dim,
                                    name='tf_module',
                                    **kwargs)
         
@@ -262,11 +259,13 @@ class aformer(tf.keras.Model):
         
     def call(self, inputs, training:bool=True):
 
-        sequence, TSSs, exons, tf_inputs, atac = inputs
+        sequence, TSSs, exons, peaks, atac = inputs
         
+        input_sequence = tf.concat([sequence,
+                                    peaks],axis=1)
 
         ### seq convs
-        x = self.stem_conv(sequence,
+        x = self.stem_conv(input_sequence,
                            training=training)
         x = self.stem_res_conv(x,
                                training=training)
@@ -274,28 +273,21 @@ class aformer(tf.keras.Model):
                            training=training)
         enformer_conv_out = self.conv_tower_seq(x,
                                             training=training)
-
-        ### atac convs
-        """
-        x_atac = self.atac_stem_conv(atac,
-                           training=training)
-        x_atac = self.atac_stem_res_conv(x_atac,
-                               training=training)
-        x_atac = self.atac_stem_pool(x_atac,
-                           training=training)
-        atac_conv_out = self.conv_tower_atac(x_atac,
-                                            training=training)
-        """
-        tf_processed = self.tf_module(tf_inputs, 
-                                      training=training)
-        tf_processed = tf.expand_dims(tf_processed, 
-                                      axis=1)
-        tf_processed = tf.tile(tf_processed, 
-                               [1,self.dim_reduce_length,1])
         
-        enformer_conv_out = tf.concat([enformer_conv_out,
+        #print(enformer_conv_out)
+        ### now break up the sequence again
+        enformer_conv_out_window = enformer_conv_out[...,
+                                                     :self.dim_reduce_length_seq, :]
+        #print(enformer_conv_out_window)
+        enformer_conv_out_peaks = enformer_conv_out[...,
+                                                    self.dim_reduce_length_seq:, :]
+        #print(enformer_conv_out_peaks)
+        peaks_processed = self.peaks_module(enformer_conv_out_peaks, 
+                                      training=training)
+        
+        enformer_conv_out = tf.concat([enformer_conv_out_window,
                                        atac,
-                                       tf_processed,
+                                       peaks_processed,
                                        TSSs,
                                        exons],axis=2)
 
@@ -319,7 +311,7 @@ class aformer(tf.keras.Model):
         config = {
             "dropout_rate":self.dropout_rate,
             "input_length": self.input_length,
-            "dim_reduce_length": self.dim_reduce_length,
+            "dim_reduce_length_seq": self.dim_reduce_length_seq,
             "num_heads": self.num_heads,
             "hidden_size": self.hidden_size,
             "numerical_stabilizer": self.numerical_stabilizer,
@@ -335,8 +327,7 @@ class aformer(tf.keras.Model):
             "use_rot_emb":self.use_rot_emb,
             "use_mask_pos":self.use_mask_pos,
             "normalize":self.normalize,
-            "seed":self.seed,
-            "TF_inputs":self.TF_inputs
+            "seed":self.seed
             
         }
         
@@ -351,7 +342,7 @@ class aformer(tf.keras.Model):
     #                              tf.TensorSpec([None, 1572], tf.float32)])
     def predict_on_batch(self, inputs, training:bool=False):
         
-        sequence, TSSs, exons, tf_inputs, atac = inputs
+        sequence, TSSs, exons, peaks, atac = inputs
         
 
         ### seq convs

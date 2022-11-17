@@ -163,7 +163,9 @@ def return_train_val_functions(model,
                                gradient_clip,
                                batch_size,
                                loss_fn_main='poisson',
-                               use_tf=True):
+                               use_peaks=True,
+                               use_coef_var=True,
+                               use_atac=False):
     """Returns distributed train and validation functions for
     a given list of organisms
     Args:
@@ -211,15 +213,22 @@ def return_train_val_functions(model,
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
             tss_tokens=tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
-            TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
+            peaks_sequences = tf.cast(inputs['peaks_sequences'],dtype=tf.bfloat16)
+            coef_var= tf.cast(inputs['coef_var'],dtype=tf.float32)
+
+            if not use_atac:
+                atac = tf.zeros_like(atac)
             
-            if not use_tf:
-                TF_expression = tf.zeros_like(TF_expression)
+            if not use_peaks:
+                peaks_sequences = tf.zeros_like(peaks_sequences)
+                
+            if not use_coef_var:
+                coef_var = tf.ones_like(coef_var)
                 
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
             
-            input_tuple = sequence,tss_tokens,exons, TF_expression, atac
+            input_tuple = sequence,tss_tokens,exons, peaks_sequences, atac
             
             with tf.GradientTape(watch_accessed_variables=False) as tape:
                 conv_vars = model.stem_conv.trainable_variables + \
@@ -227,7 +236,7 @@ def return_train_val_functions(model,
                             model.stem_pool.trainable_variables + \
                             model.conv_tower_seq.trainable_variables
 
-                remaining_vars = model.tf_module.trainable_variables + \
+                remaining_vars = model.peaks_module.trainable_variables + \
                                     model.conv_mix_block.trainable_variables + \
                                     model.shared_transformer.trainable_variables + \
                                     model.final_pointwise_rna.trainable_variables + \
@@ -241,9 +250,9 @@ def return_train_val_functions(model,
                 output = model(input_tuple,
                                 training=True)
                 output = tf.cast(output,dtype=tf.float32)
-
-                loss = tf.math.reduce_sum(loss_fn(target,
-                                                  output)) * (1. / global_batch_size)
+                loss = loss_fn(target,output)
+                loss = tf.math.reduce_sum(loss, axis=-1) * coef_var
+                loss = tf.math.reduce_sum(loss) * (1. / global_batch_size)
 
             gradients = tape.gradient(loss, vars_subset)
             gradients, _ = tf.clip_by_global_norm(gradients, gradient_clip)
@@ -265,12 +274,24 @@ def return_train_val_functions(model,
         def val_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            tss_tokens=tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
-            TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
+            tss_tokens=tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
+            peaks_sequences = tf.cast(inputs['peaks_sequences'],dtype=tf.bfloat16)
+            coef_var= tf.cast(inputs['coef_var'],dtype=tf.float32)
             
-            input_tuple = sequence,tss_tokens,exons, TF_expression, atac
+            if not use_atac:
+                atac = tf.zeros_like(atac)
+            
+            if not use_peaks:
+                peaks_sequences = tf.zeros_like(peaks_sequences)
+                
+            if not use_coef_var:
+                coef_var = tf.ones_like(coef_var)
+
+            
+            input_tuple = sequence,tss_tokens,exons, peaks_sequences, atac
+            
             
             cell_type = inputs['cell_type']
             gene_map = inputs['gene_encoded']
@@ -279,8 +300,9 @@ def return_train_val_functions(model,
                             training=False)
             output = tf.cast(output,dtype=tf.float32)
             
-            loss = tf.math.reduce_sum(loss_fn(target,
-                                              output)) * (1. / global_batch_size)
+            loss = loss_fn(target,output)
+            loss = tf.math.reduce_sum(loss, axis=-1) * coef_var
+            loss = tf.math.reduce_sum(loss) * (1. / global_batch_size)
 
             metric_dict["hg_val"].update_state(loss)
             
@@ -322,11 +344,22 @@ def return_train_val_functions(model,
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
             tss_tokens=tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
-            TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
+            peaks_sequences = tf.cast(inputs['peaks_sequences'],dtype=tf.bfloat16)
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
+            coef_var= tf.cast(inputs['coef_var'],dtype=tf.float32)
             
-            input_tuple = sequence,tss_tokens,exons, TF_expression, atac
+            if not use_atac:
+                atac = tf.zeros_like(atac)
+            
+            if not use_peaks:
+                peaks_sequences = tf.zeros_like(peaks_sequences)
+                
+            if not use_coef_var:
+                coef_var = tf.ones_like(coef_var)
+            
+            input_tuple = sequence,tss_tokens,exons, peaks_sequences, atac
+            
             
             cell_type = inputs['cell_type']
             gene_map = inputs['gene_encoded']
@@ -334,8 +367,9 @@ def return_train_val_functions(model,
             output = model(input_tuple,
                             training=False)
             output = tf.cast(output,dtype=tf.float32)
-            loss = tf.math.reduce_sum(loss_fn(target,
-                                              output)) * (1. / global_batch_size)
+            loss = loss_fn(target,output)
+            loss = tf.math.reduce_sum(loss, axis=-1) * coef_var
+            loss = tf.math.reduce_sum(loss) * (1. / global_batch_size)
             
             return target, output, cell_type, gene_map
             
@@ -377,11 +411,11 @@ def return_train_val_functions(model,
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
             tss_tokens=tf.cast(inputs['tss_tokens'],dtype=tf.bfloat16)
-            TF_expression = tf.cast(inputs['TF_expression'],dtype=tf.bfloat16)
+            peaks_sequences = tf.cast(inputs['peaks_sequences'],dtype=tf.bfloat16)
             exons=tf.cast(inputs['exons'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.bfloat16)
             
-            input_tuple = sequence,tss_tokens,exons, TF_expression, atac
+            input_tuple = sequence,tss_tokens,exons, peaks_sequences, atac
 
             output = model(input_tuple,
                             training=False)
@@ -394,11 +428,19 @@ def return_train_val_functions(model,
     return dist_train_step,dist_val_step,dist_val_step_ho,\
             build_step, metric_dict
 
+def random_encode(input_tuple):
+    sequence,randint = input_tuple
+    if randint == 0:
+        return one_hot(sequence)
+    else:
+        return rev_comp_one_hot(sequence)
 
 
-
-def deserialize(serialized_example,input_length, 
-                output_length,output_res,
+def deserialize(serialized_example,
+                input_length, 
+                output_length,
+                peaks_length_target,
+                output_res,
                 num_TFs,max_shift):
     """
     Deserialize bytes stored in TFRecordFile.
@@ -406,6 +448,7 @@ def deserialize(serialized_example,input_length,
     feature_map = {
         'atac': tf.io.FixedLenFeature([], tf.string),
         'exons': tf.io.FixedLenFeature([],tf.string),
+        'peaks_sequences': tf.io.FixedLenFeature([],tf.string),
         'sequence': tf.io.FixedLenFeature([],tf.string),
         'TPM': tf.io.FixedLenFeature([],tf.string),
         'TF_expression': tf.io.FixedLenFeature([], tf.string),
@@ -420,9 +463,7 @@ def deserialize(serialized_example,input_length,
     input_seq_length = input_length + max_shift
     interval_end = input_length + shift
     
-    ### rev_comp
-    rev_comp = random.randrange(0,2)
-    
+
     tss_tokens = tf.ensure_shape(tf.io.parse_tensor(data['tss_tokens'],
                                               out_type=tf.int32),
                             [input_seq_length,])
@@ -451,23 +492,31 @@ def deserialize(serialized_example,input_length,
                                  shift,input_length))
     
 
-    
+    rev_comp = tf.math.round(tf.random.uniform([], 0, 1))
     if rev_comp == 1:
         atac = tf.reverse(atac,[0])
         tss_tokens = tf.reverse(tss_tokens,[0])
         sequence = rev_comp_one_hot(tf.strings.substr(data['sequence'],
                                                       shift,input_length))
         exons = tf.reverse(exons, [0])
-        
-    TF_expression = tf.ensure_shape(tf.io.parse_tensor(data['TF_expression'],
-                                              out_type=tf.float32),
-                             [num_TFs,])
-    TF_expression = tf.math.log(1.0 + TF_expression)
-    TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
-                                                                 mean=0.0,
-                                                                 stddev=2.5,
-                                                                 dtype=tf.float32))
     
+    ### process peaks
+    # first we want to randomly select the input peaks, let's say top 2000 out of 5000
+    split_test=tf.strings.split(
+        data['peaks_sequences'], sep='|', maxsplit=-1, name=None
+    )
+    split_test = split_test[:-1]
+    
+    idxs = tf.range(tf.shape(split_test)[0])
+    ridxs = tf.random.shuffle(idxs)[:1536]
+    random_sample = tf.gather(split_test, ridxs)
+    
+    peaks_sequences=tf.map_fn(fn=random_encode,  # input & output have different dtypes
+              elems=(random_sample,tf.math.round(tf.random.uniform([tf.shape(random_sample)[0]], 0, 1))),
+              fn_output_signature=tf.float32)
+    peaks_sequences = tf.reshape(peaks_sequences, [-1,4])
+                               
+    #### 
 
     TPM = tf.io.parse_tensor(data['TPM'],out_type=tf.float32)
     
@@ -481,13 +530,15 @@ def deserialize(serialized_example,input_length,
         'atac': tf.ensure_shape(atac, [output_length,1]),
         'target': target,
         'coef_var': coef_var,
-        'TF_expression': tf.ensure_shape(TF_expression,[num_TFs]),
+        'peaks_sequences': tf.ensure_shape(peaks_sequences,[peaks_length_target,4]),
         'tss_tokens': tf.ensure_shape(tss_tokens,[output_length,1]),
         'exons': tf.ensure_shape(exons,[output_length,1])
     }
 
 
-def deserialize_val(serialized_example,input_length, output_length,output_res,
+def deserialize_val(serialized_example,input_length, output_length,
+                    peaks_length_target,
+                    output_res,
                 num_TFs,max_shift):
     """
     Deserialize bytes stored in TFRecordFile.
@@ -501,6 +552,7 @@ def deserialize_val(serialized_example,input_length, output_length,output_res,
         'coef_var': tf.io.FixedLenFeature([],tf.string),
         'gene_encoded': tf.io.FixedLenFeature([],tf.string),
         'TF_expression': tf.io.FixedLenFeature([], tf.string),
+        'peaks_sequences': tf.io.FixedLenFeature([], tf.string),
         'tss_tokens': tf.io.FixedLenFeature([], tf.string)
     }
     
@@ -539,15 +591,22 @@ def deserialize_val(serialized_example,input_length, output_length,output_res,
     sequence = one_hot(tf.strings.substr(data['sequence'],
                                  shift,input_length))
 
-    TF_expression = tf.ensure_shape(tf.io.parse_tensor(data['TF_expression'],
-                                              out_type=tf.float32),
-                             [num_TFs,])
-    ## log transform
-    TF_expression = tf.math.log(1.0 + TF_expression)
-    TF_expression = TF_expression + tf.math.abs(tf.random.normal(TF_expression.shape,
-                                                                 mean=0.0,
-                                                                 stddev=1.0e-01,
-                                                                 dtype=tf.float32))
+    ### process peaks
+    # first we want to randomly select the input peaks, let's say top 2000 out of 5000
+    split_test=tf.strings.split(
+        data['peaks_sequences'], sep='|', maxsplit=-1, name=None
+    )
+    split_test = split_test[:-1]
+    idxs = tf.range(tf.shape(split_test)[0])
+    ridxs = tf.random.shuffle(idxs)[:1536]
+    random_sample = tf.gather(split_test, ridxs)
+    
+    peaks_sequences=tf.map_fn(fn=random_encode,  # input & output have different dtypes
+              elems=(random_sample,tf.math.round(tf.random.uniform([tf.shape(random_sample)[0]], 0, 1))),
+              fn_output_signature=tf.float32)
+    peaks_sequences = tf.reshape(peaks_sequences, [-1,4])
+    
+    #### 
 
     TPM = tf.io.parse_tensor(data['TPM'],out_type=tf.float32)
     if tf.math.is_nan(TPM):
@@ -566,9 +625,9 @@ def deserialize_val(serialized_example,input_length, output_length,output_res,
         'sequence': tf.ensure_shape(sequence,[input_length,4]),
         'atac': tf.ensure_shape(atac, [output_length,1]),
         'target': tf.transpose(tf.reshape(target,[-1])),
-        'TF_expression': tf.ensure_shape(TF_expression,[num_TFs]),
         'cell_type': tf.transpose(tf.reshape(cell_type,[-1])),
         'gene_encoded': tf.transpose(tf.reshape(gene_encoded,[-1])),
+        'peaks_sequences': tf.ensure_shape(peaks_sequences,[peaks_length_target,4]),
         'tss_tokens': tf.ensure_shape(tss_tokens,[output_length,1]),
         'exons': tf.ensure_shape(exons,[output_length,1]),
         'coef_var': coef_var
@@ -580,6 +639,7 @@ def return_dataset(gcs_path,
                    batch,
                    input_length,
                    output_length,
+                   peaks_length_target,
                    output_res,
                    max_shift,
                    options,
@@ -605,6 +665,7 @@ def return_dataset(gcs_path,
     dataset = dataset.map(lambda record: deserialize(record,
                                                      input_length,
                                                      output_length,
+                                                     peaks_length_target,
                                                      output_res,
                                                      num_TFs,
                                                      max_shift),
@@ -620,6 +681,7 @@ def return_dataset_val(gcs_path,
                        batch,
                        input_length,
                        output_length,
+                       peaks_length_target,
                        output_res,
                        max_shift,
                        options,
@@ -648,6 +710,7 @@ def return_dataset_val(gcs_path,
     dataset = dataset.map(lambda record: deserialize_val(record,
                                                          input_length,
                                                          output_length,
+                                                         peaks_length_target,
                                                          output_res,
                                                          num_TFs,
                                                          max_shift),
@@ -662,6 +725,7 @@ def return_distributed_iterators(gcs_path,
                                  global_batch_size,
                                  input_length,
                                  output_length,
+                                 peaks_length_target,
                                  output_res,
                                  max_shift,
                                  num_parallel_calls,
@@ -680,6 +744,7 @@ def return_distributed_iterators(gcs_path,
                                 global_batch_size,
                                 input_length,
                                  output_length,
+                                 peaks_length_target,
                                 output_res,
                                 max_shift,
                                 options,
@@ -692,6 +757,7 @@ def return_distributed_iterators(gcs_path,
                                       global_batch_size,
                                       input_length,
                                       output_length,
+                                      peaks_length_target,
                                       output_res,
                                       max_shift,
                                       options,
@@ -704,6 +770,7 @@ def return_distributed_iterators(gcs_path,
                                         global_batch_size,
                                         input_length,
                                         output_length,
+                                         peaks_length_target,
                                         output_res,
                                         max_shift,
                                         options,
@@ -891,11 +958,11 @@ def parse_args(parser):
                         type=str,
                         default="0.1",
                         help= 'weight_decay_frac')
-    parser.add_argument('--dim_reduce_length',
-                        dest='dim_reduce_length',
+    parser.add_argument('--dim_reduce_length_seq',
+                        dest='dim_reduce_length_seq',
                         type=int,
                         default=768,
-                        help= 'dim_reduce_length')
+                        help= 'dim_reduce_length_seq')
     parser.add_argument('--dropout_rate',
                         dest='dropout_rate',
                         help= 'dropout_rate')
@@ -927,6 +994,26 @@ def parse_args(parser):
                         dest='dim',
                         type=int,
                         help= 'mask_pos_dim')
+    parser.add_argument('--peaks_length_target',
+                        dest='peaks_length_target',
+                        type=int,
+                        help= 'peaks_length_target')
+    parser.add_argument('--peaks_reduce_dim',
+                        dest='peaks_reduce_dim',
+                        type=str,
+                        help= 'peaks_reduce_dim')
+    parser.add_argument('--use_peaks',
+                        dest='use_peaks',
+                        type=str,
+                        help= 'True')
+    parser.add_argument('--use_coef_var',
+                        dest='use_coef_var',
+                        type=str,
+                        help= 'use_coef_var')
+    parser.add_argument('--use_atac',
+                        dest='use_atac',
+                        type=str,
+                        help= 'use_atac')
     parser.add_argument('--savefreq',
                         dest='savefreq',
                         type=int,
@@ -1080,6 +1167,8 @@ def make_plots(y_trues,
             y=y_preds,
             c=kernel,
             cmap="viridis")
+        ax_overall.set_xlim(0, max(y_trues))
+        ax_overall.set_ylim(0, max(y_trues))
         plt.xlabel("log-true")
         plt.ylabel("pred")
         plt.title("overall gene corr")

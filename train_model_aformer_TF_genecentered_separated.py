@@ -80,9 +80,6 @@ def main():
                 'attention_dropout_rate': {
                     'values': [float(x) for x in args.attention_dropout_rate.split(',')]
                 },
-                'tf_dropout_rate': {
-                    'values': [float(x) for x in args.tf_dropout_rate.split(',')]
-                },
                 'pointwise_dropout_rate': {
                     'values': [float(x) for x in args.pointwise_dropout_rate.split(',')]
                 },
@@ -110,8 +107,11 @@ def main():
                 'num_heads':{
                     'values': [int(x) for x in args.num_heads.split(',')]
                 },
-                'TF_inputs':{
-                    'values': [int(x) for x in args.TF_inputs.split(',')]
+                'peaks_reduce_dim':{
+                    'values': [int(x) for x in args.peaks_reduce_dim.split(',')]
+                },
+                'peaks_length_target':{
+                    'values': [int(args.peaks_length_target)]
                 },
                 'hidden_size': {
                     'values':[int(x) for x in args.hidden_size.split(',')]
@@ -131,8 +131,14 @@ def main():
                 'freeze_conv_layers': {
                     'values':[parse_bool_str(x) for x in args.freeze_conv_layers.split(',')]
                 },
-                'use_tf_module': {
-                    'values':[parse_bool_str(x) for x in args.use_tf_module.split(',')]
+                'use_peaks': {
+                    'values':[parse_bool_str(x) for x in args.use_peaks.split(',')]
+                },
+                'use_coef_var': {
+                    'values':[parse_bool_str(x) for x in args.use_coef_var.split(',')]
+                },
+                'use_atac': {
+                    'values':[parse_bool_str(x) for x in args.use_atac.split(',')]
                 },
                 'filter_list_seq': {
                     'values': [[int(x) for x in args.filter_list_seq.split(',')]]
@@ -140,12 +146,14 @@ def main():
                 #'filter_list_atac': {
                 #    'values': [[int(x) for x in args.filter_list_atac.split(',')]]
                 #},
-                'dim_reduce_length': {
-                    'values': [args.dim_reduce_length]
+                'dim_reduce_length_seq': {
+                    'values': [args.dim_reduce_length_seq]
                 },
                 'loss_type': {
                     'values':[str(x) for x in args.loss_type.split(',')]
                 }
+                
+                
                 
             }
     }
@@ -190,7 +198,7 @@ def main():
             run_name = '_'.join(['input_length-' + str(wandb.config.input_length),
                                         'load_init-' + str(wandb.config.load_init),
                                        'freeze-' + str(wandb.config.freeze_conv_layers),
-                                       'TF_in-' + str(wandb.config.use_tf_module),
+                                       'peaks_in-' + str(wandb.config.use_peaks),
                                        'LR-' + str(wandb.config.lr_base),
                                        'ST-' + str(wandb.config.shared_transformer_depth),
                                        'TD-' + str(wandb.config.pre_transf_channels),
@@ -222,7 +230,7 @@ def main():
             num_val=wandb.config.val_examples
             num_val_ho=wandb.config.val_examples_ho#4192000
 
-            wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE)},
+            wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE*3)},
                                 allow_val_change=True)
             wandb.config.update({"val_steps" : num_val // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
@@ -237,7 +245,8 @@ def main():
                                                                 wandb.config.gcs_path_val_ho,
                                                                 GLOBAL_BATCH_SIZE,
                                                                 wandb.config.input_length,
-                                                                wandb.config.dim_reduce_length,
+                                                                wandb.config.dim_reduce_length_seq,
+                                                                wandb.config.peaks_length_target,
                                                                 128,
                                                                 wandb.config.max_shift,
                                                                 args.num_parallel,
@@ -256,10 +265,10 @@ def main():
             model = aformer.aformer(kernel_transformation=wandb.config.kernel_transformation,
                                     dropout_rate=wandb.config.dropout_rate,
                                     attention_dropout_rate=wandb.config.attention_dropout_rate,
-                                    tf_dropout_rate=wandb.config.tf_dropout_rate,
                                     pointwise_dropout_rate=wandb.config.pointwise_dropout_rate,
                                     input_length=wandb.config.input_length,
-                                    dim_reduce_length=wandb.config.dim_reduce_length,
+                                    dim_reduce_length_seq=wandb.config.dim_reduce_length_seq,
+                                    peaks_reduce_dim=wandb.config.peaks_reduce_dim,
                                     num_heads=wandb.config.num_heads,
                                     numerical_stabilizer=0.0000001,
                                     nb_random_features=wandb.config.num_random_features,
@@ -274,7 +283,6 @@ def main():
                                     normalize = True,
                                     shared_transformer_depth=wandb.config.shared_transformer_depth,
                                     pre_transf_channels=wandb.config.pre_transf_channels,
-                                    TF_inputs=wandb.config.TF_inputs,
                                     inits=inits,
                                     load_init=wandb.config.load_init,
                                     freeze_conv_layers=wandb.config.freeze_conv_layers,
@@ -328,17 +336,19 @@ def main():
             metric_dict = {}
             train_step,val_step,val_step_ho,build_step,metric_dict = \
                 training_utils.return_train_val_functions(model,
-                                                      optimizers_in,
-                                                      strategy,
-                                                      metric_dict,
-                                                      wandb.config.train_steps,
-                                                      wandb.config.val_steps,
-                                                      wandb.config.val_steps_ho,
-                                                      GLOBAL_BATCH_SIZE,
-                                                      wandb.config.gradient_clip,
-                                                      wandb.config.batch_size,
-                                                      loss_fn_main=wandb.config.loss_type,
-                                                      use_tf=wandb.config.use_tf_module)
+                                                          optimizers_in,
+                                                          strategy,
+                                                          metric_dict,
+                                                          wandb.config.train_steps,
+                                                          wandb.config.val_steps,
+                                                          wandb.config.val_steps_ho,
+                                                          GLOBAL_BATCH_SIZE,
+                                                          wandb.config.gradient_clip,
+                                                          wandb.config.batch_size,
+                                                          loss_fn_main=wandb.config.loss_type,
+                                                          use_peaks=wandb.config.use_peaks,
+                                                          use_coef_var=wandb.config.use_coef_var,
+                                                          use_atac=wandb.config.use_atac)
                 
 
             print('finished loading training/val loop functions')

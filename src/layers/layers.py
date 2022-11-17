@@ -879,6 +879,75 @@ class tf_module(kl.Layer):
         x = self.dense_3(x)
         x = self.gelu(x)
         return x
+    
+    
+    
+############################ tf_module module #####################################
+@tf.keras.utils.register_keras_serializable()
+class peaks_module(kl.Layer):
+    def __init__(self,
+                 reduce_channels: int = 64,
+                 name: str = 'peaks_module',
+                 **kwargs):
+        """Enformer style conv stack block
+        Args:
+            num_channels
+            conv_filter_size
+            stride: default 1 for no dim reduction
+            name: Module name.
+        """
+        super().__init__(name=name, **kwargs)
+        self.reduce_channels=reduce_channels
+        #self.dropout_rate=dropout_rate
+        
+
+        
+        self.conv_mix_block1 = conv_mix_block(num_channels_out=self.reduce_channels*2)
+        self.layer_norm1 = kl.LayerNormalization(axis=-1,
+                                                  scale=True,
+                                                  center=True,
+                                                  beta_initializer="zeros",
+                                                  gamma_initializer="ones")
+        #bn1 = syncbatchnorm(axis=-1,
+        #            center=True,
+        #            scale=True, **kwargs),
+        self.gelu = tfa.layers.GELU()
+        self.pool1 = SoftmaxPooling1D(pool_size=2,
+                                      per_channel=True)
+        
+        self.conv_mix_block2 = conv_mix_block(num_channels_out=self.reduce_channels)
+        self.layer_norm2 = kl.LayerNormalization(axis=-1,
+                                                  scale=True,
+                                                  center=True,
+                                                  beta_initializer="zeros",
+                                                  gamma_initializer="ones")
+        #bn2 = syncbatchnorm(axis=-1,
+        #            center=True,
+        #            scale=True, **kwargs),
+        self.gelu = tfa.layers.GELU()
+
+
+    def get_config(self):
+        config = {
+            "reduce_channels":self.reduce_channels
+        }
+        base_config = super().get_config()
+        return {**base_config, **config}
+    
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+    
+    def call(self, inputs, training=None):
+        x = self.conv_mix_block1(inputs)
+        x = self.layer_norm1(x)
+        x = self.gelu(x)
+        x = self.pool1(x,training=training)
+        x = self.conv_mix_block2(x)
+        x = self.layer_norm2(x)
+        x = self.gelu(x)
+        return x
 
     
 @tf.keras.utils.register_keras_serializable()
