@@ -480,12 +480,14 @@ def main():
                            'hg_median_gene_rho_sp_ho': gene_spec_median_corrs_sp,
                            'hg_median_gene_rho_ho': gene_spec_median_corrs},
                           step=epoch_i)
-                print('plotted ho correlations')
-                wandb.log({'hg_OVERALL_correlation': fig_overall,
-                           'hg_variance_breakdown': fig_var_breakdown,
-                           'hg_cross_dataset_dist': fig_gene_spec,
-                           'hg_cross_gene_dist': fig_cell_spec},
-                          step=epoch_i)
+                try:
+                    wandb.log({'hg_OVERALL_correlation': fig_overall,
+                               'hg_variance_breakdown': fig_var_breakdown,
+                               'hg_cross_dataset_dist': fig_gene_spec,
+                               'hg_cross_gene_dist': fig_cell_spec},
+                              step=epoch_i)
+                except IndexError:
+                    pass
                 end = time.time()
                 duration = (end - start) / 60.
 
