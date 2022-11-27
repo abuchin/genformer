@@ -1191,15 +1191,32 @@ def make_plots(y_trues,
     
     
     ## compute the overall correlation
-    overall_gene_level_corr_sp = spearmanr(y_trues,
-                                           y_preds)[0]
+    try:
+        overall_gene_level_corr_sp = spearmanr(y_trues,
+                                               y_preds)[0]
+    except np.linalg.LinAlgError as err:
+        overall_gene_level_corr_sp = 0.0
     
-    cell_specific_corrs_sp=results_df.groupby('cell_type_encoding')[['true','pred']].corr(method='spearman').unstack().iloc[:,1].tolist()
+    
+    try: 
+        cell_specific_corrs_sp=results_df.groupby('cell_type_encoding')[['true','pred']].corr(method='spearman').unstack().iloc[:,1].tolist()
+    except np.linalg.LinAlgError as err:
+        cell_specific_corrs_sp = [0.0] * len(np.unique(cell_types))
+        
+    try: 
+        cell_specific_corrs=results_df.groupby('cell_type_encoding')[['true','pred']].corr(method='pearson').unstack().iloc[:,1].tolist()
+    except np.linalg.LinAlgError as err:
+        cell_specific_corrs = [0.0] * len(np.unique(cell_types))
 
-    cell_specific_corrs=results_df.groupby('cell_type_encoding')[['true','pred']].corr(method='pearson').unstack().iloc[:,1].tolist()
-
-    gene_specific_corrs_sp=results_df.groupby('gene_encoding')[['true','pred']].corr(method='spearman').unstack().iloc[:,1].tolist()
-    gene_specific_corrs=results_df.groupby('gene_encoding')[['true','pred']].corr(method='pearson').unstack().iloc[:,1].tolist()
+    try: 
+        gene_specific_corrs_sp=results_df.groupby('gene_encoding')[['true','pred']].corr(method='spearman').unstack().iloc[:,1].tolist()
+    except np.linalg.LinAlgError as err:
+        gene_specific_corrs_sp = [0.0] * len(np.unique(gene_map))
+        
+    try: 
+        gene_specific_corrs=results_df.groupby('gene_encoding')[['true','pred']].corr(method='pearson').unstack().iloc[:,1].tolist()
+    except np.linalg.LinAlgError as err:
+        cell_specific_corrs_sp = [0.0] * len(np.unique(gene_map))
     
     corrs_overall = overall_gene_level_corr_sp, \
                         np.nanmedian(cell_specific_corrs_sp), \
@@ -1211,17 +1228,28 @@ def make_plots(y_trues,
     if val_holdout:
         fig_overall,ax_overall=plt.subplots(figsize=(6,6))
         data = np.vstack([y_trues,y_preds])
-        kernel = stats.gaussian_kde(data)(data)
-        sns.scatterplot(
-            x=y_trues,
-            y=y_preds,
-            c=kernel,
-            cmap="viridis")
-        ax_overall.set_xlim(0, max(y_trues))
-        ax_overall.set_ylim(0, max(y_trues))
-        plt.xlabel("log-true")
-        plt.ylabel("pred")
-        plt.title("overall gene corr")
+        try:
+            kernel = stats.gaussian_kde(data)(data)
+            sns.scatterplot(
+                x=y_trues,
+                y=y_preds,
+                c=kernel,
+                cmap="viridis")
+            ax_overall.set_xlim(0, max(y_trues))
+            ax_overall.set_ylim(0, max(y_trues))
+            plt.xlabel("log-true")
+            plt.ylabel("pred")
+            plt.title("overall gene corr")
+        except np.linalg.LinAlgError as err:
+            sns.scatterplot(
+                x=y_trues,
+                y=y_preds,
+                cmap="viridis")
+            ax_overall.set_xlim(0, max(y_trues))
+            ax_overall.set_ylim(0, max(y_trues))
+            plt.xlabel("log-true")
+            plt.ylabel("pred")
+            plt.title("overall gene corr")
         
         fig_gene_spec,ax_gene_spec=plt.subplots(figsize=(6,6))
         sns.histplot(x=np.asarray(gene_specific_corrs_sp), bins=50)

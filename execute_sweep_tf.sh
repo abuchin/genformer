@@ -46,6 +46,7 @@ python3 train_model_aformer_TF_genecentered_separated.py \
             --freeze_conv_layers="False" \
             --load_init="True" \
             --loss_type="mse" \
-            --use_peaks="False,True" \
+            --use_peaks="False" \
             --use_coef_var="True" \
-            --use_atac="False" 
+            --use_atac="True" \
+            --enformer_checkpoint_path="sonnet_weights"

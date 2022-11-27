@@ -395,22 +395,29 @@ def main():
                 start = time.time()
                 ##### validation
                 val_step(data_dict_val)
-                
-                print('hg_val_loss: ' + str(metric_dict['hg_val'].result().numpy()))
-                val_losses.append(metric_dict['hg_val'].result().numpy())
-                wandb.log({'hg_val_loss': metric_dict['hg_val'].result().numpy()},
+                val_loss = metric_dict['hg_val'].result().numpy()
+                print('hg_val_loss: ' + str(val_loss))
+                if math.isnan(val_loss): 
+                    val_loss = 0.0
+                val_losses.append(val_loss)
+                wandb.log({'hg_val_loss': val_loss},
                           step=epoch_i)
                 
-            
-                val_pearsons.append(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy())
-                print('hg_RNA_pearson: ' + str(metric_dict['hg_corr_stats'].result()['pearsonR'].numpy()))
+                val_pearson = metric_dict['hg_corr_stats'].result()['pearsonR'].numpy()
+                if math.isnan(val_pearson):
+                    val_pearson=0.0
+                    
+                val_pearsons.append(val_pearson)
+                print('hg_RNA_pearson: ' + str(val_pearson))
                 print('hg_RNA_R2: ' + str(metric_dict['hg_corr_stats'].result()['R2'].numpy()))
 
                 y_trues = metric_dict['hg_corr_stats'].result()['y_trues'].numpy()
                 y_preds = metric_dict['hg_corr_stats'].result()['y_preds'].numpy()
                 cell_types = metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
                 gene_map = metric_dict['hg_corr_stats'].result()['gene_map'].numpy()
-
+                y_trues[np.isnan(y_trues)] = 0.0
+                y_preds[np.isnan(y_preds)] = 0.0
+                
                 corrs_overall= training_utils.make_plots(y_trues,
                                                          y_preds,
                                                          cell_types,
@@ -444,7 +451,10 @@ def main():
                 y_preds = metric_dict['hg_corr_stats_ho'].result()['y_preds'].numpy()
                 cell_types = metric_dict['hg_corr_stats_ho'].result()['cell_types'].numpy()
                 gene_map = metric_dict['hg_corr_stats_ho'].result()['gene_map'].numpy()
-
+                
+                y_trues[np.isnan(y_trues)] = 0.0
+                y_preds[np.isnan(y_preds)] = 0.0
+                
                 figures,corrs_overall= training_utils.make_plots(y_trues,y_preds,
                                                                  cell_types,gene_map,
                                                                  val_holdout=True,
