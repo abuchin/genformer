@@ -142,29 +142,6 @@ class aformer(tf.keras.Model):
                                           name ='stem_pool')
 
 
-
-        ### conv stack for atac inputs
-        """
-        self.atac_stem_conv = tf.keras.layers.Conv1D(filters= int(self.filter_list_atac[-1]) // 2,
-                                   kernel_size=15,
-                                   kernel_initializer='glorot_uniform',
-                                   bias_initializer='zeros',
-                                   strides=1,
-                                   trainable=True,
-                                   padding='same')
-                                   #data_format='channels_last')
-        self.atac_stem_res_conv=Residual(enf_conv_block(int(self.filter_list_atac[-1]) // 2, 1,
-                                                   train=True,
-                                                   name='atac_pointwise_conv_block'))
-        self.atac_stem_pool = SoftmaxPooling1D(per_channel=True,
-                                          w_init_scale=2.0,
-                                          pool_size=2,
-                                          k_init= None,
-                                          train=True,
-                                          name ='atac_stem_pool')
-        
-        """
-
         self.conv_tower_seq = tf.keras.Sequential([
             tf.keras.Sequential([
                 enf_conv_block(num_filters, 
@@ -195,23 +172,28 @@ class aformer(tf.keras.Model):
                        name=f'conv_tower_block_{i}')
             for i, num_filters in enumerate(self.filter_list_seq)], name='conv_tower')
         
-        ### conv stack for atac inputs
-        """
-        self.conv_tower_atac = tf.keras.Sequential([
+        #self.conv_tower_peaks_pool = tf.keras.Sequential([
+        #                                SoftmaxPooling1D(per_channel=True,
+        #                                                 w_init_scale=2.0,
+        #                                                 pool_size=4,
+        #                                                 name=f'pooling_block_{i}')
+        #    for i, num_filters in enumerate(self.filter_list_seq)], name='conv_tower_peaks_pool')
+
+        self.conv_tower_peaks = tf.keras.Sequential([
             tf.keras.Sequential([
-                enf_conv_block(num_filters, 
-                               5, 
-                               padding='same'),
-                Residual(enf_conv_block(num_filters, 1, 
-                                        name='atac_pointwise_conv_block')),
-                SoftmaxPooling1D(per_channel=True,
-                                 w_init_scale=2.0,
-                                 train=True,
-                                 pool_size=2),
+                self.conv_tower_seq.layers[i].layers[0],
+                self.conv_tower_seq.layers[i].layers[1],
+                #SoftmaxPooling1D(per_channel=True,
+                #                 w_init_scale=2.0,
+                #                 pool_size=4,
+                kl.MaxPool1D(pool_size=2,
+                             strides=2,
+                             name=f'pooling_block_{i}')
                 ],
-                       name=f'atac_conv_tower_block_{i}')
-            for i, num_filters in enumerate(self.filter_list_atac)], name='atac_conv_tower')
-        """
+                       name=f'conv_tower_peaks_block{i}')
+            for i, num_filters in enumerate(self.filter_list_seq)], name='conv_tower_peaks')
+        
+
         self.peaks_module = peaks_module(reduce_channels=self.peaks_reduce_dim,
                                    name='tf_module',
                                    **kwargs)
@@ -261,31 +243,36 @@ class aformer(tf.keras.Model):
 
         sequence, TSSs, exons, peaks, atac = inputs
         
-        input_sequence = tf.concat([sequence,
-                                    peaks],axis=1)
 
         ### seq convs
-        x = self.stem_conv(input_sequence,
+        seq_x = self.stem_conv(sequence,
                            training=training)
-        x = self.stem_res_conv(x,
+        seq_x = self.stem_res_conv(seq_x,
                                training=training)
-        x = self.stem_pool(x,
+        seq_x = self.stem_pool(seq_x,
                            training=training)
-        enformer_conv_out = self.conv_tower_seq(x,
+        enformer_conv_out = self.conv_tower_seq(seq_x,
                                             training=training)
         
-        #print(enformer_conv_out)
-        ### now break up the sequence again
-        enformer_conv_out_window = enformer_conv_out[...,
-                                                     :self.dim_reduce_length_seq, :]
-        #print(enformer_conv_out_window)
-        enformer_conv_out_peaks = enformer_conv_out[...,
-                                                    self.dim_reduce_length_seq:, :]
-        #print(enformer_conv_out_peaks)
-        peaks_processed = self.peaks_module(enformer_conv_out_peaks, 
+        ### peak convs
+        peaks_x = self.stem_conv(peaks,
+                           training=training)
+        peaks_x = self.stem_res_conv(peaks_x,
+                               training=training)
+        #peaks_x = self.peaks_pool(peaks_x,
+        #                   training=training)
+        peaks_x = self.conv_tower_peaks(peaks_x,
+                                  training=training)
+
+        peaks_processed = self.peaks_module(peaks_x,
                                       training=training)
+        peaks_processed = tf.expand_dims(peaks_processed, 
+                                         axis=1)
+        peaks_processed = tf.tile(peaks_processed, 
+                                  [1,self.dim_reduce_length_seq,1])
         
-        enformer_conv_out = tf.concat([enformer_conv_out_window,
+        
+        enformer_conv_out = tf.concat([enformer_conv_out,
                                        atac,
                                        peaks_processed,
                                        TSSs,

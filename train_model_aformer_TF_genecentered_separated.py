@@ -113,6 +113,12 @@ def main():
                 'peaks_length_target':{
                     'values': [int(args.peaks_length_target)]
                 },
+                'peaks_center_length':{
+                    'values': [int(args.peaks_center_length)]
+                },
+                'number_peaks':{
+                    'values': [int(args.peaks_center_length)]
+                },
                 'hidden_size': {
                     'values':[int(x) for x in args.hidden_size.split(',')]
                 },
@@ -205,6 +211,7 @@ def main():
                                        'D-' + str(wandb.config.dropout_rate),
                                        'AD-' + str(wandb.config.attention_dropout_rate),
                                        'HS-' + str(wandb.config.hidden_size)])
+            print(run_name)
             wandb.run.name = run_name
             base_name = wandb.config.model_save_basename + "_" + run_name
 
@@ -247,6 +254,8 @@ def main():
                                                                 wandb.config.input_length,
                                                                 wandb.config.dim_reduce_length_seq,
                                                                 wandb.config.peaks_length_target,
+                                                                wandb.config.peaks_center_length,
+                                                                wandb.config.number_peaks,
                                                                 128,
                                                                 wandb.config.max_shift,
                                                                 args.num_parallel,

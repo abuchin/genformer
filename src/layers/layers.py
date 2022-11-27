@@ -771,6 +771,7 @@ class output_head_rna(kl.Layer):
 @tf.keras.utils.register_keras_serializable()
 class output_head_atac(kl.Layer):
     def __init__(self,
+                 dropout_rate: float,
                  name: str = 'output_head_atac',
                  **kwargs):
         """
@@ -778,6 +779,8 @@ class output_head_atac(kl.Layer):
 
         """
         super().__init__(name=name, **kwargs)
+        
+        self.dropout_rate = dropout_rate
         
         self.dense1 = kl.Dense(units=64,
                                     use_bias=True)
@@ -790,6 +793,10 @@ class output_head_atac(kl.Layer):
                                     use_bias=True)
         self.final_softplus_regression = tf.keras.layers.Activation('softplus')
         
+        self.dropout1 = kl.Dropout(rate=self.dropout_rate,
+                                  **kwargs)
+        self.dropout2 = kl.Dropout(rate=self.dropout_rate // 2,
+                                  **kwargs)
         
         ### need to dim reduce by factor of 8 before classification
         ### dimension here is 768
@@ -816,8 +823,10 @@ class output_head_atac(kl.Layer):
     def call(self, inputs, training=None):
         x = self.dense1(inputs)
         x = self.gelu(x)
+        x = self.dropout1(x,training=training)
         x = self.dense2(x)
         x = self.gelu(x)
+        x = self.dropout2(x,training=training)
         
         x_reg = self.final_dense_regression(x)
 
@@ -900,31 +909,33 @@ class peaks_module(kl.Layer):
         self.reduce_channels=reduce_channels
         #self.dropout_rate=dropout_rate
         
+        self.gap = kl.GlobalAveragePooling1D(**kwargs)
+        
+        self.dense1 = kl.Dense(units= self.reduce_channels,
+                               use_bias=False)
+        self.gelu = tfa.layers.GELU()
+        self.dropout = kl.Dropout(rate=0.10,
+                                  **kwargs)
+        self.dense2 = kl.Dense(units= self.reduce_channels//4,
+                               use_bias=False)
+        
+        #self.conv_mix_block1 = conv_mix_block(num_channels_out=self.reduce_channels*2)
+        #self.layer_norm1 = kl.LayerNormalization(axis=-1,
+        #                                          scale=True,
+        #                                          center=True,
+        #                                          beta_initializer="zeros",
+        #                                          gamma_initializer="ones")
 
+        #self.gelu = tfa.layers.GELU()
         
-        self.conv_mix_block1 = conv_mix_block(num_channels_out=self.reduce_channels*2)
-        self.layer_norm1 = kl.LayerNormalization(axis=-1,
-                                                  scale=True,
-                                                  center=True,
-                                                  beta_initializer="zeros",
-                                                  gamma_initializer="ones")
-        #bn1 = syncbatchnorm(axis=-1,
-        #            center=True,
-        #            scale=True, **kwargs),
-        self.gelu = tfa.layers.GELU()
-        self.pool1 = SoftmaxPooling1D(pool_size=2,
-                                      per_channel=True)
-        
-        self.conv_mix_block2 = conv_mix_block(num_channels_out=self.reduce_channels)
-        self.layer_norm2 = kl.LayerNormalization(axis=-1,
-                                                  scale=True,
-                                                  center=True,
-                                                  beta_initializer="zeros",
-                                                  gamma_initializer="ones")
-        #bn2 = syncbatchnorm(axis=-1,
-        #            center=True,
-        #            scale=True, **kwargs),
-        self.gelu = tfa.layers.GELU()
+        ##self.conv_mix_block2 = conv_mix_block(num_channels_out=self.reduce_channels)
+        #self.layer_norm2 = kl.LayerNormalization(axis=-1,
+        #                                          scale=True,
+        #                                          center=True,
+        #                                          beta_initializer="zeros",
+        #                                          gamma_initializer="ones")
+
+
 
 
     def get_config(self):
@@ -940,13 +951,22 @@ class peaks_module(kl.Layer):
         return cls(**config)
     
     def call(self, inputs, training=None):
-        x = self.conv_mix_block1(inputs)
+        x = self.gap(inputs,training=training)
+        x = self.dense1(x)
+        x = self.gelu(x)
+        x = self.dropout(x,training=training)
+        x = self.dense2(x)
+        x = self.gelu(x)
+        x = self.dropout(x,training=training)
+        
+        """
+        x = self.conv_mix_block1(x)
         x = self.layer_norm1(x)
         x = self.gelu(x)
-        x = self.pool1(x,training=training)
         x = self.conv_mix_block2(x)
         x = self.layer_norm2(x)
         x = self.gelu(x)
+        """
         return x
 
     

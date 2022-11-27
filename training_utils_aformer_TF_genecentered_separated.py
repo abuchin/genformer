@@ -216,6 +216,7 @@ def return_train_val_functions(model,
             peaks_sequences = tf.cast(inputs['peaks_sequences'],dtype=tf.bfloat16)
             coef_var= tf.cast(inputs['coef_var'],dtype=tf.float32)
 
+
             if not use_atac:
                 atac = tf.zeros_like(atac)
             
@@ -234,7 +235,8 @@ def return_train_val_functions(model,
                 conv_vars = model.stem_conv.trainable_variables + \
                             model.stem_res_conv.trainable_variables + \
                             model.stem_pool.trainable_variables + \
-                            model.conv_tower_seq.trainable_variables
+                            model.conv_tower_seq.trainable_variables #+ \
+                            #[model.conv_tower_peaks.layers[i].layers[2].trainable_variables for i in range(6)]
 
                 remaining_vars = model.peaks_module.trainable_variables + \
                                     model.conv_mix_block.trainable_variables + \
@@ -427,19 +429,22 @@ def return_train_val_functions(model,
 
     return dist_train_step,dist_val_step,dist_val_step_ho,\
             build_step, metric_dict
-
+"""
+@tf.function
 def random_encode(input_tuple):
-    sequence,randint = input_tuple
+    sequence, randint = input_tuple
     if randint == 0:
         return one_hot(sequence)
     else:
         return rev_comp_one_hot(sequence)
-
+"""
 
 def deserialize(serialized_example,
                 input_length, 
                 output_length,
                 peaks_length_target,
+                peaks_center_length,
+                number_peaks,
                 output_res,
                 num_TFs,max_shift):
     """
@@ -459,24 +464,31 @@ def deserialize(serialized_example,
     data = tf.io.parse_example(serialized_example, feature_map)
     
     ### stochastic sequence shift and gaussian noise
-    shift = random.randrange(0,max_shift,1)
-    input_seq_length = input_length + max_shift
-    interval_end = input_length + shift
+    rev_comp = tf.math.round(tf.random.uniform([], 0, 1))
     
+    shift = tf.random.uniform(shape=(), minval=0, maxval=max_shift, dtype=tf.int32)
+    for k in range(max_shift):
+        if k == shift:
+            interval_end = input_length + k
+            seq_shift = k
+        else:
+            seq_shift=0
+    
+    input_seq_length = input_length + max_shift
 
     tss_tokens = tf.ensure_shape(tf.io.parse_tensor(data['tss_tokens'],
                                               out_type=tf.int32),
                             [input_seq_length,])
     
-    tss_tokens = tf.cast(tf.slice(tss_tokens, [shift],[input_length]),dtype=tf.float32)
+    tss_tokens = tf.cast(tf.slice(tss_tokens, [seq_shift], [input_length]),dtype=tf.float32)
     tss_tokens = tf.reshape(tss_tokens, [output_length,output_res])
     tss_tokens = tf.reduce_max(tss_tokens,axis=1,keepdims=True)
 
-    
+
     atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
                                               out_type=tf.float32),
                            [input_seq_length,])
-    atac = tf.slice(atac, [shift],[input_length])
+    atac = tf.slice(atac, [seq_shift],[input_length])
     atac = tf.reshape(atac, [output_length,output_res])
     atac = tf.reduce_sum(atac,axis=1,keepdims=True)
     atac = tf.math.log(1.0 + atac)
@@ -484,39 +496,46 @@ def deserialize(serialized_example,
     exons = tf.ensure_shape(tf.io.parse_tensor(data['exons'],
                                               out_type=tf.int32),
                             [input_seq_length,])
-    exons = tf.cast(tf.slice(exons, [shift],[input_length]),dtype=tf.float32)
+    exons = tf.cast(tf.slice(exons, [seq_shift],[input_length]),dtype=tf.float32)
     exons = tf.reshape(exons, [output_length,output_res])
     exons = tf.reduce_max(exons,axis=1,keepdims=True)
     
     sequence = one_hot(tf.strings.substr(data['sequence'],
-                                 shift,input_length))
-    
-
-    rev_comp = tf.math.round(tf.random.uniform([], 0, 1))
-    if rev_comp == 1:
-        atac = tf.reverse(atac,[0])
-        tss_tokens = tf.reverse(tss_tokens,[0])
-        sequence = rev_comp_one_hot(tf.strings.substr(data['sequence'],
-                                                      shift,input_length))
-        exons = tf.reverse(exons, [0])
+                                 seq_shift,input_length))
     
     ### process peaks
     # first we want to randomly select the input peaks, let's say top 2000 out of 5000
+    
     split_test=tf.strings.split(
         data['peaks_sequences'], sep='|', maxsplit=-1, name=None
     )
     split_test = split_test[:-1]
     
+    padding_amount = ((peaks_length_target // peaks_center_length) - tf.shape(split_test)[0])
+
+    paddings = [[0,padding_amount]]
+
+    split_test = tf.pad(split_test,
+                        paddings, "CONSTANT", constant_values=tf.constant("NNNNNNNNNNNNNNNN"))
+    
     idxs = tf.range(tf.shape(split_test)[0])
-    ridxs = tf.random.shuffle(idxs)[:1536]
+    ridxs = tf.random.shuffle(idxs)[:number_peaks]
     random_sample = tf.gather(split_test, ridxs)
     
-    peaks_sequences=tf.map_fn(fn=random_encode,  # input & output have different dtypes
-              elems=(random_sample,tf.math.round(tf.random.uniform([tf.shape(random_sample)[0]], 0, 1))),
-              fn_output_signature=tf.float32)
-    peaks_sequences = tf.reshape(peaks_sequences, [-1,4])
-                               
-    #### 
+    peaks_sequences = tf.strings.reduce_join(random_sample)
+    peaks_sequences = one_hot(peaks_sequences)
+    
+
+    #rev_comp = tf.math.round(tf.random.uniform([], 0, 1))
+    if rev_comp == 1:
+        atac = tf.reverse(atac,[0])
+        tss_tokens = tf.reverse(tss_tokens,[0])
+        sequence = rev_comp_one_hot(tf.strings.substr(data['sequence'],
+                                                      seq_shift,input_length))
+        exons = tf.reverse(exons, [0])
+        peaks_sequences = rev_comp_one_hot(tf.strings.reduce_join(random_sample))
+    
+
 
     TPM = tf.io.parse_tensor(data['TPM'],out_type=tf.float32)
     
@@ -530,14 +549,17 @@ def deserialize(serialized_example,
         'atac': tf.ensure_shape(atac, [output_length,1]),
         'target': target,
         'coef_var': coef_var,
-        'peaks_sequences': tf.ensure_shape(peaks_sequences,[peaks_length_target,4]),
+        'peaks_sequences': tf.ensure_shape(peaks_sequences,[number_peaks*peaks_center_length,4]),
         'tss_tokens': tf.ensure_shape(tss_tokens,[output_length,1]),
         'exons': tf.ensure_shape(exons,[output_length,1])
     }
 
 
-def deserialize_val(serialized_example,input_length, output_length,
+def deserialize_val(serialized_example,input_length, 
+                    output_length,
                     peaks_length_target,
+                    peaks_center_length,
+                    number_peaks,
                     output_res,
                 num_TFs,max_shift):
     """
@@ -597,16 +619,20 @@ def deserialize_val(serialized_example,input_length, output_length,
         data['peaks_sequences'], sep='|', maxsplit=-1, name=None
     )
     split_test = split_test[:-1]
+    
+    padding_amount = ((peaks_length_target // peaks_center_length) - tf.shape(split_test)[0])
+
+    paddings = [[0,padding_amount]]
+
+    split_test = tf.pad(split_test,
+                        paddings, "CONSTANT", constant_values=tf.constant("NNNNNNNNNNNNNNNN"))
+    
     idxs = tf.range(tf.shape(split_test)[0])
-    ridxs = tf.random.shuffle(idxs)[:1536]
+    ridxs = tf.random.shuffle(idxs)[:number_peaks]
     random_sample = tf.gather(split_test, ridxs)
     
-    peaks_sequences=tf.map_fn(fn=random_encode,  # input & output have different dtypes
-              elems=(random_sample,tf.math.round(tf.random.uniform([tf.shape(random_sample)[0]], 0, 1))),
-              fn_output_signature=tf.float32)
-    peaks_sequences = tf.reshape(peaks_sequences, [-1,4])
-    
-    #### 
+    peaks_sequences = tf.strings.reduce_join(random_sample)
+    peaks_sequences = one_hot(peaks_sequences)
 
     TPM = tf.io.parse_tensor(data['TPM'],out_type=tf.float32)
     if tf.math.is_nan(TPM):
@@ -627,7 +653,7 @@ def deserialize_val(serialized_example,input_length, output_length,
         'target': tf.transpose(tf.reshape(target,[-1])),
         'cell_type': tf.transpose(tf.reshape(cell_type,[-1])),
         'gene_encoded': tf.transpose(tf.reshape(gene_encoded,[-1])),
-        'peaks_sequences': tf.ensure_shape(peaks_sequences,[peaks_length_target,4]),
+        'peaks_sequences': tf.ensure_shape(peaks_sequences,[number_peaks*peaks_center_length,4]),
         'tss_tokens': tf.ensure_shape(tss_tokens,[output_length,1]),
         'exons': tf.ensure_shape(exons,[output_length,1]),
         'coef_var': coef_var
@@ -640,6 +666,8 @@ def return_dataset(gcs_path,
                    input_length,
                    output_length,
                    peaks_length_target,
+                   peaks_center_length,
+                   number_peaks,
                    output_res,
                    max_shift,
                    options,
@@ -666,6 +694,8 @@ def return_dataset(gcs_path,
                                                      input_length,
                                                      output_length,
                                                      peaks_length_target,
+                                                     peaks_center_length,
+                                                     number_peaks,
                                                      output_res,
                                                      num_TFs,
                                                      max_shift),
@@ -682,6 +712,8 @@ def return_dataset_val(gcs_path,
                        input_length,
                        output_length,
                        peaks_length_target,
+                       peaks_center_length,
+                       number_peaks,
                        output_res,
                        max_shift,
                        options,
@@ -711,6 +743,8 @@ def return_dataset_val(gcs_path,
                                                          input_length,
                                                          output_length,
                                                          peaks_length_target,
+                                                         peaks_center_length,
+                                                         number_peaks,
                                                          output_res,
                                                          num_TFs,
                                                          max_shift),
@@ -726,6 +760,8 @@ def return_distributed_iterators(gcs_path,
                                  input_length,
                                  output_length,
                                  peaks_length_target,
+                                 peaks_center_length,
+                                 number_peaks,
                                  output_res,
                                  max_shift,
                                  num_parallel_calls,
@@ -745,6 +781,8 @@ def return_distributed_iterators(gcs_path,
                                 input_length,
                                  output_length,
                                  peaks_length_target,
+                                 peaks_center_length,
+                                 number_peaks,
                                 output_res,
                                 max_shift,
                                 options,
@@ -758,6 +796,8 @@ def return_distributed_iterators(gcs_path,
                                       input_length,
                                       output_length,
                                       peaks_length_target,
+                                      peaks_center_length,
+                                      number_peaks,
                                       output_res,
                                       max_shift,
                                       options,
@@ -771,6 +811,8 @@ def return_distributed_iterators(gcs_path,
                                         input_length,
                                         output_length,
                                          peaks_length_target,
+                                         peaks_center_length,
+                                         number_peaks,
                                         output_res,
                                         max_shift,
                                         options,
@@ -998,6 +1040,14 @@ def parse_args(parser):
                         dest='peaks_length_target',
                         type=int,
                         help= 'peaks_length_target')
+    parser.add_argument('--peaks_center_length',
+                        dest='peaks_center_length',
+                        type=int,
+                        help= 'peaks_center_length')
+    parser.add_argument('--number_peaks',
+                        dest='number_peaks',
+                        type=int,
+                        help= 'number_peaks')
     parser.add_argument('--peaks_reduce_dim',
                         dest='peaks_reduce_dim',
                         type=str,
@@ -1092,7 +1142,7 @@ def one_hot(sequence):
 
     init = tf.lookup.KeyValueTensorInitializer(keys=vocabulary,
                                                values=mapping)
-    table = tf.lookup.StaticHashTable(init, default_value=0)
+    table = tf.lookup.StaticHashTable(init, default_value=5) # makes N correspond to all 0s
 
     input_characters = tfs.upper(tfs.unicode_split(sequence, 'UTF-8'))
 
@@ -1114,7 +1164,7 @@ def rev_comp_one_hot(sequence):
 
     init = tf.lookup.KeyValueTensorInitializer(keys=vocabulary,
                                                values=mapping)
-    table = tf.lookup.StaticHashTable(init, default_value=0)
+    table = tf.lookup.StaticHashTable(init, default_value=1)
 
     out = tf.one_hot(table.lookup(input_characters), 
                       depth = 4, 
