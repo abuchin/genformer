@@ -1287,7 +1287,7 @@ def make_plots(y_trues,
         plt.xlabel("coefficient_variation_holdout")
         plt.ylabel("correlation, pearsons")
         plt.title("coef variation gene vs. cross-dataset correlation")
-        
+
         figures = fig_cell_spec, fig_gene_spec, fig_overall,fig_var_breakdown
         
         return figures, corrs_overall
