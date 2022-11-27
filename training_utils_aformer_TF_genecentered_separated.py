@@ -1226,11 +1226,11 @@ def make_plots(y_trues,
                         
             
     if val_holdout:
-        fig_overall,ax_overall=plt.subplots(figsize=(6,6))
+        #fig_overall,ax_overall=plt.subplots(figsize=(6,6))
         data = np.vstack([y_trues,y_preds])
         try:
             kernel = stats.gaussian_kde(data)(data)
-            sns.scatterplot(
+            fig_overall=sns.scatterplot(
                 x=y_trues,
                 y=y_preds,
                 c=kernel,
@@ -1241,7 +1241,7 @@ def make_plots(y_trues,
             plt.ylabel("pred")
             plt.title("overall gene corr")
         except np.linalg.LinAlgError as err:
-            sns.scatterplot(
+            fig_overall=sns.scatterplot(
                 x=y_trues,
                 y=y_preds,
                 cmap="viridis")
@@ -1251,14 +1251,14 @@ def make_plots(y_trues,
             plt.ylabel("pred")
             plt.title("overall gene corr")
         
-        fig_gene_spec,ax_gene_spec=plt.subplots(figsize=(6,6))
-        sns.histplot(x=np.asarray(gene_specific_corrs_sp), bins=50)
+        #fig_gene_spec,ax_gene_spec=plt.subplots(figsize=(6,6))
+        fig_gene_spec=sns.histplot(x=np.asarray(gene_specific_corrs_sp), bins=50)
         plt.xlabel("single gene cross cell-type correlations")
         plt.ylabel("count")
         plt.title("log-log spearmanR")
 
-        fig_cell_spec,ax_cell_spec=plt.subplots(figsize=(6,6))
-        sns.histplot(x=np.asarray(cell_specific_corrs_sp), bins=50)
+        #fig_cell_spec,ax_cell_spec=plt.subplots(figsize=(6,6))
+        fig_cell_spec=sns.histplot(x=np.asarray(cell_specific_corrs_sp), bins=50)
         plt.xlabel("single cell-type cross gene correlations")
         plt.ylabel("count")
         plt.title("log-log spearmanR")
@@ -1275,13 +1275,13 @@ def make_plots(y_trues,
         df = valholdout_gene_map_parse(df,
                                        gene_map_var_breakdown)
     
-        fig_var_breakdown,ax_var_breakdown=plt.subplots(figsize=(6,6))
+        #fig_var_breakdown,ax_var_breakdown=plt.subplots(figsize=(6,6))
         #kernel = stats.gaussian_kde(data)(data)
         df['coef_var_decile']=pd.cut(df['coef_var'],
                                            bins=10,
                                            include_lowest=True)
 
-        sns.boxplot(
+        fig_var_breakdown= sns.boxplot(
             x=df['coef_var_decile'],
             y=df['cor'])
         plt.xlabel("coefficient_variation_holdout")
