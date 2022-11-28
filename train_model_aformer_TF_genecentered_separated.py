@@ -237,7 +237,7 @@ def main():
             num_val=wandb.config.val_examples
             num_val_ho=wandb.config.val_examples_ho#4192000
 
-            wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE*3)},
+            wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE * 2)},
                                 allow_val_change=True)
             wandb.config.update({"val_steps" : num_val // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
