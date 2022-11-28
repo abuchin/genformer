@@ -117,7 +117,7 @@ def main():
                     'values': [int(args.peaks_center_length)]
                 },
                 'number_peaks':{
-                    'values': [int(args.peaks_center_length)]
+                    'values': [int(args.number_peaks)]
                 },
                 'hidden_size': {
                     'values':[int(x) for x in args.hidden_size.split(',')]
