@@ -183,12 +183,12 @@ class aformer(tf.keras.Model):
             tf.keras.Sequential([
                 self.conv_tower_seq.layers[i].layers[0],
                 self.conv_tower_seq.layers[i].layers[1],
-                #SoftmaxPooling1D(per_channel=True,
-                #                 w_init_scale=2.0,
-                #                 pool_size=4,
-                kl.MaxPool1D(pool_size=2,
-                             strides=2,
-                             name=f'pooling_block_{i}')
+                SoftmaxPooling1D(per_channel=True,
+                                 w_init_scale=2.0,
+                                 pool_size=2,
+                #kl.AveragePooling1D(pool_size=2,
+                                    #strides=2,
+                                    name=f'pooling_block_{i}')
                 ],
                        name=f'conv_tower_peaks_block{i}')
             for i, num_filters in enumerate(self.filter_list_seq)], name='conv_tower_peaks')
