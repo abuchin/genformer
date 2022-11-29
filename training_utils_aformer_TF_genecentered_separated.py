@@ -235,8 +235,9 @@ def return_train_val_functions(model,
                 conv_vars = model.stem_conv.trainable_variables + \
                             model.stem_res_conv.trainable_variables + \
                             model.stem_pool.trainable_variables + \
-                            model.conv_tower_seq.trainable_variables + \
-                            [model.conv_tower_peaks.layers[i].layers[2].trainable_variables for i in range(6)]
+                            model.conv_tower_seq.trainable_variables
+                for i in range(6):
+                    conv_vars = conv_vars + model.conv_tower_peaks.layers[i].layers[2].trainable_variables
 
                 remaining_vars = model.peaks_module.trainable_variables + \
                                     model.conv_mix_block.trainable_variables + \
