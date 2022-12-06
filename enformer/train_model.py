@@ -270,7 +270,7 @@ def main():
                            'ATAC_R2': np.nanmean(pearsonsR[:49]),
                            'CAGE_R2': np.nanmean(pearsonsR[49:])},
                           step=epoch_i)
-                
+                print('computing TSS quant metrics')
                 
                 val_step_TSS(val_data_TSS_it)
 
@@ -286,7 +286,7 @@ def main():
                 figures,corrs_overall= training_utils.make_plots(y_trues,y_preds,
                                                                  cell_types,gene_map)
 
-
+                print('returned TSS centered correlations and figures')
                 fig_cell_spec, fig_gene_spec, fig_overall=figures 
 
                 overall_gene_level_corr_sp, overall_gene_level_corr_pe, \
