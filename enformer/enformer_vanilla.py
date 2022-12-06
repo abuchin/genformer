@@ -26,8 +26,8 @@ Pushmeet Kohli1, David R. Kelley2*
 import inspect
 from typing import Any, Callable, Dict, Optional, Text, Union, Iterable
 
-import attention_module_vanilla
-import tensorflow.experimental.numpy as tnp
+import attention_module_nomod as attention_module
+import numpy as np
 import sonnet as snt
 import tensorflow as tf
 
@@ -40,36 +40,38 @@ class Enformer(snt.Module):
     """Main model."""
 
     def __init__(self,
-                 channels: int = 1536,
-                 num_transformer_layers: int = 11,
-                 num_heads: int = 8,
-                 out_heads: dict = {'human': 5313,
-                                    'mouse': 1643},
-                 pooling_type: str = 'attention',
-                 name: str = 'enformer'):
+               channels: int = 1536,
+               num_transformer_layers: int = 11,
+               num_heads: int = 8,
+               output_heads_dict: dict = {'human': 98},
+               pooling_type: str = 'attention',
+               dropout_rate: float = 0.40,
+               attention_dropout_rate: float = 0.05,
+               positional_dropout_rate: float = 0.01,
+               name: str = 'enformer'):
         """Enformer model.
         Args:
-          channels: Number of convolutional filters and the overall 'width' of the
+            channels: Number of convolutional filters and the overall 'width' of the
             model.
-          num_transformer_layers: Number of transformer layers.
-          num_heads: Number of attention heads.
-          pooling_type: Which pooling function to use. Options: 'attention' or max'.
-          name: Name of sonnet module.
+            num_transformer_layers: Number of transformer layers.
+            num_heads: Number of attention heads.
+            pooling_type: Which pooling function to use. Options: 'attention' or max'.
+            name: Name of sonnet module.
         """
         super().__init__(name=name)
         # pylint: disable=g-complex-comprehension,g-long-lambda,cell-var-from-loop
-        heads_channels = out_heads
-        #heads_channels = {'human': units_human, 'mouse': units_mouse}
-        dropout_rate = 0.4
+
+        dropout_rate = dropout_rate
+        self.output_heads_dict=output_heads_dict
         assert channels % num_heads == 0, ('channels needs to be divisible '
                                            f'by {num_heads}')
         whole_attention_kwargs = {
-            'attention_dropout_rate': 0.05,
+            'attention_dropout_rate': attention_dropout_rate,
             'initializer': None,
             'key_size': 64,
             'num_heads': num_heads,
             'num_relative_position_features': channels // num_heads,
-            'positional_dropout_rate': 0.01,
+            'positional_dropout_rate': positional_dropout_rate,
             'relative_position_functions': [
                 'positional_features_exponential',
                 'positional_features_central_mask',
@@ -85,14 +87,16 @@ class Enformer(snt.Module):
         trunk_name_scope.__enter__()
         # lambda is used in Sequential to construct the module under tf.name_scope.
         def conv_block(filters, width=1, w_init=None, name='conv_block', **kwargs):
-          return Sequential(lambda: [
-              snt.BatchNorm(create_scale=True,
-                            create_offset=True,
-                            decay_rate=0.9,
-                            scale_init=snt.initializers.Ones()),
+            return Sequential(lambda: [
+              snt.distribute.CrossReplicaBatchNorm(
+                  create_scale=True,
+                  create_offset=True,
+                  scale_init=snt.initializers.Ones(),
+                  moving_mean=snt.ExponentialMovingAverage(0.9),
+                  moving_variance=snt.ExponentialMovingAverage(0.9)),
               gelu,
               snt.Conv1D(filters, width, w_init=w_init, **kwargs)
-          ], name=name)
+            ], name=name)
 
         stem = Sequential(lambda: [
             snt.Conv1D(channels // 2, 15),
@@ -114,12 +118,12 @@ class Enformer(snt.Module):
         # Transformer.
         def transformer_mlp():
             return Sequential(lambda: [
-                snt.LayerNorm(axis=-1, create_scale=True, create_offset=True),
-                snt.Linear(channels * 2),
-                snt.Dropout(dropout_rate),
-                tf.nn.relu,
-                snt.Linear(channels),
-                snt.Dropout(dropout_rate)], name='mlp')
+              snt.LayerNorm(axis=-1, create_scale=True, create_offset=True),
+              snt.Linear(channels * 2),
+              snt.Dropout(dropout_rate),
+              tf.nn.relu,
+              snt.Linear(channels),
+              snt.Dropout(dropout_rate)], name='mlp')
 
         transformer = Sequential(lambda: [
             Sequential(lambda: [
@@ -127,7 +131,7 @@ class Enformer(snt.Module):
                     snt.LayerNorm(axis=-1,
                                   create_scale=True, create_offset=True,
                                   scale_init=snt.initializers.Ones()),
-                    attention_module_vanilla.MultiheadAttention(**whole_attention_kwargs,
+                    attention_module.MultiheadAttention(**whole_attention_kwargs,
                                                         name=f'attention_{i}'),
                     snt.Dropout(dropout_rate)], name='mha')),
                 Residual(transformer_mlp())], name=f'transformer_block_{i}')
@@ -140,7 +144,7 @@ class Enformer(snt.Module):
             snt.Dropout(dropout_rate / 8),
             gelu], name='final_pointwise')
 
-        self._trunk = Sequential([stem,
+        self._trunk = Sequential(lambda: [stem,
                                   conv_tower,
                                   transformer,
                                   crop_final,
@@ -148,14 +152,11 @@ class Enformer(snt.Module):
                                  name='trunk')
         trunk_name_scope.__exit__(None, None, None)
 
-        with tf.name_scope('heads'):
-            self._heads = {
-                head: Sequential(
-                    lambda: [snt.Linear(num_channels), tf.nn.softplus],
-                    name=f'head_{head}')
-                for head, num_channels in heads_channels.items()
-          }
-        # pylint: enable=g-complex-comprehension,g-long-lambda,cell-var-from-loop
+    #with tf.name_scope('new_heads'):
+        self._heads = {
+            head: Sequential(
+              lambda: [snt.Linear(num_channels), tf.nn.softplus],
+                name=f'head_{head}') for head, num_channels in self.output_heads_dict.items()}
 
     @property
     def trunk(self):
@@ -166,47 +167,37 @@ class Enformer(snt.Module):
         return self._heads
 
     def __call__(self, inputs: tf.Tensor,
-               is_training: bool) -> Dict[str, tf.Tensor]:
+               is_training: bool) -> tf.Tensor:
         trunk_embedding = self.trunk(inputs, is_training=is_training)
-        return {
-            head: head_module(trunk_embedding, is_training=is_training)
-            for head, head_module in self.heads.items()
-        }
-
-    @tf.function(input_signature=[tf.TensorSpec([None, SEQUENCE_LENGTH, 4], tf.float32)])
+        return {head: head_module(trunk_embedding,is_training=is_training) for head, head_module in self._heads.items()}
+    
+    @tf.function(input_signature=[
+      tf.TensorSpec([None, SEQUENCE_LENGTH, 4], tf.float32)])
     def predict_on_batch(self, x):
         """Method for SavedModel."""
-        return self(x, is_training=False)
-    
-    ##@tf.function(input_signature=[tf.TensorSpec([None, SEQUENCE_LENGTH, 4], tf.float32)])
-    #def get_attention_weights(self, x):
-    #    """Method for SavedModel."""
-    #    return self(x, is_training=False)
-    
-    #@tf.function(input_signature=[tf.TensorSpec([None, SEQUENCE_LENGTH, 4], tf.float32)])
-    #def build_graph(self, input_shape):
-    #    x = tf.keras.layers.Input(input_shape)
-    #    return tf.keras.Model(inputs=[x], outputs=self.call(x))
-    
-    #@tf.function
-    #def predict(self, x):
-    #    """Method for SavedModel."""
-    #    return self(x, is_training=False)
+        trunk_embedding = self.trunk(inputs, is_training=False)
+        return {head: head_module(trunk_embedding,is_training=is_training) for head, head_module in self._heads.items()}
+
 
 class TargetLengthCrop1D(snt.Module):
     """Crop sequence to match the desired target length."""
 
-    def __init__(self, target_length: int, name='target_length_crop'):
+    def __init__(self,
+               target_length: Optional[int],
+               name: str = 'target_length_crop'):
         super().__init__(name=name)
         self._target_length = target_length
 
     def __call__(self, inputs):
-        trim = (inputs.shape[-2] - self._target_length) // 2
+        if self._target_length is None:
+            return inputs
+        trim = (1536 - self._target_length) // 2
         if trim < 0:
             raise ValueError('inputs longer than target length')
-
-        return inputs[..., trim:-trim, :]
-
+        elif trim == 0:
+            return inputs
+        else:
+            return inputs[..., trim:-trim, :]
 
 class Sequential(snt.Module):
     """snt.Sequential automatically passing is_training where it exists."""
@@ -221,8 +212,7 @@ class Sequential(snt.Module):
         else:
             # layers wrapped in a lambda function to have a common namespace.
             if hasattr(layers, '__call__'):
-                with tf.name_scope(name):
-                    layers = layers()
+                layers = layers()
             self._layers = [layer for layer in layers if layer is not None]
 
     def __call__(self, inputs: tf.Tensor, is_training: bool, **kwargs):
@@ -248,7 +238,6 @@ def pooling_module(kind, pool_size):
 
 class SoftmaxPooling1D(snt.Module):
     """Pooling operation with optional weights."""
-
     def __init__(self,
                pool_size: int = 2,
                per_channel: bool = False,
@@ -300,15 +289,16 @@ class Residual(snt.Module):
         return inputs + self._module(inputs, is_training, *args, **kwargs)
 
 
+
 def gelu(x: tf.Tensor) -> tf.Tensor:
     """Applies the Gaussian error linear unit (GELU) activation function.
-      Using approximiation in section 2 of the original paper:
-      https://arxiv.org/abs/1606.08415
-      Args:
+        Using approximiation in section 2 of the original paper:
+        https://arxiv.org/abs/1606.08415
+        Args:
         x: Input tensor to apply gelu activation.
-      Returns:
+        Returns:
         Tensor with gelu activation applied to it.
-      """
+    """
     return tf.nn.sigmoid(1.702 * x) * x
 
 
@@ -316,12 +306,12 @@ def one_hot_encode(sequence: str,
                    alphabet: str = 'ACGT',
                    neutral_alphabet: str = 'N',
                    neutral_value: Any = 0,
-                   dtype=tnp.float32) -> tnp.ndarray:
+                   dtype=np.float32) -> np.ndarray:
     """One-hot encode sequence."""
     def to_uint8(string):
-        return tnp.frombuffer(string.encode('ascii'), dtype=tnp.uint8)
-    hash_table = tnp.zeros((tnp.iinfo(tnp.uint8).max, len(alphabet)), dtype=dtype)
-    hash_table[to_uint8(alphabet)] = tnp.eye(len(alphabet), dtype=dtype)
+        return np.frombuffer(string.encode('ascii'), dtype=np.uint8)
+    hash_table = np.zeros((np.iinfo(np.uint8).max, len(alphabet)), dtype=dtype)
+    hash_table[to_uint8(alphabet)] = np.eye(len(alphabet), dtype=dtype)
     hash_table[to_uint8(neutral_alphabet)] = neutral_value
     hash_table = hash_table.astype(dtype)
     return hash_table[to_uint8(sequence)]
@@ -330,9 +320,9 @@ def one_hot_encode(sequence: str,
 def exponential_linspace_int(start, end, num, divisible_by=1):
     """Exponentially increasing values of integers."""
     def _round(x):
-        return tf.cast((tf.math.round(x / divisible_by) * divisible_by),dtype=tf.int32)
+        return int(np.round(x / divisible_by) * divisible_by)
 
-    base = tf.cast(tnp.exp(tnp.log(end / start) / (num - 1)), dtype=tf.float32)
+    base = np.exp(np.log(end / start) / (num - 1))
     return [_round(start * base**i) for i in range(num)]
 
 
