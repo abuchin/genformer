@@ -12,6 +12,7 @@ sudo pip3 install wandb==0.13.1 --no-deps
 sudo pip3 install plotly==5.8.2 --no-deps 
 sudo pip3 install scikit-learn==1.0 --no-deps
 sudo pip3 install tensorboard-plugin-profile==2.4.0 --no-deps
+sudo pip3 install dm-sonnet==2.0.0 --no-deps
 sudo pip3 install -U --no-deps numpy
 export TPU_NAME=pod
 export ZONE=us-east1-d 
