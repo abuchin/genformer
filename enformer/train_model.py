@@ -283,6 +283,7 @@ def main():
                 cell_types = metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
                 gene_map = metric_dict['hg_corr_stats'].result()['gene_map'].numpy()
                 
+                print('returned y_trues,preds, etc..)
                 figures,corrs_overall= training_utils.make_plots(y_trues,y_preds,
                                                                  cell_types,gene_map)
 
