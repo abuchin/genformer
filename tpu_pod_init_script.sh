@@ -1,5 +1,6 @@
 #!/bin/bash -l
 
+sudo pip3 install dm-sonnet
 sudo pip3 install silence_tensorflow
 sudo pip3 install tensorflow-addons
 sudo pip3 install matplotlib==3.4.3
@@ -12,8 +13,7 @@ sudo pip3 install wandb==0.13.1
 sudo pip3 install plotly==5.8.2
 sudo pip3 install scikit-learn==1.0
 sudo pip3 install tensorboard-plugin-profile==2.4.0
-sudo pip3 install dm-sonnet
-sudo pip3 install --upgrade --upgrade-strategy=only-if-needed numpy
+
 export TPU_NAME=pod
 export ZONE=us-east1-d 
 export TPU_LOAD_LIBRARY=0
