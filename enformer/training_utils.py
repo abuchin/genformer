@@ -117,7 +117,7 @@ def return_train_val_functions(model,
     
     metric_dict['R2'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
     poisson_loss = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
-    #@tf.function
+
     def dist_train_step_transfer(iterator):
         @tf.function(jit_compile=True)
         def train_step(inputs):
@@ -141,8 +141,7 @@ def return_train_val_functions(model,
 
         for _ in tf.range(train_steps): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(train_step, args=(next(iterator),))
-            
-    #@tf.function
+
     def dist_val_step(iterator): #input_batch, model, optimizer, organism, gradient_clip):
         @tf.function(jit_compile=True)
         def val_step(inputs):
@@ -160,8 +159,6 @@ def return_train_val_functions(model,
         for _ in tf.range(val_steps): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(val_step, args=(next(iterator),))
             
-            
-    #@tf.function
     def dist_val_step_TSS(iterator): #input_batch, model, optimizer, organism, gradient_clip):
         @tf.function(jit_compile=True)
         def val_step(inputs):
@@ -211,13 +208,6 @@ def return_train_val_functions(model,
                                                   ta_celltype.concat(),
                                                   ta_genemap.concat())
             
-        #ta_pred.close()
-        #ta_true.close()
-        #ta_celltype.close()
-        #ta_genemap.close()
-        
-        
-    #@tf.function
     def build_step(iterator): #input_batch, model, optimizer, organism, gradient_clip):
         @tf.function(jit_compile=True)
         def val_step(inputs):
