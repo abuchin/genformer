@@ -20,7 +20,7 @@ python3 train_model.py \
             --epsilon=1.0e-10 \
             --num_parallel=8 \
             --savefreq=8 \
-            --train_examples=3420 \
+            --train_examples=640 \
             --val_examples=2213 \
             --val_examples_TSS=1645 \
             --num_targets=98

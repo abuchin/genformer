@@ -171,7 +171,8 @@ def return_train_val_functions(model,
                              dtype=tf.float32)
             tss_mask =tf.cast(inputs['tss_mask'],dtype=tf.float32)
 
-            output = model(sequence, is_training=False)['human'][:,:,49:]
+            output = tf.cast(model(sequence, is_training=False)['human'][:,:,49:],
+                             dtype=tf.float32)
             
             pred = tf.reduce_sum(output * tss_mask,axis=1)
             true = tf.reduce_sum(target * tss_mask,axis=1)
@@ -191,13 +192,14 @@ def return_train_val_functions(model,
         
         for _ in tf.range(val_steps_TSS): ## for loop within @tf.fuction for improved TPU performance
 
-            pred, true, gene, cell_type = strategy.run(val_step,
+            pred_rep, true_rep, gene_rep, cell_type_rep = strategy.run(val_step,
                                                        args=(next(iterator),))
             
-            pred_reshape = tf.reshape(strategy.gather(pred, axis=0), [-1]) # reshape to 1D
-            true_reshape = tf.reshape(strategy.gather(true, axis=0), [-1])
-            cell_type_reshape = tf.reshape(strategy.gather(cell_type, axis=0), [-1])
-            gene_map_reshape = tf.reshape(strategy.gather(gene, axis=0), [-1])
+            pred_reshape = tf.reshape(strategy.gather(pred_rep, axis=0), [-1]) # reshape to 1D
+            true_reshape = tf.reshape(strategy.gather(true_rep, axis=0), [-1])
+            cell_type_reshape = tf.reshape(strategy.gather(cell_type_rep, axis=0), [-1])
+            gene_map_reshape = tf.reshape(strategy.gather(gene_rep, axis=0), [-1])
+        
             
             ta_pred = ta_pred.write(_, pred_reshape)
             ta_true = ta_true.write(_, true_reshape)
@@ -355,7 +357,7 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift, out_length,nu
     gene_name= tf.io.parse_tensor(example['gene_name'],out_type=tf.int32)
     gene_name = tf.tile(tf.expand_dims(gene_name,axis=0),[49])
     
-    cell_type = tf.range(0,49)
+    cell_types = tf.range(0,49)
 
     
     return {'sequence': tf.ensure_shape(sequence,
@@ -366,7 +368,7 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift, out_length,nu
                                         [896,1]),
             'gene_name': tf.ensure_shape(gene_name,
                                          [49,]),
-             'cell_types': tf.ensure_shape(cell_type,
+            'cell_types': tf.ensure_shape(cell_types,
                                            [49,])}
                     
 def return_dataset(gcs_path,
