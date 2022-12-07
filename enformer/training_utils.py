@@ -207,6 +207,10 @@ def return_train_val_functions(model,
                                                   ta_pred.concat(),
                                                   ta_celltype.concat(),
                                                   ta_genemap.concat())
+        ta_true.close()
+        ta_pred.close()
+        ta_celltype.close()
+        ta_genemap.close()
             
     def build_step(iterator): #input_batch, model, optimizer, organism, gradient_clip):
         @tf.function(jit_compile=True)
