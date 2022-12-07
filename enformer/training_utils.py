@@ -177,8 +177,8 @@ def return_train_val_functions(model,
             true = tf.reduce_sum(target * tss_mask,axis=1)
             #print(inputs['gene_name'])
             #print(tf.expand_dims(inputs['gene_name'],axis=2))
-            gene_name = inputs['gene_name']
-            cell_types = inputs['cell_types']
+            gene_name = tf.cast(inputs['gene_name'],dtype=tf.int32)
+            cell_types = tf.cast(inputs['cell_types'],dtype=tf.int32)
             
             
             return pred, true, gene_name, cell_types
@@ -209,10 +209,10 @@ def return_train_val_functions(model,
                                                   ta_celltype.concat(),
                                                   ta_genemap.concat())
             
-        ta_pred.close()
-        ta_true.close()
-        ta_celltype.close()
-        ta_genemap.close()
+        #ta_pred.close()
+        #ta_true.close()
+        #ta_celltype.close()
+        #ta_genemap.close()
         
         
     @tf.function

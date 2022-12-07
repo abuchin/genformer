@@ -274,6 +274,8 @@ def main():
                 
                 val_step_TSS(val_data_TSS_it)
 
+                
+                print('post val step tss')
                 val_pearson_TSS = metric_dict['hg_corr_stats'].result()['pearsonR'].numpy()
                 val_pearsons.append(val_pearson_TSS)
                 val_R2_TSS = metric_dict['hg_corr_stats'].result()['R2'].numpy()
