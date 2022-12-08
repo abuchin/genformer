@@ -132,11 +132,11 @@ def return_train_val_functions(model,
                 loss = tf.reduce_sum(poisson_loss(target,
                                                   output)) * (1. / global_batch_size)
                 
-            gradients = tape.gradient(loss, model.trunk.trainable_variables + model.heads['human'].trainable_variables)
+            gradients = tape.gradient(loss, model.trunk.trainable_variables + model.new_heads['human'].trainable_variables)
             gradients, _ = tf.clip_by_global_norm(gradients, 
                                                   gradient_clip)
             optimizer1.apply_gradients(zip(gradients[:len(model.trunk.trainable_variables)], model.trunk.trainable_variables))
-            optimizer2.apply_gradients(zip(gradients[len(model.trunk.trainable_variables):], model.heads['human'].trainable_variables))
+            optimizer2.apply_gradients(zip(gradients[len(model.trunk.trainable_variables):], model.new_heads['human'].trainable_variables))
             metric_dict["hg_tr"].update_state(loss)
 
         for _ in tf.range(train_steps): ## for loop within @tf.fuction for improved TPU performance
@@ -687,6 +687,9 @@ def parse_args(parser):
                         type=str)
     parser.add_argument('--model_save_basename',
                         dest='model_save_basename',
+                        type=str)
+    parser.add_argument('--use_enformer_weights',
+                        dest='use_enformer_weights',
                         type=str)
     parser.add_argument('--input_length',
                         dest='input_length',

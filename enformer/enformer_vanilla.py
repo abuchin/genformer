@@ -45,9 +45,6 @@ class Enformer(snt.Module):
                num_heads: int = 8,
                output_heads_dict: dict = {'human': 98},
                pooling_type: str = 'attention',
-               dropout_rate: float = 0.40,
-               attention_dropout_rate: float = 0.05,
-               positional_dropout_rate: float = 0.01,
                name: str = 'enformer'):
         """Enformer model.
         Args:
@@ -61,17 +58,17 @@ class Enformer(snt.Module):
         super().__init__(name=name)
         # pylint: disable=g-complex-comprehension,g-long-lambda,cell-var-from-loop
 
-        dropout_rate = dropout_rate
+        dropout_rate = 0.4
         self.output_heads_dict=output_heads_dict
         assert channels % num_heads == 0, ('channels needs to be divisible '
                                            f'by {num_heads}')
         whole_attention_kwargs = {
-            'attention_dropout_rate': attention_dropout_rate,
+            'attention_dropout_rate': 0.05,
             'initializer': None,
             'key_size': 64,
             'num_heads': num_heads,
             'num_relative_position_features': channels // num_heads,
-            'positional_dropout_rate': positional_dropout_rate,
+            'positional_dropout_rate': 0.01,
             'relative_position_functions': [
                 'positional_features_exponential',
                 'positional_features_central_mask',
@@ -153,30 +150,33 @@ class Enformer(snt.Module):
         trunk_name_scope.__exit__(None, None, None)
 
     #with tf.name_scope('new_heads'):
-        self._heads = {
+        self._new_heads = {
             head: Sequential(
               lambda: [snt.Linear(num_channels), tf.nn.softplus],
-                name=f'head_{head}') for head, num_channels in self.output_heads_dict.items()}
+                name=f'new_head_{head}') for head, num_channels in self.output_heads_dict.items()
+        }
 
     @property
     def trunk(self):
         return self._trunk
 
     @property
-    def heads(self):
-        return self._heads
+    def new_heads(self):
+        return self._new_heads
 
     def __call__(self, inputs: tf.Tensor,
                is_training: bool) -> tf.Tensor:
         trunk_embedding = self.trunk(inputs, is_training=is_training)
-        return {head: head_module(trunk_embedding,is_training=is_training) for head, head_module in self._heads.items()}
+        return {
+            head: head_module(trunk_embedding,is_training=is_training) 
+            for head, head_module in self._new_heads.items()}
     
     @tf.function(input_signature=[
       tf.TensorSpec([None, SEQUENCE_LENGTH, 4], tf.float32)])
     def predict_on_batch(self, x):
         """Method for SavedModel."""
         trunk_embedding = self.trunk(inputs, is_training=False)
-        return {head: head_module(trunk_embedding,is_training=is_training) for head, head_module in self._heads.items()}
+        return {head: head_module(trunk_embedding,is_training=is_training) for head, head_module in self._new_heads.items()}
 
 
 class TargetLengthCrop1D(snt.Module):

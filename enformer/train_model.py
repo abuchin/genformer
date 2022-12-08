@@ -87,6 +87,9 @@ def main():
                 },
                 'gradient_clip': {
                     'values': [float(x) for x in args.gradient_clip.split(',')]
+                },
+                'use_enformer_weights': {
+                    'values':[parse_bool_str(x) for x in args.use_enformer_weights.split(',')]
                 }
                 }
 
@@ -126,9 +129,10 @@ def main():
             wandb.config.val_examples=args.val_examples
             wandb.config.val_examples_TSS=args.val_examples_TSS
             
-            run_name = '_'.join(['LR1' + str(wandb.config.lr_base1),
-                                       'LR2' + str(wandb.config.lr_base2),
-                                       'GC' + str(wandb.config.gradient_clip),
+            run_name = '_'.join(['LR1-' + str(wandb.config.lr_base1),
+                                       'LR2-' + str(wandb.config.lr_base2),
+                                       'GC-' + str(wandb.config.gradient_clip),
+                                        'init-' + str(wandb.config.use_enformer_weights),
                                         args.model_save_basename])
             wandb.run.name = run_name
             base_name = wandb.config.model_save_basename + "_" + run_name
@@ -177,14 +181,6 @@ def main():
             
             enformer_model = enformer.Enformer(output_heads_dict = {'human': 98})
             SEQ_LENGTH = 196608
-
-            if args.enformer_checkpoint_path is not None:
-                options = tf.train.CheckpointOptions(experimental_io_device="/job:localhost")
-                checkpoint = tf.train.Checkpoint(module=enformer_model)#,options=options)
-                tf.saved_model.LoadOptions(experimental_io_device='/job:localhost')
-                latest = tf.train.latest_checkpoint(args.enformer_checkpoint_path)
-                checkpoint.restore(latest,options=options).assert_existing_objects_matched()
-                
 
             checkpoint_name = wandb.config.model_save_dir + "/" + \
                             wandb.config.model_save_basename + "_" + wandb.run.name
@@ -241,6 +237,15 @@ def main():
                 if epoch_i == 1:
                     # run once to build the model w/o updating anything
                     build_step(val_data_it)
+                    
+                    if wandb.config.use_enformer_weights:
+                        if args.enformer_checkpoint_path is not None:
+                            print('loading enformer weights...')
+                            options = tf.train.CheckpointOptions(experimental_io_device="/job:localhost")
+                            checkpoint = tf.train.Checkpoint(module=enformer_model)
+                            tf.saved_model.LoadOptions(experimental_io_device='/job:localhost')
+                            latest = tf.train.latest_checkpoint(args.enformer_checkpoint_path)
+                            checkpoint.restore(latest,options=options)#.assert_existing_objects_matched()
 
                 train_step(tr_data_it)
                     
@@ -274,8 +279,6 @@ def main():
                 
                 val_step_TSS(val_data_TSS_it)
 
-                
-                print('post val step tss')
                 val_pearson_TSS = metric_dict['hg_corr_stats'].result()['pearsonR'].numpy()
                 val_pearsons.append(val_pearson_TSS)
                 val_R2_TSS = metric_dict['hg_corr_stats'].result()['R2'].numpy()
@@ -284,8 +287,7 @@ def main():
                 y_preds = np.log(1.0+metric_dict['hg_corr_stats'].result()['y_preds'].numpy())
                 cell_types = metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
                 gene_map = metric_dict['hg_corr_stats'].result()['gene_map'].numpy()
-                
-                print('returned y_trues,preds, etc..')
+
                 figures,corrs_overall= training_utils.make_plots(y_trues,y_preds,
                                                                  cell_types,gene_map)
 
