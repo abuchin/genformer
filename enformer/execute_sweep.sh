@@ -25,4 +25,4 @@ python3 train_model.py \
             --val_examples_TSS=1645 \
             --num_targets=98 \
             --use_enformer_weights="True" \
-            --enformer_checkpoint_path="/home/jupyter/dev/BE_CD69_paper_2022/enformer_fine_tuning/checkpoint/sonnet_weights"
+            --enformer_checkpoint_path="sonnet_weights"
