@@ -15,8 +15,8 @@ python3 train_model.py \
             --min_delta=0.00001 \
             --model_save_dir="gs://picard-testing-176520/enformer_baseline/models" \
             --model_save_basename="enformer_baseline" \
-            --lr_base1="1.0e-05" \
-            --lr_base2="1.0e-03" \
+            --lr_base1="5.0e-06" \
+            --lr_base2="1.0e-04" \
             --epsilon=1.0e-10 \
             --num_parallel=8 \
             --savefreq=8 \

@@ -323,9 +323,7 @@ def main():
                 duration = (end - start) / 60.
                 print('completed epoch ' + str(epoch_i) + ' validation')
                 print('validation duration(mins): ' + str(duration))
-                print('patience counter at: ' + str(patience_counter))
-
-
+                
                 if (epoch_i > 2):
                     stop_criteria,patience_counter,best_epoch = \
                         training_utils.early_stopping(current_val_loss=val_losses[-1],
@@ -341,7 +339,7 @@ def main():
                                                         model_checkpoint=model_checkpoint,
                                                         checkpoint_name=checkpoint_name)
                 #plt.close('all')
-                print('patience counter at: ' + str(patience_counter))
+                    print('patience counter at: ' + str(patience_counter))
                 for key, item in metric_dict.items():
                     item.reset_state()
                 if stop_criteria:
