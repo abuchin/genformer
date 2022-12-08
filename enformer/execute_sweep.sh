@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model.py \
-            --tpu_name="node-4" \
-            --tpu_zone="us-central1-a" \
+            --tpu_name="pod" \
+            --tpu_zone="us-east1-d" \
             --wandb_project="enformer_baseline" \
             --wandb_user="njaved" \
             --wandb_sweep_name="enformer_baseline" \
