@@ -548,7 +548,7 @@ def make_plots(y_trues,
         ax_overall.set_xlim(0, max(y_trues))
         ax_overall.set_ylim(0, max(y_trues))
         plt.xlabel("log-true")
-        plt.ylabel("pred")
+        plt.ylabel("log-pred")
         plt.title("overall gene corr")
     except np.linalg.LinAlgError as err:
         sns.scatterplot(
@@ -558,7 +558,7 @@ def make_plots(y_trues,
         ax_overall.set_xlim(0, max(y_trues))
         ax_overall.set_ylim(0, max(y_trues))
         plt.xlabel("log-true")
-        plt.ylabel("pred")
+        plt.ylabel("log-pred")
         plt.title("overall gene corr")
 
     fig_gene_spec,ax_gene_spec=plt.subplots(figsize=(6,6))

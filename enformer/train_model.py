@@ -271,9 +271,9 @@ def main():
                           step=epoch_i)
 
                 R2=metric_dict['R2'].result()['R2'].numpy()
-                wandb.log({'all_tracks_R2': np.nanmean(pearsonsR),
-                           'ATAC_R2': np.nanmean(pearsonsR[:49]),
-                           'CAGE_R2': np.nanmean(pearsonsR[49:])},
+                wandb.log({'all_tracks_R2': np.nanmean(R2),
+                           'ATAC_R2': np.nanmean(R2[:49]),
+                           'CAGE_R2': np.nanmean(R2[49:])},
                           step=epoch_i)
                 print('computing TSS quant metrics')
                 
