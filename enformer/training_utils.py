@@ -333,7 +333,7 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift, out_length,nu
     target = tf.slice(target,
                       [320,0],
                       [896,-1])
-    t
+    
     tss_mask = tf.io.parse_tensor(example['tss_mask'],
                                   out_type=tf.int32)
     tss_mask = tf.slice(tss_mask,
