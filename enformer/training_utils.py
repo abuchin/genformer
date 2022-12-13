@@ -333,7 +333,7 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift, out_length,nu
     target = tf.slice(target,
                       [320,0],
                       [896,-1])
-    
+    t
     tss_mask = tf.io.parse_tensor(example['tss_mask'],
                                   out_type=tf.int32)
     tss_mask = tf.slice(tss_mask,
@@ -489,6 +489,7 @@ def make_plots(y_trues,
     results_df['gene_encoding'] =gene_map
     results_df['cell_type_encoding'] = cell_types
     
+    
     #results_df['true_zscore'] = df.groupby('cell_type_encoding')['true'].apply(lambda x: (x - x.mean())/x.std())
     results_df['true_zscore']=results_df.groupby(['cell_type_encoding']).true.transform(lambda x : zscore(x))
     #results_df['pred_zscore'] = df.groupby('cell_type_encoding')['pred'].apply(lambda x: (x - x.mean())/x.std())
@@ -499,12 +500,12 @@ def make_plots(y_trues,
     pred_zscore=results_df[['pred_zscore']].to_numpy()[:,0]
 
     try: 
-        cell_specific_corrs=results_df.groupby('cell_type_encoding')[['true_zscore','pred_zscore']].corr(method='pearson').unstack().iloc[:,1].tolist()
+        cell_specific_corrs=results_df.groupby('cell_type_encoding')[['true','pred']].corr(method='pearson').unstack().iloc[:,1].tolist()
     except np.linalg.LinAlgError as err:
         cell_specific_corrs = [0.0] * len(np.unique(cell_types))
 
     try: 
-        gene_specific_corrs=results_df.groupby('gene_encoding')[['true_zscore','pred_zscore']].corr(method='pearson').unstack().iloc[:,1].tolist()
+        gene_specific_corrs=results_df.groupby('gene_encoding')[['true','pred']].corr(method='pearson').unstack().iloc[:,1].tolist()
     except np.linalg.LinAlgError as err:
         gene_specific_corrs = [0.0] * len(np.unique(gene_map))
     
@@ -515,22 +516,22 @@ def make_plots(y_trues,
     fig_overall,ax_overall=plt.subplots(figsize=(6,6))
     
     ## scatter plot for 50k points max
-    idx = np.random.choice(np.arange(len(true_zscore)), 50000, replace=False)
+    idx = np.random.choice(np.arange(len(true)), 50000, replace=False)
     
     data = np.vstack([true_zscore[idx],
                       pred_zscore[idx]])
     
-    min_true = min(true_zscore)
-    max_true = max(true_zscore)
+    min_true = min(true)
+    max_true = max(true)
     
-    min_pred = min(pred_zscore)
-    max_pred = max(pred_zscore)
+    min_pred = min(pred)
+    max_pred = max(pred)
     
     try:
         kernel = stats.gaussian_kde(data)(data)
         sns.scatterplot(
-            x=true_zscore[idx],
-            y=pred_zscore[idx],
+            x=true[idx],
+            y=pred[idx],
             c=kernel,
             cmap="viridis")
         ax_overall.set_xlim(min_true,max_true)
@@ -540,8 +541,8 @@ def make_plots(y_trues,
         plt.title("overall gene corr")
     except np.linalg.LinAlgError as err:
         sns.scatterplot(
-            x=true_zscore[idx],
-            y=pred_zscore[idx],
+            x=true[idx],
+            y=pred[idx],
             cmap="viridis")
         ax_overall.set_xlim(min_true,max_true)
         ax_overall.set_ylim(min_pred,max_pred)

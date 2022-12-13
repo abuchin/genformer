@@ -191,14 +191,14 @@ def main():
     
             scheduler1= tf.keras.optimizers.schedules.CosineDecay(
                 initial_learning_rate=wandb.config.lr_base1,
-                decay_steps=wandb.config.total_steps, alpha=1.0)
+                decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=1.0)
             scheduler1=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base1,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps,
                                          decay_schedule_fn=scheduler1)
             
             scheduler2= tf.keras.optimizers.schedules.CosineDecay(
                 initial_learning_rate=wandb.config.lr_base2,
-                decay_steps=wandb.config.total_steps, alpha=1.0)
+                decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=1.0)
             schedule2=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base2,
                                          warmup_steps=math.ceil(wandb.config.warmup_frac*wandb.config.total_steps),
                                          decay_schedule_fn=scheduler2)
