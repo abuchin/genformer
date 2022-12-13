@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model.py \
-            --tpu_name="node-3" \
-            --tpu_zone="us-central1-a" \
+            --tpu_name="pod1" \
+            --tpu_zone="us-east1-d" \
             --wandb_project="enformer_baseline" \
             --wandb_user="njaved" \
             --wandb_sweep_name="enformer_baseline" \
@@ -19,8 +19,8 @@ python3 train_model.py \
             --lr_base2="1.0e-04" \
             --epsilon=1.0e-10 \
             --num_parallel=8 \
-            --savefreq=8 \
-            --train_examples=500 \
+            --savefreq=20 \
+            --train_examples=34201 \
             --val_examples=2213 \
             --val_examples_TSS=1646 \
             --num_targets=98 \
