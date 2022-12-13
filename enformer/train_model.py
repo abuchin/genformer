@@ -202,9 +202,9 @@ def main():
             schedule2=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base2,
                                          warmup_steps=math.ceil(wandb.config.warmup_frac*wandb.config.total_steps),
                                          decay_schedule_fn=scheduler2)
-            optimizer1 = tf.keras.optimizers.Adam(learning_rate=scheduler1)
+            optimizer1 = tf.keras.optimizers.Adam(learning_rate=scheduler1,epsilon=1e-08)
             
-            optimizer2 = tf.keras.optimizers.Adam(learning_rate=scheduler2)
+            optimizer2 = tf.keras.optimizers.Adam(learning_rate=scheduler2,epsilon=1e-08)
             optimizers_in = optimizer1,optimizer2
 
             metric_dict = {}
@@ -279,10 +279,6 @@ def main():
                 
                 val_step_TSS(val_data_TSS_it)
 
-                val_pearson_TSS = metric_dict['hg_corr_stats'].result()['pearsonR'].numpy()
-                val_pearsons.append(val_pearson_TSS)
-                val_R2_TSS = metric_dict['hg_corr_stats'].result()['R2'].numpy()
-                
                 y_trues = np.log(1.0+metric_dict['hg_corr_stats'].result()['y_trues'].numpy())
                 y_preds = np.log(1.0+metric_dict['hg_corr_stats'].result()['y_preds'].numpy())
                 cell_types = metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
@@ -294,21 +290,16 @@ def main():
                 print('returned TSS centered correlations and figures')
                 fig_cell_spec, fig_gene_spec, fig_overall=figures 
 
-                overall_gene_level_corr_sp, overall_gene_level_corr_pe, \
-                    cell_spec_median_corrs_sp, \
-                    cell_spec_median_corrs, \
-                    gene_spec_median_corrs_sp, \
-                    gene_spec_median_corrs = corrs_overall
+                cell_spec_mean_corrs, \
+                    gene_spec_mean_corrs = corrs_overall
                 
                 
-                print('hg_RNA_pearson_gene: ' + str(val_pearson_TSS))
-                print('hg_RNA_R2_gene: ' + str(val_R2_TSS))
+                val_pearsons.append(cell_spec_mean_corrs)
+                
+                print('hg_RNA_pearson: ' + str(cell_spec_mean_corrs))
 
-                
-                wandb.log({'overall_gene_level_corr_TSS': overall_gene_level_corr_pe,
-                           'overall_gene_level_corr_TSS_sp': overall_gene_level_corr_sp,
-                           'gene_spec_median_corrs_sp': gene_spec_median_corrs_sp,
-                           'cell_spec_median_corrs_sp': cell_spec_median_corrs_sp},
+                wandb.log({'gene_spec_mean_corrs': gene_spec_mean_corrs,
+                           'cell_spec_mean_corrs': cell_spec_mean_corrs},
                           step=epoch_i)
                 try:
                     wandb.log({'hg_OVERALL_TSS_predictions': fig_overall,

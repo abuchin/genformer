@@ -39,6 +39,7 @@ import scipy.stats
 import scipy.ndimage
 
 import metrics
+from scipy.stats import zscore
 
 tf.keras.backend.set_floatx('float32')
 
@@ -272,9 +273,7 @@ def deserialize_tr(serialized_example,input_length,max_shift, out_length,num_tar
                                         [input_length,4]),
             'target': tf.ensure_shape(target,
                                       [896,num_targets])}
-                    
-
-
+            
 def deserialize_val(serialized_example,input_length,max_shift, out_length,num_targets):
     """Deserialize bytes stored in TFRecordFile."""
     feature_map = {
@@ -282,8 +281,6 @@ def deserialize_val(serialized_example,input_length,max_shift, out_length,num_ta
       'target': tf.io.FixedLenFeature([], tf.string)
     }
     
-    data = tf.io.parse_example(serialized_example, feature_map)
-
     shift = 5
     input_seq_length = input_length + max_shift
     interval_end = input_length + shift
@@ -319,15 +316,10 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift, out_length,nu
         'tss_mask': tf.io.FixedLenFeature([], tf.string),
         'gene_name': tf.io.FixedLenFeature([], tf.string)
     }
-    
-    data = tf.io.parse_example(serialized_example, feature_map)
 
     shift = 5
     input_seq_length = input_length + max_shift
     interval_end = input_length + shift
-    
-    ### rev_comp
-    #rev_comp = random.randrange(0,2)
 
     example = tf.io.parse_example(serialized_example, feature_map)
     sequence = tf.io.decode_raw(example['sequence'], tf.bool)
@@ -342,7 +334,7 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift, out_length,nu
                       [320,0],
                       [896,-1])
     
-    tss_mask = tf.io.parse_tensor(data['tss_mask'],
+    tss_mask = tf.io.parse_tensor(example['tss_mask'],
                                   out_type=tf.int32)
     tss_mask = tf.slice(tss_mask,
                       [320,0],
@@ -497,81 +489,77 @@ def make_plots(y_trues,
     results_df['gene_encoding'] =gene_map
     results_df['cell_type_encoding'] = cell_types
     
+    #results_df['true_zscore'] = df.groupby('cell_type_encoding')['true'].apply(lambda x: (x - x.mean())/x.std())
+    results_df['true_zscore']=results_df.groupby(['cell_type_encoding']).true.transform(lambda x : zscore(x))
+    #results_df['pred_zscore'] = df.groupby('cell_type_encoding')['pred'].apply(lambda x: (x - x.mean())/x.std())
+    results_df['pred_zscore']=results_df.groupby(['cell_type_encoding']).pred.transform(lambda x : zscore(x))
     
-    ## compute the overall correlation
-    try:
-        overall_gene_level_corr_sp = spearmanr(y_trues,
-                                               y_preds)[0]
-        overall_gene_level_corr_pe = pearsonr(y_trues,
-                                               y_preds)[0]
-    except np.linalg.LinAlgError as err:
-        overall_gene_level_corr_sp = 0.0
-    
-    
+    true_zscore=results_df[['true_zscore']].to_numpy()[:,0]
+
+    pred_zscore=results_df[['pred_zscore']].to_numpy()[:,0]
+
     try: 
-        cell_specific_corrs_sp=results_df.groupby('cell_type_encoding')[['true','pred']].corr(method='spearman').unstack().iloc[:,1].tolist()
-    except np.linalg.LinAlgError as err:
-        cell_specific_corrs_sp = [0.0] * len(np.unique(cell_types))
-        
-    try: 
-        cell_specific_corrs=results_df.groupby('cell_type_encoding')[['true','pred']].corr(method='pearson').unstack().iloc[:,1].tolist()
+        cell_specific_corrs=results_df.groupby('cell_type_encoding')[['true_zscore','pred_zscore']].corr(method='pearson').unstack().iloc[:,1].tolist()
     except np.linalg.LinAlgError as err:
         cell_specific_corrs = [0.0] * len(np.unique(cell_types))
 
     try: 
-        gene_specific_corrs_sp=results_df.groupby('gene_encoding')[['true','pred']].corr(method='spearman').unstack().iloc[:,1].tolist()
+        gene_specific_corrs=results_df.groupby('gene_encoding')[['true_zscore','pred_zscore']].corr(method='pearson').unstack().iloc[:,1].tolist()
     except np.linalg.LinAlgError as err:
-        gene_specific_corrs_sp = [0.0] * len(np.unique(gene_map))
-        
-    try: 
-        gene_specific_corrs=results_df.groupby('gene_encoding')[['true','pred']].corr(method='pearson').unstack().iloc[:,1].tolist()
-    except np.linalg.LinAlgError as err:
-        cell_specific_corrs_sp = [0.0] * len(np.unique(gene_map))
+        gene_specific_corrs = [0.0] * len(np.unique(gene_map))
     
-    corrs_overall = overall_gene_level_corr_sp, overall_gene_level_corr_pe, \
-                        np.nanmedian(cell_specific_corrs_sp), \
-                        np.nanmedian(cell_specific_corrs), \
-                        np.nanmedian(gene_specific_corrs_sp), \
-                        np.nanmedian(gene_specific_corrs)
+    corrs_overall = np.nanmean(cell_specific_corrs), \
+                        np.nanmean(gene_specific_corrs)
                         
-            
-
+        
     fig_overall,ax_overall=plt.subplots(figsize=(6,6))
-    data = np.vstack([y_trues,y_preds])
+    
+    ## scatter plot for 50k points max
+    idx = np.random.choice(np.arange(len(true_zscore)), 50000, replace=False)
+    
+    data = np.vstack([true_zscore[idx],
+                      pred_zscore[idx]])
+    
+    min_true = min(true_zscore)
+    max_true = max(true_zscore)
+    
+    min_pred = min(pred_zscore)
+    max_pred = max(pred_zscore)
+    
     try:
         kernel = stats.gaussian_kde(data)(data)
         sns.scatterplot(
-            x=y_trues,
-            y=y_preds,
+            x=true_zscore[idx],
+            y=pred_zscore[idx],
             c=kernel,
             cmap="viridis")
-        ax_overall.set_xlim(0, max(y_trues))
-        ax_overall.set_ylim(0, max(y_trues))
-        plt.xlabel("log-true")
-        plt.ylabel("log-pred")
+        ax_overall.set_xlim(min_true,max_true)
+        ax_overall.set_ylim(min_pred,max_pred)
+        plt.xlabel("log-true zscore")
+        plt.ylabel("log-pred zscore")
         plt.title("overall gene corr")
     except np.linalg.LinAlgError as err:
         sns.scatterplot(
-            x=y_trues,
-            y=y_preds,
+            x=true_zscore[idx],
+            y=pred_zscore[idx],
             cmap="viridis")
-        ax_overall.set_xlim(0, max(y_trues))
-        ax_overall.set_ylim(0, max(y_trues))
-        plt.xlabel("log-true")
-        plt.ylabel("log-pred")
+        ax_overall.set_xlim(min_true,max_true)
+        ax_overall.set_ylim(min_pred,max_pred)
+        plt.xlabel("log-true zscore")
+        plt.ylabel("log-pred zscore")
         plt.title("overall gene corr")
 
     fig_gene_spec,ax_gene_spec=plt.subplots(figsize=(6,6))
-    sns.histplot(x=np.asarray(gene_specific_corrs_sp), bins=50)
+    sns.histplot(x=np.asarray(gene_specific_corrs), bins=50)
     plt.xlabel("single gene cross cell-type correlations")
     plt.ylabel("count")
-    plt.title("log-log spearmanR")
+    plt.title("log-log z score pearsons")
 
     fig_cell_spec,ax_cell_spec=plt.subplots(figsize=(6,6))
-    sns.histplot(x=np.asarray(cell_specific_corrs_sp), bins=50)
+    sns.histplot(x=np.asarray(cell_specific_corrs), bins=50)
     plt.xlabel("single cell-type cross gene correlations")
     plt.ylabel("count")
-    plt.title("log-log spearmanR")
+    plt.title("log-log z score pearsons")
         
         ### by coefficient variation breakdown
     figures = fig_cell_spec, fig_gene_spec, fig_overall

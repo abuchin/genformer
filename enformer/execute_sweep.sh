@@ -9,14 +9,14 @@ python3 train_model.py \
             --gcs_project="picard-testing-176520" \
             --gcs_path="gs://picard-testing-176520/genformer_baseline/tfrecords" \
             --gcs_path_TSS="gs://picard-testing-176520/genformer_baseline/tss_centered/tfrecords" \
-            --num_epochs=120 \
+            --num_epochs=100 \
             --warmup_frac=0.146 \
             --patience=30\
             --min_delta=0.00001 \
             --model_save_dir="gs://picard-testing-176520/enformer_baseline/models" \
             --model_save_basename="enformer_baseline" \
-            --lr_base1="5.0e-06" \
-            --lr_base2="1.0e-04" \
+            --lr_base1="1.0e-07" \
+            --lr_base2="5.0e-04" \
             --epsilon=1.0e-10 \
             --num_parallel=8 \
             --savefreq=8 \
