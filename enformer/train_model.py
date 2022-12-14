@@ -284,8 +284,10 @@ def main():
                 cell_types = metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
                 gene_map = metric_dict['hg_corr_stats'].result()['gene_map'].numpy()
 
-                figures,corrs_overall= training_utils.make_plots(y_trues,y_preds,
-                                                                 cell_types,gene_map)
+                figures,corrs_overall= training_utils.make_plots(y_trues,
+                                                                 y_preds,
+                                                                 cell_types,
+                                                                 gene_map)
 
                 print('returned TSS centered correlations and figures')
                 fig_cell_spec, fig_gene_spec, fig_overall=figures 

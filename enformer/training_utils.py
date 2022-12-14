@@ -117,7 +117,7 @@ def return_train_val_functions(model,
     metric_dict["hg_corr_stats"] = metrics.correlation_stats_gene_centered(name='hg_corr_stats')
     
     metric_dict['R2'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
-    poisson_loss = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
+    loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
 
     def dist_train_step_transfer(iterator):
         @tf.function(jit_compile=True)
@@ -130,8 +130,8 @@ def return_train_val_functions(model,
 
                 output = model(sequence, is_training=True)['human']
 
-                loss = tf.reduce_sum(poisson_loss(target,
-                                                  output)) * (1. / global_batch_size)
+                loss = tf.reduce_mean(loss_fn(target,
+                                              output)) * (1. / global_batch_size)
                 
             gradients = tape.gradient(loss, model.trunk.trainable_variables + model.new_heads['human'].trainable_variables)
             gradients, _ = tf.clip_by_global_norm(gradients, 
@@ -151,8 +151,8 @@ def return_train_val_functions(model,
             sequence=tf.cast(inputs['sequence'],
                              dtype=tf.float32)
             output = model(sequence, is_training=False)['human']
-            loss = tf.reduce_sum(poisson(target,
-                                         output)) * (1. / global_batch_size)
+            loss = tf.reduce_mean(loss_fn(target,
+                                          output)) * (1. / global_batch_size)
             metric_dict["hg_val"].update_state(loss)
             metric_dict['pearsonsR'].update_state(target, output)
             metric_dict['R2'].update_state(target, output)
@@ -263,6 +263,8 @@ def deserialize_tr(serialized_example,input_length,max_shift, out_length,num_tar
     target = tf.slice(target,
                       [320,0],
                       [896,-1])
+    
+    
     
     if rev_comp == 1:
         sequence = tf.gather(sequence, [3, 2, 1, 0], axis=-1)
@@ -486,8 +488,8 @@ def make_plots(y_trues,
     results_df = pd.DataFrame()
     results_df['true'] = y_trues
     results_df['pred'] = y_preds
-    results_df['gene_encoding'] =gene_map
     results_df['cell_type_encoding'] = cell_types
+    results_df['gene_encoding'] = gene_map
     
     
     #results_df['true_zscore'] = df.groupby('cell_type_encoding')['true'].apply(lambda x: (x - x.mean())/x.std())
@@ -509,58 +511,58 @@ def make_plots(y_trues,
     except np.linalg.LinAlgError as err:
         gene_specific_corrs = [0.0] * len(np.unique(gene_map))
     
-    corrs_overall = np.nanmean(cell_specific_corrs), \
-                        np.nanmean(gene_specific_corrs)
+    corrs_overall = np.nanmean(cell_specific_corrs), np.nanmean(gene_specific_corrs)
                         
         
     fig_overall,ax_overall=plt.subplots(figsize=(6,6))
     
     ## scatter plot for 50k points max
-    idx = np.random.choice(np.arange(len(true)), 50000, replace=False)
+    idx = np.random.choice(np.arange(len(y_trues)), 20000, replace=False)
     
-    data = np.vstack([true_zscore[idx],
-                      pred_zscore[idx]])
+    data = np.vstack([y_trues[idx],
+                      y_preds[idx]])
     
-    min_true = min(true)
-    max_true = max(true)
+    min_true = min(y_trues)
+    max_true = max(y_trues)
     
-    min_pred = min(pred)
-    max_pred = max(pred)
+    min_pred = min(y_preds)
+    max_pred = max(y_preds)
     
     try:
         kernel = stats.gaussian_kde(data)(data)
         sns.scatterplot(
-            x=true[idx],
-            y=pred[idx],
+            x=y_trues[idx],
+            y=y_preds[idx],
             c=kernel,
             cmap="viridis")
         ax_overall.set_xlim(min_true,max_true)
         ax_overall.set_ylim(min_pred,max_pred)
-        plt.xlabel("log-true zscore")
-        plt.ylabel("log-pred zscore")
+        plt.xlabel("log-true")
+        plt.ylabel("log-pred")
         plt.title("overall gene corr")
     except np.linalg.LinAlgError as err:
         sns.scatterplot(
-            x=true[idx],
-            y=pred[idx],
+            x=y_trues[idx],
+            y=y_preds[idx],
             cmap="viridis")
         ax_overall.set_xlim(min_true,max_true)
         ax_overall.set_ylim(min_pred,max_pred)
-        plt.xlabel("log-true zscore")
-        plt.ylabel("log-pred zscore")
+        plt.xlabel("log-true")
+        plt.ylabel("log-pred")
         plt.title("overall gene corr")
 
     fig_gene_spec,ax_gene_spec=plt.subplots(figsize=(6,6))
     sns.histplot(x=np.asarray(gene_specific_corrs), bins=50)
-    plt.xlabel("single gene cross cell-type correlations")
+    plt.xlabel("log-log pearsons")
     plt.ylabel("count")
-    plt.title("log-log z score pearsons")
+    plt.title("single gene cross cell-type correlations")
 
     fig_cell_spec,ax_cell_spec=plt.subplots(figsize=(6,6))
     sns.histplot(x=np.asarray(cell_specific_corrs), bins=50)
-    plt.xlabel("single cell-type cross gene correlations")
+    plt.xlabel("log-log pearsons")
     plt.ylabel("count")
-    plt.title("log-log z score pearsons")
+    plt.title("single cell-type cross gene correlations")
+
         
         ### by coefficient variation breakdown
     figures = fig_cell_spec, fig_gene_spec, fig_overall
@@ -795,114 +797,6 @@ def log2(x):
     return numerator / denominator
 
 
-def fourier_att_prior_loss(
-    input_grads, freq_limit=5000, limit_softness=0.2,
-    att_prior_grad_smooth_sigma=3):
-    """
-    Computes an attribution prior loss for some given training examples,
-    using a Fourier transform form.
-    Arguments:
-        `output`: a B-tensor, where B is the batch size; each entry is a
-            predicted logTPM value
-        `input_grads`: a B x L x 4 tensor, where B is the batch size, L is
-            the length of the input; this needs to be the gradients of the
-            input with respect to the output; this should be
-            *gradient times input*
-        `freq_limit`: the maximum integer frequency index, k, to consider for
-            the loss; this corresponds to a frequency cut-off of pi * k / L;
-            k should be less than L / 2
-        `limit_softness`: amount to soften the limit by, using a hill
-            function; None means no softness
-        `att_prior_grad_smooth_sigma`: amount to smooth the gradient before
-            computing the loss
-    Returns a single scalar Tensor consisting of the attribution loss for
-    the batch.
-    """
-    abs_grads = kb.sum(kb.abs(input_grads), axis=2)
-
-    # Smooth the gradients
-    grads_smooth = smooth_tensor_1d(
-        abs_grads, att_prior_grad_smooth_sigma
-    )
-    
-    # Only do the positives
-    #pos_grads = grads_smooth[status == 1]
-
-    #if pos_grads.numpy().size:
-    pos_fft = tf.signal.rfft(tf.cast(abs_grads,dtype=tf.float32))
-    pos_mags = tf.abs(pos_fft)
-    pos_mag_sum = kb.sum(pos_mags, axis=1, keepdims=True)
-    zero_mask = tf.cast(pos_mag_sum == 0, tf.float32)
-    pos_mag_sum = pos_mag_sum + zero_mask  # Keep 0s when the sum is 0  
-    pos_mags = pos_mags / pos_mag_sum
-
-    # Cut off DC
-    pos_mags = pos_mags[:, 1:]
-
-    # Construct weight vector
-    if limit_softness is None:
-        weights = tf.sequence_mask(
-            [freq_limit], maxlen=tf.shape(pos_mags)[1], dtype=tf.float32
-        )
-    else:
-        weights = tf.sequence_mask(
-            [freq_limit], maxlen=tf.shape(pos_mags)[1], dtype=tf.float32
-        )
-        x = tf.abs(tf.range(
-            -freq_limit + 1, tf.shape(pos_mags)[1] - freq_limit + 1, dtype=tf.float32
-        ))  # Take absolute value of negatives just to avoid NaN; they'll be removed
-        decay = 1 / (1 + tf.pow(x, limit_softness))
-        weights = weights + ((1.0 - weights) * decay)
-
-    # Multiply frequency magnitudes by weights
-    pos_weighted_mags = pos_mags * weights
-
-    # Add up along frequency axis to get score
-    pos_score = tf.reduce_sum(pos_weighted_mags, axis=1)
-    pos_loss = 1 - pos_score
-    return tf.reduce_mean(pos_loss)
     
     
-    
-    
-def smooth_tensor_1d(input_tensor, smooth_sigma):
-    """
-    Smooths an input tensor along a dimension using a Gaussian filter.
-    Arguments:
-        `input_tensor`: a A x B tensor to smooth along the second dimension
-        `smooth_sigma`: width of the Gaussian to use for smoothing; this is the
-            standard deviation of the Gaussian to use, and the Gaussian will be
-            truncated after 1 sigma (i.e. the smoothing window is
-            1 + (2 * sigma); sigma of 0 means no smoothing
-    Returns an array the same shape as the input tensor, with the dimension of
-    `B` smoothed.
-    """
-    input_tensor = tf.cast(input_tensor,dtype=tf.float32)
-    # Generate the kernel
-    if smooth_sigma == 0:
-        sigma, truncate = 1, 0
-    else:
-        sigma, truncate = smooth_sigma, 1
-    base = np.zeros(1 + (2 * sigma))
-    base[sigma] = 1  # Center of window is 1 everywhere else is 0
-    kernel = scipy.ndimage.gaussian_filter(base, 
-                                           sigma=sigma, 
-                                           truncate=truncate)
-    kernel = tf.constant(kernel,dtype=tf.float32)
-
-    # Expand the input and kernel to 3D, with channels of 1
-    input_tensor = tf.expand_dims(input_tensor, axis=2)  # Shape: A x B x 1
-    kernel = tf.expand_dims(tf.expand_dims(kernel, axis=1), axis=2)  # Shape: (1 + 2s) x 1 x 1
-
-    smoothed = tf.nn.conv1d(
-        input_tensor, kernel, stride=1, padding="SAME", data_format="NWC"
-    )
-
-    return tf.squeeze(smoothed, axis=2)
-
-def poisson(y_true, y_pred):
-
-    
-    return tf.reduce_mean(y_pred - (y_true * tf.math.log(y_pred + tf.keras.backend.epsilon())),
-                                            axis=-1)
     
