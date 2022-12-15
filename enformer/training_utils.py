@@ -377,7 +377,7 @@ def return_dataset(gcs_path,
     
     list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
                                                 wc)))
-
+    random.shuffle(list_files)
     files = tf.data.Dataset.list_files(list_files)
     
     dataset = tf.data.TFRecordDataset(files,
