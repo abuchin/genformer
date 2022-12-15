@@ -16,11 +16,11 @@ python3 train_model.py \
             --model_save_dir="gs://picard-testing-176520/enformer_baseline/models" \
             --model_save_basename="enformer_baseline" \
             --lr_base1="1.0e-06" \
-            --lr_base2="1.0e-03" \
+            --lr_base2="5.0e-04" \
             --epsilon=1.0e-10 \
             --num_parallel=8 \
             --savefreq=25 \
-            --train_examples=34021 \
+            --train_examples=34201 \
             --val_examples=2213 \
             --val_examples_TSS=1646 \
             --num_targets=98 \
