@@ -348,34 +348,35 @@ def main():
                            'val_pearson': pearsons,
                            'val_R2': R2},step=epoch_i)
                 
-                val_step_TSS(data_val_TSS)
-                
-                val_pearson_TSS = metric_dict['corr_stats'].result()['pearsonR'].numpy()
-                val_R2_TSS = metric_dict['corr_stats'].result()['R2'].numpy()
-                
-                y_trues = np.log(1.0+metric_dict['corr_stats'].result()['y_trues'].numpy())
-                y_preds = np.log(1.0+metric_dict['corr_stats'].result()['y_preds'].numpy())
-                cell_types = metric_dict['corr_stats'].result()['cell_types'].numpy()
-                gene_map = metric_dict['corr_stats'].result()['gene_map'].numpy()
+                if epoch_i % 4 == 0: 
+                    val_step_TSS(data_val_TSS)
 
-                figures,corrs_overall= training_utils.make_plots(y_trues,y_preds,
-                                                                 cell_types,gene_map)
+                    val_pearson_TSS = metric_dict['corr_stats'].result()['pearsonR'].numpy()
+                    val_R2_TSS = metric_dict['corr_stats'].result()['R2'].numpy()
+
+                    y_trues = np.log(1.0+metric_dict['corr_stats'].result()['y_trues'].numpy())
+                    y_preds = np.log(1.0+metric_dict['corr_stats'].result()['y_preds'].numpy())
+                    cell_types = metric_dict['corr_stats'].result()['cell_types'].numpy()
+                    gene_map = metric_dict['corr_stats'].result()['gene_map'].numpy()
+
+                    figures,corrs_overall= training_utils.make_plots(y_trues,y_preds,
+                                                                     cell_types,gene_map)
 
 
-                fig_cell_spec, fig_gene_spec, fig_overall=figures 
+                    fig_cell_spec, fig_gene_spec, fig_overall=figures 
 
-                cell_specific_corrs, gene_specific_corrs = corrs_overall
-                
-                print('cell_specific_correlation: ' + str(cell_specific_corrs))
-                print('gene_specific_correlation: ' + str(gene_specific_corrs))
-                
-                wandb.log({'gene_spec_median_corrs_pe': gene_specific_corrs,
-                           'cell_spec_median_corrs_pe': cell_specific_corrs},
-                          step=epoch_i)
-                wandb.log({'hg_OVERALL_TSS_predictions': fig_overall,
-                           'cross_dataset_dist': fig_cell_spec,
-                           'cross_gene_dist': fig_gene_spec},
-                          step=epoch_i)
+                    cell_specific_corrs, gene_specific_corrs = corrs_overall
+
+                    print('cell_specific_correlation: ' + str(cell_specific_corrs))
+                    print('gene_specific_correlation: ' + str(gene_specific_corrs))
+
+                    wandb.log({'gene_spec_median_corrs_pe': gene_specific_corrs,
+                               'cell_spec_median_corrs_pe': cell_specific_corrs},
+                              step=epoch_i)
+                    wandb.log({'hg_OVERALL_TSS_predictions': fig_overall,
+                               'cross_dataset_dist': fig_cell_spec,
+                               'cross_gene_dist': fig_gene_spec},
+                              step=epoch_i)
                 
 
                 end = time.time()

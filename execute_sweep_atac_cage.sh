@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model_atac_cage.py \
-            --tpu_name="node-4" \
-            --tpu_zone="us-central1-a" \
+            --tpu_name="pod" \
+            --tpu_zone="us-east1-d" \
             --wandb_project="aformer_atac_cage" \
             --wandb_user="njaved" \
             --wandb_sweep_name="aformer_atac_cage" \
@@ -14,12 +14,12 @@ python3 train_model_atac_cage.py \
             --final_output_length=896 \
             --max_shift=10 \
             --batch_size=4 \
-            --num_epochs=5 \
-            --train_examples=10000 \
-            --val_examples=1500 \
-            --val_examples_TSS=1200 \
+            --num_epochs=40 \
+            --train_examples=779000 \
+            --val_examples=108437 \
+            --val_examples_TSS=234857 \
             --warmup_frac=0.75 \
-            --patience=5 \
+            --patience=40 \
             --output_res=128 \
             --min_delta=0.000005 \
             --model_save_dir="gs://picard-testing-176520/enformer_atac_cage_paired" \
@@ -36,7 +36,7 @@ python3 train_model_atac_cage.py \
             --num_random_features="256" \
             --hidden_size="1552" \
             --kernel_transformation="relu_kernel_transformation" \
-            --savefreq=5 \
+            --savefreq=40 \
             --freeze_conv_layers="False" \
             --load_init="True" \
             --filter_list_atac="2,4,6,8,12,16" \
