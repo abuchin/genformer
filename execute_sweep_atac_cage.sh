@@ -15,7 +15,7 @@ python3 train_model_atac_cage.py \
             --max_shift=10 \
             --batch_size=4 \
             --num_epochs=40 \
-            --train_examples=779000 \
+            --train_examples=993217 \
             --val_examples=108437 \
             --val_examples_TSS=234857 \
             --warmup_frac=0.75 \
@@ -26,13 +26,13 @@ python3 train_model_atac_cage.py \
             --model_save_basename="aformer_genecentered" \
             --lr_base1="1.0e-06" \
             --lr_base2="1.0e-04" \
-            --decay_frac="0.50" \
+            --decay_frac="0.75" \
             --gradient_clip="1.0" \
             --epsilon=1.0e-14 \
-            --num_transformer_layers="4" \
-            --dropout_rate="0.40" \
+            --num_transformer_layers="6" \
+            --dropout_rate="0.20" \
             --pointwise_dropout_rate="0.05" \
-            --num_heads="4" \
+            --num_heads="8" \
             --num_random_features="256" \
             --hidden_size="1552" \
             --kernel_transformation="relu_kernel_transformation" \
@@ -40,5 +40,5 @@ python3 train_model_atac_cage.py \
             --freeze_conv_layers="False" \
             --load_init="True" \
             --filter_list_atac="2,4,6,8,12,16" \
-            --enformer_checkpoint_path="/home/jupyter/dev/BE_CD69_paper_2022/enformer_fine_tuning/checkpoint/sonnet_weights"
+            --enformer_checkpoint_path="sonnet_weights"
             

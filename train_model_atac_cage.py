@@ -344,6 +344,7 @@ def main():
                 
                 
                 val_losses.append(val_loss)
+                val_pearsons.append(pearsons)
                 wandb.log({'val_loss': val_loss,
                            'val_pearson': pearsons,
                            'val_R2': R2},step=epoch_i)
