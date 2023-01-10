@@ -367,7 +367,6 @@ class Attention(tf.keras.layers.Layer):
     def __init__(self,
                    hidden_size,
                    num_heads,
-                   attention_dropout,
                    kernel_transformation=softmax_kernel_transformation,
                    numerical_stabilizer=0.001,
                    causal=False,
@@ -405,7 +404,6 @@ class Attention(tf.keras.layers.Layer):
         super(Attention, self).__init__()
         self.hidden_size = hidden_size
         self.num_heads = num_heads
-        self.attention_dropout = attention_dropout
         self.kernel_transformation = kernel_transformation
         self.numerical_stabilizer = numerical_stabilizer
         self.causal = causal
