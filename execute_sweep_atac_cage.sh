@@ -1,0 +1,44 @@
+#!/bin/bash -l
+
+python3 train_model_atac_cage.py \
+            --tpu_name="node-4" \
+            --tpu_zone="us-central1-a" \
+            --wandb_project="aformer_atac_cage" \
+            --wandb_user="njaved" \
+            --wandb_sweep_name="aformer_atac_cage" \
+            --gcs_project="picard-testing-176520" \
+            --gcs_path="gs://picard-testing-176520/enformer_atac_cage_paired/preprocessed" \
+            --gcs_path_TSS="gs://picard-testing-176520/enformer_atac_cage_paired_tss/preprocessed" \
+            --input_length=196608 \
+            --output_length=1536 \
+            --final_output_length=896 \
+            --max_shift=10 \
+            --batch_size=4 \
+            --num_epochs=5 \
+            --train_examples=10000 \
+            --val_examples=1500 \
+            --val_examples_TSS=1200 \
+            --warmup_frac=0.75 \
+            --patience=5 \
+            --output_res=128 \
+            --min_delta=0.000005 \
+            --model_save_dir="gs://picard-testing-176520/enformer_atac_cage_paired" \
+            --model_save_basename="aformer_genecentered" \
+            --lr_base1="1.0e-06" \
+            --lr_base2="1.0e-04" \
+            --decay_frac="0.50" \
+            --gradient_clip="1.0" \
+            --epsilon=1.0e-14 \
+            --num_transformer_layers="4" \
+            --dropout_rate="0.40" \
+            --pointwise_dropout_rate="0.05" \
+            --num_heads="4" \
+            --num_random_features="256" \
+            --hidden_size="1552" \
+            --kernel_transformation="relu_kernel_transformation" \
+            --savefreq=5 \
+            --freeze_conv_layers="False" \
+            --load_init="True" \
+            --filter_list_atac="2,4,6,8,12,16" \
+            --enformer_checkpoint_path="/home/jupyter/dev/BE_CD69_paper_2022/enformer_fine_tuning/checkpoint/sonnet_weights"
+            
