@@ -130,6 +130,9 @@ def main():
                 },
                 'filter_list_atac': {
                     'values': [[int(x) for x in args.filter_list_atac.split(',')]]
+                },
+                'loss_fn_type': {
+                    'values': [args.loss_fn_type]
                 }
                 
             }
@@ -183,6 +186,7 @@ def main():
                                          'D-' + str(wandb.config.dropout_rate),
                                          'K-' + str(wandb.config.kernel_transformation)])
 
+            
             '''
             TPU init options
             '''
@@ -231,12 +235,13 @@ def main():
                                                                 g)
 
             print('created dataset iterators')
-            if wandb.config.load_init:
+            if (wandb.config.load_init and os.path.isdir(args.enformer_checkpoint_path)):
                 inits=training_utils.get_initializers(args.enformer_checkpoint_path)
                 wandb.config.update({"filter_list_seq": [768, 896, 1024, 1152, 1280, 1536]},
                                     allow_val_change=True)
             else:
                 inits=None
+                print('WARNING: supplied checkpoint directory does not exist')
 
             model = aformer.aformer(kernel_transformation=wandb.config.kernel_transformation,
                                     dropout_rate=wandb.config.dropout_rate,
@@ -296,7 +301,8 @@ def main():
                                                                                     strategy,
                                                                                     metric_dict,
                                                                                     GLOBAL_BATCH_SIZE,
-                                                                                    wandb.config.gradient_clip)
+                                                                                    wandb.config.gradient_clip,
+                                                                                    loss_fn_type = wandb.config.loss_fn_type)
                 
 
             global_step = 0

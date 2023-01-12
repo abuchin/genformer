@@ -261,9 +261,15 @@ def return_train_val_functions(model,
                                strategy,
                                metric_dict,
                                global_batch_size,
-                               gradient_clip):
+                               gradient_clip,
+                               loss_fn_type):
     
-    loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
+    if loss_fn_type == 'poisson':
+        loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
+    elif loss_fn_type == 'mse':
+        loss_fn = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
+    else:
+        raise ValueError('loss fn not implemented')
 
     optimizer1,optimizer2=optimizers_in
     
@@ -293,8 +299,8 @@ def return_train_val_functions(model,
                 remaining_vars = model.stem_conv_atac.trainable_variables + \
                                     model.stem_res_conv_atac.trainable_variables + \
                                     model.shared_transformer.trainable_variables + \
-                                    model.final_pointwise1.trainable_variables + \
-                                    model.final_pointwise2.trainable_variables
+                                    model.final_pointwise.trainable_variables + \
+                                    model.final_dense.trainable_variables 
                 vars_all = conv_vars + remaining_vars
                 for var in vars_all:
                     tape.watch(var)
@@ -451,6 +457,11 @@ def deserialize_tr(serialized_example,
     atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
                                               out_type=tf.float32),
                            [output_length,1])
+    
+    atac = atac + tf.math.abs(tf.random.normal(atac.shape,
+                                               mean=0.0,
+                                               stddev=0.05,
+                                               dtype=tf.float32))
     
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),
@@ -726,7 +737,7 @@ def make_plots(y_trues,
     fig_overall,ax_overall=plt.subplots(figsize=(6,6))
     
     ## scatter plot for 50k points max
-    idx = np.random.choice(np.arange(len(y_trues)), 600, replace=False)
+    idx = np.random.choice(np.arange(len(y_trues)), 1000, replace=False)
     
     data = np.vstack([y_trues[idx],
                       y_preds[idx]])
@@ -969,6 +980,11 @@ def parse_args(parser):
                         type=str,
                         default="1.0",
                         help= 'gradient_clip')
+    parser.add_argument('--loss_fn_type',
+                        dest='loss_fn_type',
+                        type=str,
+                        default="poisson",
+                        help= 'loss_fn_type')
     parser.add_argument('--dropout_rate',
                         dest='dropout_rate',
                         default="0.40",

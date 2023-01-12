@@ -16,8 +16,7 @@ SEQUENCE_LENGTH=65536
 @tf.keras.utils.register_keras_serializable()
 class aformer(tf.keras.Model):
     def __init__(self,
-                 kernel_transformation = 'softmax_kernel_transformation',
-                 transformer_type = 'performer',
+                 kernel_transformation = 'relu_kernel_transformation',
                  dropout_rate: float = 0.2,
                  pointwise_dropout_rate: float = 0.2,
                  input_length: int = 196608,
@@ -138,8 +137,10 @@ class aformer(tf.keras.Model):
                                                    train=False if self.freeze_conv_layers else True,
                                                    #strides=1,
                                                    name='pointwise_conv_block'))
+        
         self.stem_res_conv_atac=Residual(enf_conv_block(16, 1,
-                                                        name='pointwise_conv_block'))
+                                                        name='pointwise_conv_block_atac'))
+        
         self.stem_pool = SoftmaxPooling1D(per_channel=True,
                                           w_init_scale=2.0,
                                           pool_size=2,
@@ -225,19 +226,17 @@ class aformer(tf.keras.Model):
         self.crop_final = TargetLengthCrop1D(uncropped_length=self.output_length, 
                                              target_length=self.final_output_length,
                                              name='target_input')
-
-        self.final_pointwise1 = tf.keras.layers.Conv1D(filters=64,
-                                   kernel_size=1,
-                                   padding='same')
         
-        self.final_pointwise2 = tf.keras.layers.Conv1D(filters=1,
-                                   kernel_size=1,
-                                   padding='same')
+        self.final_pointwise = enf_conv_block(filters=64,
+                                               **kwargs)
+
+        self.final_dense = kl.Dense(1,
+                                    activation='softplus',
+                                    use_bias=True)
 
         self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
                                   **kwargs)
         self.gelu = tfa.layers.GELU()
-
 
         
     def call(self, inputs, training:bool=True):
@@ -261,7 +260,7 @@ class aformer(tf.keras.Model):
                                      training=training)
         #print(atac_x)
         atac_conv_out = self.stem_res_conv_atac(atac_x,
-                                         training=training)
+                                                training=training)
         #print(atac_conv_out)
         conv_concat = tf.concat([enformer_conv_out,
                                  atac_conv_out],axis=2)
@@ -272,12 +271,13 @@ class aformer(tf.keras.Model):
         shared_transformer_out,att_matrices_shared = self.shared_transformer(conv_out,
                                                                              training=training)
         out = self.crop_final(shared_transformer_out)
-        out = self.final_pointwise1(out,training=training)
+        out = self.final_pointwise(out,training=training)
         out = self.dropout(out,
                            training=training)
         out = self.gelu(out)
-        out = self.final_pointwise2(out,training=training)
-        out = tf.math.softplus(out)
+        
+        out = self.final_dense(out,
+                               training=training)
         
         return out
     
