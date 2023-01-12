@@ -1,0 +1,44 @@
+#!/bin/bash -l
+
+python3 train_model_atac_cage.py \
+            --tpu_name="pod" \
+            --tpu_zone="us-east1-d" \
+            --wandb_project="aformer_atac_cage" \
+            --wandb_user="njaved" \
+            --wandb_sweep_name="aformer_atac_cage" \
+            --gcs_project="picard-testing-176520" \
+            --gcs_path="gs://picard-testing-176520/enformer_atac_rampage/preprocessed" \
+            --gcs_path_TSS="gs://picard-testing-176520/enformer_atac_rampage_paired_tss/preprocessed" \
+            --input_length=196608 \
+            --output_length=1536 \
+            --final_output_length=896 \
+            --max_shift=10 \
+            --batch_size=4 \
+            --num_epochs=40 \
+            --train_examples=100000 \
+            --val_examples=70816 \
+            --val_examples_TSS=66848 \
+            --warmup_frac=0.50 \
+            --patience=40 \
+            --output_res=128 \
+            --min_delta=0.000005 \
+            --model_save_dir="gs://picard-testing-176520/enformer_atac_cage_paired" \
+            --model_save_basename="aformer_genecentered" \
+            --lr_base1="1.0e-06" \
+            --lr_base2="5.0e-05" \
+            --decay_frac="0.75" \
+            --gradient_clip="1.0" \
+            --epsilon=1.0e-14 \
+            --num_transformer_layers="2" \
+            --dropout_rate="0.30" \
+            --pointwise_dropout_rate="0.05" \
+            --num_heads="4" \
+            --loss_fn_type="poisson" \
+            --num_random_features="256" \
+            --hidden_size="1552" \
+            --kernel_transformation="relu_kernel_transformation" \
+            --savefreq=40 \
+            --freeze_conv_layers="True" \
+            --load_init="True" \
+            --enformer_checkpoint_path="sonnet_weights"
+            

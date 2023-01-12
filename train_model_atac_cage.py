@@ -242,7 +242,7 @@ def main():
             else:
                 inits=None
                 print('WARNING: supplied checkpoint directory does not exist')
-            print('PAST')
+
             model = aformer.aformer(kernel_transformation=wandb.config.kernel_transformation,
                                     dropout_rate=wandb.config.dropout_rate,
                                     pointwise_dropout_rate=wandb.config.pointwise_dropout_rate,
@@ -355,7 +355,7 @@ def main():
                            'val_pearson': pearsons,
                            'val_R2': R2},step=epoch_i)
                 
-                if epoch_i % 4 == 0: 
+                if epoch_i % 2 == 0: 
                     val_step_TSS(data_val_TSS)
 
                     val_pearson_TSS = metric_dict['corr_stats'].result()['pearsonR'].numpy()
