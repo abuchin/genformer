@@ -242,7 +242,7 @@ def main():
             else:
                 inits=None
                 print('WARNING: supplied checkpoint directory does not exist')
-
+            print('PAST')
             model = aformer.aformer(kernel_transformation=wandb.config.kernel_transformation,
                                     dropout_rate=wandb.config.dropout_rate,
                                     pointwise_dropout_rate=wandb.config.pointwise_dropout_rate,

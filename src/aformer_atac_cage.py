@@ -71,12 +71,16 @@ class aformer(tf.keras.Model):
         self.use_mask_pos = use_mask_pos
         self.normalize = normalize
         self.seed = seed
-        self.load_init=load_init
         self.inits=inits
-        self.filter_list_seq = [768, 896, 1024, 1152, 1280, 1536] if self.load_init else filter_list_seq
         self.filter_list_atac = filter_list_atac
         self.freeze_conv_layers = freeze_conv_layers
         
+        if inits is None:
+            self.load_init=False
+        else:
+            self.load_init=load_init
+            
+        self.filter_list_seq = [768, 896, 1024, 1152, 1280, 1536] if self.load_init else filter_list_seq
         
         def enf_conv_block(filters, 
                            width=1, 
@@ -230,9 +234,10 @@ class aformer(tf.keras.Model):
         self.final_pointwise = enf_conv_block(filters=64,
                                                **kwargs)
 
-        self.final_dense = kl.Dense(1,
-                                    activation='softplus',
-                                    use_bias=True)
+        self.final_conv = kl.Conv1D(filters=1,
+                                     kernel_size=1,
+                                     use_bias=True,
+                                     activation='softplus')
 
         self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
                                   **kwargs)
@@ -276,7 +281,7 @@ class aformer(tf.keras.Model):
                            training=training)
         out = self.gelu(out)
         
-        out = self.final_dense(out,
+        out = self.final_conv(out,
                                training=training)
         
         return out

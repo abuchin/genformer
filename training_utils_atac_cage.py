@@ -300,7 +300,7 @@ def return_train_val_functions(model,
                                     model.stem_res_conv_atac.trainable_variables + \
                                     model.shared_transformer.trainable_variables + \
                                     model.final_pointwise.trainable_variables + \
-                                    model.final_dense.trainable_variables 
+                                    model.final_conv.trainable_variables 
                 vars_all = conv_vars + remaining_vars
                 for var in vars_all:
                     tape.watch(var)
