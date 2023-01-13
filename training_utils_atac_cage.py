@@ -464,6 +464,9 @@ def deserialize_tr(serialized_example,
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
+    diff = tf.math.sqrt(tf.nn.relu(cage - 500 * tf.ones(cage.shape)))
+    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=500) + diff
+    
     
     if rev_comp == 1:
         sequence = tf.gather(sequence, [3, 2, 1, 0], axis=-1)
@@ -503,6 +506,8 @@ def deserialize_val(serialized_example,input_length,max_shift,output_length,crop
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
+    diff = tf.math.sqrt(tf.nn.relu(cage - 500 * tf.ones(cage.shape)))
+    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=500) + diff
 
     return {'sequence': tf.ensure_shape(sequence,
                                         [input_length,4]),
@@ -539,6 +544,8 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length,
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
+    diff = tf.math.sqrt(tf.nn.relu(cage - 500 * tf.ones(cage.shape)))
+    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=500) + diff
 
     tss_tokens = tf.io.parse_tensor(data['tss_tokens'],
                                   out_type=tf.int32)
