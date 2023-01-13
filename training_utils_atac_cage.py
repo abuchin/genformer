@@ -1060,6 +1060,23 @@ def parse_args(parser):
                         type=str,
                         default="True",
                         help= 'norm')
+    parser.add_argument('--wd1_frac',
+                        dest='wd1_frac',
+                        type=float,
+                        default=0.01,
+                        help= 'wd1_frac')
+    parser.add_argument('--wd2_frac',
+                        dest='wd2_frac',
+                        type=float,
+                        default=0.01,
+                        help= 'wd2_frac')
+    parser.add_argument('--rectify',
+                        dest='rectify',
+                        type=str,
+                        default="True",
+                        help= 'rectify')
+    
+    
     args = parser.parse_args()
     return parser
 

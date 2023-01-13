@@ -137,6 +137,15 @@ def main():
                 'BN_momentum': {
                     'values': [args.BN_momentum]
                 },
+                'wd1_frac': {
+                    'values': [args.wd1_frac]
+                },
+                'wd2_frac': {
+                    'values': [args.wd2_frac]
+                },
+                'rectify': {
+                    'values':[parse_bool_str(x) for x in args.rectify.split(',')]
+                },
             }
     }
 
@@ -273,6 +282,7 @@ def main():
             
 
             print('initialized model')
+            """
             scheduler1= tf.keras.optimizers.schedules.CosineDecay(
                 initial_learning_rate=wandb.config.lr_base1,
                 decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
@@ -288,9 +298,26 @@ def main():
             scheduler2=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base2,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps,
                                          decay_schedule_fn=scheduler2)
+            """
+            optimizer1 = tfa.optimizers.AdaBelief(
+                learning_rate= wandb.config.lr_base1,
+                epsilon= wandb.config.epsilon,
+                weight_decay= wandb.config.wd1_frac * wandb.config.lr_base1,
+                rectify= wandb.config.rectify,
+                total_steps= wandb.config.total_steps*wandb.config.num_epochs,
+                warmup_proportion= wandb.config.warmup_frac,
+                min_lr= wandb.config.decay_frac * wandb.config.lr_base1
+            )
+            optimizer2 = tfa.optimizers.AdaBelief(
+                learning_rate= wandb.config.lr_base2,
+                epsilon= wandb.config.epsilon,
+                weight_decay= wandb.config.wd2_frac * wandb.config.lr_base2,
+                rectify= wandb.config.rectify,
+                total_steps= wandb.config.total_steps*wandb.config.num_epochs,
+                warmup_proportion= wandb.config.warmup_frac,
+                min_lr= wandb.config.decay_frac * wandb.config.lr_base2
+            )
             
-            optimizer2 = tf.keras.optimizers.Adam(learning_rate=scheduler2)
-
             optimizers_in = optimizer1,optimizer2
             
             metric_dict = {}
