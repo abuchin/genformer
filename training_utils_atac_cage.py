@@ -288,7 +288,7 @@ def return_train_val_functions(model,
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
             cage=tf.cast(inputs['cage'],dtype=tf.bfloat16)
-            input_tuple = sequence,atac
+            input_tuple = sequence#,atac
 
             with tf.GradientTape(watch_accessed_variables=False) as tape:
                 conv_vars = model.stem_conv.trainable_variables + \
@@ -296,11 +296,9 @@ def return_train_val_functions(model,
                             model.stem_pool.trainable_variables + \
                             model.conv_tower_seq.trainable_variables
                 
-                remaining_vars = model.stem_conv_atac.trainable_variables + \
-                                    model.stem_res_conv_atac.trainable_variables + \
-                                    model.shared_transformer.trainable_variables + \
-                                    model.final_pointwise.trainable_variables + \
-                                    model.final_conv.trainable_variables 
+                remaining_vars= model.shared_transformer.trainable_variables + \
+                                model.final_pointwise.trainable_variables + \
+                                model.final_dense.trainable_variables 
                 vars_all = conv_vars + remaining_vars
                 for var in vars_all:
                     tape.watch(var)
@@ -327,10 +325,10 @@ def return_train_val_functions(model,
         @tf.function(jit_compile=True)
         def val_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
-            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
+            #atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
             cage=tf.cast(inputs['cage'],dtype=tf.bfloat16)
                         
-            input_tuple = sequence,atac
+            input_tuple = sequence#,atac
 
             output = model(input_tuple,
                            training=False)
@@ -353,10 +351,10 @@ def return_train_val_functions(model,
         @tf.function(jit_compile=True)
         def val_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
-            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
+            #atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
             cage=tf.cast(inputs['cage'],dtype=tf.float32)
                         
-            input_tuple = sequence,atac
+            input_tuple = sequence#,atac
 
             output = model(input_tuple,
                            training=False)
@@ -407,7 +405,7 @@ def return_train_val_functions(model,
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
             cage=tf.cast(inputs['cage'],dtype=tf.bfloat16)
                         
-            input_tuple = sequence,atac
+            input_tuple = sequence#,atac
 
             output = model(input_tuple,
                            training=False)
@@ -520,7 +518,7 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length,
         'atac': tf.io.FixedLenFeature([], tf.string),
         'cage': tf.io.FixedLenFeature([], tf.string),
         'tss_tokens': tf.io.FixedLenFeature([], tf.string),
-        'gene_token': tf.io.FixedLenFeature([], tf.string),
+        'processed_gene_token': tf.io.FixedLenFeature([], tf.string),
         'cell_type': tf.io.FixedLenFeature([], tf.string)
     }
     
@@ -541,11 +539,12 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length,
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
-    
+
     tss_tokens = tf.io.parse_tensor(data['tss_tokens'],
                                   out_type=tf.int32)
+    tss_tokens = tf.expand_dims(tss_tokens,axis=1)
     
-    gene_token= tf.io.parse_tensor(data['gene_token'],
+    gene_token= tf.io.parse_tensor(data['processed_gene_token'],
                                    out_type=tf.int32)
 
     cell_type = tf.io.parse_tensor(data['cell_type'],
@@ -556,7 +555,7 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length,
             'atac': tf.ensure_shape(atac,
                                       [output_length,1]),
             'cage': tf.ensure_shape(cage,
-                                      [output_length-2*crop_size,1]),
+                                      [output_length-2*crop_size, 1]),
             'tss_tokens': tf.ensure_shape(tss_tokens,
                                       [output_length-2*crop_size,1]),
             'gene_token':gene_token,
@@ -578,10 +577,13 @@ def return_dataset(gcs_path,
     """
     return a tf dataset object for given gcs path
     """
-    wc = "hg*.tfr"
+    wc = "*.tfr"
+    print(split)
+    
     list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
                                                 split,
                                                 wc)))
+    print(list_files)
     random.shuffle(list_files)
     files = tf.data.Dataset.list_files(list_files)
     
@@ -1002,6 +1004,11 @@ def parse_args(parser):
                         type=str,
                         default="256",
                         help= 'num_random_features')
+    parser.add_argument('--BN_momentum',
+                        dest='BN_momentum',
+                        type=float,
+                        default=0.80,
+                        help= 'BN_momentum')
     parser.add_argument('--kernel_transformation',
                         dest='kernel_transformation',
                         type=str,

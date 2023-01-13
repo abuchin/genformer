@@ -133,8 +133,10 @@ def main():
                 },
                 'loss_fn_type': {
                     'values': [args.loss_fn_type]
-                }
-                
+                },
+                'BN_momentum': {
+                    'values': [args.BN_momentum]
+                },
             }
     }
 
@@ -193,7 +195,7 @@ def main():
 
             options = tf.data.Options()
             options.experimental_distribute.auto_shard_policy=\
-                tf.data.experimental.AutoShardPolicy.FILE
+                tf.data.experimental.AutoShardPolicy.OFF
             options.deterministic=False
             #options.experimental_threading.max_intra_op_parallelism=1
             mixed_precision.set_global_policy('mixed_bfloat16')
@@ -208,7 +210,7 @@ def main():
             num_val=wandb.config.val_examples
             num_val_TSS=wandb.config.val_examples_TSS#4192000
 
-            wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE * 4)},
+            wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE)},
                                 allow_val_change=True)
             wandb.config.update({"val_steps" : num_val // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
@@ -259,6 +261,7 @@ def main():
                                     rel_pos_bins=wandb.config.output_length,
                                     filter_list_atac=wandb.config.filter_list_atac,
                                     norm=True,
+                                    BN_momentum=wandb.config.BN_momentum,
                                     use_rot_emb = True,
                                     use_mask_pos = False,
                                     normalize = True,

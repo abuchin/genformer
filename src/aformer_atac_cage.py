@@ -31,6 +31,7 @@ class aformer(tf.keras.Model):
                  norm=True,
                  dim = 1536, 
                  max_seq_length = 1536,
+                 BN_momentum = 0.80,
                  rel_pos_bins=1536, 
                  use_rot_emb = True,
                  use_mask_pos = False, 
@@ -100,6 +101,7 @@ class aformer(tf.keras.Model):
               syncbatchnorm(axis=-1,
                             center=True,
                             scale=True,
+                            momentum=BN_momentum,
                             beta_initializer=beta_init if self.load_init else "zeros",
                             gamma_initializer=gamma_init if self.load_init else "ones",
                             trainable=train,
@@ -124,12 +126,14 @@ class aformer(tf.keras.Model):
                                    #strides=2,
                                    trainable=False if self.freeze_conv_layers else True,
                                    padding='same')
+        """
         self.stem_conv_atac = tf.keras.layers.Conv1D(filters= 16,
                                    kernel_size=3,
                                    kernel_initializer='glorot_uniform',
                                    bias_initializer='zeros',
                                    strides=1,
                                    padding='same')
+        """
         
         self.stem_res_conv=Residual(enf_conv_block(int(self.filter_list_seq[-1]) // 2, 1,
                                                    beta_init=self.inits['stem_res_conv_BN_b'] if self.load_init else None,
@@ -141,9 +145,14 @@ class aformer(tf.keras.Model):
                                                    train=False if self.freeze_conv_layers else True,
                                                    #strides=1,
                                                    name='pointwise_conv_block'))
-        
-        self.stem_res_conv_atac=Residual(enf_conv_block(16, 1,
-                                                        name='pointwise_conv_block_atac'))
+        """
+        self.stem_res_conv_atac=Residual(tf.keras.layers.Conv1D(filters= 16,
+                                   kernel_size=3,
+                                   kernel_initializer='glorot_uniform',
+                                   bias_initializer='zeros',
+                                   strides=1,
+                                   padding='same'))
+        """
         
         self.stem_pool = SoftmaxPooling1D(per_channel=True,
                                           w_init_scale=2.0,
@@ -231,13 +240,12 @@ class aformer(tf.keras.Model):
                                              target_length=self.final_output_length,
                                              name='target_input')
         
-        self.final_pointwise = enf_conv_block(filters=64,
+        self.final_pointwise = enf_conv_block(filters=2*1536,
                                                **kwargs)
 
-        self.final_conv = kl.Conv1D(filters=1,
-                                     kernel_size=1,
-                                     use_bias=True,
-                                     activation='softplus')
+        self.final_dense = kl.Dense(1,
+                                   activation='softplus',
+                                   use_bias=True)
 
         self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
                                   **kwargs)
@@ -246,7 +254,7 @@ class aformer(tf.keras.Model):
         
     def call(self, inputs, training:bool=True):
 
-        sequence, atac = inputs
+        sequence = inputs
         
 
         ### seq convs
@@ -254,6 +262,9 @@ class aformer(tf.keras.Model):
                            training=training)
         seq_x = self.stem_res_conv(seq_x,
                                training=training)
+        seq_x = self.dropout(seq_x,training=training)
+        seq_x = self.gelu(seq_x)
+        
         seq_x = self.stem_pool(seq_x,
                            training=training)
         enformer_conv_out = self.conv_tower_seq(seq_x,
@@ -261,6 +272,7 @@ class aformer(tf.keras.Model):
         
         ### peak convs
         #print(atac)
+        """
         atac_x = self.stem_conv_atac(atac,
                                      training=training)
         #print(atac_x)
@@ -269,9 +281,10 @@ class aformer(tf.keras.Model):
         #print(atac_conv_out)
         conv_concat = tf.concat([enformer_conv_out,
                                  atac_conv_out],axis=2)
+        """
         
         #conv_out = self.conv_mix(conv_concat,training=training)
-        conv_out = self.sin_pe(conv_concat)
+        conv_out = self.sin_pe(enformer_conv_out)
         
         shared_transformer_out,att_matrices_shared = self.shared_transformer(conv_out,
                                                                              training=training)
@@ -281,7 +294,7 @@ class aformer(tf.keras.Model):
                            training=training)
         out = self.gelu(out)
         
-        out = self.final_conv(out,
+        out = self.final_dense(out,
                                training=training)
         
         return out
