@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model.py \
-            --tpu_name="node-5" \
-            --tpu_zone="us-central1-a" \
+            --tpu_name="pod" \
+            --tpu_zone="us-east1-d" \
             --wandb_project="enformer_baseline" \
             --wandb_user="njaved" \
             --wandb_sweep_name="enformer_baseline" \
@@ -20,9 +20,9 @@ python3 train_model.py \
             --epsilon=1.0e-10 \
             --num_parallel=8 \
             --savefreq=25 \
-            --train_examples=2500 \
+            --train_examples=34021 \
             --val_examples=2213 \
-            --val_examples_TSS=1646 \
+            --val_examples_TSS=3352 \
             --num_targets=62 \
             --use_enformer_weights="True" \
             --enformer_checkpoint_path="sonnet_weights"

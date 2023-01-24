@@ -163,12 +163,12 @@ def return_train_val_functions(model,
         @tf.function(jit_compile=True)
         def val_step(inputs):
             target=tf.cast(inputs['target'],
-                           dtype = tf.float32)[:,:,49:]
+                           dtype = tf.float32)[:,:,:31]
             sequence=tf.cast(inputs['sequence'],
                              dtype=tf.float32)
             tss_mask =tf.cast(inputs['tss_mask'],dtype=tf.float32)
 
-            output = tf.cast(model(sequence, is_training=False)['human'][:,:,49:],
+            output = tf.cast(model(sequence, is_training=False)['human'][:,:,:31],
                              dtype=tf.float32)
             
             pred = tf.reduce_sum(output * tss_mask,axis=1)
@@ -346,9 +346,9 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift, out_length,nu
                       [896,-1])
     
     gene_name= tf.io.parse_tensor(example['gene_name'],out_type=tf.int32)
-    gene_name = tf.tile(tf.expand_dims(gene_name,axis=0),[62])
+    gene_name = tf.tile(tf.expand_dims(gene_name,axis=0),[31])
     
-    cell_types = tf.range(0,62)
+    cell_types = tf.range(0,31)
 
     
     return {'sequence': tf.ensure_shape(sequence,
@@ -358,9 +358,9 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift, out_length,nu
             'tss_mask': tf.ensure_shape(tss_mask,
                                         [896,1]),
             'gene_name': tf.ensure_shape(gene_name,
-                                         [62,]),
+                                         [31,]),
             'cell_types': tf.ensure_shape(cell_types,
-                                           [62,])}
+                                           [31,])}
                     
 def return_dataset(gcs_path,
                    split,
@@ -528,7 +528,7 @@ def make_plots(y_trues,
     fig_overall,ax_overall=plt.subplots(figsize=(6,6))
     
     ## scatter plot for 50k points max
-    idx = np.random.choice(np.arange(len(true_zscore)), 20000, replace=False)
+    idx = np.random.choice(np.arange(len(true_zscore)), 5000, replace=False)
     
     data = np.vstack([true_zscore[idx],
                       pred_zscore[idx]])
