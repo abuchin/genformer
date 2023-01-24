@@ -1,20 +1,18 @@
 #!/bin/bash -l
 
 sudo pip3 install silence_tensorflow
-sudo pip3 install tensorflow-addons==0.19.0
+sudo pip3 install tensorflow-addons
 sudo pip3 install matplotlib==3.4.3
-sudo pip3 install pandas==1.3.3
+sudo pip3 install pandas
 sudo pip3 install dm-sonnet==2.0.0
 sudo pip3 install tensorflow-probability
-sudo pip3 install seaborn==0.11.2
-sudo pip3 install einops==0.4.0
-sudo pip3 install tqdm==4.63.0
+sudo pip3 install seaborn
+sudo pip3 install einops
+sudo pip3 install tqdm
 sudo pip3 install scipy
-sudo pip3 install wandb==0.13.1
-sudo pip3 install plotly==5.8.2
+sudo pip3 install wandb
+sudo pip3 install plotly
 sudo pip3 install tensorboard-plugin-profile==2.4.0
-sudo pip3 install numpy==1.16.0 --force-reinstall
-sudo pip3 install scikit-learn
 export TPU_NAME=pod
 export ZONE=us-east1-d 
 export TPU_LOAD_LIBRARY=0
