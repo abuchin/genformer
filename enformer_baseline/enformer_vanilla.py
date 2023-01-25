@@ -42,6 +42,7 @@ class Enformer(snt.Module):
     def __init__(self,
                channels: int = 1536,
                num_transformer_layers: int = 11,
+                 output_heads_dict: dict = {'human': 98},
                num_heads: int = 8,
                pooling_type: str = 'attention',
                dropout_rate: float = 0.40,
@@ -59,7 +60,7 @@ class Enformer(snt.Module):
         """
         super().__init__(name=name)
         # pylint: disable=g-complex-comprehension,g-long-lambda,cell-var-from-loop
-        heads_channels = {'human': 2}
+        self.output_heads_dict=output_heads_dict
         dropout_rate = dropout_rate
         assert channels % num_heads == 0, ('channels needs to be divisible '
                                            f'by {num_heads}')
