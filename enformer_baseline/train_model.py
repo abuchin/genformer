@@ -282,8 +282,8 @@ def main():
                 
                 val_step_TSS(val_data_TSS_it)
 
-                y_trues = np.log2(1.0+metric_dict['hg_corr_stats'].result()['y_trues'].numpy())
-                y_preds = np.log2(1.0+metric_dict['hg_corr_stats'].result()['y_preds'].numpy())
+                y_trues = metric_dict['hg_corr_stats'].result()['y_trues'].numpy()
+                y_preds = metric_dict['hg_corr_stats'].result()['y_preds'].numpy()
                 cell_types = metric_dict['hg_corr_stats'].result()['cell_types'].numpy()
                 gene_map = metric_dict['hg_corr_stats'].result()['gene_map'].numpy()
 

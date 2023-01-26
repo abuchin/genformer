@@ -501,6 +501,10 @@ def make_plots(y_trues,
     results_df['cell_type_encoding'] = cell_types
     results_df['gene_encoding'] = gene_map
     
+    results_df=results_df.groupby(['gene_encoding', 'cell_type_encoding']).agg({'true': 'sum', 'pred': 'sum'})
+    results_df['true'] = np.log2(1.0+results_df['true'])
+    results_df['pred'] = np.log2(1.0+results_df['pred'])
+    
     
     #results_df['true_zscore'] = df.groupby('cell_type_encoding')['true'].apply(lambda x: (x - x.mean())/x.std())
     results_df['true_zscore']=results_df.groupby(['cell_type_encoding']).true.transform(lambda x : zscore(x))
