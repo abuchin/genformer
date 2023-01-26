@@ -433,14 +433,14 @@ def main():
                     pearsonsR=metric_dict[organism+'_pearsonsR'].result()['PearsonR'].numpy()
                     
                     wandb.log({organism + '_all_tracks_pearsons': np.nanmean(pearsonsR),
-                               organism+'_DNASE_pearsons': np.nanmean(pearsonsR[:684]),
+                               organism+'_ATAC_pearsons': np.nanmean(pearsonsR[:684]),
                                organism+'_CHIP_pearsons': np.nanmean(pearsonsR[684:4675]),
                                organism+'_CAGE_pearsons': np.nanmean(pearsonsR[4675:])},
                               step=epoch_i)
 
                     R2=metric_dict[organism+'_R2'].result()['R2'].numpy()
                     wandb.log({organism + '_all_tracks_R2': np.nanmean(R2),
-                               organism+'_DNASE_R2': np.nanmean(R2[:684]),
+                               organism+'_ATAC_R2': np.nanmean(R2[:684]),
                                organism+'_CHIP_R2': np.nanmean(R2[684:4675]),
                                organism+'_CAGE_R2': np.nanmean(R2[4675:])},
                               step=epoch_i)
