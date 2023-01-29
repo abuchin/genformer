@@ -391,7 +391,7 @@ def main():
                 
                 print('completed epoch ' + str(epoch_i))
                 print('train_loss: ' + str(metric_dict['train_loss'].result().numpy()))
-                wandb.log({'train_loss': metric_dict['train_loss'].result().numpy()},
+                wandb.log({'human_train_loss': metric_dict['train_loss'].result().numpy()},
                           step=epoch_i)
                 print('training duration(mins): ' + str(duration))
                 
