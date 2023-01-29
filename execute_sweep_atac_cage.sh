@@ -19,7 +19,7 @@ python3 train_model_atac_cage.py \
             --val_examples=68603 \
             --val_examples_TSS=64759 \
             --BN_momentum=0.90 \
-            --warmup_frac=0.01 \
+            --warmup_frac=0.025 \
             --patience=50 \
             --output_res=128 \
             --min_delta=0.000005 \
@@ -42,8 +42,8 @@ python3 train_model_atac_cage.py \
             --freeze_conv_layers="True" \
             --load_init="True" \
             --wd1_frac=0.001 \
-            --wd2_frac=0.001 \
-            --wd3_frac=0.001 \
+            --wd2_frac=0.0005 \
+            --wd3_frac=0.0005 \
             --rectify="True" \
-            --multitask_checkpoint_path="gs://picard-testing-176520/enformer_performer_FULL_atac_mean/models/enformer_performer_FULL_atac_mean_196k_load_init-True_freeze-False_LR1-1e-06_LR2-0.0001_T-4_F-1536_D-0.4_K-relu_kernel_transformation_AD-0.05/iteration_15" \
+            --multitask_checkpoint_path="gs://picard-testing-176520/enformer_performer_FULL_atac_mean/models/enformer_performer_FULL_atac_mean_196k_load_init-True_freeze-False_LR1-1e-06_LR2-0.0001_T-4_F-1536_D-0.4_K-relu_kernel_transformation_AD-0.05/iteration_20" \
             --inits_type="enformer_performer"

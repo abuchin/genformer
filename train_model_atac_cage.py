@@ -190,15 +190,23 @@ def main():
             
             wandb.config.crop_size = (wandb.config.output_length - wandb.config.final_output_length) // 2
             
-            wandb.run.name = '_'.join(['aformer',
-                                       str(wandb.config.input_length)[:3] + 'k',
-                                       'load-' + str(wandb.config.load_init),
-                                       'frz-' + str(wandb.config.freeze_conv_layers),
-                                         'T-' + str(wandb.config.num_transformer_layers),
-                                         'F-' + str(wandb.config.filter_list_seq[-1]),
-                                         'D-' + str(wandb.config.dropout_rate),
-                                         'K-' + str(wandb.config.kernel_transformation)])
-
+            
+            run_name = '_'.join([str(wandb.config.input_length)[:3] + 'k',
+                                 'load-' + str(wandb.config.load_init),
+                                 'frz-' + str(wandb.config.freeze_conv_layers),
+                                 'LR1-' + str(wandb.config.lr_base1),
+                                 'LR2-' + str(wandb.config.lr_base2),
+                                 'LR3-' + str(wandb.config.lr_base3),
+                                 'T-' + str(wandb.config.num_transformer_layers),
+                                 'F-' + str(wandb.config.hidden_size),
+                                 'D-' + str(wandb.config.dropout_rate),
+                                 'K-' + str(wandb.config.kernel_transformation)])
+            
+            date_string = f'{datetime.now():%Y-%m-%d %H:%M:%S%z}'
+            date_string = date_string.replace(' ','_')
+            wandb.run.name = run_name + "_" + date_string
+            base_name = wandb.config.model_save_basename + "_" + run_name
+            
             
             '''
             TPU init options
