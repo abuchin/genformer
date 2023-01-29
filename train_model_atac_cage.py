@@ -95,6 +95,9 @@ def main():
                 'lr_base2': {
                     'values':[float(x) for x in args.lr_base2.split(',')]
                 },
+                'lr_base3': {
+                    'values':[float(x) for x in args.lr_base3.split(',')]
+                },
                 'gradient_clip': {
                     'values': [float(x) for x in args.gradient_clip.split(',')]
                 },
@@ -128,12 +131,6 @@ def main():
                 'filter_list_seq': {
                     'values': [[int(x) for x in args.filter_list_seq.split(',')]]
                 },
-                'filter_list_atac': {
-                    'values': [[int(x) for x in args.filter_list_atac.split(',')]]
-                },
-                'loss_fn_type': {
-                    'values': [args.loss_fn_type]
-                },
                 'BN_momentum': {
                     'values': [args.BN_momentum]
                 },
@@ -143,9 +140,12 @@ def main():
                 'wd2_frac': {
                     'values': [args.wd2_frac]
                 },
+                'wd3_frac': {
+                    'values': [args.wd3_frac]
+                },
                 'rectify': {
                     'values':[parse_bool_str(x) for x in args.rectify.split(',')]
-                },
+                }
             }
     }
 
@@ -186,10 +186,12 @@ def main():
             wandb.config.model_save_dir=args.model_save_dir
             wandb.config.model_save_basename=args.model_save_basename
             wandb.config.max_shift=args.max_shift
+            wandb.config.inits_type=args.inits_type
             
             wandb.config.crop_size = (wandb.config.output_length - wandb.config.final_output_length) // 2
             
-            wandb.run.name = '_'.join([str(wandb.config.input_length)[:3] + 'k',
+            wandb.run.name = '_'.join(['aformer',
+                                       str(wandb.config.input_length)[:3] + 'k',
                                        'load-' + str(wandb.config.load_init),
                                        'frz-' + str(wandb.config.freeze_conv_layers),
                                          'T-' + str(wandb.config.num_transformer_layers),
@@ -246,13 +248,22 @@ def main():
                                                                 g)
 
             print('created dataset iterators')
-            if (wandb.config.load_init and os.path.isdir(args.enformer_checkpoint_path)):
-                inits=training_utils.get_initializers(args.enformer_checkpoint_path)
-                wandb.config.update({"filter_list_seq": [768, 896, 1024, 1152, 1280, 1536]},
-                                    allow_val_change=True)
+            #if (wandb.config.load_init and os.path.isdir(args.multitask_checkpoint_path)):
+            if wandb.config.inits_type == 'enformer_performer':
+                print('loaded enformer performer weights')
+                inits=training_utils.get_initializers_enformer_performer(args.multitask_checkpoint_path,
+                                                                         wandb.config.num_transformer_layers)
+            elif wandb.config.inits_type == 'enformer_conv':
+                print('loaded enformer conv weights')
+                inits=training_utils.get_initializers_enformer_conv(args.multitask_checkpoint_path)
             else:
-                inits=None
-                print('WARNING: supplied checkpoint directory does not exist')
+                raise ValueError('inits type not found')
+                
+            wandb.config.update({"filter_list_seq": [768, 896, 1024, 1152, 1280, 1536]},
+                                allow_val_change=True)
+            #else:
+            #    inits=None
+            #    print('WARNING: supplied checkpoint directory does not exist')
 
             model = aformer.aformer(kernel_transformation=wandb.config.kernel_transformation,
                                     dropout_rate=wandb.config.dropout_rate,
@@ -268,7 +279,6 @@ def main():
                                     dim=wandb.config.hidden_size // wandb.config.num_heads,
                                     max_seq_length=wandb.config.output_length,
                                     rel_pos_bins=wandb.config.output_length,
-                                    filter_list_atac=wandb.config.filter_list_atac,
                                     norm=True,
                                     BN_momentum=wandb.config.BN_momentum,
                                     use_rot_emb = True,
@@ -276,6 +286,7 @@ def main():
                                     normalize = True,
                                     num_transformer_layers=wandb.config.num_transformer_layers,
                                     inits=inits,
+                                    inits_type=wandb.config.inits_type,
                                     load_init=wandb.config.load_init,
                                     freeze_conv_layers=wandb.config.freeze_conv_layers,
                                     filter_list_seq=wandb.config.filter_list_seq)
@@ -291,13 +302,23 @@ def main():
                                          decay_schedule_fn=scheduler1)
             
             optimizer1 = tf.keras.optimizers.Adam(learning_rate=scheduler1)
-            #####
+            ######################################################################################################
             scheduler2= tf.keras.optimizers.schedules.CosineDecay(
                 initial_learning_rate=wandb.config.lr_base2,
                 decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
             scheduler2=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base2,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps,
                                          decay_schedule_fn=scheduler2)
+            optimizer2 = tf.keras.optimizers.Adam(learning_rate=scheduler2)
+            ######################################################################################################
+            scheduler3= tf.keras.optimizers.schedules.CosineDecay(
+                initial_learning_rate=wandb.config.lr_base3,
+                decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
+            scheduler3=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base3,
+                                         warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps,
+                                         decay_schedule_fn=scheduler3)
+            optimizer3 = tf.keras.optimizers.Adam(learning_rate=scheduler3)
+            
             """
             optimizer1 = tfa.optimizers.AdaBelief(
                 learning_rate= wandb.config.lr_base1,
@@ -317,8 +338,17 @@ def main():
                 warmup_proportion= wandb.config.warmup_frac,
                 min_lr= wandb.config.decay_frac * wandb.config.lr_base2
             )
+            optimizer3 = tfa.optimizers.AdaBelief(
+                learning_rate= wandb.config.lr_base3,
+                epsilon= wandb.config.epsilon,
+                weight_decay= wandb.config.wd3_frac * wandb.config.lr_base3,
+                rectify= wandb.config.rectify,
+                total_steps= wandb.config.total_steps*wandb.config.num_epochs,
+                warmup_proportion= wandb.config.warmup_frac,
+                min_lr= wandb.config.decay_frac * wandb.config.lr_base3
+            )
             
-            optimizers_in = optimizer1,optimizer2
+            optimizers_in = optimizer1,optimizer2,optimizer3
             
             metric_dict = {}
 
@@ -331,8 +361,7 @@ def main():
                                                                                     strategy,
                                                                                     metric_dict,
                                                                                     GLOBAL_BATCH_SIZE,
-                                                                                    wandb.config.gradient_clip,
-                                                                                    loss_fn_type = wandb.config.loss_fn_type)
+                                                                                    wandb.config.gradient_clip)
                 
 
             global_step = 0
@@ -375,15 +404,15 @@ def main():
                 R2 = metric_dict['R2'].result()['R2'].numpy()
                 
                 print('val_loss: ' + str(val_loss))
-                print('val_pearson: ' + str(pearsons))
-                print('val_R2: ' + str(R2))
+                print('human_CAGE_pearsons: ' + str(pearsons))
+                print('human_CAGE_R2: ' + str(R2))
                 
                 
                 val_losses.append(val_loss)
                 val_pearsons.append(pearsons)
-                wandb.log({'val_loss': val_loss,
-                           'val_pearson': pearsons,
-                           'val_R2': R2},step=epoch_i)
+                wandb.log({'human_val_loss': val_loss,
+                           'human_CAGE_pearsons': pearsons,
+                           'human_CAGE_R2': R2},step=epoch_i)
                 
                 if epoch_i % 2 == 0: 
                     val_step_TSS(data_val_TSS)
@@ -391,8 +420,8 @@ def main():
                     val_pearson_TSS = metric_dict['corr_stats'].result()['pearsonR'].numpy()
                     val_R2_TSS = metric_dict['corr_stats'].result()['R2'].numpy()
 
-                    y_trues = np.log(1.0+metric_dict['corr_stats'].result()['y_trues'].numpy())
-                    y_preds = np.log(1.0+metric_dict['corr_stats'].result()['y_preds'].numpy())
+                    y_trues = metric_dict['corr_stats'].result()['y_trues'].numpy()
+                    y_preds = metric_dict['corr_stats'].result()['y_preds'].numpy()
                     cell_types = metric_dict['corr_stats'].result()['cell_types'].numpy()
                     gene_map = metric_dict['corr_stats'].result()['gene_map'].numpy()
 
@@ -407,11 +436,11 @@ def main():
                     print('cell_specific_correlation: ' + str(cell_specific_corrs))
                     print('gene_specific_correlation: ' + str(gene_specific_corrs))
 
-                    wandb.log({'gene_spec_median_corrs_pe': gene_specific_corrs,
-                               'cell_spec_median_corrs_pe': cell_specific_corrs},
+                    wandb.log({'gene_spec_mean_corrs': gene_specific_corrs,
+                               'cell_spec_mean_corrs': cell_specific_corrs},
                               step=epoch_i)
                     wandb.log({'hg_OVERALL_TSS_predictions': fig_overall,
-                               'cross_dataset_dist': fig_cell_spec,
+                               'cross_cell_dist': fig_cell_spec,
                                'cross_gene_dist': fig_gene_spec},
                               step=epoch_i)
                 

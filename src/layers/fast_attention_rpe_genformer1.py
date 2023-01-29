@@ -365,17 +365,22 @@ class Attention(tf.keras.layers.Layer):
     """Multi-headed attention layer."""
 
     def __init__(self,
-                   hidden_size,
-                   num_heads,
-                   kernel_transformation=softmax_kernel_transformation,
-                   numerical_stabilizer=0.001,
+                 hidden_size,
+                 num_heads,
+                 kernel_transformation=softmax_kernel_transformation,
+                 numerical_stabilizer=0.001,
                    causal=False,
                    nb_random_features=16,
                    use_rot_emb = True,
                    use_mask_pos = False,
                    eps = 1e-6,
                    normalize = True,
-                   seed=42
+                   seed=42,
+                 q_init=None,
+                 k_init=None,
+                 v_init=None,
+                 att_output=None,
+                 load_init = False
                    ):
         
 #     """Initialize Attention.
@@ -413,6 +418,11 @@ class Attention(tf.keras.layers.Layer):
         self.eps = eps
         self.normalize = normalize
         self.seed = seed
+        self.load_init=load_init
+        self.q_init=q_init
+        self.k_init=k_init
+        self.v_init=v_init
+        self.att_output=att_output
         
 
 ## Removed projection matrix type since the call is throwing issues
@@ -432,17 +442,17 @@ class Attention(tf.keras.layers.Layer):
                                                     self.hidden_size)
         self.query_dense_layer = util.DenseEinsum(
             output_shape=(self.num_heads, size_per_head),
-            kernel_initializer=attention_initializer,
+            kernel_initializer=self.q_init if self.load_init else attention_initializer,
             use_bias=False,
             name="query")
         self.key_dense_layer = util.DenseEinsum(
             output_shape=(self.num_heads, size_per_head),
-            kernel_initializer=attention_initializer,
+            kernel_initializer=self.k_init if self.load_init else attention_initializer,
             use_bias=False,
             name="key")
         self.value_dense_layer = util.DenseEinsum(
             output_shape=(self.num_heads, size_per_head),
-            kernel_initializer=attention_initializer,
+            kernel_initializer=self.v_init if self.load_init else attention_initializer,
             use_bias=False,
             name="value")
 
@@ -450,7 +460,7 @@ class Attention(tf.keras.layers.Layer):
         self.output_dense_layer = util.DenseEinsum(
             output_shape=self.hidden_size,
             num_summed_dimensions=2,
-            kernel_initializer=output_initializer,
+            kernel_initializer=self.att_output if self.load_init else output_initializer,
             use_bias=False,
             name="output_transform")
         
@@ -474,7 +484,8 @@ class Attention(tf.keras.layers.Layer):
             "use_mask_pos":self.use_mask_pos,
             "eps":self.eps,
             "normalize":self.normalize,
-            "seed":self.seed
+            "seed":self.seed,
+            "load_init":self.load_init
         }
     @classmethod
     def from_config(cls, config):

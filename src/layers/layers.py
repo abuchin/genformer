@@ -123,6 +123,13 @@ class FFN(kl.Layer):
     def __init__(self, 
                  num_channels: int, 
                  dropout_rate: float,
+                   FFN_LN_gamma_init=None,
+                   FFN_LN_beta_init=None,
+                   FFN_kernel1_init=None,
+                   FFN_bias1_init=None,
+                   FFN_kernel2_init=None,
+                   FFN_bias2_init=None,
+                   load_init = True,
                  name: str = 'FFN',
                  **kwargs):
         super().__init__(name=name, **kwargs)
@@ -137,19 +144,25 @@ class FFN(kl.Layer):
         self.ffn_channels = num_channels
         self.ffn_widening = 2
         self.ffn_dropout = dropout_rate
+        self.load_init=load_init
+        
             
         self.FFN_layer_norm = kl.LayerNormalization(axis=-1,
                                                   scale=True,
                                                   center=True,
-                                                  beta_initializer="zeros",
-                                                  gamma_initializer="ones")
+                                                  beta_initializer=FFN_LN_beta_init if self.load_init else "zeros",
+                                                  gamma_initializer=FFN_LN_gamma_init if self.load_init else "ones")
         self.FFN_dense_wide = kl.Dense(self.ffn_channels*self.ffn_widening,
                                        activation='linear',
+                                       kernel_initializer=FFN_kernel1_init if self.load_init else 'glorot_uniform',
+                                       bias_initializer=FFN_bias1_init if self.load_init else 'glorot_uniform',
                                        use_bias=True)
         self.dropout = kl.Dropout(rate=self.ffn_dropout,**kwargs)
         self.relu = kl.ReLU()
         self.FFN_dense_narrow = kl.Dense(self.ffn_channels,
                                          activation='linear',
+                                         kernel_initializer=FFN_kernel2_init if self.load_init else 'glorot_uniform',
+                                         bias_initializer=FFN_bias2_init if self.load_init else 'glorot_uniform',
                                          use_bias=True)
     
     def get_config(self):
@@ -190,6 +203,19 @@ class Performer(kl.Layer):
                  kernel_transformation: str = 'relu_kernel_transformation',
                  use_mask_pos: bool = False,
                  use_rot_emb: bool = True,
+                 LN_gamma_init = None,
+                 LN_beta_init= None,
+                 q_init=None,
+                 k_init=None,
+                 v_init=None,
+                 att_output=None,
+                 FFN_LN_gamma_init=None,
+                 FFN_LN_beta_init=None,
+                 FFN_kernel1_init=None,
+                 FFN_bias1_init=None,
+                 FFN_kernel2_init=None,
+                 FFN_bias2_init=None,
+                 load_init: bool = False,
                  name = 'transformer_layer',
                  **kwargs):
         super().__init__(name=name, **kwargs)
@@ -219,26 +245,40 @@ class Performer(kl.Layer):
         self.d_model=d_model
         self.normalize=normalize
         self.seed=seed
-        
+        self.load_init=load_init
         
         self.layer_norm = kl.LayerNormalization(axis=-1,
                                                   scale=True,
                                                   center=True,
-                                                  beta_initializer="zeros",
-                                                  gamma_initializer="ones")
+                                                  beta_initializer=LN_beta_init if self.load_init else "zeros",
+                                                  gamma_initializer=LN_gamma_init if self.load_init else "ones")
+        
+
         self.self_attention = fa_rpe.Attention(hidden_size=self.d_model,
-                                                   num_heads=self.num_heads,
-                                                   nb_random_features=self.nb_random_features,
-                                                   use_rot_emb=self.use_rot_emb,
-                                                   use_mask_pos=self.use_mask_pos,
-                                                   normalize=self.normalize,
-                                                   kernel_transformation=self.kernel_transformation,
-                                                   numerical_stabilizer=self.numerical_stabilizer,
-                                                   seed=self.seed,
-                                                   **kwargs)
+                                               num_heads=self.num_heads,
+                                               nb_random_features=self.nb_random_features,
+                                               use_rot_emb=self.use_rot_emb,
+                                               use_mask_pos=self.use_mask_pos,
+                                               normalize=self.normalize,
+                                               kernel_transformation=self.kernel_transformation,
+                                               numerical_stabilizer=self.numerical_stabilizer,
+                                               seed=self.seed,
+                                               q_init=q_init,
+                                               k_init=k_init,
+                                               v_init=v_init,
+                                               att_output=att_output,
+                                               load_init = self.load_init,
+                                               **kwargs)
         self.dropout = kl.Dropout(rate=self.dropout_rate,**kwargs)
         self.FFN = FFN(num_channels=self.hidden_size,
                        dropout_rate=self.dropout_rate,
+                       FFN_LN_gamma_init=FFN_LN_gamma_init,
+                       FFN_LN_beta_init=FFN_LN_beta_init,
+                       FFN_kernel1_init=FFN_kernel1_init,
+                       FFN_bias1_init=FFN_bias1_init,
+                       FFN_kernel2_init=FFN_kernel2_init,
+                       FFN_bias2_init=FFN_bias2_init,
+                       load_init = self.load_init,
                        name='FFN',
                        **kwargs)         
     
@@ -421,7 +461,9 @@ class Performer_Encoder(kl.Layer):
                  normalize=True,
                  norm=True,
                  seed=42,
-                 kernel_transformation: str = 'softmax_kernel_transformation',
+                 load_init=True,
+                 inits=None,
+                 kernel_transformation: str = 'relu_kernel_transformation',
                  name = 'performer_stack',
                  **kwargs):
         
@@ -458,6 +500,8 @@ class Performer_Encoder(kl.Layer):
         self.kernel_transformation=kernel_transformation
         self.seed=seed
         self.dropout_rate=dropout_rate
+        self.load_init=load_init
+        self.inits=inits
         
         self.layers = [Performer(d_model=self.d_model, 
                                  normalize=self.normalize,
@@ -472,13 +516,26 @@ class Performer_Encoder(kl.Layer):
                                  use_mask_pos=self.use_mask_pos,
                                  seed=self.seed,
                                  use_rot_emb=self.use_rot_emb,
+                                 load_init=self.load_init,
+                                 LN_gamma_init = inits["LN_g" + str(i)] if self.load_init else None,
+                                 LN_beta_init=  inits["LN_b" + str(i)] if self.load_init else None,
+                                 q_init= inits["SA_q" + str(i)] if self.load_init else None,
+                                 k_init= inits["SA_k" + str(i)] if self.load_init else None,
+                                 v_init= inits["SA_v" + str(i)] if self.load_init else None,
+                                 att_output= inits["SA_O" + str(i)] if self.load_init else None,
+                                 FFN_LN_gamma_init= inits["FFN_LN_g" + str(i)] if self.load_init else None,
+                                 FFN_LN_beta_init= inits["FFN_LN_b" + str(i)] if self.load_init else None,
+                                 FFN_kernel1_init= inits["FFN_wide_k" + str(i)] if self.load_init else None,
+                                 FFN_bias1_init= inits["FFN_wide_b" + str(i)] if self.load_init else None,
+                                 FFN_kernel2_init= inits["FFN_narr_k" + str(i)] if self.load_init else None,
+                                 FFN_bias2_init= inits["FFN_narr_b" + str(i)] if self.load_init else None,
                                  **kwargs) for i in range(self.num_layers)]
         
         self.layer_norm = kl.LayerNormalization(axis=-1,
                                                   scale=True,
                                                   center=True,
-                                                  beta_initializer="zeros",
-                                                  gamma_initializer="ones")
+                                                  beta_initializer=self.inits["performer_encoder_LN_b"] if self.load_init else "zeros",
+                                                  gamma_initializer=self.inits["performer_encoder_LN_g"] if self.load_init else "ones")
         
         
     def build(self, input_shape):
