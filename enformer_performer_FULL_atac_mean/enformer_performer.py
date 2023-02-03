@@ -219,12 +219,6 @@ class enformer_performer(tf.keras.Model):
         
         
         self.final_pointwise_conv = enf_conv_block(filters=self.filter_list_seq[-1] * 2,
-                                                   beta_init=self.inits['final_point_BN_b'] if self.load_init else None,
-                                                   gamma_init=self.inits['final_point_BN_g'] if self.load_init else None,
-                                                   mean_init=self.inits['final_point_BN_m'] if self.load_init else None,
-                                                   var_init=self.inits['final_point_BN_v'] if self.load_init else None,
-                                                   kernel_init=self.inits['final_point_k'] if self.load_init else None,
-                                                   bias_init=self.inits['final_point_b'] if self.load_init else None,
                                                   **kwargs,
                                                   name = 'final_pointwise')
         self.dropout = kl.Dropout(rate=self.dropout_rate / 8,
