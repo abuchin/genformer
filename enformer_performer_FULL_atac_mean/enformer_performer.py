@@ -143,18 +143,12 @@ class enformer_performer(tf.keras.Model):
         ### conv stack for sequence inputs
         self.stem_conv_atac = tf.keras.layers.Conv1D(filters= 16,
                                                      kernel_size=15,
-                                                     kernel_initializer=self.inits['stem_conv_atac_k'] if self.load_init else 'glorot_uniform',
-                                                     bias_initializer=self.inits['stem_conv_atac_b'] if self.load_init else 'zeros',
+                                                     kernel_initializer='glorot_uniform',
+                                                     bias_initializer='zeros',
                                                      padding='same')
 
         self.stem_res_conv_atac =Residual(enf_conv_block(16, 
                                                          1,
-                                                         beta_init=self.inits['stem_res_conv_atac_BN_b'] if self.load_init else None,
-                                                         gamma_init=self.inits['stem_res_conv_atac_BN_g'] if self.load_init else None,
-                                                         mean_init=self.inits['stem_res_conv_atac_BN_m'] if self.load_init else None,
-                                                         var_init=self.inits['stem_res_conv_atac_BN_v'] if self.load_init else None,
-                                                         kernel_init=self.inits['stem_res_conv_atac_k'] if self.load_init else None,
-                                                         bias_init=self.inits['stem_res_conv_atac_b'] if self.load_init else None,
                                                          name='pointwise_conv_block_atac'))
 
         self.stem_pool = SoftmaxPooling1D(per_channel=True,

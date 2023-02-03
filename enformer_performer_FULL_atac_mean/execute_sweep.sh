@@ -36,5 +36,6 @@ python3 train_model_batchnorm_experiments.py \
             --num_heads=8 \
             --optimizer="adamw" \
             --heads_channels="human:5313;mouse:1643" \
-            --kernel_transformation="relu_kernel_transformation" 
+            --kernel_transformation="relu_kernel_transformation" \
+            --enformer_checkpoint_path="sonnet_weights"
             
