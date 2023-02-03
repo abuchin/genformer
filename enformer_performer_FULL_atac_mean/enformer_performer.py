@@ -142,11 +142,20 @@ class enformer_performer(tf.keras.Model):
         
         ### conv stack for sequence inputs
         self.stem_conv_atac = tf.keras.layers.Conv1D(filters= 16,
-                                   kernel_size=15,
-                                   padding='same')
+                                                     kernel_size=15,
+                                                     kernel_initializer=self.inits['stem_conv_atac_k'] if self.load_init else 'glorot_uniform',
+                                                     bias_initializer=self.inits['stem_conv_atac_b'] if self.load_init else 'zeros',
+                                                     padding='same')
 
-        self.stem_res_conv_atac =Residual(enf_conv_block(16, 1,
-                                                   name='pointwise_conv_block_atac'))
+        self.stem_res_conv_atac =Residual(enf_conv_block(16, 
+                                                         1,
+                                                         beta_init=self.inits['stem_res_conv_atac_BN_b'] if self.load_init else None,
+                                                         gamma_init=self.inits['stem_res_conv_atac_BN_g'] if self.load_init else None,
+                                                         mean_init=self.inits['stem_res_conv_atac_BN_m'] if self.load_init else None,
+                                                         var_init=self.inits['stem_res_conv_atac_BN_v'] if self.load_init else None,
+                                                         kernel_init=self.inits['stem_res_conv_atac_k'] if self.load_init else None,
+                                                         bias_init=self.inits['stem_res_conv_atac_b'] if self.load_init else None,
+                                                         name='pointwise_conv_block_atac'))
 
         self.stem_pool = SoftmaxPooling1D(per_channel=True,
                                           w_init_scale=2.0,
@@ -216,6 +225,12 @@ class enformer_performer(tf.keras.Model):
         
         
         self.final_pointwise_conv = enf_conv_block(filters=self.filter_list_seq[-1] * 2,
+                                                   beta_init=self.inits['final_point_BN_b'] if self.load_init else None,
+                                                   gamma_init=self.inits['final_point_BN_g'] if self.load_init else None,
+                                                   mean_init=self.inits['final_point_BN_m'] if self.load_init else None,
+                                                   var_init=self.inits['final_point_BN_v'] if self.load_init else None,
+                                                   kernel_init=self.inits['final_point_k'] if self.load_init else None,
+                                                   bias_init=self.inits['final_point_b'] if self.load_init else None,
                                                   **kwargs,
                                                   name = 'final_pointwise')
         self.dropout = kl.Dropout(rate=self.dropout_rate / 8,
@@ -237,25 +252,32 @@ class enformer_performer(tf.keras.Model):
         
         x = self.stem_conv(sequence,
                            training=training)
+
         x = self.stem_res_conv(x,
                                training=training)
+
         x = self.stem_pool(x,
                            training=training)
+
         x = self.conv_tower(x,
                             training=training)
-        
+
         atac_x = self.stem_conv_atac(mean_atac,
                                      training=training)
+
         atac_x = self.stem_res_conv_atac(atac_x,
                                          training=training)
-        
+
         transformer_input = tf.concat([x,atac_x],
                                       axis=2)
-        
+
         transformer_input_x=self.sin_pe(transformer_input)
+
         out,att_matrices = self.performer(transformer_input_x,
                            training=training)
+
         out = self.crop_final(out)
+
         out = self.final_pointwise_conv(out,
                                       training=training)
         out = self.dropout(out,
