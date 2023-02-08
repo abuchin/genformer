@@ -910,7 +910,7 @@ def make_plots(y_trues,
     fig_overall,ax_overall=plt.subplots(figsize=(6,6))
     
     ## scatter plot for 50k points max
-    idx = np.random.choice(np.arange(len(y_trues)), 20000, replace=False)
+    idx = np.random.choice(np.arange(len(true_zscore)), 10000, replace=False)
     
     data = np.vstack([true_zscore[idx],
                       pred_zscore[idx]])
