@@ -262,6 +262,9 @@ def main():
             iterators = {}
             for key,val in wandb.config.heads_channels.items():
                 iterators[key]=(wandb.config.gcs_path,val)
+                
+            ### load in global_acc
+            global_acc = np.loadtxt(global_acc_profile)
 
             tr_data_it_dict,val_data_it_dict,val_data_TSS_it= \
                     training_utils.return_distributed_iterators(iterators,
@@ -273,7 +276,8 @@ def main():
                                                                 args.num_epochs,
                                                                 strategy,
                                                                 options,
-                                                                g)
+                                                                g,
+                                                                global_acc)
 
 
             print('created dataset iterators')

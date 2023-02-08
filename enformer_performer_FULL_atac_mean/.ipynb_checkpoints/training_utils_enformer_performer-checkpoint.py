@@ -301,6 +301,8 @@ def return_train_val_functions(model,
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
             mean_acc = tf.cast(inputs['mean_acc'],dtype=tf.bfloat16)
+            phastcons=tf.cast(inputs['phastcons'],dtype=tf.bfloat16)
+            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
 
             with tf.GradientTape() as tape:
                 conv_vars = model.stem_conv.trainable_variables + \
@@ -310,12 +312,16 @@ def return_train_val_functions(model,
                 
                 remaining_vars = model.stem_conv_atac.trainable_variables + \
                                  model.stem_res_conv_atac.trainable_variables + \
+                                    model.stem_conv_phastcon.trainable_variables + \
+                                    model.stem_res_conv_phastcon.trainable_variables + \
+                                    model.conv_mix_block.trainable_variables + \
                                     model.performer.trainable_variables + \
                                     model.final_pointwise_conv.trainable_variables + \
                                     model.heads.trainable_variables
                 vars_all = conv_vars + remaining_vars
 
-                inputs = sequence,mean_acc
+                inputs = sequence,mean_acc,phastcons,global_acc
+                
                 output = model(inputs,
                                training=True)['human']
 
@@ -336,6 +342,8 @@ def return_train_val_functions(model,
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
             mean_acc = tf.cast(inputs['mean_acc'],dtype=tf.bfloat16)
+            phastcons=tf.cast(inputs['phastcons'],dtype=tf.bfloat16)
+            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
 
             with tf.GradientTape() as tape:
                 conv_vars = model.stem_conv.trainable_variables + \
@@ -349,7 +357,8 @@ def return_train_val_functions(model,
                                     model.heads.trainable_variables
                 vars_all = conv_vars + remaining_vars
 
-                inputs = sequence,mean_acc
+                inputs = sequence,mean_acc,phastcons,global_acc
+                
                 output = model(inputs,
                                training=True)['mouse']
 
@@ -377,7 +386,11 @@ def return_train_val_functions(model,
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
             mean_acc = tf.cast(inputs['mean_acc'],dtype=tf.bfloat16)
-            inputs = sequence,mean_acc
+            phastcons=tf.cast(inputs['phastcons'],dtype=tf.bfloat16)
+            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
+            
+            inputs = sequence,mean_acc,phastcons,global_acc
+                
             output = model(inputs,
                            training=False)['human']
             output = tf.cast(output,dtype=tf.float32)
@@ -396,8 +409,10 @@ def return_train_val_functions(model,
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
             mean_acc = tf.cast(inputs['mean_acc'],dtype=tf.bfloat16)
+            phastcons=tf.cast(inputs['phastcons'],dtype=tf.bfloat16)
+            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
             
-            inputs = sequence,mean_acc
+            inputs = sequence,mean_acc,phastcons,global_acc
             output = model(inputs,
                            training=False)['mouse']
             output = tf.cast(output,dtype=tf.float32)
@@ -417,13 +432,15 @@ def return_train_val_functions(model,
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)[:,:,4675:]
             mean_acc = tf.cast(inputs['mean_acc'],dtype=tf.bfloat16)
+            phastcons=tf.cast(inputs['phastcons'],dtype=tf.bfloat16)
+            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
         
             tss_mask = tf.cast(inputs['tss_mask'],dtype=tf.float32)
             gene_name = inputs['gene_name']
 
             cell_types = inputs['cell_types']
             
-            inputs = sequence,mean_acc
+            inputs = sequence,mean_acc,phastcons,global_acc
             output = model(inputs,training=False)['human'][:,:,4675:]
             
             pred = tf.reduce_sum(tf.cast(output,dtype=tf.float32) * tss_mask,axis=1)
@@ -466,8 +483,11 @@ def return_train_val_functions(model,
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)[:,:,4675:]
             mean_acc = tf.cast(inputs['mean_acc'],dtype=tf.bfloat16)
+            phastcons=tf.cast(inputs['phastcons'],dtype=tf.bfloat16)
+            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
             
-            inputs = sequence,mean_acc
+            inputs = sequence,mean_acc,phastcons,global_acc
+                
             output = model(inputs,training=False)['human'][:,:,4675:]
 
         for _ in tf.range(1): ## for loop within @tf.fuction for improved TPU performance
@@ -478,11 +498,12 @@ def return_train_val_functions(model,
             build_step, metric_dict
 
 
-def deserialize_tr(serialized_example,organism,input_length,max_shift, num_targets,g):
+def deserialize_tr(serialized_example,organism,input_length,max_shift, num_targets,g, global_acc):
     """Deserialize bytes stored in TFRecordFile."""
     feature_map = {
       'sequence': tf.io.FixedLenFeature([], tf.string),
       'target': tf.io.FixedLenFeature([], tf.string),
+        'phastcons_proc': tf.io.FixedLenFeature([], tf.string)
     }
     ### stochastic sequence shift and gaussian noise
 
@@ -513,6 +534,11 @@ def deserialize_tr(serialized_example,organism,input_length,max_shift, num_targe
     target = tf.reshape(target,
                         (896, num_targets))
     
+    
+    phastcons=tf.ensure_shape(tf.io.parse_tensor(example['phastcons_proc'],
+                                                 out_type=tf.float32),
+                              [1536,1])
+    
     ### must pad to 1536
     if organism == 'human':
         dnase_atac = tf.reduce_mean(target[:,:684],axis=1,keepdims=True)
@@ -521,9 +547,14 @@ def deserialize_tr(serialized_example,organism,input_length,max_shift, num_targe
     padding = tf.zeros([320,1],dtype=tf.float16)
     dnase_atac = tf.concat([padding,dnase_atac,padding],axis=0)
     
+    #diff = tf.math.sqrt(tf.nn.relu(dnase_atac - 64.0 * tf.ones(dnase_atac.shape)))
+    #dnase_atac = tf.clip_by_value(dnase_atac, clip_value_min=0.0, clip_value_max=64.0) + diff
+    
+    dnase_atac=tf.nn.experimental.stateless_dropout(dnase_atac, rate=0.25, seed=[0,seq_shift]) / (1. / (1.0 - 0.25))
+    
     dnase_atac = dnase_atac + tf.math.abs(g.normal(dnase_atac.shape,
                                                mean=0.0,
-                                               stddev=0.025,
+                                               stddev=0.10,
                                                dtype=tf.float16))
     
     if rev_comp == 1:
@@ -531,21 +562,31 @@ def deserialize_tr(serialized_example,organism,input_length,max_shift, num_targe
         sequence = tf.reverse(sequence, axis=[0])
         target = tf.reverse(target,axis=[0])
         dnase_atac = tf.reverse(dnase_atac, axis=[0])
+        phastcons = tf.reverse(phastcons, axis=[0])
+        
+    global_acc_tensor = tf.constant(global_acc)
+    global_acc_tensor = tf.expand_dims(global_acc_tensor,axis=0)
+        
         
     return {'sequence': tf.ensure_shape(sequence,
                                         [input_length,4]),
             'mean_acc': tf.ensure_shape(dnase_atac,
                                         [1536,1]),
+            'phastcons': tf.ensure_shape(phastcons,
+                                        [1536,1]),
+            'global_acc': tf.ensure_shape(global_acc_tensor,
+                                                 [1,1536]),
             'target': tf.ensure_shape(target,
                                       [896,num_targets])}
                     
 
 
-def deserialize_val(serialized_example,organism,input_length,max_shift, num_targets):
+def deserialize_val(serialized_example,organism,input_length,max_shift, num_targets,global_acc):
     """Deserialize bytes stored in TFRecordFile."""
     feature_map = {
       'sequence': tf.io.FixedLenFeature([], tf.string),
-      'target': tf.io.FixedLenFeature([], tf.string)
+      'target': tf.io.FixedLenFeature([], tf.string),
+        'phastcons_proc': tf.io.FixedLenFeature([], tf.string)
     }
     
     data = tf.io.parse_example(serialized_example, feature_map)
@@ -575,23 +616,35 @@ def deserialize_val(serialized_example,organism,input_length,max_shift, num_targ
         dnase_atac = tf.reduce_mean(target[:,:135],axis=1,keepdims=True)
     padding = tf.zeros([320,1],dtype=tf.float16)
     dnase_atac = tf.concat([padding,dnase_atac,padding],axis=0)
+
     
+    global_acc_tensor = tf.constant(global_acc)
+    global_acc_tensor = tf.expand_dims(global_acc_tensor,axis=0)
+        
+    phastcons=tf.ensure_shape(tf.io.parse_tensor(example['phastcons_proc'],
+                                                 out_type=tf.float32),
+                              [1536,1])
     
     return {'sequence': tf.ensure_shape(sequence,
                                         [input_length,4]),
             'mean_acc': tf.ensure_shape(dnase_atac,
                                         [1536,1]),
+            'phastcons': tf.ensure_shape(phastcons,
+                                        [1536,1]),
+            'global_acc': tf.ensure_shape(global_acc_tensor,
+                                                 [1,1536]),
             'target': tf.ensure_shape(target,
                                       [896,num_targets])}
 
 
-def deserialize_val_TSS(serialized_example,organism,input_length,max_shift,num_targets):
+def deserialize_val_TSS(serialized_example,organism,input_length,max_shift,num_targets,global_acc):
     """Deserialize bytes stored in TFRecordFile."""
     feature_map = {
         'sequence': tf.io.FixedLenFeature([], tf.string),
         'target': tf.io.FixedLenFeature([], tf.string),
         'tss_mask': tf.io.FixedLenFeature([], tf.string),
-        'gene_name': tf.io.FixedLenFeature([], tf.string)
+        'gene_name': tf.io.FixedLenFeature([], tf.string),
+        'phastcons_proc': tf.io.FixedLenFeature([], tf.string)
     }
     
     shift = 5
@@ -624,10 +677,19 @@ def deserialize_val_TSS(serialized_example,organism,input_length,max_shift,num_t
         
     padding = tf.zeros([320,1],dtype=tf.float16)
     dnase_atac = tf.concat([padding,dnase_atac,padding],axis=0)
+    #diff = tf.math.sqrt(tf.nn.relu(dnase_atac - 64.0 * tf.ones(dnase_atac.shape)))
+    #dnase_atac = tf.clip_by_value(dnase_atac, clip_value_min=0.0, clip_value_max=64.0) + diff
     
     gene_name= tf.io.parse_tensor(example['gene_name'],out_type=tf.int32)
     gene_name = tf.tile(tf.expand_dims(gene_name,axis=0),[638])
     cell_types = tf.range(0,638)
+    
+    global_acc_tensor = tf.constant(global_acc)
+    global_acc_tensor = tf.expand_dims(global_acc_tensor,axis=0)
+        
+    phastcons=tf.ensure_shape(tf.io.parse_tensor(example['phastcons_proc'],
+                                                 out_type=tf.float32),
+                              [1536,1])
     
     return {'sequence': tf.ensure_shape(sequence,
                                         [input_length,4]),
@@ -637,6 +699,10 @@ def deserialize_val_TSS(serialized_example,organism,input_length,max_shift,num_t
                                         [1536,1]),
             'tss_mask': tf.ensure_shape(tss_mask,
                                         [896,1]),
+            'phastcons': tf.ensure_shape(phastcons,
+                                        [1536,1]),
+            'global_acc': tf.ensure_shape(global_acc_tensor,
+                                                 [1,1536]),
             'gene_name': tf.ensure_shape(gene_name,
                                          [638,]),
             'cell_types': tf.ensure_shape(cell_types,
@@ -653,7 +719,8 @@ def return_dataset(gcs_path,
                    options,
                    num_parallel,
                    num_epoch,
-                   g):
+                   g,
+                   global_acc):
     """
     return a tf dataset object for given gcs path
     """
@@ -683,7 +750,7 @@ def return_dataset(gcs_path,
                                                             input_length,
                                                             max_shift,
                                                             num_targets,
-                                                            g),
+                                                            g, global_acc),
                               deterministic=False,
                               num_parallel_calls=num_parallel)
         
@@ -693,7 +760,7 @@ def return_dataset(gcs_path,
                                                                  organism,
                                                              input_length,
                                                              max_shift,
-                                                             num_targets),
+                                                             num_targets,global_acc),
                                   deterministic=False,
                                   num_parallel_calls=num_parallel)
         else:
@@ -702,7 +769,7 @@ def return_dataset(gcs_path,
                                                                      organism,
                                                              input_length,
                                                              max_shift,
-                                                             num_targets),
+                                                             num_targets,global_acc),
                                   deterministic=False,
                                   num_parallel_calls=num_parallel)
 
@@ -719,7 +786,8 @@ def return_distributed_iterators(gcs_paths_dict,
                                  num_epoch,
                                  strategy,
                                  options,
-                                 g):
+                                 g,
+                                global_acc):
     """ 
     returns train + val dictionaries of distributed iterators
     for given heads_dictionary
@@ -741,7 +809,8 @@ def return_distributed_iterators(gcs_paths_dict,
                                  options,
                                  num_parallel_calls,
                                  num_epoch,
-                                 g)
+                                 g,
+                                global_acc)
 
 
         val_data = return_dataset(gcs_path,
@@ -755,7 +824,8 @@ def return_distributed_iterators(gcs_paths_dict,
                                  options,
                                  num_parallel_calls,
                                  num_epoch, 
-                                 g)
+                                 g,
+                                 global_acc)
 
         train_dist = strategy.experimental_distribute_dataset(tr_data)
         val_dist= strategy.experimental_distribute_dataset(val_data)
@@ -778,7 +848,8 @@ def return_distributed_iterators(gcs_paths_dict,
                                  options,
                                  num_parallel_calls,
                                  num_epoch,
-                                  g)
+                                  g,
+                                 global_acc)
 
 
 
@@ -829,21 +900,21 @@ def make_plots(y_trues,
     ## scatter plot for 50k points max
     idx = np.random.choice(np.arange(len(y_trues)), 20000, replace=False)
     
-    data = np.vstack([y_trues[idx],
-                      y_preds[idx]])
+    data = np.vstack([true_zscore[idx],
+                      pred_zscore[idx]])
     
-    min_true = min(y_trues)
-    max_true = max(y_trues)
+    min_true = min(true_zscore)
+    max_true = max(true_zscore)
     
-    min_pred = min(y_preds)
-    max_pred = max(y_preds)
+    min_pred = min(pred_zscore)
+    max_pred = max(pred_zscore)
     
     
     try:
         kernel = stats.gaussian_kde(data)(data)
         sns.scatterplot(
-            x=y_trues[idx],
-            y=y_preds[idx],
+            x=true_zscore[idx],
+            y=pred_zscore[idx],
             c=kernel,
             cmap="viridis")
         ax_overall.set_xlim(min_true,max_true)
@@ -853,8 +924,8 @@ def make_plots(y_trues,
         plt.title("overall gene corr")
     except np.linalg.LinAlgError as err:
         sns.scatterplot(
-            x=y_trues[idx],
-            y=y_preds[idx],
+            x=true_zscore[idx],
+            y=pred_zscore[idx],
             cmap="viridis")
         ax_overall.set_xlim(min_true,max_true)
         ax_overall.set_ylim(min_pred,max_pred)
@@ -1137,6 +1208,10 @@ def parse_args(parser):
                         type=str,
                         default="1552",
                         help= 'hidden_size')
+    parser.add_argument('--global_acc_profile',
+                        dest='global_acc_profile',
+                        type=str,
+                        help= 'global_acc_profile')
 
     args = parser.parse_args()
     return parser

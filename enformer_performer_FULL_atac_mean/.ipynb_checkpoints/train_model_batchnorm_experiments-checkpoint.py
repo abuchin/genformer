@@ -262,6 +262,9 @@ def main():
             iterators = {}
             for key,val in wandb.config.heads_channels.items():
                 iterators[key]=(wandb.config.gcs_path,val)
+                
+            ### load in global_acc
+            global_acc = np.loadtxt(global_acc_profile)
 
             tr_data_it_dict,val_data_it_dict,val_data_TSS_it= \
                     training_utils.return_distributed_iterators(iterators,
@@ -273,7 +276,8 @@ def main():
                                                                 args.num_epochs,
                                                                 strategy,
                                                                 options,
-                                                                g)
+                                                                g,
+                                                                global_acc)
 
 
             print('created dataset iterators')
@@ -433,14 +437,14 @@ def main():
                     pearsonsR=metric_dict[organism+'_pearsonsR'].result()['PearsonR'].numpy()
                     
                     wandb.log({organism + '_all_tracks_pearsons': np.nanmean(pearsonsR),
-                               organism+'_DNASE_pearsons': np.nanmean(pearsonsR[:684]),
+                               organism+'_ATAC_pearsons': np.nanmean(pearsonsR[:684]),
                                organism+'_CHIP_pearsons': np.nanmean(pearsonsR[684:4675]),
                                organism+'_CAGE_pearsons': np.nanmean(pearsonsR[4675:])},
                               step=epoch_i)
 
                     R2=metric_dict[organism+'_R2'].result()['R2'].numpy()
                     wandb.log({organism + '_all_tracks_R2': np.nanmean(R2),
-                               organism+'_DNASE_R2': np.nanmean(R2[:684]),
+                               organism+'_ATAC_R2': np.nanmean(R2[:684]),
                                organism+'_CHIP_R2': np.nanmean(R2[684:4675]),
                                organism+'_CAGE_R2': np.nanmean(R2[4675:])},
                               step=epoch_i)
