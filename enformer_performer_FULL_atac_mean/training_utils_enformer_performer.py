@@ -566,7 +566,7 @@ def deserialize_tr(serialized_example,organism,input_length,max_shift, num_targe
         
     global_acc_tensor = tf.constant(global_acc)
     global_acc_tensor = tf.expand_dims(global_acc_tensor,axis=0)
-    
+    global_acc_tensor=tf.nn.experimental.stateless_dropout(global_acc_tensor, rate=0.25, seed=[0,seq_shift]) / (1. / (1.0 - 0.25))
     global_acc_tensor = global_acc_tensor + tf.math.abs(g.normal(global_acc_tensor.shape,
                                                mean=0.0,
                                                stddev=0.10,

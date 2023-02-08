@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model_batchnorm_experiments.py \
-            --tpu_name="node-6" \
-            --tpu_zone="us-central1-a" \
+            --tpu_name="pod" \
+            --tpu_zone="us-east1-d" \
             --wandb_project="enformer_baseline" \
             --wandb_user="njaved" \
             --wandb_sweep_name="enformer_baseline" \
@@ -30,12 +30,13 @@ python3 train_model_batchnorm_experiments.py \
             --savefreq=5 \
             --val_examples_TSS=2134 \
             --load_init="True" \
-            --freeze_conv_layers="False" \
+            --freeze_conv_layers="True" \
             --num_examples_dict="human:34021,2213;mouse:29295,2209" \
             --num_transformer_layers=4 \
             --num_heads=8 \
             --optimizer="adamw" \
             --heads_channels="human:5313;mouse:1643" \
             --global_acc_profile="GRCh38_ELS.peak.conv.unweight.np.txt" \
-            --kernel_transformation="relu_kernel_transformation" 
+            --kernel_transformation="relu_kernel_transformation" \
+            --enformer_checkpoint_path="sonnet_weights"
             
