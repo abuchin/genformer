@@ -792,7 +792,8 @@ def return_distributed_iterators(gcs_paths_dict,
                                  strategy,
                                  options,
                                  g,
-                                global_acc):
+                                global_acc_h,
+                                global_acc_m):
     """ 
     returns train + val dictionaries of distributed iterators
     for given heads_dictionary
@@ -802,6 +803,12 @@ def return_distributed_iterators(gcs_paths_dict,
     train_iters={}
     valid_iters={}
     for organism,organism_info in gcs_paths_dict.items():
+        if organism == 'human':
+            global_acc = global_acc_h
+        elif organism == 'mouse':
+            global_acc = global_acc_m
+        else:
+            raise ValueError
         gcs_path,num_targets=organism_info
         tr_data = return_dataset(gcs_path,
                                  organism,
@@ -815,7 +822,7 @@ def return_distributed_iterators(gcs_paths_dict,
                                  num_parallel_calls,
                                  num_epoch,
                                  g,
-                                global_acc)
+                                 global_acc)
 
 
         val_data = return_dataset(gcs_path,
@@ -1213,10 +1220,14 @@ def parse_args(parser):
                         type=str,
                         default="1552",
                         help= 'hidden_size')
-    parser.add_argument('--global_acc_profile',
-                        dest='global_acc_profile',
+    parser.add_argument('--global_acc_profile_human',
+                        dest='global_acc_profile_human',
                         type=str,
-                        help= 'global_acc_profile')
+                        help= 'global_acc_profile_human')
+    parser.add_argument('--global_acc_profile_mouse',
+                        dest='global_acc_profile_mouse',
+                        type=str,
+                        help= 'global_acc_profile_mouse')
 
     args = parser.parse_args()
     return parser

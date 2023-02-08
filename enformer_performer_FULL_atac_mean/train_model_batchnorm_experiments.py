@@ -217,15 +217,14 @@ def main():
             print(wandb.config.filter_list_seq)
             
             run_name = '_'.join([str(wandb.config.input_length)[:3] + 'k',
+                                 'global_acc_phastcons',
                                  'load_init-' + str(wandb.config.load_init),
                                  'freeze-' + str(wandb.config.freeze_conv_layers),
                                  'LR1-' + str(wandb.config.lr_base1),
                                  'LR2-' + str(wandb.config.lr_base2),
                                  'T-' + str(wandb.config.num_transformer_layers),
                                  'F-' + str(wandb.config.filter_list_seq[-1]),
-                                 'D-' + str(wandb.config.dropout_rate),
-                                 'K-' + str(wandb.config.kernel_transformation),
-                                 'AD-' + str(wandb.config.attention_dropout_rate)])
+                                 'D-' + str(wandb.config.dropout_rate)])
             #wandb.run.name = run_name
             date_string = f'{datetime.now():%Y-%m-%d %H:%M:%S%z}'
             date_string = date_string.replace(' ','_')
@@ -264,8 +263,9 @@ def main():
                 iterators[key]=(wandb.config.gcs_path,val)
                 
             ### load in global_acc
-            global_acc = np.loadtxt(args.global_acc_profile)
-
+            global_acc_human = np.loadtxt(args.global_acc_profile_human)
+            global_acc_mouse = np.loadtxt(args.global_acc_profile_mouse)
+            
             tr_data_it_dict,val_data_it_dict,val_data_TSS_it= \
                     training_utils.return_distributed_iterators(iterators,
                                                                 wandb.config.gcs_path_TSS,
@@ -277,7 +277,8 @@ def main():
                                                                 strategy,
                                                                 options,
                                                                 g,
-                                                                global_acc)
+                                                                global_acc_human,
+                                                                global_acc_mouse)
 
 
             print('created dataset iterators')

@@ -36,7 +36,7 @@ python3 train_model_batchnorm_experiments.py \
             --num_heads=8 \
             --optimizer="adamw" \
             --heads_channels="human:5313;mouse:1643" \
-            --global_acc_profile="GRCh38_ELS.peak.conv.unweight.np.txt" \
+            --global_acc_profile_human="GRCh38_ELS.peak.conv.unweight.np.txt" \
+            --global_acc_profile_mouse="mm10_ELS.peak.conv.unweight.np.txt" \
             --kernel_transformation="relu_kernel_transformation" \
             --enformer_checkpoint_path="sonnet_weights"
-            
