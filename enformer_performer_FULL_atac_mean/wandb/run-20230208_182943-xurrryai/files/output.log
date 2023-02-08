@@ -1,4 +1,0 @@
-[768, 896, 1024, 1152, 1280, 1536]
-global batch size: 8
-[34m[1mwandb[39m[22m: [33mWARNING[39m Config item 'filter_list_seq' was locked by 'sweep' (ignored update).
-WARNING:absl:options.experimental_threading is deprecated. Use options.threading instead.
