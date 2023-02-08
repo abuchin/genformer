@@ -264,7 +264,7 @@ def main():
                 iterators[key]=(wandb.config.gcs_path,val)
                 
             ### load in global_acc
-            global_acc = np.loadtxt(global_acc_profile)
+            global_acc = np.loadtxt(args.global_acc_profile)
 
             tr_data_it_dict,val_data_it_dict,val_data_TSS_it= \
                     training_utils.return_distributed_iterators(iterators,

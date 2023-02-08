@@ -154,7 +154,7 @@ class enformer_performer(tf.keras.Model):
         
         ### phastcons stack 
         self.stem_conv_phastcon = tf.keras.layers.Conv1D(filters= 8,
-                                                     kernel_size=3,
+                                                     kernel_size=5,
                                                      kernel_initializer='glorot_uniform',
                                                      bias_initializer='zeros',
                                                      padding='same')
