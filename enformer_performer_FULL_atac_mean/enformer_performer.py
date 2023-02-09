@@ -240,12 +240,10 @@ class enformer_performer(tf.keras.Model):
         self.gelu = tfa.layers.GELU()
         
         
-        self.conv_mix_block = enf_conv_block(filters=self.filter_list_seq[-1],
+        self.conv_mix_block = enf_conv_block(filters=self.filter_list_seq[-1] * 2,
                                                   **kwargs,
                                                   name = 'conv_mix_block')
-
-
-
+        
         self.heads = {
             head: kl.Dense(num_channels,
                            activation='softplus',
@@ -280,14 +278,11 @@ class enformer_performer(tf.keras.Model):
         phastcon_x = self.stem_res_conv_phastcon(phastcon_x,
                                          training=training)
         
-        global_acc = tf.tile(global_acc, 
-                               [1,self.max_seq_length,1])
+
         
         
-        transformer_input = tf.concat([x,atac_x,phastcon_x,global_acc],
+        transformer_input = tf.concat([x,atac_x,phastcon_x],
                                       axis=2)
-        transformer_input = self.conv_mix_block(transformer_input,
-                                                training=training)
 
         transformer_input_x=self.sin_pe(transformer_input)
 
@@ -298,8 +293,16 @@ class enformer_performer(tf.keras.Model):
 
         out = self.final_pointwise_conv(out,
                                       training=training)
+        
+        global_acc = tf.tile(global_acc, 
+                               [1,896,1])
+        
+        out = tf.concat([global_acc,out],axis=2)
+        out = self.conv_mix_block(out,
+                                  training=training)
+        
         out = self.dropout(out,
-                        training=training)
+                           training=training)
         out = self.gelu(out)
 
         out= {head: head_module(out) for head, head_module in self.heads.items()}

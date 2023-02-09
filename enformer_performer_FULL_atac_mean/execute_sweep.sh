@@ -22,7 +22,7 @@ python3 train_model_batchnorm_experiments.py \
             --decay_frac="0.90" \
             --gradient_clip="1.0" \
             --BN_momentum="0.90" \
-            --hidden_size="1536" \
+            --hidden_size="1552" \
             --epsilon=1.0e-8 \
             --num_parallel=8 \
             --dropout_rate=0.40 \

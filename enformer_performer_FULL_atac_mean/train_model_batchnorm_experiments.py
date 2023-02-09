@@ -216,7 +216,8 @@ def main():
                 
             print(wandb.config.filter_list_seq)
             
-            run_name = '_'.join([str(wandb.config.input_length)[:3] + 'k',
+            run_name = '_'.join(['EP_full_dataset_',
+                                  str(wandb.config.input_length)[:3] + 'k',
                                  'global_acc_phastcons',
                                  'load_init-' + str(wandb.config.load_init),
                                  'freeze-' + str(wandb.config.freeze_conv_layers),
@@ -490,13 +491,13 @@ def main():
                 
                 
                 #if wandb.config.model_type == 'enformer_performer':
-                fig_gamma,fig_beta,fig_moving_means,fig_moving_vars=\
-                        training_utils.extract_batch_norm_stats(model)
-                wandb.log({'gamma': fig_gamma,
-                           'beta': fig_beta,
-                           'moving_mean': fig_moving_means,
-                           'moving_var': fig_moving_vars},
-                          step=epoch_i)
+                #fig_gamma,fig_beta,fig_moving_means,fig_moving_vars=\
+                #        training_utils.extract_batch_norm_stats(model)
+                #wandb.log({'gamma': fig_gamma,
+                #           'beta': fig_beta,
+                #           'moving_mean': fig_moving_means,
+                #           'moving_var': fig_moving_vars},
+                #          step=epoch_i)
                 
                 end = time.time()
                 duration = (end - start) / 60.
