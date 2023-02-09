@@ -350,11 +350,16 @@ def return_train_val_functions(model,
                             model.stem_res_conv.trainable_variables + \
                             model.stem_pool.trainable_variables + \
                             model.conv_tower.trainable_variables
+                
                 remaining_vars = model.stem_conv_atac.trainable_variables + \
-                                    model.stem_res_conv_atac.trainable_variables + \
+                                 model.stem_res_conv_atac.trainable_variables + \
+                                    model.stem_conv_phastcon.trainable_variables + \
+                                    model.stem_res_conv_phastcon.trainable_variables + \
+                                    model.conv_mix_block.trainable_variables + \
                                     model.performer.trainable_variables + \
                                     model.final_pointwise_conv.trainable_variables + \
                                     model.heads.trainable_variables
+                
                 vars_all = conv_vars + remaining_vars
 
                 inputs = sequence,mean_acc,phastcons,global_acc

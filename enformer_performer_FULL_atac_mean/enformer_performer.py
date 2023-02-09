@@ -286,7 +286,8 @@ class enformer_performer(tf.keras.Model):
         
         transformer_input = tf.concat([x,atac_x,phastcon_x,global_acc],
                                       axis=2)
-        transformer_input = self.conv_mix_block(transformer_input)
+        transformer_input = self.conv_mix_block(transformer_input,
+                                                training=training)
 
         transformer_input_x=self.sin_pe(transformer_input)
 
