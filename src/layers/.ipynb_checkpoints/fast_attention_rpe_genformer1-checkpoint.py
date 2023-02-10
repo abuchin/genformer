@@ -126,6 +126,33 @@ def relu_kernel_transformation(data,
     data_dash = ratio * tf.einsum("blhd,md->blhm", data, projection_matrix)
     return tf.nn.relu(data_dash) + numerical_stabilizer
 
+def relu_kernel_transformation_q(data,
+                               is_query,
+                               projection_matrix=None,
+                               numerical_stabilizer=0.001):
+    """Computes features for the ReLU-kernel.
+  Computes random features for the ReLU kernel from
+  https://arxiv.org/pdf/2009.14794.pdf.
+  Args:
+    data: input data tensor of the shape [B, L, H, D], where: B - batch
+      dimension, L - attention dimensions, H - heads, D - features.
+    is_query: indicates whether input data is a query oor key tensor.
+    projection_matrix: random Gaussian matrix of shape [M, D], where M stands
+      for the number of random features and each D x D sub-block has pairwise
+      orthogonal rows.
+    numerical_stabilizer: small positive constant for numerical stability.
+  Returns:
+    Corresponding kernel feature map.
+  """
+    del is_query
+    #if projection_matrix is None:
+    #    return tf.nn.relu(data) + numerical_stabilizer
+    #else:
+    ratio = 1.0 / tf.math.sqrt(
+    tf.dtypes.cast(projection_matrix.shape[0], tf.float32))
+    data_dash = ratio * tf.einsum("blhd,md->blhm", data, projection_matrix)
+    return tf.math.pow(tf.nn.relu(data_dash),4) + numerical_stabilizer
+
 
 def softmax_kernel_transformation(data,
                                   is_query,
@@ -338,20 +365,23 @@ class Attention(tf.keras.layers.Layer):
     """Multi-headed attention layer."""
 
     def __init__(self,
-           hidden_size,
-           num_heads,
-           attention_dropout,
-           max_seq_length,
-           kernel_transformation=softmax_kernel_transformation,
-           numerical_stabilizer=0.001,
-           causal=False,
-           nb_random_features=16,
-           use_rot_emb = True,
-           use_mask_pos = False,
-           eps = 1e-6,
-           normalize = True,
-           seed=42
-           ):
+                 hidden_size,
+                 num_heads,
+                 kernel_transformation=softmax_kernel_transformation,
+                 numerical_stabilizer=0.001,
+                   causal=False,
+                   nb_random_features=16,
+                   use_rot_emb = True,
+                   use_mask_pos = False,
+                   eps = 1e-6,
+                   normalize = True,
+                   seed=42,
+                 q_init=None,
+                 k_init=None,
+                 v_init=None,
+                 att_output=None,
+                 load_init = False
+                   ):
         
 #     """Initialize Attention.
     
@@ -379,7 +409,6 @@ class Attention(tf.keras.layers.Layer):
         super(Attention, self).__init__()
         self.hidden_size = hidden_size
         self.num_heads = num_heads
-        self.attention_dropout = attention_dropout
         self.kernel_transformation = kernel_transformation
         self.numerical_stabilizer = numerical_stabilizer
         self.causal = causal
@@ -389,6 +418,11 @@ class Attention(tf.keras.layers.Layer):
         self.eps = eps
         self.normalize = normalize
         self.seed = seed
+        self.load_init=load_init
+        self.q_init=q_init
+        self.k_init=k_init
+        self.v_init=v_init
+        self.att_output=att_output
         
 
 ## Removed projection matrix type since the call is throwing issues
@@ -408,17 +442,17 @@ class Attention(tf.keras.layers.Layer):
                                                     self.hidden_size)
         self.query_dense_layer = util.DenseEinsum(
             output_shape=(self.num_heads, size_per_head),
-            kernel_initializer=attention_initializer,
+            kernel_initializer=self.q_init if self.load_init else attention_initializer,
             use_bias=False,
             name="query")
         self.key_dense_layer = util.DenseEinsum(
             output_shape=(self.num_heads, size_per_head),
-            kernel_initializer=attention_initializer,
+            kernel_initializer=self.k_init if self.load_init else attention_initializer,
             use_bias=False,
             name="key")
         self.value_dense_layer = util.DenseEinsum(
             output_shape=(self.num_heads, size_per_head),
-            kernel_initializer=attention_initializer,
+            kernel_initializer=self.v_init if self.load_init else attention_initializer,
             use_bias=False,
             name="value")
 
@@ -426,7 +460,7 @@ class Attention(tf.keras.layers.Layer):
         self.output_dense_layer = util.DenseEinsum(
             output_shape=self.hidden_size,
             num_summed_dimensions=2,
-            kernel_initializer=output_initializer,
+            kernel_initializer=self.att_output if self.load_init else output_initializer,
             use_bias=False,
             name="output_transform")
         
@@ -450,7 +484,8 @@ class Attention(tf.keras.layers.Layer):
             "use_mask_pos":self.use_mask_pos,
             "eps":self.eps,
             "normalize":self.normalize,
-            "seed":self.seed
+            "seed":self.seed,
+            "load_init":self.load_init
         }
     @classmethod
     def from_config(cls, config):
@@ -493,6 +528,8 @@ class Attention(tf.keras.layers.Layer):
         
         if self.kernel_transformation == 'relu_kernel_transformation':
             kernel_transform = relu_kernel_transformation
+        elif self.kernel_transformation == 'relu_kernel_transformation_q':
+            kernel_transform = relu_kernel_transformation_q
         else:
             kernel_transform = softmax_kernel_transformation
 
@@ -551,6 +588,10 @@ class Attention(tf.keras.layers.Layer):
             q,k = apply_rotary_pos_emb(q,k,rpe)
             #k = apply_rotary_pos_emb(rpe, k)
             #q, k = apply_rotary_pos_emb(q,k,rpe)
+            attention_output, k_prime, q_prime = favor_attention(q, k, v,
+                                       kernel_transform, self.causal,
+                                       self.projection_matrix)
+        if rpe is None and not self.use_rot_emb and not self.use_mask_pos:
             attention_output, k_prime, q_prime = favor_attention(q, k, v,
                                        kernel_transform, self.causal,
                                        self.projection_matrix)

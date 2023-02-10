@@ -392,18 +392,20 @@ def return_train_val_functions(model,
             target=tf.cast(inputs['target'],dtype=tf.float32)
             mean_atac=tf.cast(inputs['mean_atac'],dtype=tf.bfloat16)
 
-            with tf.GradientTape(watch_accessed_variables=False) as tape:
+            with tf.GradientTape() as tape:
                 conv_vars = model.stem_conv.trainable_variables + \
                             model.stem_res_conv.trainable_variables + \
                             model.stem_pool.trainable_variables + \
                             model.conv_tower.trainable_variables
                 
-                remaining_vars = model.performer.trainable_variables + \
+                remaining_vars = model.stem_conv_atac.trainable_variables + \
+                                 model.stem_res_conv_atac.trainable_variables + \
+                                    model.performer.trainable_variables + \
                                     model.final_pointwise_conv.trainable_variables + \
                                     model.heads.trainable_variables
                 vars_all = conv_vars + remaining_vars
-                for var in vars_all:
-                    tape.watch(var)
+                #for var in vars_all:
+                #    tape.watch(var)
                 inputs = sequence,mean_atac
                 output = model(inputs,
                                training=True)['human']
@@ -450,7 +452,7 @@ def return_train_val_functions(model,
         @tf.function(jit_compile=True)
         def val_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
-            target=tf.cast(inputs['target'],dtype=tf.float32)
+            target=tf.cast(inputs['target'],dtype=tf.float32)[:31]
             mean_atac=tf.cast(inputs['mean_atac'],dtype=tf.bfloat16)
 
             tss_mask = tf.cast(inputs['tss_mask'],dtype=tf.float32)
@@ -459,7 +461,7 @@ def return_train_val_functions(model,
             cell_types = inputs['cell_types']
             inputs = sequence,mean_atac
             output = model(inputs,
-                           training=False)['human']
+                           training=False)['human'][:31]
             
             pred = tf.reduce_sum(tf.cast(output,dtype=tf.float32) * tss_mask,axis=1)
             true = tf.reduce_sum(tf.cast(target,dtype=tf.float32) * tss_mask,axis=1)
@@ -569,13 +571,14 @@ def deserialize_tr(serialized_example,input_length,max_shift, out_length, num_ta
         sequence = tf.gather(sequence, [3, 2, 1, 0], axis=-1)
         sequence = tf.reverse(sequence, axis=[0])
         target = tf.reverse(target,axis=[0])
+        targets_atac = tf.reverse(targets_atac,axis=[0])
     
     return {'sequence': tf.ensure_shape(sequence,
                                         [input_length,4]),
             'mean_atac': tf.ensure_shape(targets_atac,
                                          [1536,1]),
-            'target': tf.ensure_shape(targets_cage,
-                                      [896,31])}
+            'target': tf.ensure_shape(target,
+                                      [896,62])}
                     
 
 
@@ -611,14 +614,14 @@ def deserialize_val(serialized_example,input_length,max_shift, out_length,num_ta
                       [320,0],
                       [896,-1])
     ### subset target CAGE
-    targets_cage = target[:,:31]
+    #targets_cage = target[:,:31]
     
     return {'sequence': tf.ensure_shape(sequence,
                                         [input_length,4]),
             'mean_atac': tf.ensure_shape(targets_atac,
                                          [1536,1]),
-            'target': tf.ensure_shape(targets_cage,
-                                      [896,31])}
+            'target': tf.ensure_shape(target,
+                                      [896,62])}
 
 
 def deserialize_val_TSS(serialized_example,input_length,max_shift,out_length,num_targets):
@@ -669,8 +672,8 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,out_length,num
                                         [input_length,4]),
             'mean_atac': tf.ensure_shape(targets_atac,
                                          [1536,1]),
-            'target': tf.ensure_shape(targets_cage,
-                                      [896,31]),
+            'target': tf.ensure_shape(target,
+                                      [896,62]),
             'tss_mask': tf.ensure_shape(tss_mask,
                                         [896,1]),
             'gene_name': tf.ensure_shape(gene_name,

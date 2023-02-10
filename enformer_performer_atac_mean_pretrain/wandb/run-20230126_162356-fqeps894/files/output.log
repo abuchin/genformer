@@ -1,0 +1,19 @@
+WARNING:absl:options.experimental_threading is deprecated. Use options.threading instead.
+WARNING:tensorflow:From /opt/conda/lib/python3.7/site-packages/tensorflow/python/autograph/pyct/static_analysis/liveness.py:83: Analyzer.lamba_check (from tensorflow.python.autograph.pyct.static_analysis.liveness) is deprecated and will be removed after 2023-09-23.
+Instructions for updating:
+Lambda fuctions will be no more assumed to be used in the statement where they are used, or at least in the same block. https://github.com/tensorflow/tensorflow/issues/56089
+WARNING:tensorflow:From /opt/conda/lib/python3.7/site-packages/tensorflow/python/autograph/pyct/static_analysis/liveness.py:83: Analyzer.lamba_check (from tensorflow.python.autograph.pyct.static_analysis.liveness) is deprecated and will be removed after 2023-09-23.
+Instructions for updating:
+Lambda fuctions will be no more assumed to be used in the statement where they are used, or at least in the same block. https://github.com/tensorflow/tensorflow/issues/56089
+global batch size: 8
+created dataset iterators
+loaded enformer conv weights
+[34m[1mwandb[39m[22m: [33mWARNING[39m Config item 'filter_list_seq' was locked by 'sweep' (ignored update).
+loaded enformer_performer
+initialized model
+finished loading training/val loop functions
+building model
+/opt/conda/lib/python3.7/site-packages/keras/initializers/initializers_v2.py:121: UserWarning: The initializer RandomUniform is unseeded and being called multiple times, which will return identical values  each time (even if the initializer is unseeded). Please update your code to provide a seed to the initializer, or avoid using the same initalizer instance more than once.
+  f"The initializer {self.__class__.__name__} is unseeded "
+total params: tf.Tensor(171529038, shape=(), dtype=int32)
+starting epoch_ 1

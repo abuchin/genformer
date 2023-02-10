@@ -172,26 +172,22 @@ class aformer(tf.keras.Model):
                        name=f'conv_tower_block_{i}')
             for i, num_filters in enumerate(self.filter_list_seq)], name='conv_tower')
         
-        #self.conv_tower_peaks_pool = tf.keras.Sequential([
-        #                                SoftmaxPooling1D(per_channel=True,
-        #                                                 w_init_scale=2.0,
-        #                                                 pool_size=4,
-        #                                                 name=f'pooling_block_{i}')
-        #    for i, num_filters in enumerate(self.filter_list_seq)], name='conv_tower_peaks_pool')
 
         self.conv_tower_peaks = tf.keras.Sequential([
+            self.stem_res_conv,
+            kl.MaxPool1D(pool_size=2,
+                         strides=2,
+                         name=f'pooling_block_stem'),
             tf.keras.Sequential([
-                self.conv_tower_seq.layers[i].layers[0],
-                self.conv_tower_seq.layers[i].layers[1],
-                SoftmaxPooling1D(per_channel=True,
-                                 w_init_scale=2.0,
-                                 pool_size=2,
-                #kl.AveragePooling1D(pool_size=2,
-                                    #strides=2,
-                                    name=f'pooling_block_{i}')
-                ],
-                       name=f'conv_tower_peaks_block{i}')
-            for i, num_filters in enumerate(self.filter_list_seq)], name='conv_tower_peaks')
+                tf.keras.Sequential([
+                    self.conv_tower_seq.layers[i].layers[0],
+                    kl.MaxPool1D(pool_size=2,
+                                 strides=2,
+                                 name=f'pooling_block_{i}')
+                    ],
+                           name=f'conv_tower_peaks_block{i}')
+                for i, num_filters in enumerate(self.filter_list_seq)], name='conv_tower_peaks')],
+            name='peaks_processing_module')
         
 
         self.peaks_module = peaks_module(reduce_channels=self.peaks_reduce_dim,

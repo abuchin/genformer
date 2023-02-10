@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 python3 train_model_batchnorm_experiments.py \
-            --tpu_name="node-6" \
+            --tpu_name="node-5" \
             --tpu_zone="us-central1-a" \
             --wandb_project="enformer_baseline" \
             --wandb_user="njaved" \
@@ -22,7 +22,7 @@ python3 train_model_batchnorm_experiments.py \
             --decay_frac="0.90" \
             --gradient_clip="1.0" \
             --BN_momentum="0.90" \
-            --hidden_size="1536" \
+            --hidden_size="1552" \
             --epsilon=1.0e-8 \
             --num_parallel=8 \
             --dropout_rate=0.40 \
@@ -30,12 +30,12 @@ python3 train_model_batchnorm_experiments.py \
             --savefreq=5 \
             --val_examples_TSS=2134 \
             --load_init="True" \
-            --freeze_conv_layers="False" \
+            --freeze_conv_layers="True" \
             --num_examples_dict="human:34021,2213;mouse:29295,2209" \
             --num_transformer_layers=4 \
             --num_heads=8 \
             --optimizer="adamw" \
             --heads_channels="human:5313;mouse:1643" \
-            --global_acc_profile="GRCh38_ELS.peak.conv.unweight.np.txt" \
-            --kernel_transformation="relu_kernel_transformation" 
-            
+            --kernel_transformation="relu_kernel_transformation" \
+            --filter_list_seq="384,512,640,768,896,1024"
+            #--enformer_checkpoint_path="sonnet_weights"

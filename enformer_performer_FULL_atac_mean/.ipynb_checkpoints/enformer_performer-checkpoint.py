@@ -141,18 +141,19 @@ class enformer_performer(tf.keras.Model):
                                                    name='pointwise_conv_block'))
         
         ### conv stack for atac
-        self.stem_conv_atac = tf.keras.layers.Conv1D(filters= 8,
+        self.stem_conv_atac = tf.keras.layers.Conv1D(filters= 16,
                                                      kernel_size=5,
                                                      kernel_initializer='glorot_uniform',
                                                      bias_initializer='zeros',
                                                      padding='same')
 
-        self.stem_res_conv_atac =Residual(enf_conv_block(8, 
+        self.stem_res_conv_atac =Residual(enf_conv_block(16, 
                                                          1,
                                                          name='pointwise_conv_block_atac'))
         
         
         ### phastcons stack 
+        """
         self.stem_conv_phastcon = tf.keras.layers.Conv1D(filters= 8,
                                                      kernel_size=5,
                                                      kernel_initializer='glorot_uniform',
@@ -163,7 +164,7 @@ class enformer_performer(tf.keras.Model):
                                                              1,
                                                              name='pointwise_conv_block_phastcon'))
         
-        
+        """
 
         self.stem_pool = SoftmaxPooling1D(per_channel=True,
                                           w_init_scale=2.0,
@@ -239,13 +240,11 @@ class enformer_performer(tf.keras.Model):
                                   **kwargs)
         self.gelu = tfa.layers.GELU()
         
-        
-        self.conv_mix_block = enf_conv_block(filters=self.filter_list_seq[-1],
+        """
+        self.conv_mix_block = enf_conv_block(filters=self.filter_list_seq[-1] * 2,
                                                   **kwargs,
                                                   name = 'conv_mix_block')
-
-
-
+        """
         self.heads = {
             head: kl.Dense(num_channels,
                            activation='softplus',
@@ -255,7 +254,7 @@ class enformer_performer(tf.keras.Model):
         
     def call(self, inputs, training:bool=True):
         
-        sequence,mean_atac,phastcons,global_acc = inputs
+        sequence,mean_atac = inputs
         
         x = self.stem_conv(sequence,
                            training=training)
@@ -273,20 +272,9 @@ class enformer_performer(tf.keras.Model):
                                      training=training)
         atac_x = self.stem_res_conv_atac(atac_x,
                                          training=training)
-        
-        
-        phastcon_x = self.stem_conv_phastcon(phastcons,
-                                     training=training)
-        phastcon_x = self.stem_res_conv_phastcon(phastcon_x,
-                                         training=training)
-        
-        global_acc = tf.tile(global_acc, 
-                               [1,self.max_seq_length,1])
-        
-        
-        transformer_input = tf.concat([x,atac_x,phastcon_x,global_acc],
+
+        transformer_input = tf.concat([x,atac_x],
                                       axis=2)
-        transformer_input = self.conv_mix_block(transformer_input)
 
         transformer_input_x=self.sin_pe(transformer_input)
 
@@ -297,8 +285,9 @@ class enformer_performer(tf.keras.Model):
 
         out = self.final_pointwise_conv(out,
                                       training=training)
+        
         out = self.dropout(out,
-                        training=training)
+                           training=training)
         out = self.gelu(out)
 
         out= {head: head_module(out) for head, head_module in self.heads.items()}

@@ -307,7 +307,7 @@ def main():
             print('loaded enformer_performer')
             model = enformer_performer.enformer_performer(num_transformer_layers=wandb.config.num_transformer_layers,
                                                           num_heads=wandb.config.num_heads,
-                                                          heads_channels= {'human':31},
+                                                          heads_channels= {'human':62},
                                                           filter_list_seq=wandb.config.filter_list_seq,
                                                           dim=wandb.config.hidden_size // wandb.config.num_heads,
                                                           d_model=wandb.config.hidden_size,
@@ -449,12 +449,14 @@ def main():
                 pearsonsR=metric_dict['pearsonsR'].result()['PearsonR'].numpy()
 
                 wandb.log({'human_val_tracks_pearsons': np.nanmean(pearsonsR),
-                           'human_CAGE_pearsons': np.nanmean(pearsonsR)},
+                           'human_ATAC_pearsons': np.nanmean(pearsonsR[31:]),
+                           'human_CAGE_pearsons': np.nanmean(pearsonsR[:31])},
                           step=epoch_i)
 
                 R2=metric_dict['R2'].result()['R2'].numpy()
                 wandb.log({'human_val_tracks_R2': np.nanmean(R2),
-                           'human_CAGE_R2': np.nanmean(R2)},
+                           'human_ATAC_r2': np.nanmean(R2[31:]),
+                           'human_CAGE_R2': np.nanmean(R2[:31])},
                           step=epoch_i)
                 
                 print('human_val_loss: ' + str(metric_dict['hg_val'].result().numpy()))

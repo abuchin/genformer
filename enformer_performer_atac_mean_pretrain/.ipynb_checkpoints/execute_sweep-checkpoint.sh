@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 python3 train_model_batchnorm_experiments.py \
-            --tpu_name="node-5" \
+            --tpu_name="node-6" \
             --tpu_zone="us-central1-a" \
             --wandb_project="enformer_baseline" \
             --wandb_user="njaved" \
@@ -27,7 +27,6 @@ python3 train_model_batchnorm_experiments.py \
             --dropout_rate=0.40 \
             --attention_dropout_rate=0.05 \
             --savefreq=5 \
-            --val_examples_TSS=2134 \
             --load_init="False" \
             --freeze_conv_layers="False" \
             --num_transformer_layers=6 \

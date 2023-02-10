@@ -218,7 +218,6 @@ def main():
             
             run_name = '_'.join(['EP_full_dataset_',
                                   str(wandb.config.input_length)[:3] + 'k',
-                                 'global_acc_phastcons',
                                  'load_init-' + str(wandb.config.load_init),
                                  'freeze-' + str(wandb.config.freeze_conv_layers),
                                  'LR1-' + str(wandb.config.lr_base1),
@@ -264,8 +263,8 @@ def main():
                 iterators[key]=(wandb.config.gcs_path,val)
                 
             ### load in global_acc
-            global_acc_human = np.loadtxt(args.global_acc_profile_human)
-            global_acc_mouse = np.loadtxt(args.global_acc_profile_mouse)
+            #global_acc_human = np.loadtxt(args.global_acc_profile_human)
+            #global_acc_mouse = np.loadtxt(args.global_acc_profile_mouse)
             
             tr_data_it_dict,val_data_it_dict,val_data_TSS_it= \
                     training_utils.return_distributed_iterators(iterators,
@@ -277,9 +276,7 @@ def main():
                                                                 args.num_epochs,
                                                                 strategy,
                                                                 options,
-                                                                g,
-                                                                global_acc_human,
-                                                                global_acc_mouse)
+                                                                g)
 
 
             print('created dataset iterators')
