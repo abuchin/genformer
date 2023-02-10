@@ -89,7 +89,7 @@ class enformer_performer(tf.keras.Model):
 
         def enf_conv_block(filters, 
                            width=1, 
-                           w_init='glorot_uniform', 
+                           w_init='lecun_normal', 
                            b_init='zeros',
                            padding='same', 
                            name='conv_block',
@@ -115,8 +115,8 @@ class enformer_performer(tf.keras.Model):
                 tfa.layers.GELU(),
                 kl.Conv1D(filters,
                          kernel_size=width, 
-                         kernel_initializer=kernel_init if self.load_init else w_init,
-                         bias_initializer=bias_init if self.load_init else b_init,
+                         kernel_initializer=kernel_init if self.load_init else 'lecun_normal',
+                         bias_initializer=bias_init if self.load_init else 'zeros',
                          trainable=train,
                          padding=padding, **kwargs)
             ], name=name)
@@ -124,7 +124,7 @@ class enformer_performer(tf.keras.Model):
         ### conv stack for sequence inputs
         self.stem_conv = kl.Conv1D(filters= int(self.filter_list_seq[-1]) // 2,
                                    kernel_size=15,
-                                   kernel_initializer=self.inits['stem_conv_k'] if self.load_init else 'glorot_uniform',
+                                   kernel_initializer=self.inits['stem_conv_k'] if self.load_init else 'lecun_normal',
                                    bias_initializer=self.inits['stem_conv_b'] if self.load_init else 'zeros',
                                    strides=1,
                                    trainable=False if self.freeze_conv_layers else True,
@@ -143,7 +143,7 @@ class enformer_performer(tf.keras.Model):
         ### conv stack for atac
         self.stem_conv_atac = tf.keras.layers.Conv1D(filters= 16,
                                                      kernel_size=5,
-                                                     kernel_initializer='glorot_uniform',
+                                                     kernel_initializer='lecun_normal',
                                                      bias_initializer='zeros',
                                                      padding='same')
 

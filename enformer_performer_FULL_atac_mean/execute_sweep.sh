@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model_batchnorm_experiments.py \
-            --tpu_name="node-5" \
-            --tpu_zone="us-central1-a" \
+            --tpu_name="pod" \
+            --tpu_zone="us-east1-d" \
             --wandb_project="enformer_baseline" \
             --wandb_user="njaved" \
             --wandb_sweep_name="enformer_baseline" \
@@ -13,7 +13,7 @@ python3 train_model_batchnorm_experiments.py \
             --warmup_frac=0.01 \
             --patience=50 \
             --min_delta=0.00001 \
-            --model_save_dir="gs://picard-testing-176520/enformer_performer_FULL_atac_mean/enformer_performer_FULL_atac_mean/models_phastcon_globalacc" \
+            --model_save_dir="gs://picard-testing-176520/enformer_performer_FULL_atac_mean/models" \
             --model_save_basename="enformer_performer_FULL_atac_mean" \
             --lr_base1="1.0e-06" \
             --lr_base2="1.0e-04" \
