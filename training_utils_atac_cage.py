@@ -372,7 +372,7 @@ def return_train_val_functions(model,
 
     loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
 
-    optimizer1,optimizer2,optimizer3=optimizers_in
+    optimizer1,optimizer2=optimizers_in
     
     metric_dict["corr_stats"] = metrics.correlation_stats_gene_centered(name='corr_stats')
     metric_dict["train_loss"] = tf.keras.metrics.Mean("train_loss",
@@ -396,10 +396,10 @@ def return_train_val_functions(model,
         def train_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            
+            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
 
-            input_tuple = sequence, atac
+            input_tuple = sequence, atac,global_acc
 
             with tf.GradientTape() as tape:
                 conv_vars = model.stem_conv.trainable_variables + \
@@ -410,11 +410,10 @@ def return_train_val_functions(model,
                 performer_vars = model.performer.trainable_variables + \
                                     model.final_pointwise_conv.trainable_variables + \
                                     model.stem_conv_atac.trainable_variables + \
-                                    model.stem_res_conv_atac.trainable_variables
+                                    model.stem_res_conv_atac.trainable_variables + \
+                                    model.final_dense.trainable_variables
                 
-                output_head_vars = model.final_dense.trainable_variables
-                
-                vars_all = conv_vars + performer_vars + output_head_vars
+                vars_all = conv_vars + performer_vars
                 
                 output = model(input_tuple,
                                training=True)
@@ -428,10 +427,8 @@ def return_train_val_functions(model,
                                                   gradient_clip)
             optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], 
                                            conv_vars))
-            optimizer2.apply_gradients(zip(gradients[len(conv_vars):len(performer_vars) + len(conv_vars)], 
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
                                            performer_vars))
-            optimizer3.apply_gradients(zip(gradients[len(conv_vars) + len(performer_vars):], 
-                                           output_head_vars))
             metric_dict["train_loss"].update_state(loss)
         
         for _ in tf.range(train_steps):
@@ -444,8 +441,9 @@ def return_train_val_functions(model,
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
+            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
             
-            input_tuple = sequence, atac
+            input_tuple = sequence,atac,global_acc
 
             output = model(input_tuple,
                            training=False)
@@ -477,8 +475,8 @@ def return_train_val_functions(model,
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-                        
-            input_tuple = sequence, atac
+            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
+            input_tuple = sequence, atac,global_acc
 
             output = model(input_tuple,
                            training=False)
@@ -533,8 +531,8 @@ def return_train_val_functions(model,
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
-                        
-            input_tuple = sequence,atac
+            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)         
+            input_tuple = sequence,atac,global_acc
 
             output = model(input_tuple,
                            training=False)
@@ -558,7 +556,8 @@ def deserialize_tr(serialized_example,
     feature_map = {
         'sequence': tf.io.FixedLenFeature([], tf.string),
         'atac': tf.io.FixedLenFeature([], tf.string),
-        'cage': tf.io.FixedLenFeature([], tf.string)
+        'cage': tf.io.FixedLenFeature([], tf.string),
+        'cell_specific_conv_arr': tf.io.FixedLenFeature([], tf.string)
     }
     ### stochastic sequence shift and gaussian noise
 
@@ -614,12 +613,23 @@ def deserialize_tr(serialized_example,
                             [output_length-2*crop_size,-1])
         target = tf.concat([atac_out,cage],axis=1)
         
+    global_acc = tf.ensure_shape(tf.io.parse_tensor(data['cell_specific_conv_arr'],
+                                              out_type=tf.float32),
+                           [1536])
+    global_acc=tf.expand_dims(global_acc,axis=0)
+    global_acc = global_acc + tf.math.abs(g.normal(global_acc.shape,
+                                               mean=0.0,
+                                               stddev=0.10,
+                                               dtype=tf.float32))
+        
     if predict_masked_atac_bool:
     
         return {'sequence': tf.ensure_shape(sequence,
                                             [input_length,4]),
                 'atac': tf.ensure_shape(masked_atac,
                                           [output_length,1]),
+                'global_acc': tf.ensure_shape(global_acc,
+                                          [1,1536]),
                 'target': tf.ensure_shape(target,
                                           [output_length-crop_size*2,2])}
     else:
@@ -627,6 +637,8 @@ def deserialize_tr(serialized_example,
                                             [input_length,4]),
                 'atac': tf.ensure_shape(atac,
                                           [output_length,1]),
+                'global_acc': tf.ensure_shape(global_acc,
+                                          [1,1536]),
                 'target': tf.ensure_shape(cage,
                                           [output_length-crop_size*2,1])}
 
@@ -635,7 +647,8 @@ def deserialize_val(serialized_example,input_length,max_shift,output_length,crop
     feature_map = {
         'sequence': tf.io.FixedLenFeature([], tf.string),
         'atac': tf.io.FixedLenFeature([], tf.string),
-        'cage': tf.io.FixedLenFeature([], tf.string)
+        'cage': tf.io.FixedLenFeature([], tf.string),
+        'cell_specific_conv_arr': tf.io.FixedLenFeature([], tf.string)
     }
     
     seq_shift = 5
@@ -665,13 +678,18 @@ def deserialize_val(serialized_example,input_length,max_shift,output_length,crop
                             [output_length-2*crop_size,-1])
         target = tf.concat([atac_out,cage],axis=1)
         
-        
+    global_acc = tf.ensure_shape(tf.io.parse_tensor(data['cell_specific_conv_arr'],
+                                              out_type=tf.float32),
+                           [1536])
+    global_acc=tf.expand_dims(global_acc,axis=0)
 
     if predict_masked_atac_bool:
         return {'sequence': tf.ensure_shape(sequence,
                                             [input_length,4]),
                 'atac': tf.ensure_shape(masked_atac,
                                           [output_length,1]),
+                'global_acc': tf.ensure_shape(global_acc,
+                                          [1,1536]),
                 'target': tf.ensure_shape(target,
                                           [output_length-crop_size*2,2])}
     else:
@@ -679,6 +697,8 @@ def deserialize_val(serialized_example,input_length,max_shift,output_length,crop
                                             [input_length,4]),
                 'atac': tf.ensure_shape(atac,
                                           [output_length,1]),
+                'global_acc': tf.ensure_shape(global_acc,
+                                          [1,1536]),
                 'target': tf.ensure_shape(cage,
                                           [output_length-crop_size*2,1])}
 
@@ -689,8 +709,9 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length,
         'atac': tf.io.FixedLenFeature([], tf.string),
         'cage': tf.io.FixedLenFeature([], tf.string),
         'tss_tokens': tf.io.FixedLenFeature([], tf.string),
-        'gene_token': tf.io.FixedLenFeature([], tf.string),
-        'cell_type': tf.io.FixedLenFeature([], tf.string)
+        'processed_gene_token': tf.io.FixedLenFeature([], tf.string),
+        'cell_type': tf.io.FixedLenFeature([], tf.string),
+        'cell_specific_conv_arr': tf.io.FixedLenFeature([], tf.string)
     }
     
     seq_shift = 5
@@ -719,15 +740,19 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length,
     tss_tokens = tf.io.parse_tensor(data['tss_tokens'],
                                   out_type=tf.int32)
 
-    #tss_tokens = tf.expand_dims(tss_tokens,axis=1)
+    tss_tokens = tf.expand_dims(tss_tokens,axis=1)
 
     
-    gene_token= tf.io.parse_tensor(data['gene_token'],
+    gene_token= tf.io.parse_tensor(data['processed_gene_token'],
                                    out_type=tf.int32)
 
     cell_type = tf.io.parse_tensor(data['cell_type'],
                                   out_type=tf.int32)
     
+    global_acc = tf.ensure_shape(tf.io.parse_tensor(data['cell_specific_conv_arr'],
+                                              out_type=tf.float32),
+                           [1536])
+    global_acc=tf.expand_dims(global_acc,axis=0)
 
     if predict_masked_atac_bool:
         atac_out = tf.slice(atac,
@@ -744,6 +769,8 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length,
                                           [output_length-crop_size*2,2]),
                 'tss_tokens': tf.ensure_shape(tss_tokens,
                                           [output_length-2*crop_size,1]),
+                'global_acc': tf.ensure_shape(global_acc,
+                                          [1,1536]),
                 'gene_token':gene_token,
                 'cell_type': cell_type}
     else:
@@ -755,6 +782,8 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length,
                                           [output_length-crop_size*2,1]),
                 'tss_tokens': tf.ensure_shape(tss_tokens,
                                           [output_length-2*crop_size,1]),
+                'global_acc': tf.ensure_shape(global_acc,
+                                          [1,1536]),
                 'gene_token':gene_token,
                 'cell_type': cell_type}
 
@@ -947,7 +976,7 @@ def make_plots(y_trues,
     fig_overall,ax_overall=plt.subplots(figsize=(6,6))
     
     ## scatter plot for 50k points max
-    idx = np.random.choice(np.arange(len(true_zscore)), 1000, replace=False)
+    idx = np.random.choice(np.arange(len(true_zscore)), 100, replace=False)
     
     data = np.vstack([true_zscore[idx],
                       pred_zscore[idx]])
@@ -1140,10 +1169,6 @@ def parse_args(parser):
                         dest='lr_base2',
                         default="1.0e-03",
                         help='lr_base2')
-    parser.add_argument('--lr_base3',
-                        dest='lr_base3',
-                        default="1.0e-03",
-                        help='lr_base3')
     parser.add_argument('--decay_frac',
                         dest='decay_frac',
                         type=str,
@@ -1271,11 +1296,6 @@ def parse_args(parser):
                         type=float,
                         default=0.01,
                         help= 'wd2_frac')
-    parser.add_argument('--wd3_frac',
-                        dest='wd3_frac',
-                        type=float,
-                        default=0.01,
-                        help= 'wd3_frac')
     parser.add_argument('--rectify',
                         dest='rectify',
                         type=str,

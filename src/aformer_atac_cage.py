@@ -249,6 +249,11 @@ class aformer(tf.keras.Model):
                                                    bias_init=self.inits['final_point_b'] if self.load_init else None,
                                                   **kwargs,
                                                   name = 'final_pointwise')
+        
+        #self.final_dim_reduce = enf_conv_block(filters=self.filter_list_seq[-1] // 16,
+        #                                          **kwargs,
+        #                                          name = 'final_pointwise')
+        
         if predict_masked_atac_bool: 
             self.final_dense = kl.Dense(2,
                                        activation='softplus',
@@ -265,7 +270,7 @@ class aformer(tf.keras.Model):
         
     def call(self, inputs, training:bool=True):
 
-        sequence,atac = inputs
+        sequence,atac, global_acc = inputs
         
         x = self.stem_conv(sequence,
                            training=training)
@@ -296,7 +301,16 @@ class aformer(tf.keras.Model):
         out = self.crop_final(out)
 
         out = self.final_pointwise_conv(out,
-                                      training=training)
+                                       training=training)
+        
+        global_acc = tf.tile(global_acc, 
+                               [1,self.final_output_length,1])
+        
+        
+        out = tf.concat([global_acc,out],axis=2)
+        
+        #out = self.final_dim_reduce(out,training=training)
+        
         out = self.dropout(out,
                         training=training)
         out = self.gelu(out)

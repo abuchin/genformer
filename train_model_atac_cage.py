@@ -95,9 +95,6 @@ def main():
                 'lr_base2': {
                     'values':[float(x) for x in args.lr_base2.split(',')]
                 },
-                'lr_base3': {
-                    'values':[float(x) for x in args.lr_base3.split(',')]
-                },
                 'gradient_clip': {
                     'values': [float(x) for x in args.gradient_clip.split(',')]
                 },
@@ -139,9 +136,6 @@ def main():
                 },
                 'wd2_frac': {
                     'values': [args.wd2_frac]
-                },
-                'wd3_frac': {
-                    'values': [args.wd3_frac]
                 },
                 'rectify': {
                     'values':[parse_bool_str(x) for x in args.rectify.split(',')]
@@ -194,16 +188,16 @@ def main():
             wandb.config.crop_size = (wandb.config.output_length - wandb.config.final_output_length) // 2
             
             
-            run_name = '_'.join([str(wandb.config.input_length)[:3] + 'k',
+            run_name = '_'.join(["EP_baseline",
+                                 "glob_acc",
+                                  str(wandb.config.input_length)[:3] + 'k',
                                  'load-' + str(wandb.config.load_init),
                                  'frz-' + str(wandb.config.freeze_conv_layers),
                                  'LR1-' + str(wandb.config.lr_base1),
                                  'LR2-' + str(wandb.config.lr_base2),
-                                 'LR3-' + str(wandb.config.lr_base3),
                                  'T-' + str(wandb.config.num_transformer_layers),
                                  'F-' + str(wandb.config.hidden_size),
-                                 'D-' + str(wandb.config.dropout_rate),
-                                 'K-' + str(wandb.config.kernel_transformation)])
+                                 'D-' + str(wandb.config.dropout_rate)])
             
             date_string = f'{datetime.now():%Y-%m-%d %H:%M:%S%z}'
             date_string = date_string.replace(' ','_')
@@ -242,7 +236,6 @@ def main():
                                 allow_val_change=True)
             
 
-            
             data_train,data_val,data_val_TSS = \
                     training_utils.return_distributed_iterators(wandb.config.gcs_path,
                                                                 wandb.config.gcs_path_TSS,
@@ -306,7 +299,7 @@ def main():
             
 
             print('initialized model')
-            """
+
             scheduler1= tf.keras.optimizers.schedules.CosineDecay(
                 initial_learning_rate=wandb.config.lr_base1,
                 decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
@@ -323,45 +316,9 @@ def main():
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps,
                                          decay_schedule_fn=scheduler2)
             optimizer2 = tf.keras.optimizers.Adam(learning_rate=scheduler2)
-            ######################################################################################################
-            scheduler3= tf.keras.optimizers.schedules.CosineDecay(
-                initial_learning_rate=wandb.config.lr_base3,
-                decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
-            scheduler3=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base3,
-                                         warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps,
-                                         decay_schedule_fn=scheduler3)
-            optimizer3 = tf.keras.optimizers.Adam(learning_rate=scheduler3)
-            
-            """
-            optimizer1 = tfa.optimizers.AdaBelief(
-                learning_rate= wandb.config.lr_base1,
-                epsilon= wandb.config.epsilon,
-                weight_decay= wandb.config.wd1_frac * wandb.config.lr_base1,
-                rectify= wandb.config.rectify,
-                total_steps= wandb.config.total_steps*wandb.config.num_epochs,
-                warmup_proportion= wandb.config.warmup_frac,
-                min_lr= wandb.config.decay_frac * wandb.config.lr_base1
-            )
-            optimizer2 = tfa.optimizers.AdaBelief(
-                learning_rate= wandb.config.lr_base2,
-                epsilon= wandb.config.epsilon,
-                weight_decay= wandb.config.wd2_frac * wandb.config.lr_base2,
-                rectify= wandb.config.rectify,
-                total_steps= wandb.config.total_steps*wandb.config.num_epochs,
-                warmup_proportion= wandb.config.warmup_frac,
-                min_lr= wandb.config.decay_frac * wandb.config.lr_base2
-            )
-            optimizer3 = tfa.optimizers.AdaBelief(
-                learning_rate= wandb.config.lr_base3,
-                epsilon= wandb.config.epsilon,
-                weight_decay= wandb.config.wd3_frac * wandb.config.lr_base3,
-                rectify= wandb.config.rectify,
-                total_steps= wandb.config.total_steps*wandb.config.num_epochs,
-                warmup_proportion= wandb.config.warmup_frac,
-                min_lr= wandb.config.decay_frac * wandb.config.lr_base3
-            )
-            
-            optimizers_in = optimizer1,optimizer2,optimizer3
+
+
+            optimizers_in = optimizer1,optimizer2
             
             metric_dict = {}
 
