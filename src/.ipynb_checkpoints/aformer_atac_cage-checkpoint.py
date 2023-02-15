@@ -96,7 +96,7 @@ class aformer(tf.keras.Model):
         
         def enf_conv_block(filters, 
                            width=1, 
-                           w_init='glorot_uniform', 
+                           w_init='lecun_normal', 
                            b_init='zeros',
                            padding='same', 
                            name='conv_block',
@@ -134,7 +134,7 @@ class aformer(tf.keras.Model):
         ### conv stack for sequence inputs
         self.stem_conv = tf.keras.layers.Conv1D(filters= int(self.filter_list_seq[-1]) // 2,
                                    kernel_size=15,
-                                   kernel_initializer=self.inits['stem_conv_k'] if self.load_init else 'glorot_uniform',
+                                   kernel_initializer=self.inits['stem_conv_k'] if self.load_init else 'lecun_normal',
                                    bias_initializer=self.inits['stem_conv_b'] if self.load_init else 'zeros',
                                    #strides=2,
                                    trainable=False if self.freeze_conv_layers else True,
@@ -154,7 +154,7 @@ class aformer(tf.keras.Model):
         ### conv stack for sequence inputs
         self.stem_conv_atac = tf.keras.layers.Conv1D(filters= 16,
                                                      kernel_size=15,
-                                                     kernel_initializer=self.inits['stem_conv_atac_k'] if self.load_init else 'glorot_uniform',
+                                                     kernel_initializer=self.inits['stem_conv_atac_k'] if self.load_init else 'lecun_normal',
                                                      bias_initializer=self.inits['stem_conv_atac_b'] if self.load_init else 'zeros',
                                                      padding='same')
 
@@ -249,6 +249,11 @@ class aformer(tf.keras.Model):
                                                    bias_init=self.inits['final_point_b'] if self.load_init else None,
                                                   **kwargs,
                                                   name = 'final_pointwise')
+        
+        self.global_acc_proc = enf_conv_block(filters=self.filter_list_seq[-1] // 16,
+                                                  **kwargs,
+                                                  name = 'global_acc_proc')
+        
         if predict_masked_atac_bool: 
             self.final_dense = kl.Dense(2,
                                        activation='softplus',
@@ -265,7 +270,7 @@ class aformer(tf.keras.Model):
         
     def call(self, inputs, training:bool=True):
 
-        sequence,atac = inputs
+        sequence,atac,global_acc = inputs
         
         x = self.stem_conv(sequence,
                            training=training)
@@ -296,7 +301,15 @@ class aformer(tf.keras.Model):
         out = self.crop_final(out)
 
         out = self.final_pointwise_conv(out,
-                                      training=training)
+                                       training=training)
+        
+        global_acc = self.global_acc_proc(global_acc,
+                                          training=training)
+        global_acc = tf.tile(global_acc, 
+                               [1,self.final_output_length,1])
+
+        out = tf.concat([global_acc,out],axis=2)
+        
         out = self.dropout(out,
                         training=training)
         out = self.gelu(out)

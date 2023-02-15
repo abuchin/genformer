@@ -79,6 +79,7 @@ class aformer(tf.keras.Model):
         self.load_init=load_init
         self.inits_type=inits_type
         self.predict_masked_atac_bool=predict_masked_atac_bool
+        self.BN_momentum=BN_momentum
 
         
         ## ensure load_init matches actual init inputs...
@@ -113,7 +114,7 @@ class aformer(tf.keras.Model):
               syncbatchnorm(axis=-1,
                             center=True,
                             scale=True,
-                            momentum=BN_momentum,
+                            momentum=self.BN_momentum,
                             beta_initializer=beta_init if self.load_init else "zeros",
                             gamma_initializer=gamma_init if self.load_init else "ones",
                             trainable=train,
@@ -123,7 +124,7 @@ class aformer(tf.keras.Model):
               tfa.layers.GELU(),
               tf.keras.layers.Conv1D(filters,
                                      width, 
-                                     kernel_initializer=kernel_init if self.load_init else w_init,
+                                     kernel_initializer=kernel_init if self.load_init else 'lecun_normal',
                                      bias_initializer=bias_init if self.load_init else bias_init,
                                      trainable=train,
                                      strides=1,
@@ -154,18 +155,18 @@ class aformer(tf.keras.Model):
         ### conv stack for sequence inputs
         self.stem_conv_atac = tf.keras.layers.Conv1D(filters= 16,
                                                      kernel_size=15,
-                                                     kernel_initializer=self.inits['stem_conv_atac_k'] if self.load_init else 'lecun_normal',
-                                                     bias_initializer=self.inits['stem_conv_atac_b'] if self.load_init else 'zeros',
+                                                     kernel_initializer='lecun_normal',
+                                                     #bias_initializer=self.inits['stem_conv_atac_b'] if self.load_init else 'zeros',
                                                      padding='same')
 
         self.stem_res_conv_atac =Residual(enf_conv_block(16, 
                                                          1,
-                                                         beta_init=self.inits['stem_res_conv_atac_BN_b'] if self.load_init else None,
-                                                         gamma_init=self.inits['stem_res_conv_atac_BN_g'] if self.load_init else None,
-                                                         mean_init=self.inits['stem_res_conv_atac_BN_m'] if self.load_init else None,
-                                                         var_init=self.inits['stem_res_conv_atac_BN_v'] if self.load_init else None,
-                                                         kernel_init=self.inits['stem_res_conv_atac_k'] if self.load_init else None,
-                                                         bias_init=self.inits['stem_res_conv_atac_b'] if self.load_init else None,
+                                                         #beta_init=self.inits['stem_res_conv_atac_BN_b'] if self.load_init else None,
+                                                         #gamma_init=self.inits['stem_res_conv_atac_BN_g'] if self.load_init else None,
+                                                         #mean_init=self.inits['stem_res_conv_atac_BN_m'] if self.load_init else None,
+                                                         #var_init=self.inits['stem_res_conv_atac_BN_v'] if self.load_init else None,
+                                                         #kernel_init=self.inits['stem_res_conv_atac_k'] if self.load_init else None,
+                                                         #bias_init=self.inits['stem_res_conv_atac_b'] if self.load_init else None,
                                                          name='pointwise_conv_block_atac'))
 
 
@@ -250,9 +251,15 @@ class aformer(tf.keras.Model):
                                                   **kwargs,
                                                   name = 'final_pointwise')
         
-        self.global_acc_proc = enf_conv_block(filters=self.filter_list_seq[-1] // 16,
-                                                  **kwargs,
-                                                  name = 'global_acc_proc')
+        self.fc1 = kl.Dense(16,
+                           use_bias=True)
+        self.fc1_bn = syncbatchnorm(axis=-1,
+                            center=True,
+                            scale=True,
+                            momentum=self.BN_momentum)
+        self.fc1_dropout = kl.Dropout(rate=self.pointwise_dropout_rate*4,
+                                  **kwargs)
+
         
         if predict_masked_atac_bool: 
             self.final_dense = kl.Dense(2,
@@ -270,7 +277,7 @@ class aformer(tf.keras.Model):
         
     def call(self, inputs, training:bool=True):
 
-        sequence,atac,global_acc = inputs
+        sequence,atac, global_acc = inputs
         
         x = self.stem_conv(sequence,
                            training=training)
@@ -284,16 +291,8 @@ class aformer(tf.keras.Model):
         x = self.conv_tower(x,
                             training=training)
 
-        atac_x = self.stem_conv_atac(atac,
-                                     training=training)
 
-        atac_x = self.stem_res_conv_atac(atac_x,
-                                         training=training)
-
-        transformer_input = tf.concat([x,atac_x],
-                                      axis=2)
-
-        transformer_input_x=self.sin_pe(transformer_input)
+        transformer_input_x=self.sin_pe(x)
 
         out,att_matrices = self.performer(transformer_input_x,
                                                   training=training)
@@ -303,17 +302,28 @@ class aformer(tf.keras.Model):
         out = self.final_pointwise_conv(out,
                                        training=training)
         
-        global_acc = self.global_acc_proc(global_acc,
-                                          training=training)
         global_acc = tf.tile(global_acc, 
                                [1,self.final_output_length,1])
-
-        out = tf.concat([global_acc,out],axis=2)
         
-        out = self.dropout(out,
-                        training=training)
+
+        atac_x = self.stem_conv_atac(atac,
+                                     training=training)
+
+        atac_x = self.stem_res_conv_atac(atac_x,
+                                         training=training)
+
+        out = tf.concat([out,atac_x,global_acc],
+                                      axis=2)
+        
+        out = self.fc1(out,
+                       training=training)
+        out = self.fc1_bn(out,
+                          training=training)
         out = self.gelu(out)
         
+        out = self.fc1_dropout(out,
+                               training=training)
+
         out = self.final_dense(out,
                                training=training)
         

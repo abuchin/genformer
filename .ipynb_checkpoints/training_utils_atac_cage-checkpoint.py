@@ -144,6 +144,7 @@ def get_initializers_enformer_performer(checkpoint_path,
                          'stem_res_conv_atac_BN_v': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-0/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'))}
     initializers_dict.update(out_dict)
     
+    
     out_dict = {'final_point_k': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE')),
                          'final_point_b': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE')),
                          'final_point_BN_g': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-0/gamma/.ATTRIBUTES/VARIABLE_VALUE')),
@@ -367,12 +368,13 @@ def return_train_val_functions(model,
                                metric_dict,
                                global_batch_size,
                                gradient_clip,
+                               cage_scale,
                                predict_masked_atac_bool):
     
 
     loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
 
-    optimizer1,optimizer2,optimizer3=optimizers_in
+    optimizer1,optimizer2=optimizers_in
     
     metric_dict["corr_stats"] = metrics.correlation_stats_gene_centered(name='corr_stats')
     metric_dict["train_loss"] = tf.keras.metrics.Mean("train_loss",
@@ -382,6 +384,9 @@ def return_train_val_functions(model,
     if predict_masked_atac_bool: 
         metric_dict['ATAC_PearsonR'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
         metric_dict['ATAC_R2'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
+        
+        metric_dict['ATAC_PearsonR_baseline'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
+        metric_dict['ATAC_R2_baseline'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
         
         metric_dict['CAGE_PearsonR'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
         metric_dict['CAGE_R2'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
@@ -396,10 +401,10 @@ def return_train_val_functions(model,
         def train_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            
+            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
 
-            input_tuple = sequence, atac
+            input_tuple = sequence, atac, global_acc
 
             with tf.GradientTape() as tape:
                 conv_vars = model.stem_conv.trainable_variables + \
@@ -410,28 +415,34 @@ def return_train_val_functions(model,
                 performer_vars = model.performer.trainable_variables + \
                                     model.final_pointwise_conv.trainable_variables + \
                                     model.stem_conv_atac.trainable_variables + \
-                                    model.stem_res_conv_atac.trainable_variables
+                                    model.stem_res_conv_atac.trainable_variables + \
+                                    model.final_dense.trainable_variables +\
+                                    model.global_acc_proc.trainable_variables
                 
-                output_head_vars = model.final_dense.trainable_variables
-                
-                vars_all = conv_vars + performer_vars + output_head_vars
+                vars_all = conv_vars + performer_vars
                 
                 output = model(input_tuple,
                                training=True)
 
                 output = tf.cast(output,dtype=tf.float32)
-                loss = tf.math.reduce_mean(loss_fn(target,
-                                                   output)) * (1. / global_batch_size)
+                
+                if predict_masked_atac_bool: 
+                    atac_loss = loss_fn(target[:,:,0],output[:,:,0])
+                    cage_loss = loss_fn(target[:,:,1],output[:,:,1]) * cage_scale
+                    loss = tf.math.reduce_mean(atac_loss) + tf.math.reduce_mean(cage_loss)
+                else:
+                    cage_loss = loss_fn(target,output) * cage_scale
+                    loss = tf.math.reduce_mean(cage_loss)
+
+                loss = loss * (1. / global_batch_size)
 
             gradients = tape.gradient(loss, vars_all)
             gradients, _ = tf.clip_by_global_norm(gradients, 
                                                   gradient_clip)
             optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], 
                                            conv_vars))
-            optimizer2.apply_gradients(zip(gradients[len(conv_vars):len(performer_vars) + len(conv_vars)], 
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
                                            performer_vars))
-            optimizer3.apply_gradients(zip(gradients[len(conv_vars) + len(performer_vars):], 
-                                           output_head_vars))
             metric_dict["train_loss"].update_state(loss)
         
         for _ in tf.range(train_steps):
@@ -444,27 +455,46 @@ def return_train_val_functions(model,
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
+            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
             
-            input_tuple = sequence, atac
+            input_tuple = sequence,atac,global_acc
 
             output = model(input_tuple,
                            training=False)
             output = tf.cast(output,dtype=tf.float32)
             
-            loss = tf.math.reduce_mean(loss_fn(target,
-                                               output)) * (1. / global_batch_size)
+            if predict_masked_atac_bool: 
+                atac_loss = loss_fn(target[:,:,0],output[:,:,0])
+                cage_loss = loss_fn(target[:,:,1],output[:,:,1]) * cage_scale
+                loss = tf.math.reduce_mean(atac_loss) + tf.math.reduce_mean(cage_loss)
+                metric_dict['CAGE_PearsonR'].update_state(target[:,:,1:], 
+                                                          output[:,:,1:])
+                metric_dict['CAGE_R2'].update_state(target[:,:,1:], 
+                                                    output[:,:,1:])
+                metric_dict['ATAC_PearsonR'].update_state(target[:,:,0:1], 
+                                                          output[:,:,0:1])
+                metric_dict['ATAC_R2'].update_state(target[:,:,0:1], 
+                                                    output[:,:,0:1])
+
+                metric_dict['ATAC_PearsonR_baseline'].update_state(target[:,:,0:1], 
+                                                                   tf.slice(tf.cast(atac,dtype=tf.float32),
+                                                                            [0,320,0],[-1,896,-1]))
+                metric_dict['ATAC_R2_baseline'].update_state(target[:,:,0:1],
+                                                             tf.slice(tf.cast(atac,dtype=tf.float32),
+                                                                      [0,320,0],[-1,896,-1]))
+                
+                
+            else:
+                cage_loss = loss_fn(target,output) * cage_scale
+                loss = tf.math.reduce_mean(cage_loss)
+                metric_dict['CAGE_PearsonR'].update_state(target, 
+                                                          output)
+                metric_dict['CAGE_R2'].update_state(target, 
+                                                    output)
+
+            loss = tf.math.reduce_mean(loss) * (1. / global_batch_size)
 
             metric_dict["val_loss"].update_state(loss)
-            metric_dict['CAGE_PearsonR'].update_state(target[:,:,1], 
-                                                      output[:,:,1])
-            metric_dict['CAGE_R2'].update_state(target[:,:,1], 
-                                                output[:,:,1])
-            
-            if predict_masked_atac_bool: 
-                metric_dict['ATAC_PearsonR'].update_state(target[:,:,0], 
-                                                          output[:,:,0])
-                metric_dict['ATAC_R2'].update_state(target[:,:,0], 
-                                                    output[:,:,0])
 
         for _ in tf.range(val_steps): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(val_step,
@@ -477,8 +507,8 @@ def return_train_val_functions(model,
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-                        
-            input_tuple = sequence, atac
+            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
+            input_tuple = sequence, atac,global_acc
 
             output = model(input_tuple,
                            training=False)
@@ -533,8 +563,8 @@ def return_train_val_functions(model,
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
-                        
-            input_tuple = sequence,atac
+            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)         
+            input_tuple = sequence,atac,global_acc
 
             output = model(input_tuple,
                            training=False)
@@ -558,7 +588,8 @@ def deserialize_tr(serialized_example,
     feature_map = {
         'sequence': tf.io.FixedLenFeature([], tf.string),
         'atac': tf.io.FixedLenFeature([], tf.string),
-        'cage': tf.io.FixedLenFeature([], tf.string)
+        'cage': tf.io.FixedLenFeature([], tf.string),
+        'cell_specific_conv_arr': tf.io.FixedLenFeature([], tf.string)
     }
     ### stochastic sequence shift and gaussian noise
 
@@ -596,6 +627,7 @@ def deserialize_tr(serialized_example,
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
+    cage = cage
     #diff = tf.math.sqrt(tf.nn.relu(cage - 384.0 * tf.ones(cage.shape)))
     #cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=384.0) + diff
     
@@ -614,12 +646,26 @@ def deserialize_tr(serialized_example,
                             [output_length-2*crop_size,-1])
         target = tf.concat([atac_out,cage],axis=1)
         
+    global_acc = tf.ensure_shape(tf.io.parse_tensor(data['cell_specific_conv_arr'],
+                                              out_type=tf.float32),
+                           [1,1536])
+    #global_acc=tf.expand_dims(global_acc,axis=0)
+    global_acc = tf.math.asinh(global_acc)
+    global_acc = (global_acc - tf.math.reduce_mean(global_acc)) / tf.math.reduce_std(global_acc)
+    global_acc=tf.nn.experimental.stateless_dropout(global_acc, rate=0.05, seed=[0,seq_shift]) / (1. / (1.0 - 0.05))
+    global_acc = global_acc + tf.math.abs(g.normal(global_acc.shape,
+                                               mean=0.0,
+                                               stddev=0.10,
+                                               dtype=tf.float32))
+        
     if predict_masked_atac_bool:
     
         return {'sequence': tf.ensure_shape(sequence,
                                             [input_length,4]),
                 'atac': tf.ensure_shape(masked_atac,
                                           [output_length,1]),
+                'global_acc': tf.ensure_shape(global_acc,
+                                          [1,1536]),
                 'target': tf.ensure_shape(target,
                                           [output_length-crop_size*2,2])}
     else:
@@ -627,6 +673,8 @@ def deserialize_tr(serialized_example,
                                             [input_length,4]),
                 'atac': tf.ensure_shape(atac,
                                           [output_length,1]),
+                'global_acc': tf.ensure_shape(global_acc,
+                                          [1,1536]),
                 'target': tf.ensure_shape(cage,
                                           [output_length-crop_size*2,1])}
 
@@ -635,7 +683,8 @@ def deserialize_val(serialized_example,input_length,max_shift,output_length,crop
     feature_map = {
         'sequence': tf.io.FixedLenFeature([], tf.string),
         'atac': tf.io.FixedLenFeature([], tf.string),
-        'cage': tf.io.FixedLenFeature([], tf.string)
+        'cage': tf.io.FixedLenFeature([], tf.string),
+        'cell_specific_conv_arr': tf.io.FixedLenFeature([], tf.string)
     }
     
     seq_shift = 5
@@ -658,20 +707,25 @@ def deserialize_val(serialized_example,input_length,max_shift,output_length,crop
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
     
-    
     if predict_masked_atac_bool:
         atac_out = tf.slice(atac,
                             [crop_size,0],
                             [output_length-2*crop_size,-1])
         target = tf.concat([atac_out,cage],axis=1)
         
-        
-
+    global_acc = tf.ensure_shape(tf.io.parse_tensor(data['cell_specific_conv_arr'],
+                                              out_type=tf.float32),
+                           [1,1536])
+    global_acc = tf.math.asinh(global_acc)
+    global_acc = (global_acc - tf.math.reduce_mean(global_acc)) / tf.math.reduce_std(global_acc)
+    
     if predict_masked_atac_bool:
         return {'sequence': tf.ensure_shape(sequence,
                                             [input_length,4]),
                 'atac': tf.ensure_shape(masked_atac,
                                           [output_length,1]),
+                'global_acc': tf.ensure_shape(global_acc,
+                                          [1,1536]),
                 'target': tf.ensure_shape(target,
                                           [output_length-crop_size*2,2])}
     else:
@@ -679,6 +733,8 @@ def deserialize_val(serialized_example,input_length,max_shift,output_length,crop
                                             [input_length,4]),
                 'atac': tf.ensure_shape(atac,
                                           [output_length,1]),
+                'global_acc': tf.ensure_shape(global_acc,
+                                          [1,1536]),
                 'target': tf.ensure_shape(cage,
                                           [output_length-crop_size*2,1])}
 
@@ -690,7 +746,8 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length,
         'cage': tf.io.FixedLenFeature([], tf.string),
         'tss_tokens': tf.io.FixedLenFeature([], tf.string),
         'gene_token': tf.io.FixedLenFeature([], tf.string),
-        'cell_type': tf.io.FixedLenFeature([], tf.string)
+        'cell_type': tf.io.FixedLenFeature([], tf.string),
+        'cell_specific_conv_arr': tf.io.FixedLenFeature([], tf.string)
     }
     
     seq_shift = 5
@@ -728,6 +785,12 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length,
     cell_type = tf.io.parse_tensor(data['cell_type'],
                                   out_type=tf.int32)
     
+    global_acc = tf.ensure_shape(tf.io.parse_tensor(data['cell_specific_conv_arr'],
+                                              out_type=tf.float32),
+                           [1,1536])
+    #global_acc=tf.expand_dims(global_acc,axis=0)
+    global_acc = tf.math.asinh(global_acc)
+    global_acc = (global_acc - tf.math.reduce_mean(global_acc)) / tf.math.reduce_std(global_acc)
 
     if predict_masked_atac_bool:
         atac_out = tf.slice(atac,
@@ -744,6 +807,8 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length,
                                           [output_length-crop_size*2,2]),
                 'tss_tokens': tf.ensure_shape(tss_tokens,
                                           [output_length-2*crop_size,1]),
+                'global_acc': tf.ensure_shape(global_acc,
+                                          [1,1536]),
                 'gene_token':gene_token,
                 'cell_type': cell_type}
     else:
@@ -755,6 +820,8 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length,
                                           [output_length-crop_size*2,1]),
                 'tss_tokens': tf.ensure_shape(tss_tokens,
                                           [output_length-2*crop_size,1]),
+                'global_acc': tf.ensure_shape(global_acc,
+                                          [1,1536]),
                 'gene_token':gene_token,
                 'cell_type': cell_type}
 
@@ -947,7 +1014,7 @@ def make_plots(y_trues,
     fig_overall,ax_overall=plt.subplots(figsize=(6,6))
     
     ## scatter plot for 50k points max
-    idx = np.random.choice(np.arange(len(true_zscore)), 1000, replace=False)
+    idx = np.random.choice(np.arange(len(true_zscore)), 100, replace=False)
     
     data = np.vstack([true_zscore[idx],
                       pred_zscore[idx]])
@@ -1140,10 +1207,6 @@ def parse_args(parser):
                         dest='lr_base2',
                         default="1.0e-03",
                         help='lr_base2')
-    parser.add_argument('--lr_base3',
-                        dest='lr_base3',
-                        default="1.0e-03",
-                        help='lr_base3')
     parser.add_argument('--decay_frac',
                         dest='decay_frac',
                         type=str,
@@ -1261,21 +1324,21 @@ def parse_args(parser):
                         type=str,
                         default="True",
                         help= 'norm')
-    parser.add_argument('--wd1_frac',
-                        dest='wd1_frac',
+    parser.add_argument('--wd_1',
+                        dest='wd_1',
                         type=float,
                         default=0.01,
-                        help= 'wd1_frac')
-    parser.add_argument('--wd2_frac',
-                        dest='wd2_frac',
+                        help= 'wd_1')
+    parser.add_argument('--wd_2',
+                        dest='wd_2',
                         type=float,
                         default=0.01,
-                        help= 'wd2_frac')
-    parser.add_argument('--wd3_frac',
-                        dest='wd3_frac',
-                        type=float,
-                        default=0.01,
-                        help= 'wd3_frac')
+                        help= 'wd_2')
+    parser.add_argument('--cage_scale',
+                        dest='cage_scale',
+                        type=str,
+                        default="5.0",
+                        help= 'cage_scale')
     parser.add_argument('--rectify',
                         dest='rectify',
                         type=str,
@@ -1286,6 +1349,11 @@ def parse_args(parser):
                         type=str,
                         default="enformer_conv",
                         help= 'inits_type')
+    parser.add_argument('--optimizer',
+                        dest='optimizer',
+                        type=str,
+                        default="adabelief",
+                        help= 'optimizer')
     args = parser.parse_args()
     return parser
 
