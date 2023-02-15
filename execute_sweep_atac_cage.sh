@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model_atac_cage.py \
-            --tpu_name="node-5" \
-            --tpu_zone="us-central1-a" \
+            --tpu_name="pod1" \
+            --tpu_zone="us-east1-d" \
             --wandb_project="enformer_baseline" \
             --wandb_user="njaved" \
             --wandb_sweep_name="aformer_baseline" \
