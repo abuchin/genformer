@@ -233,7 +233,7 @@ def main():
             num_val=wandb.config.val_examples
             num_val_TSS=wandb.config.val_examples_TSS#4192000
 
-            wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE)},
+            wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE * 4)},
                                 allow_val_change=True)
             wandb.config.update({"val_steps" : num_val // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
@@ -449,7 +449,7 @@ def main():
                 
 
                 
-                if epoch_i % 2 == 0: 
+                if epoch_i % 3 == 0: 
                     val_step_TSS(data_val_TSS)
 
                     val_pearson_TSS = metric_dict['corr_stats'].result()['pearsonR'].numpy()
