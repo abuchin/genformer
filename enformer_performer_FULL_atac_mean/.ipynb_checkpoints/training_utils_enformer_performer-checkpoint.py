@@ -631,7 +631,7 @@ def deserialize_val_TSS(serialized_example,organism,input_length,max_shift,num_t
     ### must pad to 1536
     ### must pad to 1536
     if organism == 'human':
-        dnase_atac = tf.reduce_mean(target[:,:684],axis=1,keepdims=True)
+        dnase_atac = tf.reduce_mean(target[:,:673],axis=1,keepdims=True)
     elif organism =='mouse': 
         dnase_atac = tf.reduce_mean(target[:,:135],axis=1,keepdims=True)
         
