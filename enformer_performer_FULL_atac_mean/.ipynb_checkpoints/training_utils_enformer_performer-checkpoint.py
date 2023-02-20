@@ -524,7 +524,7 @@ def deserialize_tr(serialized_example,organism,input_length,max_shift, num_targe
     if organism == 'human':
         dnase_atac = tf.reduce_mean(target[:,:684],axis=1,keepdims=True)
     elif organism =='mouse': 
-        dnase_atac = tf.reduce_mean(target[:,:135],axis=1,keepdims=True)
+        dnase_atac = tf.reduce_mean(target[:,:227],axis=1,keepdims=True)
     padding = tf.zeros([320,1],dtype=tf.float16)
     dnase_atac = tf.concat([padding,dnase_atac,padding],axis=0)
     
@@ -585,7 +585,7 @@ def deserialize_val(serialized_example,organism,input_length,max_shift, num_targ
     if organism == 'human':
         dnase_atac = tf.reduce_mean(target[:,:684],axis=1,keepdims=True)
     elif organism =='mouse': 
-        dnase_atac = tf.reduce_mean(target[:,:135],axis=1,keepdims=True)
+        dnase_atac = tf.reduce_mean(target[:,:227],axis=1,keepdims=True)
     padding = tf.zeros([320,1],dtype=tf.float16)
     dnase_atac = tf.concat([padding,dnase_atac,padding],axis=0)
 
@@ -631,9 +631,9 @@ def deserialize_val_TSS(serialized_example,organism,input_length,max_shift,num_t
     ### must pad to 1536
     ### must pad to 1536
     if organism == 'human':
-        dnase_atac = tf.reduce_mean(target[:,:673],axis=1,keepdims=True)
+        dnase_atac = tf.reduce_mean(target[:,:684],axis=1,keepdims=True)
     elif organism =='mouse': 
-        dnase_atac = tf.reduce_mean(target[:,:135],axis=1,keepdims=True)
+        dnase_atac = tf.reduce_mean(target[:,:227],axis=1,keepdims=True)
         
     padding = tf.zeros([320,1],dtype=tf.float16)
     dnase_atac = tf.concat([padding,dnase_atac,padding],axis=0)
