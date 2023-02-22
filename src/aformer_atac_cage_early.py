@@ -90,9 +90,8 @@ class aformer(tf.keras.Model):
             
         if self.inits_type not in ['enformer_performer','enformer_conv']:
             raise ValueError('inits type not found')
-            
-        print(load_init)
-            
+
+        ### fix this
         self.filter_list_seq = [768, 896, 1024, 1152, 1280, 1536] if self.load_init else filter_list_seq
         
         def enf_conv_block(filters, 
@@ -239,13 +238,16 @@ class aformer(tf.keras.Model):
                                                   **kwargs,
                                                   name = 'final_pointwise')
         
-        self.fc1 = kl.Dense(16,
+        self.fc1 = kl.Dense(48,
                            use_bias=True)
-        self.fc1_bn = syncbatchnorm(axis=-1,
-                            center=True,
-                            scale=True,
-                            momentum=self.BN_momentum)
-        self.fc1_dropout = kl.Dropout(rate=self.pointwise_dropout_rate*4,
+        self.fc1_dropout = kl.Dropout(rate=self.pointwise_dropout_rate*6,
+                                  **kwargs)
+
+        
+        
+        self.fc2 = kl.Dense(16,
+                           use_bias=True)
+        self.fc2_dropout = kl.Dropout(rate=self.pointwise_dropout_rate*2,
                                   **kwargs)
 
         
@@ -280,6 +282,10 @@ class aformer(tf.keras.Model):
                             training=training)
 
 
+        global_acc = self.fc1(global_acc)
+        global_acc = self.fc1_dropout(global_acc,
+                                      training=training)
+        global_acc = self.gelu(global_acc)
         global_acc = tf.tile(global_acc, 
                                [1,self.max_seq_length,1])
         
@@ -291,7 +297,8 @@ class aformer(tf.keras.Model):
         
         transformer_input = tf.concat([x,
                                        atac_x,
-                                       global_acc])
+                                       global_acc],axis=2)
+
         
         transformer_input=self.sin_pe(transformer_input)
 
@@ -301,21 +308,15 @@ class aformer(tf.keras.Model):
         out = self.crop_final(out)
 
         out = self.final_pointwise_conv(out,
-                                       training=training)
-    
-
-        out = tf.concat([out,atac_x,global_acc],
-                                      axis=2)
-        
-        out = self.fc1(out,
-                       training=training)
-        out = self.fc1_bn(out,
-                          training=training)
+                                        training=training)
+        out = self.dropout(out,
+                           training=training)
         out = self.gelu(out)
         
-        out = self.fc1_dropout(out,
+        out = self.fc2(out)
+        out = self.fc2_dropout(out,
                                training=training)
-
+        out = self.gelu(out)
         out = self.final_dense(out,
                                training=training)
         

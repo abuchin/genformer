@@ -155,15 +155,15 @@ class FFN(kl.Layer):
                                                   gamma_initializer=FFN_LN_gamma_init if self.load_init else "ones")
         self.FFN_dense_wide = kl.Dense(self.ffn_channels*self.ffn_widening,
                                        activation='linear',
-                                       kernel_initializer=FFN_kernel1_init if self.load_init else 'glorot_uniform',
-                                       bias_initializer=FFN_bias1_init if self.load_init else 'glorot_uniform',
+                                       kernel_initializer=FFN_kernel1_init if self.load_init else 'lecun_normal',
+                                       bias_initializer=FFN_bias1_init if self.load_init else 'lecun_normal',
                                        use_bias=True)
         self.dropout = kl.Dropout(rate=self.ffn_dropout,**kwargs)
         self.relu = kl.ReLU()
         self.FFN_dense_narrow = kl.Dense(self.ffn_channels,
                                          activation='linear',
-                                         kernel_initializer=FFN_kernel2_init if self.load_init else 'glorot_uniform',
-                                         bias_initializer=FFN_bias2_init if self.load_init else 'glorot_uniform',
+                                         kernel_initializer=FFN_kernel2_init if self.load_init else 'lecun_normal',
+                                         bias_initializer=FFN_bias2_init if self.load_init else 'lecun_normal',
                                          use_bias=True)
     
     def get_config(self):
@@ -433,7 +433,7 @@ class Performer_stable(kl.Layer):
         mha_output = x + inputs
         ## ffn
         FFN_out = self.FFN(mha_output,training=training,**kwargs)
-        return self.layer_norm(FFN_out + mha_output), k_prime, q_prime
+        return (FFN_out + mha_output), k_prime, q_prime
     
     """
     @tf.function
@@ -610,35 +610,6 @@ class Performer_Encoder(kl.Layer):
             
         return x,att_matrices
     
-    """
-    @tf.function
-    def return_attention_weights(self,inputs):
-         Method to return attention weights for saved model
-            Returns: q_prime, k_prime from fast attention which 
-            can be used to compute full approximated att. matrix
-        
-        att_matrices = {}
-        ## to do, just call build here but for some reason wasn't showing up as model attribute
-        N = inputs.shape[0]
-        L = inputs.shape[1]
-        
-        self.relative_positional_bias = tf.constant(tf.random.uniform((self.num_heads, 2 * self.rel_pos_bins - 1)))
-        
-        if L <= self.rel_pos_bins:
-            self.rpe = tf.concat((tf.expand_dims(self.relative_positional_bias[:,0], axis=1), 
-                        self.relative_positional_bias[:,self.rel_pos_bins-L: self.rel_pos_bins+L-1]), axis=1)
-        else:
-            self.rpe = tf.concat([tf.repeat(tf.expand_dims(self.relative_positional_bias[:,0], axis=1), repeats= L-self.rel_pos_bins+1, axis=1), 
-                    self.relative_positional_bias,
-                    tf.repeat(tf.expand_dims(self.relative_positional_bias[:,-1], axis=1), repeats=L-self.rel_pos_bins, axis=1)], axis=1)
-            
-        for idx, k in enumerate(self.layers):
-            att,k_prime,q_prime = k.return_attention(inputs,
-                                                     rpe=self.rpe,
-                                                     **kwargs)
-            att_matrices['layer_' + str(idx)] = (k_prime,q_prime)
-        return att_matrices
-    """
 
 
 @tf.keras.utils.register_keras_serializable()
