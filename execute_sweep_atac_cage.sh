@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 python3 train_model_atac_cage_early.py \
-            --tpu_name="pod1" \
+            --tpu_name="pod" \
             --tpu_zone="us-east1-d" \
             --wandb_project="enformer_baseline" \
             --wandb_user="njaved" \
@@ -43,9 +43,10 @@ python3 train_model_atac_cage_early.py \
             --wd_1=0.0 \
             --wd_2=0.0 \
             --rectify="True" \
-            --multitask_checkpoint_path="sonnet_weights" \
+            --multitask_checkpoint_path="/home/jupyter/dev/BE_CD69_paper_2022/enformer_fine_tuning/checkpoint/sonnet_weights" \
             --inits_type="enformer_conv" \
             --predict_masked_atac_bool="True" \
             --cage_scale="5.0" \
-            --optimizer="adamw"
+            --optimizer="adamw" \
+            --atac_mask_dropout=0.05
             

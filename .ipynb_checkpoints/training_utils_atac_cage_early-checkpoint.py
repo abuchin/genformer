@@ -693,6 +693,7 @@ def deserialize_tr(serialized_example,
                    crop_size,
                    output_res,
                    predict_masked_atac_bool,
+                   atac_mask_dropout,
                    g):
     """Deserialize bytes stored in TFRecordFile."""
     feature_map = {
@@ -732,7 +733,7 @@ def deserialize_tr(serialized_example,
                                                stddev=0.05,
                                                dtype=tf.float32))
     
-    masked_atac=tf.nn.experimental.stateless_dropout(atac, rate=0.25, seed=[0,seq_shift]) / (1. / (1.0 - 0.25))
+    masked_atac=tf.nn.experimental.stateless_dropout(atac, rate=atac_mask_dropout, seed=[0,seq_shift]) / (1. / (1.0 - atac_mask_dropout))
     
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),
@@ -787,7 +788,7 @@ def deserialize_tr(serialized_example,
                 'target': tf.ensure_shape(cage,
                                           [output_length-crop_size*2,1])}
 
-def deserialize_val(serialized_example,input_length,max_shift,output_length,crop_size,output_res,predict_masked_atac_bool):
+def deserialize_val(serialized_example,input_length,max_shift,output_length,crop_size,output_res,predict_masked_atac_bool, atac_mask_dropout):
     """Deserialize bytes stored in TFRecordFile."""
     feature_map = {
         'sequence': tf.io.FixedLenFeature([], tf.string),
@@ -810,7 +811,7 @@ def deserialize_val(serialized_example,input_length,max_shift,output_length,crop
                                               out_type=tf.float32),
                            [output_length,1])
     
-    masked_atac=tf.nn.experimental.stateless_dropout(atac, rate=0.25, seed=[0,seq_shift]) / (1. / (1.0 - 0.25))
+    masked_atac=tf.nn.experimental.stateless_dropout(atac, rate=atac_mask_dropout, seed=[0,seq_shift]) / (1. / (1.0 - atac_mask_dropout))
 
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),
@@ -847,7 +848,7 @@ def deserialize_val(serialized_example,input_length,max_shift,output_length,crop
                 'target': tf.ensure_shape(cage,
                                           [output_length-crop_size*2,1])}
 
-def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length,crop_size,output_res,predict_masked_atac_bool):
+def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length,crop_size,output_res,predict_masked_atac_bool, atac_mask_dropout):
     """Deserialize bytes stored in TFRecordFile."""
     feature_map = {
         'sequence': tf.io.FixedLenFeature([], tf.string),
@@ -872,7 +873,7 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length,
     atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
                                               out_type=tf.float32),
                            [output_length,1])
-    masked_atac=tf.nn.experimental.stateless_dropout(atac, rate=0.25, seed=[0,seq_shift]) / (1. / (1.0 - 0.25))
+    masked_atac=tf.nn.experimental.stateless_dropout(atac, rate=atac_mask_dropout, seed=[0,seq_shift]) / (1. / (1.0 - atac_mask_dropout))
     #diff = tf.math.sqrt(tf.nn.relu(atac - 64.0 * tf.ones(atac.shape)))
     #atac = tf.clip_by_value(atac, clip_value_min=0.0, clip_value_max=64.0) + diff
     
@@ -948,6 +949,7 @@ def return_dataset(gcs_path,
                    num_parallel,
                    num_epoch,
                    predict_masked_atac_bool,
+                   atac_mask_dropout,
                    g):
     """
     return a tf dataset object for given gcs path
@@ -976,6 +978,7 @@ def return_dataset(gcs_path,
                                                             crop_size,
                                                             output_res,
                                                             predict_masked_atac_bool,
+                                                            atac_mask_dropout,
                                                             g),
                               deterministic=False,
                               num_parallel_calls=num_parallel)
@@ -988,7 +991,8 @@ def return_dataset(gcs_path,
                                                                  output_length,
                                                                  crop_size,
                                                                  output_res,
-                                                                    predict_masked_atac_bool),
+                                                                    predict_masked_atac_bool,
+                                                                     atac_mask_dropout),
                                   deterministic=False,
                                   num_parallel_calls=num_parallel)
         else:
@@ -998,7 +1002,8 @@ def return_dataset(gcs_path,
                                                                  output_length,
                                                                  crop_size,
                                                                  output_res,
-                                                                predict_masked_atac_bool),
+                                                                predict_masked_atac_bool,
+                                                                atac_mask_dropout),
                                   deterministic=False,
                                   num_parallel_calls=num_parallel)
 
@@ -1019,6 +1024,7 @@ def return_distributed_iterators(gcs_path,
                                  strategy,
                                  options,
                                  predict_masked_atac_bool,
+                                 atac_mask_dropout,
                                  g):
     """ 
     returns train + val dictionaries of distributed iterators
@@ -1039,6 +1045,7 @@ def return_distributed_iterators(gcs_path,
                              num_parallel_calls,
                              num_epoch,
                              predict_masked_atac_bool,
+                             atac_mask_dropout,
                              g)
 
     val_data = return_dataset(gcs_path,
@@ -1054,6 +1061,7 @@ def return_distributed_iterators(gcs_path,
                               num_parallel_calls,
                               num_epoch,
                               predict_masked_atac_bool,
+                              atac_mask_dropout,
                               g)
     
     val_data_TSS = return_dataset(gcs_path_TSS,
@@ -1069,6 +1077,7 @@ def return_distributed_iterators(gcs_path,
                               num_parallel_calls,
                               num_epoch,
                                   predict_masked_atac_bool,
+                                  atac_mask_dropout,
                               g)
 
     train_dist = strategy.experimental_distribute_dataset(tr_data)
@@ -1357,6 +1366,11 @@ def parse_args(parser):
                         default=1.0e-16,
                         type=float,
                         help= 'epsilon')
+    parser.add_argument('--atac_mask_dropout',
+                        dest='atac_mask_dropout',
+                        default=0.05,
+                        type=float,
+                        help= 'atac_mask_dropout')
     parser.add_argument('--gradient_clip',
                         dest='gradient_clip',
                         type=str,

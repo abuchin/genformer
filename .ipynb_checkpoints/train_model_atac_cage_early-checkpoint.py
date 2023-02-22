@@ -122,6 +122,9 @@ def main():
                 'epsilon': {
                     'values':[args.epsilon]
                 },
+                'atac_mask_dropout': {
+                    'values':[args.atac_mask_dropout]
+                },
                 'load_init': {
                     'values':[parse_bool_str(x) for x in args.load_init.split(',')]
                 },
@@ -257,6 +260,7 @@ def main():
                                                                 strategy,
                                                                 options,
                                                                 wandb.config.predict_masked_atac_bool,
+                                                                wandb.config.atac_mask_dropout,
                                                                 g)
 
             print('created dataset iterators')
