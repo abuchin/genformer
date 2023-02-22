@@ -250,11 +250,15 @@ class aformer(tf.keras.Model):
                                                   **kwargs,
                                                   name = 'final_pointwise')
         
-        self.global_acc_proc = enf_conv_block(filters=self.filter_list_seq[-1] // 16,
-                                                  **kwargs,
-                                                  name = 'global_acc_proc')
+        self.global_acc_proc_1 = kl.Dense(1024,
+                                        use_bias=True)
+        self.global_acc_proc_dropout = kl.Dropout(rate=self.pointwise_dropout_rate * 5,
+                                                  **kwargs)
+        self.gelu = tfa.layers.GELU()
+        self.global_acc_proc_2 = kl.Dense(512,
+                                        use_bias=True)
         
-        if predict_masked_atac_bool: 
+        if self.predict_masked_atac_bool: 
             self.final_dense = kl.Dense(2,
                                        activation='softplus',
                                        use_bias=True)
@@ -303,8 +307,18 @@ class aformer(tf.keras.Model):
         out = self.final_pointwise_conv(out,
                                        training=training)
         
-        global_acc = self.global_acc_proc(global_acc,
+        global_acc = self.global_acc_proc_1(global_acc,
                                           training=training)
+        global_acc = self.global_acc_proc_dropout(global_acc,
+                                                  training=training)
+        global_acc = self.gelu(global_acc)
+
+        global_acc = self.global_acc_proc_2(global_acc,
+                                          training=training)
+        global_acc = self.global_acc_proc_dropout(global_acc,
+                                                  training=training)
+        global_acc = self.gelu(global_acc)
+        
         global_acc = tf.tile(global_acc, 
                                [1,self.final_output_length,1])
 

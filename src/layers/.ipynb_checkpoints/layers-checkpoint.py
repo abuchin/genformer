@@ -150,7 +150,8 @@ class FFN(kl.Layer):
         self.FFN_layer_norm = kl.LayerNormalization(axis=-1,
                                                   scale=True,
                                                   center=True,
-                                                  beta_initializer=FFN_LN_beta_init if self.load_init else "zeros",
+                                                  epsilon=1e-05,
+                                                    beta_initializer=FFN_LN_beta_init if self.load_init else "zeros",
                                                   gamma_initializer=FFN_LN_gamma_init if self.load_init else "ones")
         self.FFN_dense_wide = kl.Dense(self.ffn_channels*self.ffn_widening,
                                        activation='linear',
@@ -250,6 +251,7 @@ class Performer(kl.Layer):
         self.layer_norm = kl.LayerNormalization(axis=-1,
                                                   scale=True,
                                                   center=True,
+                                                epsilon=1e-05,
                                                   beta_initializer=LN_beta_init if self.load_init else "zeros",
                                                   gamma_initializer=LN_gamma_init if self.load_init else "ones")
         
@@ -316,7 +318,8 @@ class Performer(kl.Layer):
         mha_output = x + inputs
         ## ffn
         FFN_out = self.FFN(mha_output,training=training,**kwargs)
-        return self.layer_norm(FFN_out + mha_output), k_prime, q_prime
+        #return self.layer_norm(FFN_out + mha_output), k_prime, q_prime
+        return (FFN_out + mha_output), k_prime, q_prime
     
     """
     @tf.function
@@ -534,6 +537,7 @@ class Performer_Encoder(kl.Layer):
         self.layer_norm = kl.LayerNormalization(axis=-1,
                                                   scale=True,
                                                   center=True,
+                                                epsilon=1e-05,
                                                   beta_initializer=self.inits["performer_encoder_LN_b"] if self.load_init else "zeros",
                                                   gamma_initializer=self.inits["performer_encoder_LN_g"] if self.load_init else "ones")
         
@@ -1111,6 +1115,7 @@ class Performer_Encoder_noPE(kl.Layer):
         self.layer_norm = kl.LayerNormalization(axis=-1,
                                                   scale=True,
                                                   center=True,
+                                                epsilon=1e-05,
                                                   beta_initializer="zeros",
                                                   gamma_initializer="ones")
         

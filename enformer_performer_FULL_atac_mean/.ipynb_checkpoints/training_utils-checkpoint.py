@@ -303,13 +303,10 @@ def return_train_val_functions(model,
             mean_acc = tf.cast(inputs['mean_acc'],dtype=tf.bfloat16)
 
             with tf.GradientTape() as tape:
-                conv_vars = model.stem_conv.trainable_variables + \
-                            model.stem_res_conv.trainable_variables + \
-                            model.stem_pool.trainable_variables + \
+                conv_vars = model.stem.trainable_variables + \
                             model.conv_tower.trainable_variables
                 
-                remaining_vars = model.stem_conv_atac.trainable_variables + \
-                                 model.stem_res_conv_atac.trainable_variables + \
+                remaining_vars = model.atac.trainable_variables + \
                                     model.performer.trainable_variables + \
                                     model.final_pointwise_conv.trainable_variables + \
                                     model.heads.trainable_variables
@@ -339,13 +336,10 @@ def return_train_val_functions(model,
             mean_acc = tf.cast(inputs['mean_acc'],dtype=tf.bfloat16)
 
             with tf.GradientTape() as tape:
-                conv_vars = model.stem_conv.trainable_variables + \
-                            model.stem_res_conv.trainable_variables + \
-                            model.stem_pool.trainable_variables + \
+                conv_vars = model.stem.trainable_variables + \
                             model.conv_tower.trainable_variables
                 
-                remaining_vars = model.stem_conv_atac.trainable_variables + \
-                                 model.stem_res_conv_atac.trainable_variables + \
+                remaining_vars = model.atac.trainable_variables + \
                                     model.performer.trainable_variables + \
                                     model.final_pointwise_conv.trainable_variables + \
                                     model.heads.trainable_variables
@@ -535,7 +529,7 @@ def deserialize_tr(serialized_example,organism,input_length,max_shift, num_targe
     
     dnase_atac = dnase_atac + tf.math.abs(g.normal(dnase_atac.shape,
                                                mean=0.0,
-                                               stddev=0.10,
+                                               stddev=0.05,
                                                dtype=tf.float16))
     
     if rev_comp == 1:
@@ -1069,13 +1063,13 @@ def parse_args(parser):
                         help= 'epsilon')
     parser.add_argument('--BN_momentum',
                         dest='BN_momentum',
-                        default="0.99",
+                        default="0.90",
                         type=str,
                         help= 'BN_momentum')
     parser.add_argument('--gradient_clip',
                         dest='gradient_clip',
                         type=str,
-                        default="0.2",
+                        default="5.0",
                         help= 'gradient_clip')
     parser.add_argument('--dropout_rate',
                         dest='dropout_rate',
@@ -1118,6 +1112,11 @@ def parse_args(parser):
                         type=str,
                         default="True",
                         help= 'load_init')
+    parser.add_argument('--stable_variant',
+                        dest='stable_variant',
+                        type=str,
+                        default="True",
+                        help= 'stable_variant')
     parser.add_argument('--freeze_conv_layers',
                         dest='freeze_conv_layers',
                         type=str,

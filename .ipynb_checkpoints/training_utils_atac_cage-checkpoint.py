@@ -368,8 +368,7 @@ def return_train_val_functions(model,
                                metric_dict,
                                global_batch_size,
                                gradient_clip,
-                               cage_scale,
-                               predict_masked_atac_bool):
+                               cage_scale):
     
 
     loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
@@ -381,21 +380,68 @@ def return_train_val_functions(model,
                                                  dtype=tf.float32)
     metric_dict["val_loss"] = tf.keras.metrics.Mean("val_loss",
                                                   dtype=tf.float32)
-    if predict_masked_atac_bool: 
-        metric_dict['ATAC_PearsonR'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
-        metric_dict['ATAC_R2'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
-        
-        metric_dict['ATAC_PearsonR_baseline'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
-        metric_dict['ATAC_R2_baseline'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
-        
-        metric_dict['CAGE_PearsonR'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
-        metric_dict['CAGE_R2'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
-    else:
-        metric_dict['CAGE_PearsonR'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
-        metric_dict['CAGE_R2'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
-        
+    metric_dict['ATAC_PearsonR'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
+    metric_dict['ATAC_R2'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
 
-    
+    metric_dict['ATAC_PearsonR_baseline'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
+    metric_dict['ATAC_R2_baseline'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
+
+    metric_dict['CAGE_PearsonR'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
+    metric_dict['CAGE_R2'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
+
+
+
+    def dist_train_step_masked_atac(iterator):    
+        @tf.function(jit_compile=True)
+        def train_step(inputs):
+            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
+            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
+            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
+            target=tf.cast(inputs['target'],dtype=tf.float32)
+
+            input_tuple = sequence, atac, global_acc
+
+            with tf.GradientTape() as tape:
+                conv_vars = model.stem_conv.trainable_variables + \
+                            model.stem_res_conv.trainable_variables + \
+                            model.stem_pool.trainable_variables + \
+                            model.conv_tower.trainable_variables
+                
+                performer_vars = model.performer.trainable_variables + \
+                                    model.final_pointwise_conv.trainable_variables + \
+                                    model.stem_conv_atac.trainable_variables + \
+                                    model.stem_res_conv_atac.trainable_variables + \
+                                    model.final_dense.trainable_variables + \
+                                    model.global_acc_proc_1.trainable_variables + \
+                                    model.global_acc_proc_2.trainable_variables
+                
+                vars_all = conv_vars + performer_vars
+                
+                output = model(input_tuple,
+                               training=True)
+
+                output = tf.cast(output,dtype=tf.float32)
+
+                atac_loss = loss_fn(target[:,:,0],output[:,:,0])
+                cage_loss = loss_fn(target[:,:,1],output[:,:,1]) * cage_scale
+                loss = tf.math.reduce_mean(atac_loss) + tf.math.reduce_mean(cage_loss)
+
+                loss = loss * (1. / global_batch_size)
+
+            gradients = tape.gradient(loss, vars_all)
+            gradients, _ = tf.clip_by_global_norm(gradients, 
+                                                  gradient_clip)
+            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], 
+                                           conv_vars))
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
+                                           performer_vars))
+            metric_dict["train_loss"].update_state(loss)
+        
+        for _ in tf.range(train_steps):
+            strategy.run(train_step,
+                         args=(next(iterator),))
+            
+            
     def dist_train_step(iterator):    
         @tf.function(jit_compile=True)
         def train_step(inputs):
@@ -416,8 +462,9 @@ def return_train_val_functions(model,
                                     model.final_pointwise_conv.trainable_variables + \
                                     model.stem_conv_atac.trainable_variables + \
                                     model.stem_res_conv_atac.trainable_variables + \
-                                    model.final_dense.trainable_variables +\
-                                    model.global_acc_proc.trainable_variables
+                                    model.final_dense.trainable_variables + \
+                                    model.global_acc_proc_1.trainable_variables + \
+                                    model.global_acc_proc_2.trainable_variables
                 
                 vars_all = conv_vars + performer_vars
                 
@@ -425,14 +472,8 @@ def return_train_val_functions(model,
                                training=True)
 
                 output = tf.cast(output,dtype=tf.float32)
-                
-                if predict_masked_atac_bool: 
-                    atac_loss = loss_fn(target[:,:,0],output[:,:,0])
-                    cage_loss = loss_fn(target[:,:,1],output[:,:,1]) * cage_scale
-                    loss = tf.math.reduce_mean(atac_loss) + tf.math.reduce_mean(cage_loss)
-                else:
-                    cage_loss = loss_fn(target,output) * cage_scale
-                    loss = tf.math.reduce_mean(cage_loss)
+                cage_loss = loss_fn(target,output)
+                loss = tf.math.reduce_mean(cage_loss)
 
                 loss = loss * (1. / global_batch_size)
 
@@ -449,6 +490,48 @@ def return_train_val_functions(model,
             strategy.run(train_step,
                          args=(next(iterator),))
 
+    def dist_val_step_masked_atac(iterator):
+        @tf.function(jit_compile=True)
+        def val_step(inputs):
+            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
+            target=tf.cast(inputs['target'],dtype=tf.float32)
+            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
+            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
+            
+            input_tuple = sequence,atac,global_acc
+
+            output = model(input_tuple,
+                           training=False)
+            output = tf.cast(output,dtype=tf.float32)
+            
+            atac_loss = loss_fn(target[:,:,0],output[:,:,0])
+            cage_loss = loss_fn(target[:,:,1],output[:,:,1]) * cage_scale
+            loss = tf.math.reduce_mean(atac_loss) + tf.math.reduce_mean(cage_loss)
+            metric_dict['CAGE_PearsonR'].update_state(target[:,:,1:], 
+                                                      output[:,:,1:])
+            metric_dict['CAGE_R2'].update_state(target[:,:,1:], 
+                                                output[:,:,1:])
+            metric_dict['ATAC_PearsonR'].update_state(target[:,:,0:1], 
+                                                      output[:,:,0:1])
+            metric_dict['ATAC_R2'].update_state(target[:,:,0:1], 
+                                                output[:,:,0:1])
+
+            metric_dict['ATAC_PearsonR_baseline'].update_state(target[:,:,0:1], 
+                                                               tf.slice(tf.cast(atac,dtype=tf.float32),
+                                                                        [0,320,0],[-1,896,-1]))
+            metric_dict['ATAC_R2_baseline'].update_state(target[:,:,0:1],
+                                                         tf.slice(tf.cast(atac,dtype=tf.float32),
+                                                                  [0,320,0],[-1,896,-1]))
+                
+
+            loss = tf.math.reduce_mean(loss) * (1. / global_batch_size)
+
+            metric_dict["val_loss"].update_state(loss)
+
+        for _ in tf.range(val_steps): ## for loop within @tf.fuction for improved TPU performance
+            strategy.run(val_step,
+                         args=(next(iterator),))
+            
     def dist_val_step(iterator):
         @tf.function(jit_compile=True)
         def val_step(inputs):
@@ -463,34 +546,12 @@ def return_train_val_functions(model,
                            training=False)
             output = tf.cast(output,dtype=tf.float32)
             
-            if predict_masked_atac_bool: 
-                atac_loss = loss_fn(target[:,:,0],output[:,:,0])
-                cage_loss = loss_fn(target[:,:,1],output[:,:,1]) * cage_scale
-                loss = tf.math.reduce_mean(atac_loss) + tf.math.reduce_mean(cage_loss)
-                metric_dict['CAGE_PearsonR'].update_state(target[:,:,1:], 
-                                                          output[:,:,1:])
-                metric_dict['CAGE_R2'].update_state(target[:,:,1:], 
-                                                    output[:,:,1:])
-                metric_dict['ATAC_PearsonR'].update_state(target[:,:,0:1], 
-                                                          output[:,:,0:1])
-                metric_dict['ATAC_R2'].update_state(target[:,:,0:1], 
-                                                    output[:,:,0:1])
-
-                metric_dict['ATAC_PearsonR_baseline'].update_state(target[:,:,0:1], 
-                                                                   tf.slice(tf.cast(atac,dtype=tf.float32),
-                                                                            [0,320,0],[-1,896,-1]))
-                metric_dict['ATAC_R2_baseline'].update_state(target[:,:,0:1],
-                                                             tf.slice(tf.cast(atac,dtype=tf.float32),
-                                                                      [0,320,0],[-1,896,-1]))
-                
-                
-            else:
-                cage_loss = loss_fn(target,output) * cage_scale
-                loss = tf.math.reduce_mean(cage_loss)
-                metric_dict['CAGE_PearsonR'].update_state(target, 
-                                                          output)
-                metric_dict['CAGE_R2'].update_state(target, 
-                                                    output)
+            cage_loss = loss_fn(target,output)
+            loss = tf.math.reduce_mean(cage_loss)
+            metric_dict['CAGE_PearsonR'].update_state(target, 
+                                                      output)
+            metric_dict['CAGE_R2'].update_state(target, 
+                                                output)
 
             loss = tf.math.reduce_mean(loss) * (1. / global_batch_size)
 
@@ -501,6 +562,57 @@ def return_train_val_functions(model,
                          args=(next(iterator),))
 
     
+    def dist_val_step_TSS_masked_atac(iterator): #input_batch, model, optimizer, organism, gradient_clip):
+        @tf.function(jit_compile=True)
+        def val_step(inputs):
+            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
+            target=tf.cast(inputs['target'],dtype=tf.float32)
+            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
+            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
+            input_tuple = sequence, atac,global_acc
+
+            output = model(input_tuple,
+                           training=False)
+            output = tf.cast(output,dtype=tf.float32)
+            
+            
+            tss_tokens = tf.cast(inputs['tss_tokens'],dtype=tf.float32)
+            gene_token = inputs['gene_token']
+            cell_type = inputs['cell_type']
+            
+            pred = tf.reduce_sum(tf.cast(output,dtype=tf.float32)[:,:,1:] * tss_tokens,axis=1)
+            true = tf.reduce_sum(target[:,:,1:] * tss_tokens,axis=1)
+
+            return pred,true,gene_token,cell_type
+        
+        ta_pred = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_true = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
+        ta_celltype = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_genemap = tf.TensorArray(tf.int32, size=0, dynamic_size=True)        
+
+        for _ in tf.range(val_steps_TSS): ## for loop within @tf.fuction for improved TPU performance
+
+            pred_rep, true_rep, gene_rep, cell_type_rep = strategy.run(val_step,
+                                                                       args=(next(iterator),))
+            
+            pred_reshape = tf.reshape(strategy.gather(pred_rep, axis=0), [-1]) # reshape to 1D
+            true_reshape = tf.reshape(strategy.gather(true_rep, axis=0), [-1])
+            cell_type_reshape = tf.reshape(strategy.gather(cell_type_rep, axis=0), [-1])
+            gene_map_reshape = tf.reshape(strategy.gather(gene_rep, axis=0), [-1])
+            
+            ta_pred = ta_pred.write(_, pred_reshape)
+            ta_true = ta_true.write(_, true_reshape)
+            ta_celltype = ta_celltype.write(_, cell_type_reshape)
+            ta_genemap = ta_genemap.write(_, gene_map_reshape)
+        metric_dict["corr_stats"].update_state(ta_true.concat(),
+                                                  ta_pred.concat(),
+                                                  ta_celltype.concat(),
+                                                  ta_genemap.concat())
+        ta_true.close()
+        ta_pred.close()
+        ta_celltype.close()
+        ta_genemap.close()
+        
     def dist_val_step_TSS(iterator): #input_batch, model, optimizer, organism, gradient_clip):
         @tf.function(jit_compile=True)
         def val_step(inputs):
@@ -519,12 +631,8 @@ def return_train_val_functions(model,
             gene_token = inputs['gene_token']
             cell_type = inputs['cell_type']
             
-            if predict_masked_atac_bool: 
-                pred = tf.reduce_sum(tf.cast(output,dtype=tf.float32)[:,:,1:] * tss_tokens,axis=1)
-                true = tf.reduce_sum(target[:,:,1:] * tss_tokens,axis=1)
-            else:
-                pred = tf.reduce_sum(tf.cast(output,dtype=tf.float32) * tss_tokens,axis=1)
-                true = tf.reduce_sum(target * tss_tokens,axis=1)
+            pred = tf.reduce_sum(tf.cast(output,dtype=tf.float32) * tss_tokens,axis=1)
+            true = tf.reduce_sum(target * tss_tokens,axis=1)
             
             return pred,true,gene_token,cell_type
 
@@ -573,8 +681,10 @@ def return_train_val_functions(model,
             strategy.run(val_step, args=(next(iterator),))
     
 
-    return dist_train_step,dist_val_step, dist_val_step_TSS,build_step, metric_dict
-
+    return dist_train_step_masked_atac,dist_train_step, \
+            dist_val_step_masked_atac, dist_val_step, \
+                dist_val_step_TSS_masked_atac, dist_val_step_TSS, \
+                    build_step, metric_dict
 
 def deserialize_tr(serialized_example,
                    input_length,
@@ -701,7 +811,7 @@ def deserialize_val(serialized_example,input_length,max_shift,output_length,crop
                                               out_type=tf.float32),
                            [output_length,1])
     
-    masked_atac=tf.nn.experimental.stateless_dropout(atac, rate=0.25, seed=[0,seq_shift]) / (1. / (1.0 - 0.25))
+    masked_atac=tf.nn.experimental.stateless_dropout(atac, rate=0.10, seed=[0,seq_shift]) / (1. / (1.0 - 0.10))
 
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),

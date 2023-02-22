@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model_atac_cage.py \
-            --tpu_name="pod1" \
-            --tpu_zone="us-east1-d" \
+            --tpu_name="node-6" \
+            --tpu_zone="us-central1-a" \
             --wandb_project="enformer_baseline" \
             --wandb_user="njaved" \
             --wandb_sweep_name="aformer_baseline" \
@@ -15,9 +15,9 @@ python3 train_model_atac_cage.py \
             --max_shift=10 \
             --batch_size=1 \
             --num_epochs=100 \
-            --train_examples=755501 \
-            --val_examples=68603 \
-            --val_examples_TSS=64759 \
+            --train_examples=500 \
+            --val_examples=200 \
+            --val_examples_TSS=200 \
             --BN_momentum=0.90 \
             --warmup_frac=0.005 \
             --patience=50 \
@@ -29,17 +29,18 @@ python3 train_model_atac_cage.py \
             --lr_base2="8.0e-05" \
             --decay_frac="0.50" \
             --gradient_clip="5.0" \
-            --epsilon=1.0e-14 \
+            --epsilon=1.0e-8 \
             --num_transformer_layers="6" \
             --dropout_rate="0.05" \
             --pointwise_dropout_rate="0.05" \
             --num_heads="8" \
             --num_random_features="256" \
-            --hidden_size="1552" \
+            --hidden_size="1040" \
+            --filter_list_seq="512,512,768,768,1024,1024" \
             --kernel_transformation="relu_kernel_transformation" \
             --savefreq=40 \
             --freeze_conv_layers="False" \
-            --load_init="True" \
+            --load_init="False" \
             --wd_1=0.0 \
             --wd_2=0.0 \
             --rectify="True" \
@@ -47,5 +48,5 @@ python3 train_model_atac_cage.py \
             --inits_type="enformer_performer" \
             --predict_masked_atac_bool="True" \
             --cage_scale="5.0" \
-            --optimizer="adabelief"
+            --optimizer="adamw"
             

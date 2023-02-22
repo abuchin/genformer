@@ -233,7 +233,7 @@ def main():
             num_val=wandb.config.val_examples
             num_val_TSS=wandb.config.val_examples_TSS#4192000
 
-            wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE * 4)},
+            wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE * 3)},
                                 allow_val_change=True)
             wandb.config.update({"val_steps" : num_val // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
@@ -369,8 +369,10 @@ def main():
             
             metric_dict = {}
 
-            train_step,val_step,val_step_TSS,\
-                build_step, metric_dict = training_utils.return_train_val_functions(model,
+            train_step_masked_atac,train_step, \
+                val_step_masked_atac,val_step, \
+                    val_step_TSS_masked_atac, val_step_TSS, \
+                        build_step, metric_dict = training_utils.return_train_val_functions(model,
                                                                                     wandb.config.train_steps,
                                                                                     wandb.config.val_steps,
                                                                                     wandb.config.val_steps_TSS,
@@ -379,8 +381,7 @@ def main():
                                                                                     metric_dict,
                                                                                     GLOBAL_BATCH_SIZE,
                                                                                     wandb.config.gradient_clip,
-                                                                                    wandb.config.cage_scale,
-                                                                                    wandb.config.predict_masked_atac_bool)
+                                                                                    wandb.config.cage_scale)
                 
 
             global_step = 0
@@ -404,7 +405,10 @@ def main():
                 
                 print('starting epoch_', str(epoch_i))
                 start = time.time()
-                train_step(data_train)
+                if wandb.config.predict_masked_atac_bool:
+                    train_step_masked_atac(data_train)
+                else:
+                    train_step(data_train)
                 end = time.time()
                 duration = (end - start) / 60.
                 
@@ -416,7 +420,10 @@ def main():
                 
                 start = time.time()
                 
-                val_step(data_val)
+                if wandb.config.predict_masked_atac_bool:
+                    val_step_masked_atac(data_val)
+                else:
+                    val_step(data_val)
                 
                 val_loss = metric_dict['val_loss'].result().numpy()
                 cage_pearsons = metric_dict['CAGE_PearsonR'].result()['PearsonR'].numpy()
@@ -450,7 +457,10 @@ def main():
 
                 
                 if epoch_i % 3 == 0: 
-                    val_step_TSS(data_val_TSS)
+                    if wandb.config.predict_masked_atac_bool:
+                        val_step_TSS(data_val_TSS)
+                    else:
+                        val_step_TSS_masked_atac
 
                     val_pearson_TSS = metric_dict['corr_stats'].result()['pearsonR'].numpy()
                     val_R2_TSS = metric_dict['corr_stats'].result()['R2'].numpy()

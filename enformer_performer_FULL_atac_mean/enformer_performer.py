@@ -25,6 +25,7 @@ class enformer_performer(tf.keras.Model):
                                          'canine': 13,
                                          'rhesus': 15},
                  filter_list_seq=[768,896,1024,1152,1280,1536],
+                 #survival_rates=[0.0,0.0,0.1,0.1,0.15,0.15],
                  dim=192,
                  d_model=1536,
                  norm=True,
@@ -41,11 +42,13 @@ class enformer_performer(tf.keras.Model):
                  load_init=False,
                  freeze_conv_layers=False,
                  inits=None,
+                 stable_variant=True,
                  kernel_transformation="softmax_kernel_transformation",
                  normalize=True,
                  seed=5,
                  inits_type='enformer_conv',
                  name: str = 'enformer_performer',
+                 conv_block_type = 'enformer',
                  **kwargs):
         """ 'enformer_performer' model based on Enformer for predicting RNA-seq from atac + sequence
         Args: to do 
@@ -80,6 +83,9 @@ class enformer_performer(tf.keras.Model):
         self.freeze_conv_layers=freeze_conv_layers
         self.BN_momentum=BN_momentum
         self.inits_type=inits_type
+        #self.survival_rates=survival_rates
+        self.conv_block_type=conv_block_type
+        self.stable_variant=stable_variant
         
         if self.load_init:
             self.filter_list_seq= [768,896,1024,1152,1280,1536]
@@ -87,42 +93,65 @@ class enformer_performer(tf.keras.Model):
             self.filter_list_seq=filter_list_seq
         
 
-        def enf_conv_block(filters, 
-                           width=1, 
-                           w_init='lecun_normal', 
-                           b_init='zeros',
-                           padding='same', 
-                           name='conv_block',
-                           beta_init=None,
-                           gamma_init=None,
-                           mean_init=None,
-                           var_init=None,
-                           kernel_init=None,
-                           bias_init=None,
-                           train=True,
-                           **kwargs):
-            return tf.keras.Sequential([
-                syncbatchnorm(axis=-1,
-                            center=True,
-                            scale=True,
-                            beta_initializer=beta_init if self.load_init else "zeros",
-                            gamma_initializer=gamma_init if self.load_init else "ones",
-                            trainable=train,
-                            momentum=self.BN_momentum,
-                            moving_mean_initializer=mean_init if self.load_init else "zeros",
-                            moving_variance_initializer=var_init if self.load_init else "ones",
-                            **kwargs),
-                tfa.layers.GELU(),
-                kl.Conv1D(filters,
-                         kernel_size=width, 
-                         kernel_initializer=kernel_init if self.load_init else 'lecun_normal',
-                         bias_initializer=bias_init if self.load_init else 'zeros',
-                         trainable=train,
-                         padding=padding, **kwargs)
-            ], name=name)
+        if conv_block_type == 'enformer':
+            def conv_block(filters, 
+                               width=1, 
+                               w_init='lecun_normal', 
+                               b_init='zeros',
+                               padding='same', 
+                               name='conv_block',
+                               beta_init=None,
+                               gamma_init=None,
+                               mean_init=None,
+                               var_init=None,
+                               kernel_init=None,
+                               bias_init=None,
+                               train=True,
+                               **kwargs):
+                return tf.keras.Sequential([
+                    syncbatchnorm(axis=-1,
+                                center=True,
+                                scale=True,
+                                beta_initializer=beta_init if self.load_init else "zeros",
+                                gamma_initializer=gamma_init if self.load_init else "ones",
+                                trainable=train,
+                                momentum=self.BN_momentum,
+                                moving_mean_initializer=mean_init if self.load_init else "zeros",
+                                moving_variance_initializer=var_init if self.load_init else "ones",
+                                **kwargs),
+                    tfa.layers.GELU(),
+                    kl.Conv1D(filters,
+                             kernel_size=width, 
+                             kernel_initializer=kernel_init if self.load_init else 'lecun_normal',
+                             bias_initializer=bias_init if self.load_init else 'zeros',
+                             trainable=train,
+                             padding=padding, **kwargs)
+                ], name=name)
+        elif conv_block_type == 'conv_next':
+            def conv_block(filters, 
+                               width=1, 
+                               w_init='lecun_normal', 
+                               b_init='zeros',
+                               padding='same', 
+                               name='conv_block',
+                               beta_init=None,
+                               gamma_init=None,
+                               mean_init=None,
+                               var_init=None,
+                               kernel_init=None,
+                               bias_init=None,
+                               train=True,
+                               **kwargs):
+                return conv_next(filters = filters,
+                                 kernel_size=width,
+                                 strides=1,
+                                 widening_factor=2,
+                                 gamma_scale_init=1e-06)
+        else:
+            raise ValueError('block type not implemented')
 
         ### conv stack for sequence inputs
-        self.stem_conv = kl.Conv1D(filters= int(self.filter_list_seq[-1]) // 2,
+        self.stem_conv = kl.Conv1D(filters= int(self.filter_list_seq[0]),
                                    kernel_size=15,
                                    kernel_initializer=self.inits['stem_conv_k'] if self.load_init else 'lecun_normal',
                                    bias_initializer=self.inits['stem_conv_b'] if self.load_init else 'zeros',
@@ -130,7 +159,7 @@ class enformer_performer(tf.keras.Model):
                                    trainable=False if self.freeze_conv_layers else True,
                                    padding='same')
                                    #data_format='channels_last')
-        self.stem_res_conv=Residual(enf_conv_block(int(self.filter_list_seq[-1]) // 2, 1,
+        self.stem_res_conv=Residual(conv_block(int(self.filter_list_seq[0]) , 1,
                                                    beta_init=self.inits['stem_res_conv_BN_b'] if self.load_init else None,
                                                    gamma_init=self.inits['stem_res_conv_BN_g'] if self.load_init else None,
                                                    mean_init=self.inits['stem_res_conv_BN_m'] if self.load_init else None,
@@ -139,7 +168,13 @@ class enformer_performer(tf.keras.Model):
                                                    bias_init=self.inits['stem_res_conv_b'] if self.load_init else None,
                                                    train=False if self.freeze_conv_layers else True,
                                                    name='pointwise_conv_block'))
-        
+        self.stem_pool = SoftmaxPooling1D(per_channel=True,
+                                          w_init_scale=2.0,
+                                          pool_size=2,
+                                          k_init=self.inits['stem_pool'] if self.load_init else None,
+                                          train=False if self.freeze_conv_layers else True,
+                                          name ='stem_pool')
+
         ### conv stack for atac
         self.stem_conv_atac = tf.keras.layers.Conv1D(filters= 16,
                                                      kernel_size=5,
@@ -147,34 +182,13 @@ class enformer_performer(tf.keras.Model):
                                                      bias_initializer='zeros',
                                                      padding='same')
 
-        self.stem_res_conv_atac =Residual(enf_conv_block(16, 
+        self.stem_res_conv_atac =Residual(conv_block(16, 
                                                          1,
                                                          name='pointwise_conv_block_atac'))
-        
-        
-        ### phastcons stack 
-        """
-        self.stem_conv_phastcon = tf.keras.layers.Conv1D(filters= 8,
-                                                     kernel_size=5,
-                                                     kernel_initializer='glorot_uniform',
-                                                     bias_initializer='zeros',
-                                                     padding='same')
 
-        self.stem_res_conv_phastcon =Residual(enf_conv_block(8, 
-                                                             1,
-                                                             name='pointwise_conv_block_phastcon'))
-        
-        """
-
-        self.stem_pool = SoftmaxPooling1D(per_channel=True,
-                                          w_init_scale=2.0,
-                                          pool_size=2,
-                                          k_init=self.inits['stem_pool'] if self.load_init else None,
-                                          train=False if self.freeze_conv_layers else True,
-                                          name ='stem_pool')
         self.conv_tower = tf.keras.Sequential([
             tf.keras.Sequential([
-                enf_conv_block(num_filters, 
+                conv_block(num_filters, 
                                5, 
                                beta_init=self.inits['BN1_b_' + str(i)] if self.load_init else None,
                                gamma_init=self.inits['BN1_g_' + str(i)] if self.load_init else None,
@@ -184,7 +198,7 @@ class enformer_performer(tf.keras.Model):
                                bias_init=self.inits['conv1_b_' + str(i)] if self.load_init else None,
                                train=False if self.freeze_conv_layers else True,
                                padding='same'),
-                Residual(enf_conv_block(num_filters, 1, 
+                Residual(conv_block(num_filters, 1, 
                                        beta_init=self.inits['BN2_b_' + str(i)] if self.load_init else None,
                                        gamma_init=self.inits['BN2_g_' + str(i)] if self.load_init else None,
                                        mean_init=self.inits['BN2_m_' + str(i)] if self.load_init else None,
@@ -202,40 +216,69 @@ class enformer_performer(tf.keras.Model):
                        name=f'conv_tower_block_{i}')
             for i, num_filters in enumerate(self.filter_list_seq)], name='conv_tower')
 
+        self.final_pointwise_conv = conv_block(filters=self.filter_list_seq[-1] * 2,
+                                                  **kwargs,
+                                                  name = 'final_pointwise')
+        
+
+        self.stem = tf.keras.Sequential([self.stem_conv,self.stem_res_conv,self.stem_pool],
+                                        name='stem')
+        self.atac = tf.keras.Sequential([self.stem_conv_atac,self.stem_res_conv_atac],
+                                        name='stem')
         
 
         self.sin_pe = abs_sin_PE(name='sin_pe',
                                   **kwargs)
 
-        self.performer = Performer_Encoder(num_layers=self.num_transformer_layers,
-                                            num_heads=self.num_heads, 
-                                            dim = self.dim,
-                                            d_model=self.d_model,
-                                            norm=self.norm,
-                                            max_seq_length=self.max_seq_length,
-                                            nb_random_features=self.nb_random_features,
-                                            hidden_size=self.hidden_size,
-                                            numerical_stabilizer=self.numerical_stabilizer,
-                                            dropout_rate=self.attention_dropout_rate,
-                                            rel_pos_bins=self.rel_pos_bins,
-                                            use_rot_emb=self.use_rot_emb,
-                                            use_mask_pos=self.use_mask_pos,
-                                            kernel_transformation=self.kernel_transformation,
-                                            normalize=self.normalize, 
-                                            seed = self.seed,
-                                            load_init= True if (self.load_init and self.inits_type  == 'enformer_performer') else False,
-                                            inits=inits if self.inits_type  == 'enformer_performer' else None,
-                                            name = 'shared_transformer',
-                                            **kwargs)
+        if self.stable_variant:
+            self.performer = Performer_Encoder_stable(num_layers=self.num_transformer_layers,
+                                                num_heads=self.num_heads, 
+                                                dim = self.dim,
+                                                d_model=self.d_model,
+                                                norm=self.norm,
+                                                max_seq_length=self.max_seq_length,
+                                                nb_random_features=self.nb_random_features,
+                                                hidden_size=self.hidden_size,
+                                                numerical_stabilizer=self.numerical_stabilizer,
+                                                dropout_rate=self.attention_dropout_rate,
+                                                rel_pos_bins=self.rel_pos_bins,
+                                                use_rot_emb=self.use_rot_emb,
+                                                use_mask_pos=self.use_mask_pos,
+                                                kernel_transformation=self.kernel_transformation,
+                                                normalize=self.normalize, 
+                                                seed = self.seed,
+                                                load_init= True if (self.load_init and self.inits_type  == 'enformer_performer') else False,
+                                                inits=inits if self.inits_type  == 'enformer_performer' else None,
+                                                name = 'shared_transformer',
+                                                **kwargs)
+        else:
+            self.performer = Performer_Encoder(num_layers=self.num_transformer_layers,
+                                                num_heads=self.num_heads, 
+                                                dim = self.dim,
+                                                d_model=self.d_model,
+                                                norm=self.norm,
+                                                max_seq_length=self.max_seq_length,
+                                                nb_random_features=self.nb_random_features,
+                                                hidden_size=self.hidden_size,
+                                                numerical_stabilizer=self.numerical_stabilizer,
+                                                dropout_rate=self.attention_dropout_rate,
+                                                rel_pos_bins=self.rel_pos_bins,
+                                                use_rot_emb=self.use_rot_emb,
+                                                use_mask_pos=self.use_mask_pos,
+                                                kernel_transformation=self.kernel_transformation,
+                                                normalize=self.normalize, 
+                                                seed = self.seed,
+                                                load_init= True if (self.load_init and self.inits_type  == 'enformer_performer') else False,
+                                                inits=inits if self.inits_type  == 'enformer_performer' else None,
+                                                name = 'shared_transformer',
+                                                **kwargs)
 
         self.crop_final = TargetLengthCrop1D(uncropped_length=1536, 
                                              target_length=TARGET_LENGTH,
                                              name='target_input')
         
         
-        self.final_pointwise_conv = enf_conv_block(filters=self.filter_list_seq[-1] * 2,
-                                                  **kwargs,
-                                                  name = 'final_pointwise')
+
         self.dropout = kl.Dropout(rate=self.dropout_rate / 8,
                                   **kwargs)
         self.gelu = tfa.layers.GELU()
@@ -256,22 +299,15 @@ class enformer_performer(tf.keras.Model):
         
         sequence,mean_atac = inputs
         
-        x = self.stem_conv(sequence,
+        x = self.stem(sequence,
                            training=training)
 
-        x = self.stem_res_conv(x,
-                               training=training)
-
-        x = self.stem_pool(x,
-                           training=training)
 
         x = self.conv_tower(x,
                             training=training)
 
-        atac_x = self.stem_conv_atac(mean_atac,
-                                     training=training)
-        atac_x = self.stem_res_conv_atac(atac_x,
-                                         training=training)
+        atac_x = self.atac(mean_atac,
+                           training=training)
 
         transformer_input = tf.concat([x,atac_x],
                                       axis=2)
