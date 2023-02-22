@@ -45,7 +45,7 @@ python3 train_model_atac_cage.py \
             --wd_2=0.0 \
             --rectify="True" \
             --multitask_checkpoint_path="gs://picard-testing-176520/enformer_performer_FULL_atac_mean/models/enformer_performer_FULL_atac_mean_196k_load_init-True_freeze-True_LR1-1e-06_LR2-7.5e-05_T-6_F-1536_D-0.4_K-relu_kernel_transformation_AD-0.05/iteration_30" \
-            --inits_type="enformer_performer" \
+            --inits_type="enformer" \
             --predict_masked_atac_bool="True" \
             --cage_scale="5.0" \
             --optimizer="adamw"

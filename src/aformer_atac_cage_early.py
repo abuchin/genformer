@@ -156,17 +156,11 @@ class aformer(tf.keras.Model):
         self.stem_conv_atac = tf.keras.layers.Conv1D(filters= 16,
                                                      kernel_size=15,
                                                      kernel_initializer='lecun_normal',
-                                                     #bias_initializer=self.inits['stem_conv_atac_b'] if self.load_init else 'zeros',
+                                                     bias_initializer='lecun_normal',
                                                      padding='same')
 
         self.stem_res_conv_atac =Residual(enf_conv_block(16, 
                                                          1,
-                                                         #beta_init=self.inits['stem_res_conv_atac_BN_b'] if self.load_init else None,
-                                                         #gamma_init=self.inits['stem_res_conv_atac_BN_g'] if self.load_init else None,
-                                                         #mean_init=self.inits['stem_res_conv_atac_BN_m'] if self.load_init else None,
-                                                         #var_init=self.inits['stem_res_conv_atac_BN_v'] if self.load_init else None,
-                                                         #kernel_init=self.inits['stem_res_conv_atac_k'] if self.load_init else None,
-                                                         #bias_init=self.inits['stem_res_conv_atac_b'] if self.load_init else None,
                                                          name='pointwise_conv_block_atac'))
 
 
@@ -242,12 +236,6 @@ class aformer(tf.keras.Model):
                                              name='target_input')
         
         self.final_pointwise_conv = enf_conv_block(filters=self.filter_list_seq[-1] * 2,
-                                                   beta_init=self.inits['final_point_BN_b'] if self.load_init else None,
-                                                   gamma_init=self.inits['final_point_BN_g'] if self.load_init else None,
-                                                   mean_init=self.inits['final_point_BN_m'] if self.load_init else None,
-                                                   var_init=self.inits['final_point_BN_v'] if self.load_init else None,
-                                                   kernel_init=self.inits['final_point_k'] if self.load_init else None,
-                                                   bias_init=self.inits['final_point_b'] if self.load_init else None,
                                                   **kwargs,
                                                   name = 'final_pointwise')
         
@@ -292,25 +280,29 @@ class aformer(tf.keras.Model):
                             training=training)
 
 
-        transformer_input_x=self.sin_pe(x)
-
-        out,att_matrices = self.performer(transformer_input_x,
-                                                  training=training)
-
-        out = self.crop_final(out)
-
-        out = self.final_pointwise_conv(out,
-                                       training=training)
-        
         global_acc = tf.tile(global_acc, 
-                               [1,self.final_output_length,1])
+                               [1,self.max_seq_length,1])
         
-
         atac_x = self.stem_conv_atac(atac,
                                      training=training)
 
         atac_x = self.stem_res_conv_atac(atac_x,
                                          training=training)
+        
+        transformer_input = tf.concat([x,
+                                       atac_x,
+                                       global_acc])
+        
+        transformer_input=self.sin_pe(transformer_input)
+
+        out,att_matrices = self.performer(transformer_input,
+                                          training=training)
+
+        out = self.crop_final(out)
+
+        out = self.final_pointwise_conv(out,
+                                       training=training)
+    
 
         out = tf.concat([out,atac_x,global_acc],
                                       axis=2)

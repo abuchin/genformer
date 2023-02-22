@@ -1,6 +1,6 @@
 #!/bin/bash -l
 
-python3 train_model_batchnorm_experiments.py \
+python3 train_model.py \
             --tpu_name="pod" \
             --tpu_zone="us-east1-d" \
             --wandb_project="enformer_performer_pretrain_atac_mean" \
@@ -32,7 +32,7 @@ python3 train_model_batchnorm_experiments.py \
             --load_init="False" \
             --freeze_conv_layers="False" \
             --stable_variant="True" \
-            --num_examples_dict="human:250,250;mouse:250,250" \
+            --num_examples_dict="human:34021,2213;mouse:29295,2209" \
             --num_transformer_layers=8 \
             --num_heads=8 \
             --optimizer="adamw" \
