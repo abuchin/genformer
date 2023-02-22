@@ -515,15 +515,6 @@ def main():
                     pass
                 
                 
-                #if wandb.config.model_type == 'enformer_performer':
-                #fig_gamma,fig_beta,fig_moving_means,fig_moving_vars=\
-                #        training_utils.extract_batch_norm_stats(model)
-                #wandb.log({'gamma': fig_gamma,
-                #           'beta': fig_beta,
-                #           'moving_mean': fig_moving_means,
-                #           'moving_var': fig_moving_vars},
-                #          step=epoch_i)
-                
                 end = time.time()
                 duration = (end - start) / 60.
                 print('completed epoch ' + str(epoch_i) + ' validation')

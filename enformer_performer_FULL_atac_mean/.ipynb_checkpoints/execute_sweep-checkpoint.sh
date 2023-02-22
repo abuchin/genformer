@@ -1,11 +1,11 @@
 #!/bin/bash -l
 
 python3 train_model_batchnorm_experiments.py \
-            --tpu_name="node-5" \
-            --tpu_zone="us-central1-a" \
-            --wandb_project="enformer_baseline" \
+            --tpu_name="pod" \
+            --tpu_zone="us-east1-d" \
+            --wandb_project="enformer_performer_pretrain_atac_mean" \
             --wandb_user="njaved" \
-            --wandb_sweep_name="enformer_baseline" \
+            --wandb_sweep_name="enformer_performer_pretrain_atac_mean" \
             --gcs_project="picard-testing-176520" \
             --gcs_path="gs://genformer_data/expanded_originals/196k" \
             --gcs_path_TSS="gs://genformer_data/expanded_originals/196k/human/tfrecords_tss" \
@@ -13,8 +13,8 @@ python3 train_model_batchnorm_experiments.py \
             --warmup_frac=0.01 \
             --patience=50 \
             --min_delta=0.00001 \
-            --model_save_dir="gs://picard-testing-176520/enformer_performer_FULL_atac_mean/models" \
-            --model_save_basename="enformer_performer_FULL_atac_mean" \
+            --model_save_dir="gs://picard-testing-176520/enformer_performer_pretrain_atac_mean/models" \
+            --model_save_basename="enformer_performer_pretrain_atac_mean" \
             --lr_base1="1.0e-04" \
             --lr_base2="1.0e-04" \
             --wd_1="1.0e-08" \
