@@ -1,6 +1,6 @@
 #!/bin/bash -l
 
-python3 train_model_atac_cage_early.py \
+python3 train_model_atac_cage.py \
             --tpu_name="pod" \
             --tpu_zone="us-east1-d" \
             --wandb_project="enformer_baseline" \
@@ -30,24 +30,26 @@ python3 train_model_atac_cage_early.py \
             --decay_frac="0.50" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-8 \
-            --num_transformer_layers="6" \
+            --num_transformer_layers="8" \
             --dropout_rate="0.05" \
             --pointwise_dropout_rate="0.05" \
             --num_heads="8" \
             --num_random_features="256" \
-            --hidden_size="1600" \
+            --hidden_size="1040" \
             --kernel_transformation="relu_kernel_transformation" \
             --savefreq=40 \
-            --freeze_conv_layers="True" \
+            --freeze_conv_layers="False" \
             --load_init="True" \
             --wd_1=0.0 \
             --wd_2=0.0 \
             --fc_dropout=0.25 \
             --rectify="True" \
-            --multitask_checkpoint_path="/home/jupyter/dev/BE_CD69_paper_2022/enformer_fine_tuning/checkpoint/sonnet_weights" \
-            --inits_type="enformer_conv" \
-            --predict_masked_atac_bool="True" \
+            --multitask_checkpoint_path="gs://picard-testing-176520/enformer_performer_pretrain_atac_mean/models/enformer_performer_pretrain_atac_mean_EP_full_dataset__196k_load_init-False_freeze-False_LR1-0.0001_LR2-0.0001_T-8_F-1024_D-0.4_2023-02-23_04:07:19/iteration_20" \
+            --inits_type="enformer_performer" \
+            --predict_masked_atac_bool="False" \
             --cage_scale="5.0" \
             --optimizer="adamw" \
+            --stable_variant="False" \
+            --filter_list_seq="512,512,768,768,1024,1024" \
             --atac_mask_dropout=0.05
             

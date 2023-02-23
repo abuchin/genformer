@@ -311,7 +311,7 @@ class enformer_performer(tf.keras.Model):
 
         transformer_input = tf.concat([x,atac_x],
                                       axis=2)
-
+        print(transformer_input.shape)
         transformer_input_x=self.sin_pe(transformer_input)
 
         out,att_matrices = self.performer(transformer_input_x,

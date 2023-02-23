@@ -140,6 +140,12 @@ def main():
                 'wd_2': {
                     'values': [args.wd_2]
                 },
+                'atac_mask_dropout': {
+                    'values': [args.atac_mask_dropout]
+                },
+                'fc_dropout': {
+                    'values': [args.fc_dropout]
+                },
                 'rectify': {
                     'values':[parse_bool_str(x) for x in args.rectify.split(',')]
                 },
@@ -148,8 +154,10 @@ def main():
                 },
                 'optimizer': {
                     'values':[args.optimizer]
+                },
+                'stable_variant': {
+                    'values':[parse_bool_str(x) for x in args.stable_variant.split(',')]
                 }
-                
             }
     }
 
@@ -209,7 +217,7 @@ def main():
             date_string = f'{datetime.now():%Y-%m-%d %H:%M:%S%z}'
             date_string = date_string.replace(' ','_')
             wandb.run.name = run_name + "_" + date_string
-            base_name = wandb.config.model_save_basename + "_" + run_name
+            base_name = wandb.config.model_save_basename + "_" + wandb.run.name
             
             
             '''
@@ -233,7 +241,7 @@ def main():
             num_val=wandb.config.val_examples
             num_val_TSS=wandb.config.val_examples_TSS#4192000
 
-            wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE * 3)},
+            wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE)},
                                 allow_val_change=True)
             wandb.config.update({"val_steps" : num_val // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
@@ -257,6 +265,7 @@ def main():
                                                                 strategy,
                                                                 options,
                                                                 wandb.config.predict_masked_atac_bool,
+                                                                wandb.config.atac_mask_dropout,
                                                                 g)
 
             print('created dataset iterators')
@@ -264,7 +273,8 @@ def main():
             if wandb.config.inits_type == 'enformer_performer':
                 print('loaded enformer performer weights')
                 inits=training_utils.get_initializers_enformer_performer(args.multitask_checkpoint_path,
-                                                                         wandb.config.num_transformer_layers)
+                                                                         wandb.config.num_transformer_layers,
+                                                                         wandb.config.stable_variant)
             elif wandb.config.inits_type == 'enformer_conv':
                 print('loaded enformer conv weights')
                 inits=training_utils.get_initializers_enformer_conv(args.multitask_checkpoint_path)
@@ -296,11 +306,13 @@ def main():
                                     use_rot_emb = True,
                                     use_mask_pos = False,
                                     normalize = True,
+                                    fc_dropout=wandb.config.fc_dropout,
                                     predict_masked_atac_bool=wandb.config.predict_masked_atac_bool,
                                     num_transformer_layers=wandb.config.num_transformer_layers,
                                     inits=inits,
                                     inits_type=wandb.config.inits_type,
                                     load_init=wandb.config.load_init,
+                                    stable_variant=wandb.config.stable_variant,
                                     freeze_conv_layers=wandb.config.freeze_conv_layers,
                                     filter_list_seq=wandb.config.filter_list_seq)
             
@@ -458,9 +470,9 @@ def main():
                 
                 if epoch_i % 3 == 0: 
                     if wandb.config.predict_masked_atac_bool:
-                        val_step_TSS(data_val_TSS)
+                        val_step_TSS_masked_atac(data_val_TSS)
                     else:
-                        val_step_TSS_masked_atac
+                        val_step_TSS(data_val_TSS)
 
                     val_pearson_TSS = metric_dict['corr_stats'].result()['pearsonR'].numpy()
                     val_R2_TSS = metric_dict['corr_stats'].result()['R2'].numpy()

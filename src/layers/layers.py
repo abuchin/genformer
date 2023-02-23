@@ -251,7 +251,7 @@ class Performer(kl.Layer):
         self.layer_norm = kl.LayerNormalization(axis=-1,
                                                   scale=True,
                                                   center=True,
-                                                epsilon=1e-05,
+                                                    epsilon=1e-05,
                                                   beta_initializer=LN_beta_init if self.load_init else "zeros",
                                                   gamma_initializer=LN_gamma_init if self.load_init else "ones")
         
@@ -340,7 +340,7 @@ class Performer_stable(kl.Layer):
                  hidden_size: int,
                  num_heads: int,
                  seed: int,
-                 attention_dropout: float,
+                 dropout_rate: float,
                  numerical_stabilizer: float,
                  nb_random_features: int,
                  max_seq_length: int,
@@ -348,9 +348,19 @@ class Performer_stable(kl.Layer):
                  kernel_transformation: str = 'relu_kernel_transformation',
                  use_mask_pos: bool = False,
                  use_rot_emb: bool = True,
+                 q_init=None,
+                 k_init=None,
+                 v_init=None,
+                 att_output=None,
+                 FFN_LN_gamma_init=None,
+                 FFN_LN_beta_init=None,
+                 FFN_kernel1_init=None,
+                 FFN_bias1_init=None,
+                 FFN_kernel2_init=None,
+                 FFN_bias2_init=None,
+                 load_init: bool = False,
                  name = 'transformer_layer',
                  **kwargs):
-        super().__init__(name=name, **kwargs)
         """Transformer block w/ performer attention
         Args:
             hidden size: ~channel dimension for transformer input
@@ -367,7 +377,7 @@ class Performer_stable(kl.Layer):
         """
         self.hidden_size=hidden_size
         self.num_heads=num_heads
-        self.attention_dropout=attention_dropout
+        self.dropout_rate=dropout_rate
         self.kernel_transformation=kernel_transformation 
         self.numerical_stabilizer=numerical_stabilizer
         self.max_seq_length = max_seq_length
@@ -378,23 +388,35 @@ class Performer_stable(kl.Layer):
         self.d_model=d_model
         self.normalize=normalize
         self.seed=seed
+        self.load_init=load_init
         
         
-        self.layer_norm = ScaleNorm(self.d_model ** 0.50),
+        self.layer_norm = ScaleNorm(self.d_model ** 0.50)
         self.self_attention = fa_rpe.Attention(hidden_size=self.d_model,
-                                                   num_heads=self.num_heads,
-                                                   nb_random_features=self.nb_random_features,
-                                                   attention_dropout=self.attention_dropout,
-                                                   use_rot_emb=self.use_rot_emb,
-                                                   use_mask_pos=self.use_mask_pos,
-                                                   normalize=self.normalize,
-                                                   kernel_transformation=self.kernel_transformation,
-                                                   numerical_stabilizer=self.numerical_stabilizer,
-                                                   seed=self.seed,
-                                                   **kwargs)
-        self.dropout = kl.Dropout(rate=self.attention_dropout,**kwargs)
+                                               num_heads=self.num_heads,
+                                               nb_random_features=self.nb_random_features,
+                                               use_rot_emb=self.use_rot_emb,
+                                               use_mask_pos=self.use_mask_pos,
+                                               normalize=self.normalize,
+                                               kernel_transformation=self.kernel_transformation,
+                                               numerical_stabilizer=self.numerical_stabilizer,
+                                               seed=self.seed,
+                                               q_init=q_init,
+                                               k_init=k_init,
+                                               v_init=v_init,
+                                               att_output=att_output,
+                                               load_init = self.load_init,
+                                               **kwargs)
+        self.dropout = kl.Dropout(rate=self.dropout_rate,**kwargs)
         self.FFN = FFN(num_channels=self.hidden_size,
-                       dropout_rate=self.attention_dropout,
+                       dropout_rate=self.dropout_rate,
+                       FFN_LN_gamma_init=FFN_LN_gamma_init,
+                       FFN_LN_beta_init=FFN_LN_beta_init,
+                       FFN_kernel1_init=FFN_kernel1_init,
+                       FFN_bias1_init=FFN_bias1_init,
+                       FFN_kernel2_init=FFN_kernel2_init,
+                       FFN_bias2_init=FFN_bias2_init,
+                       load_init = self.load_init,
                        name='FFN',
                        **kwargs)         
     
@@ -402,7 +424,7 @@ class Performer_stable(kl.Layer):
         config = {
             "hidden_size":self.hidden_size,
             "num_heads":self.num_heads,
-            "attention_dropout":self.attention_dropout,
+            "dropout":self.dropout,
             "numerical_stabilizer":self.numerical_stabilizer,
             "nb_random_features":self.nb_random_features,
             "kernel_transformation":self.kernel_transformation,
@@ -611,6 +633,169 @@ class Performer_Encoder(kl.Layer):
         return x,att_matrices
     
 
+@tf.keras.utils.register_keras_serializable()
+class Performer_Encoder_stable(kl.Layer):
+    def __init__(self,
+                 num_layers,
+                 num_heads,
+                 dim,
+                 d_model,
+                 max_seq_length,
+                 nb_random_features,
+                 hidden_size,
+                 numerical_stabilizer,
+                 dropout_rate = 0.40,
+                 rel_pos_bins=None,
+                 use_rot_emb=True,
+                 use_mask_pos=False,
+                 normalize=True,
+                 norm=True,
+                 seed=42,
+                 load_init=True,
+                 inits=None,
+                 kernel_transformation: str = 'relu_kernel_transformation',
+                 name = 'performer_stack',
+                 **kwargs):
+        
+        
+        super().__init__(name=name, **kwargs)
+        """Performer Encoder block
+        Args:
+            hidden size: ~channel dimension for transformer input
+            num_heads: num attention heads
+            attention_dropout: post attention layer dropout rate
+            numerical_stabilizer: small float for stability
+            nb_random_features: dim for projection matrix
+            widening: scaling factor for how many channels to start w/
+                      e.g. widening = 2, num_channels = 12 means start w/ 24
+            dropout_rate: transformer MLP dropout rate
+            dropout_rate: dropout rate used throughout network
+            kernel_transformation: softmax or relu kernel transform for fast att.
+            positional_encoding_type: absolute sinusoidal or relative(rotary)
+            name: Module name.
+        """
+        self.num_layers=num_layers
+        self.num_heads=num_heads
+        self.dim=dim
+        self.hidden_size=hidden_size
+        self.d_model=d_model
+        self.max_seq_length=max_seq_length
+        self.nb_random_features=nb_random_features
+        self.numerical_stabilizer=numerical_stabilizer
+        self.rel_pos_bins=rel_pos_bins#None#rel_pos_bins
+        self.use_rot_emb=use_rot_emb
+        self.use_mask_pos=use_mask_pos
+        self.normalize=normalize
+        self.norm=norm
+        self.kernel_transformation=kernel_transformation
+        self.seed=seed
+        self.dropout_rate=dropout_rate
+        self.load_init=load_init
+        self.inits=inits
+        
+        self.layers = [Performer_stable(d_model=self.d_model, 
+                                 normalize=self.normalize,
+                                 hidden_size=self.hidden_size,
+                                 num_heads=self.num_heads,
+                                 dropout_rate=self.dropout_rate,
+                                 numerical_stabilizer=self.numerical_stabilizer,
+                                 nb_random_features=self.nb_random_features,
+                                 max_seq_length=self.max_seq_length,
+                                 rel_pos_bins=self.rel_pos_bins,
+                                 kernel_transformation=self.kernel_transformation,
+                                 use_mask_pos=self.use_mask_pos,
+                                 seed=self.seed,
+                                 use_rot_emb=self.use_rot_emb,
+                                 load_init=self.load_init,
+                                 q_init= inits["SA_q" + str(i)] if self.load_init else None,
+                                 k_init= inits["SA_k" + str(i)] if self.load_init else None,
+                                 v_init= inits["SA_v" + str(i)] if self.load_init else None,
+                                 att_output= inits["SA_O" + str(i)] if self.load_init else None,
+                                 FFN_LN_gamma_init= inits["FFN_LN_g" + str(i)] if self.load_init else None,
+                                 FFN_LN_beta_init= inits["FFN_LN_b" + str(i)] if self.load_init else None,
+                                 FFN_kernel1_init= inits["FFN_wide_k" + str(i)] if self.load_init else None,
+                                 FFN_bias1_init= inits["FFN_wide_b" + str(i)] if self.load_init else None,
+                                 FFN_kernel2_init= inits["FFN_narr_k" + str(i)] if self.load_init else None,
+                                 FFN_bias2_init= inits["FFN_narr_b" + str(i)] if self.load_init else None,
+                                 **kwargs) for i in range(self.num_layers)]
+        
+        self.layer_norm = kl.LayerNormalization(axis=-1,
+                                                  scale=True,
+                                                  center=True,
+                                                epsilon=1e-05,
+                                                  beta_initializer=self.inits["performer_encoder_LN_b"] if self.load_init else "zeros",
+                                                  gamma_initializer=self.inits["performer_encoder_LN_g"] if self.load_init else "ones")
+        
+        
+        
+    def build(self, input_shape):
+        N = input_shape[0]
+        L = input_shape[1]
+        
+        if self.use_mask_pos:
+            self.relative_positional_bias = tf.constant(tf.random.uniform((self.num_heads, 
+                                                                           2 * self.rel_pos_bins - 1)))
+            
+        if self.use_rot_emb:
+            self.pos_emb = FixedPositionalEmbedding(self.d_model, self.max_seq_length)
+            self.layer_pos_emb = FixedPositionalEmbedding(self.dim, self.max_seq_length)       
+        
+        if self.use_mask_pos:
+            if L <= self.rel_pos_bins:
+                self.rpe = tf.concat((tf.expand_dims(self.relative_positional_bias[:,0], axis=1), 
+                            self.relative_positional_bias[:,self.rel_pos_bins-L: self.rel_pos_bins+L-1]), axis=1)
+            else:
+                self.rpe = tf.concat([tf.repeat(tf.expand_dims(self.relative_positional_bias[:,0], axis=1), repeats= L-self.rel_pos_bins+1, axis=1), 
+                        self.relative_positional_bias,
+                        tf.repeat(tf.expand_dims(self.relative_positional_bias[:,-1], axis=1), repeats=L-self.rel_pos_bins, axis=1)], axis=1)
+
+        super(Performer_Encoder_stable,self).build(input_shape)
+    
+    def get_config(self):
+        config = {
+            "hidden_size":self.hidden_size,
+            "num_heads":self.num_heads,
+            "attention_dropout":self.attention_dropout,
+            "numerical_stabilizer":self.numerical_stabilizer,
+            "nb_random_features":self.nb_random_features,
+            "kernel_transformation":self.kernel_transformation,
+            "num_layers":self.num_layers,
+            "dim":self.dim,
+            "d_model":self.d_model,
+            "max_seq_length":self.max_seq_length,
+            "rel_pos_bins":self.rel_pos_bins,
+            "use_rot_emb":self.use_rot_emb,
+            "use_mask_pos":self.use_mask_pos,
+            "normalize":self.normalize,
+            "norm":self.norm,
+            "seed":self.seed
+        }
+
+        base_config = super().get_config()
+        return{**base_config, **config}
+    
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+    
+    def call(self, x, training=None, **kwargs):
+        att_matrices={}
+
+        for idx,layer in enumerate(self.layers):
+            if self.use_rot_emb is True:
+                x += self.pos_emb(x)
+                rpe = self.layer_pos_emb(x)
+                x,k_prime,q_prime = layer(x, rpe=rpe, training=training)
+                att_matrices['layer_' + str(idx)] = (k_prime,q_prime)
+                
+            if self.use_mask_pos is True:
+                x,k_prime,q_prime = layer(x, rpe=self.rpe, training=training)
+                att_matrices['layer_' + str(idx)] = (k_prime,q_prime)
+                
+        if self.norm:
+            x = self.layer_norm(x)
+            
+        return x,att_matrices
 
 @tf.keras.utils.register_keras_serializable()
 class abs_sin_PE(kl.Layer):

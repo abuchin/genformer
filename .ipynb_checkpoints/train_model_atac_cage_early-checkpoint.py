@@ -215,7 +215,7 @@ def main():
             date_string = f'{datetime.now():%Y-%m-%d %H:%M:%S%z}'
             date_string = date_string.replace(' ','_')
             wandb.run.name = run_name + "_" + date_string
-            base_name = wandb.config.model_save_basename + "_" + run_name
+            base_name = wandb.config.model_save_basename + "_" + wandb.run.name
             
             
             '''
