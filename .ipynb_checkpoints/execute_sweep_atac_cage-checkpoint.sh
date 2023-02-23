@@ -42,6 +42,7 @@ python3 train_model_atac_cage_early.py \
             --load_init="True" \
             --wd_1=0.0 \
             --wd_2=0.0 \
+            --fc_dropout=0.25 \
             --rectify="True" \
             --multitask_checkpoint_path="/home/jupyter/dev/BE_CD69_paper_2022/enformer_fine_tuning/checkpoint/sonnet_weights" \
             --inits_type="enformer_conv" \

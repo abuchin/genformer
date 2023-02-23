@@ -1457,6 +1457,11 @@ def parse_args(parser):
                         type=float,
                         default=0.01,
                         help= 'wd_2')
+    parser.add_argument('--fc_dropout',
+                        dest='fc_dropout',
+                        type=float,
+                        default=0.4,
+                        help= 'fc_dropout')
     parser.add_argument('--cage_scale',
                         dest='cage_scale',
                         type=str,

@@ -143,6 +143,9 @@ def main():
                 'wd_2': {
                     'values': [args.wd_2]
                 },
+                'fc_dropout': {
+                    'values': [args.fc_dropout]
+                },
                 'rectify': {
                     'values':[parse_bool_str(x) for x in args.rectify.split(',')]
                 },
@@ -300,6 +303,7 @@ def main():
                                     use_rot_emb = True,
                                     use_mask_pos = False,
                                     normalize = True,
+                                    fc_dropout=wandb.config.fc_dropout,
                                     predict_masked_atac_bool=wandb.config.predict_masked_atac_bool,
                                     num_transformer_layers=wandb.config.num_transformer_layers,
                                     inits=inits,

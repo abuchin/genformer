@@ -34,7 +34,8 @@ class aformer(tf.keras.Model):
                  BN_momentum = 0.90,
                  rel_pos_bins=1536, 
                  use_rot_emb = True,
-                 use_mask_pos = False, 
+                 use_mask_pos = False,
+                 fc_dropout = 0.4,
                  normalize = True,
                  seed = 3,
                  load_init=False,
@@ -240,14 +241,14 @@ class aformer(tf.keras.Model):
         
         self.fc1 = kl.Dense(48,
                            use_bias=True)
-        self.fc1_dropout = kl.Dropout(rate=self.pointwise_dropout_rate*6,
+        self.fc1_dropout = kl.Dropout(rate=self.fc_dropout,
                                   **kwargs)
 
         
         
         self.fc2 = kl.Dense(16,
                            use_bias=True)
-        self.fc2_dropout = kl.Dropout(rate=self.pointwise_dropout_rate*2,
+        self.fc2_dropout = kl.Dropout(rate=self.fc_dropout/4,
                                   **kwargs)
 
         
