@@ -31,7 +31,7 @@ python3 train_model.py \
             --val_examples_TSS=2134 \
             --load_init="False" \
             --freeze_conv_layers="False" \
-            --stable_variant="True" \
+            --stable_variant="False" \
             --num_examples_dict="human:34021,2213;mouse:29295,2209" \
             --num_transformer_layers=8 \
             --num_heads=8 \

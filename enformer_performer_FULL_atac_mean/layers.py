@@ -492,7 +492,7 @@ class Performer_stable(kl.Layer):
         config = {
             "hidden_size":self.hidden_size,
             "num_heads":self.num_heads,
-            "attention_dropout":self.attention_dropout,
+            "dropout":self.dropout,
             "numerical_stabilizer":self.numerical_stabilizer,
             "nb_random_features":self.nb_random_features,
             "kernel_transformation":self.kernel_transformation,
