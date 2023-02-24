@@ -376,7 +376,7 @@ def return_train_val_functions(model,
 
     loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
 
-    optimizer1,optimizer2=optimizers_in
+    optimizer1,optimizer2,optimizer3=optimizers_in
     
     metric_dict["corr_stats"] = metrics.correlation_stats_gene_centered(name='corr_stats')
     metric_dict["train_loss"] = tf.keras.metrics.Mean("train_loss",
@@ -411,13 +411,13 @@ def return_train_val_functions(model,
                             model.conv_tower.trainable_variables
                 
                 performer_vars = model.performer.trainable_variables + \
-                                    model.final_pointwise_conv.trainable_variables + \
                                     model.stem_conv_atac.trainable_variables + \
                                     model.stem_res_conv_atac.trainable_variables + \
-                                    model.final_dense.trainable_variables + \
-                                    model.fc1.trainable_variables
+                                    model.final_pointwise_conv.trainable_variables
+                final_vars = model.final_dense.trainable_variables + \
+                                model.fc1.trainable_variables
                 
-                vars_all = conv_vars + performer_vars
+                vars_all = conv_vars + performer_vars + final_vars
                 
                 output = model(input_tuple,
                                training=True)
@@ -433,10 +433,13 @@ def return_train_val_functions(model,
             gradients = tape.gradient(loss, vars_all)
             gradients, _ = tf.clip_by_global_norm(gradients, 
                                                   gradient_clip)
+            
             optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], 
                                            conv_vars))
-            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):len(conv_vars+performer_vars)], 
                                            performer_vars))
+            optimizer3.apply_gradients(zip(gradients[len(conv_vars+performer_vars):], 
+                                           final_vars))
             metric_dict["train_loss"].update_state(loss)
         
         for _ in tf.range(train_steps):
@@ -461,13 +464,13 @@ def return_train_val_functions(model,
                             model.conv_tower.trainable_variables
                 
                 performer_vars = model.performer.trainable_variables + \
-                                    model.final_pointwise_conv.trainable_variables + \
                                     model.stem_conv_atac.trainable_variables + \
                                     model.stem_res_conv_atac.trainable_variables + \
-                                    model.final_dense.trainable_variables + \
-                                    model.fc1.trainable_variables
+                                    model.final_pointwise_conv.trainable_variables
+                final_vars = model.final_dense.trainable_variables + \
+                                model.fc1.trainable_variables
                 
-                vars_all = conv_vars + performer_vars
+                vars_all = conv_vars + performer_vars + final_vars
                 
                 output = model(input_tuple,
                                training=True)
@@ -483,8 +486,10 @@ def return_train_val_functions(model,
                                                   gradient_clip)
             optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], 
                                            conv_vars))
-            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):len(conv_vars+performer_vars)], 
                                            performer_vars))
+            optimizer3.apply_gradients(zip(gradients[len(conv_vars+performer_vars):], 
+                                           final_vars))
             metric_dict["train_loss"].update_state(loss)
         
         for _ in tf.range(train_steps):
@@ -1327,6 +1332,10 @@ def parse_args(parser):
                         dest='lr_base2',
                         default="1.0e-03",
                         help='lr_base2')
+    parser.add_argument('--lr_base3',
+                        dest='lr_base3',
+                        default="1.0e-03",
+                        help='lr_base3')
     parser.add_argument('--decay_frac',
                         dest='decay_frac',
                         type=str,
@@ -1459,6 +1468,11 @@ def parse_args(parser):
                         type=float,
                         default=0.01,
                         help= 'wd_2')
+    parser.add_argument('--wd_3',
+                        dest='wd_3',
+                        type=float,
+                        default=0.01,
+                        help= 'wd_3')
     parser.add_argument('--atac_mask_dropout',
                         dest='atac_mask_dropout',
                         type=float,

@@ -95,6 +95,9 @@ def main():
                 'lr_base2': {
                     'values':[float(x) for x in args.lr_base2.split(',')]
                 },
+                'lr_base3': {
+                    'values':[float(x) for x in args.lr_base3.split(',')]
+                },
                 'gradient_clip': {
                     'values': [float(x) for x in args.gradient_clip.split(',')]
                 },
@@ -139,6 +142,9 @@ def main():
                 },
                 'wd_2': {
                     'values': [args.wd_2]
+                },
+                'wd_3': {
+                    'values': [args.wd_3]
                 },
                 'atac_mask_dropout': {
                     'values': [args.atac_mask_dropout]
@@ -354,6 +360,24 @@ def main():
                 optimizer2 = tfa.optimizers.AdamW(learning_rate=scheduler2,
                                                   weight_decay=scheduler2_wd,
                                                   epsilon=wandb.config.epsilon)
+                #####
+                #####
+                scheduler3= tf.keras.optimizers.schedules.CosineDecay(
+                    initial_learning_rate=wandb.config.lr_base3,
+                    decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
+                scheduler3=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base3,
+                                             warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
+                                             decay_schedule_fn=scheduler3)
+                scheduler3_wd= tf.keras.optimizers.schedules.CosineDecay(
+                    initial_learning_rate=wandb.config.wd_3,
+                    decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
+                scheduler3_wd=optimizers.WarmUp(initial_learning_rate=wandb.config.wd_3,
+                                             warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
+                                             decay_schedule_fn=scheduler3)
+
+                optimizer3 = tfa.optimizers.AdamW(learning_rate=scheduler3,
+                                                  weight_decay=scheduler3_wd,
+                                                  epsilon=wandb.config.epsilon)
             elif wandb.config.optimizer == 'adabelief':
                 optimizer1 = tfa.optimizers.AdaBelief(
                     learning_rate= wandb.config.lr_base1,
@@ -373,11 +397,20 @@ def main():
                     warmup_proportion= wandb.config.warmup_frac,
                     min_lr= wandb.config.decay_frac * wandb.config.lr_base2
                 )
+                optimizer3 = tfa.optimizers.AdaBelief(
+                    learning_rate= wandb.config.lr_base3,
+                    epsilon= wandb.config.epsilon,
+                    weight_decay= wandb.config.wd_3,
+                    rectify=wandb.config.rectify,
+                    total_steps= wandb.config.total_steps*wandb.config.num_epochs,
+                    warmup_proportion= wandb.config.warmup_frac,
+                    min_lr= wandb.config.decay_frac * wandb.config.lr_base3
+                )
             else:
                 raise ValueError('optimizer not found')
 
 
-            optimizers_in = optimizer1,optimizer2
+            optimizers_in = optimizer1,optimizer2,optimizer3
             
             metric_dict = {}
 
