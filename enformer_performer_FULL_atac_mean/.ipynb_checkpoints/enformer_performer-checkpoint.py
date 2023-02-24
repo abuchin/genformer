@@ -177,7 +177,7 @@ class enformer_performer(tf.keras.Model):
 
         ### conv stack for atac
         self.stem_conv_atac = tf.keras.layers.Conv1D(filters= 16,
-                                                     kernel_size=5,
+                                                     kernel_size=25,
                                                      kernel_initializer='lecun_normal',
                                                      bias_initializer='zeros',
                                                      padding='same')
@@ -311,7 +311,7 @@ class enformer_performer(tf.keras.Model):
 
         transformer_input = tf.concat([x,atac_x],
                                       axis=2)
-        print(transformer_input.shape)
+        
         transformer_input_x=self.sin_pe(transformer_input)
 
         out,att_matrices = self.performer(transformer_input_x,
