@@ -521,15 +521,12 @@ def deserialize_tr(serialized_example,organism,input_length,max_shift, num_targe
         dnase_atac = tf.reduce_mean(target[:,:227],axis=1,keepdims=True)
     padding = tf.zeros([320,1],dtype=tf.float16)
     dnase_atac = tf.concat([padding,dnase_atac,padding],axis=0)
-    
-    #diff = tf.math.sqrt(tf.nn.relu(dnase_atac - 64.0 * tf.ones(dnase_atac.shape)))
-    #dnase_atac = tf.clip_by_value(dnase_atac, clip_value_min=0.0, clip_value_max=64.0) + diff
-    
-    dnase_atac=tf.nn.experimental.stateless_dropout(dnase_atac, rate=0.25, seed=[0,seq_shift]) / (1. / (1.0 - 0.25))
+
+    dnase_atac=tf.nn.experimental.stateless_dropout(dnase_atac, rate=0.15, seed=[0,seq_shift]) / (1. / (1.0 - 0.15))
     
     dnase_atac = dnase_atac + tf.math.abs(g.normal(dnase_atac.shape,
                                                mean=0.0,
-                                               stddev=0.05,
+                                               stddev=0.025,
                                                dtype=tf.float16))
     
     if rev_comp == 1:

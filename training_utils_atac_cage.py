@@ -495,9 +495,9 @@ def return_train_val_functions(model,
                                                   gradient_clip)
             optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], 
                                            conv_vars))
-            optimizer2.apply_gradients(zip(gradients[len(conv_vars):len(conv_vars+performer_vars)], 
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):len(conv_vars)+len(performer_vars)], 
                                            performer_vars))
-            optimizer3.apply_gradients(zip(gradients[len(conv_vars+performer_vars):], 
+            optimizer3.apply_gradients(zip(gradients[len(conv_vars)+len(performer_vars):], 
                                            final_vars))
             metric_dict["train_loss"].update_state(loss)
         
@@ -743,9 +743,12 @@ def deserialize_tr(serialized_example,
     atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
                                               out_type=tf.float32),
                            [output_length,1])
+    diff = tf.math.sqrt(tf.nn.relu(atac - 64.0 * tf.ones(atac.shape)))
+    atac = tf.clip_by_value(atac, clip_value_min=0.0, clip_value_max=64.0) + diff
+    
     atac = atac + tf.math.abs(g.normal(atac.shape,
                                                mean=0.0,
-                                               stddev=0.05,
+                                               stddev=0.025,
                                                dtype=tf.float32))
     
     masked_atac=tf.nn.experimental.stateless_dropout(atac, 
@@ -755,6 +758,8 @@ def deserialize_tr(serialized_example,
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
+    diff = tf.math.sqrt(tf.nn.relu(cage - 384.0 * tf.ones(cage.shape)))
+    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=384.0) + diff
 
     if rev_comp == 1:
         sequence = tf.gather(sequence, [3, 2, 1, 0], axis=-1)
@@ -776,7 +781,11 @@ def deserialize_tr(serialized_example,
     #global_acc=tf.expand_dims(global_acc,axis=0)
     global_acc = tf.math.asinh(global_acc)
     global_acc = (global_acc - tf.math.reduce_mean(global_acc)) / tf.math.reduce_std(global_acc)
-
+    global_acc = global_acc + g.normal(global_acc.shape,
+                                               mean=0.0,
+                                               stddev=0.025,
+                                               dtype=tf.float32)
+    
     if predict_masked_atac_bool:
     
         return {'sequence': tf.ensure_shape(sequence,
@@ -819,12 +828,16 @@ def deserialize_val(serialized_example,input_length,max_shift,output_length,crop
     atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
                                               out_type=tf.float32),
                            [output_length,1])
+    diff = tf.math.sqrt(tf.nn.relu(atac - 64.0 * tf.ones(atac.shape)))
+    atac = tf.clip_by_value(atac, clip_value_min=0.0, clip_value_max=64.0) + diff
     
     masked_atac=tf.nn.experimental.stateless_dropout(atac, rate=atac_mask_dropout, seed=[0,seq_shift]) / (1. / (1.0 - atac_mask_dropout))
 
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
+    diff = tf.math.sqrt(tf.nn.relu(cage - 384.0 * tf.ones(cage.shape)))
+    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=384.0) + diff
     
     if predict_masked_atac_bool:
         atac_out = tf.slice(atac,
@@ -883,6 +896,8 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length,
     atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
                                               out_type=tf.float32),
                            [output_length,1])
+    diff = tf.math.sqrt(tf.nn.relu(atac - 64.0 * tf.ones(atac.shape)))
+    atac = tf.clip_by_value(atac, clip_value_min=0.0, clip_value_max=64.0) + diff
     masked_atac=tf.nn.experimental.stateless_dropout(atac, rate=atac_mask_dropout, seed=[0,seq_shift]) / (1. / (1.0 - atac_mask_dropout))
     #diff = tf.math.sqrt(tf.nn.relu(atac - 64.0 * tf.ones(atac.shape)))
     #atac = tf.clip_by_value(atac, clip_value_min=0.0, clip_value_max=64.0) + diff
@@ -890,15 +905,13 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length,
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
-    #diff = tf.math.sqrt(tf.nn.relu(cage - 384.0 * tf.ones(cage.shape)))
-    #cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=384.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(cage - 384.0 * tf.ones(cage.shape)))
+    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=384.0) + diff
 
     tss_tokens = tf.io.parse_tensor(data['tss_tokens'],
                                   out_type=tf.int32)
 
-    #tss_tokens = tf.expand_dims(tss_tokens,axis=1)
 
-    
     gene_token= tf.io.parse_tensor(data['gene_token'],
                                    out_type=tf.int32)
 
