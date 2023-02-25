@@ -371,10 +371,15 @@ def return_train_val_functions(model,
                                metric_dict,
                                global_batch_size,
                                gradient_clip,
-                               cage_scale):
+                               cage_scale,
+                               loss_fn='poisson'):
     
-
-    loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
+    if loss_fn == 'poisson': 
+        loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
+    elif loss_fn == 'mse':
+        loss_fn = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
+    else:
+        raise ValueError('loss fn not implemented')
 
     optimizer1,optimizer2,optimizer3=optimizers_in
     
@@ -383,6 +388,12 @@ def return_train_val_functions(model,
                                                  dtype=tf.float32)
     metric_dict["val_loss"] = tf.keras.metrics.Mean("val_loss",
                                                   dtype=tf.float32)
+    
+    metric_dict["val_loss_CAGE"] = tf.keras.metrics.Mean("val_loss_CAGE",
+                                                  dtype=tf.float32)
+    metric_dict["val_loss_ATAC"] = tf.keras.metrics.Mean("val_loss_ATAC",
+                                                  dtype=tf.float32)
+    
     metric_dict['ATAC_PearsonR'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
     metric_dict['ATAC_R2'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
 
@@ -424,11 +435,9 @@ def return_train_val_functions(model,
 
                 output = tf.cast(output,dtype=tf.float32)
 
-                atac_loss = loss_fn(target[:,:,0],output[:,:,0])
-                cage_loss = loss_fn(target[:,:,1],output[:,:,1]) * cage_scale
-                loss = tf.math.reduce_mean(atac_loss) + tf.math.reduce_mean(cage_loss)
-
-                loss = loss * (1. / global_batch_size)
+                atac_loss = tf.reduce_mean(loss_fn(target[:,:,0],output[:,:,0])) * (1.0 - cage_scale) * (1. / global_batch_size)
+                cage_loss = tf.reduce_mean(loss_fn(target[:,:,1],output[:,:,1])) * cage_scale * (1. / global_batch_size)
+                loss = atac_loss + cage_loss
 
             gradients = tape.gradient(loss, vars_all)
             gradients, _ = tf.clip_by_global_norm(gradients, 
@@ -510,9 +519,9 @@ def return_train_val_functions(model,
                            training=False)
             output = tf.cast(output,dtype=tf.float32)
             
-            atac_loss = loss_fn(target[:,:,0],output[:,:,0])
-            cage_loss = loss_fn(target[:,:,1],output[:,:,1]) * cage_scale
-            loss = tf.math.reduce_mean(atac_loss) + tf.math.reduce_mean(cage_loss)
+            atac_loss = tf.reduce_mean(loss_fn(target[:,:,0],output[:,:,0])) * (1.0 - cage_scale) * (1. / global_batch_size)
+            cage_loss = tf.reduce_mean(loss_fn(target[:,:,1],output[:,:,1])) * cage_scale * (1. / global_batch_size)
+            loss = atac_loss + cage_loss
             metric_dict['CAGE_PearsonR'].update_state(target[:,:,1:], 
                                                       output[:,:,1:])
             metric_dict['CAGE_R2'].update_state(target[:,:,1:], 
@@ -530,9 +539,9 @@ def return_train_val_functions(model,
                                                                   [0,320,0],[-1,896,-1]))
                 
 
-            loss = tf.math.reduce_mean(loss) * (1. / global_batch_size)
-
             metric_dict["val_loss"].update_state(loss)
+            metric_dict["val_loss_CAGE"].update_state(cage_loss)
+            metric_dict["val_loss_ATAC"].update_state(atac_loss)
 
         for _ in tf.range(val_steps): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(val_step,
@@ -746,11 +755,7 @@ def deserialize_tr(serialized_example,
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
-    cage = cage
-    #diff = tf.math.sqrt(tf.nn.relu(cage - 384.0 * tf.ones(cage.shape)))
-    #cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=384.0) + diff
-    
-    
+
     if rev_comp == 1:
         sequence = tf.gather(sequence, [3, 2, 1, 0], axis=-1)
         sequence = tf.reverse(sequence, axis=[0])
@@ -767,7 +772,7 @@ def deserialize_tr(serialized_example,
         
     global_acc = tf.ensure_shape(tf.io.parse_tensor(data['cell_specific_conv_arr'],
                                               out_type=tf.float32),
-                           [1,1536])
+                                 [1,1536])
     #global_acc=tf.expand_dims(global_acc,axis=0)
     global_acc = tf.math.asinh(global_acc)
     global_acc = (global_acc - tf.math.reduce_mean(global_acc)) / tf.math.reduce_std(global_acc)
@@ -1458,21 +1463,21 @@ def parse_args(parser):
                         type=str,
                         default="True",
                         help= 'norm')
-    parser.add_argument('--wd_1',
-                        dest='wd_1',
+    parser.add_argument('--wd_1_frac',
+                        dest='wd_1_frac',
                         type=float,
                         default=0.01,
-                        help= 'wd_1')
-    parser.add_argument('--wd_2',
-                        dest='wd_2',
+                        help= 'wd_1_frac')
+    parser.add_argument('--wd_2_frac',
+                        dest='wd_2_frac',
                         type=float,
                         default=0.01,
-                        help= 'wd_2')
-    parser.add_argument('--wd_3',
-                        dest='wd_3',
+                        help= 'wd_2_frac')
+    parser.add_argument('--wd_3_frac',
+                        dest='wd_3_frac',
                         type=float,
                         default=0.01,
-                        help= 'wd_3')
+                        help= 'wd_3_frac')
     parser.add_argument('--atac_mask_dropout',
                         dest='atac_mask_dropout',
                         type=float,
@@ -1493,6 +1498,11 @@ def parse_args(parser):
                         type=str,
                         default="True",
                         help= 'rectify')
+    parser.add_argument('--use_global_acc',
+                        dest='use_global_acc',
+                        type=str,
+                        default="True",
+                        help= 'use_global_acc')
     parser.add_argument('--inits_type',
                         dest='inits_type',
                         type=str,
@@ -1503,6 +1513,11 @@ def parse_args(parser):
                         type=str,
                         default="adabelief",
                         help= 'optimizer')
+    parser.add_argument('--loss_fn',
+                        dest='loss_fn',
+                        type=str,
+                        default="poisson",
+                        help= 'loss_fn')
     args = parser.parse_args()
     return parser
 

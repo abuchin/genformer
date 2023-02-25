@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model_atac_cage.py \
-            --tpu_name="pod" \
-            --tpu_zone="us-east1-d" \
+            --tpu_name="node-6" \
+            --tpu_zone="us-central1-a" \
             --wandb_project="enformer_baseline" \
             --wandb_user="njaved" \
             --wandb_sweep_name="aformer_baseline" \
@@ -19,7 +19,7 @@ python3 train_model_atac_cage.py \
             --val_examples=68603 \
             --val_examples_TSS=64759 \
             --BN_momentum=0.90 \
-            --warmup_frac=0.0025 \
+            --warmup_frac=0.005 \
             --patience=50 \
             --output_res=128 \
             --min_delta=0.000005 \
@@ -31,27 +31,27 @@ python3 train_model_atac_cage.py \
             --decay_frac="0.50" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-14 \
-            --num_transformer_layers="8" \
+            --num_transformer_layers="4" \
             --dropout_rate="0.05" \
-            --pointwise_dropout_rate="0.15" \
-            --num_heads="8" \
+            --pointwise_dropout_rate="0.05" \
+            --num_heads="4" \
             --num_random_features="256" \
-            --hidden_size="1040" \
+            --hidden_size="1552" \
             --kernel_transformation="relu_kernel_transformation" \
             --savefreq=40 \
             --freeze_conv_layers="False" \
             --load_init="True" \
-            --wd_1=1.0e-04 \
-            --wd_2=1.0e-04 \
-            --wd_3=1.0e-04 \
-            --fc_dropout=0.25 \
+            --wd_1_frac=1.0e-04 \
+            --wd_2_frac=1.0e-03 \
+            --wd_3_frac=1.0e-03 \
+            --fc_dropout=0.10 \
             --rectify="True" \
-            --multitask_checkpoint_path="gs://picard-testing-176520/enformer_performer_pretrain_atac_mean/models/enformer_performer_pretrain_atac_mean_EP_full_dataset__196k_load_init-False_freeze-False_LR1-0.0001_LR2-0.0001_T-8_F-1024_D-0.4_2023-02-23_04:07:19/iteration_20" \
+            --multitask_checkpoint_path="gs://picard-testing-176520/enformer_performer_pretrain_atac_mean/models/enformer_performer_pretrain_atac_mean_EP_full_dataset__196k_load_init-True_freeze-False_LR1-1e-06_LR2-0.0001_T-4_F-1536_D-0.4_2023-02-24_16:27:50/iteration_16" \
             --inits_type="enformer_performer" \
             --predict_masked_atac_bool="True" \
-            --cage_scale="5.0" \
+            --cage_scale="0.90" \
             --optimizer="adabelief" \
             --stable_variant="False" \
-            --filter_list_seq="512,512,768,768,1024,1024" \
-            --atac_mask_dropout=0.10
+            --atac_mask_dropout=0.05 \
+            --loss_fn="poisson"
             

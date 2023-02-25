@@ -45,6 +45,7 @@ class aformer(tf.keras.Model):
                  predict_masked_atac_bool = True,
                  filter_list_seq=[768, 896, 1024, 1152, 1280, 1536],
                  freeze_conv_layers=False,
+                 use_global_acc=True,
                  name: str = 'aformer',
                  **kwargs):
         """ 'aformer' model based on Enformer for predicting RNA-seq from atac + sequence
@@ -83,7 +84,7 @@ class aformer(tf.keras.Model):
         self.predict_masked_atac_bool=predict_masked_atac_bool
         self.fc_dropout=fc_dropout
         self.stable_variant=stable_variant
-
+        self.use_global_acc=use_global_acc
         
         ## ensure load_init matches actual init inputs...
         if inits is None:
@@ -157,7 +158,7 @@ class aformer(tf.keras.Model):
         
         ### conv stack for sequence inputs
         self.stem_conv_atac = tf.keras.layers.Conv1D(filters= 16,
-                                                     kernel_size=5,
+                                                     kernel_size=25,
                                                      kernel_initializer=self.inits['stem_conv_atac_k'] if self.load_init else 'lecun_normal',
                                                      bias_initializer=self.inits['stem_conv_atac_b'] if self.load_init else 'zeros',
                                                      padding='same')
@@ -276,18 +277,25 @@ class aformer(tf.keras.Model):
                                                   name = 'final_pointwise')
         
         self.fc1 = kl.Dense(48,
+                            kernel_initializer='lecun_normal',
+                            bias_initializer='lecun_normal',
                            use_bias=True)
         self.fc1_dropout = kl.Dropout(rate=self.fc_dropout,
+                                      
                                   **kwargs)
         
         if self.predict_masked_atac_bool: 
             self.final_dense = kl.Dense(2,
-                                       activation='softplus',
-                                       use_bias=True)
+                                        activation='softplus',
+                                        kernel_initializer='lecun_normal',
+                                        bias_initializer='lecun_normal',
+                                        use_bias=True)
         else:
             self.final_dense = kl.Dense(1,
-                               activation='softplus',
-                               use_bias=True)
+                                        activation='softplus',
+                                        kernel_initializer='lecun_normal',
+                                        bias_initializer='lecun_normal',
+                                        use_bias=True)
 
         self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
                                   **kwargs)
@@ -333,15 +341,15 @@ class aformer(tf.keras.Model):
         out = self.dropout(out,
                         training=training)
         out = self.gelu(out)
-        
-        global_acc = self.fc1(global_acc)
-        global_acc = self.fc1_dropout(global_acc,
-                                      training=training)
-        global_acc = self.gelu(global_acc)
-        global_acc = tf.tile(global_acc, 
-                               [1,self.final_output_length,1])
+        if self.use_global_acc:
+            global_acc = self.fc1(global_acc)
+            global_acc = self.fc1_dropout(global_acc,
+                                          training=training)
+            global_acc = self.gelu(global_acc)
+            global_acc = tf.tile(global_acc, 
+                                   [1,self.final_output_length,1])
 
-        out = tf.concat([global_acc,out],axis=2)
+            out = tf.concat([global_acc,out],axis=2)
 
         out = self.final_dense(out,
                                training=training)
