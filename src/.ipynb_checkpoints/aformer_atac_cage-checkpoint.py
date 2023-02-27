@@ -96,7 +96,11 @@ class aformer(tf.keras.Model):
         self.load_init_atac = False
         if self.load_init:
             if self.inits_type == 'enformer_conv':
+                self.load_init_atac = False
+            elif self.inits_type == 'enformer_performer':
                 self.load_init_atac = True
+            else:
+                raise ValueError('inits type not found')
             
         self.filter_list_seq = [768, 896, 1024, 1152, 1280, 1536] if (self.load_init and self.inits_type == 'enformer_conv') else filter_list_seq
         
