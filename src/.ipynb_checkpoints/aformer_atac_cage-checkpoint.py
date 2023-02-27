@@ -93,7 +93,10 @@ class aformer(tf.keras.Model):
         if self.inits_type not in ['enformer_performer','enformer_conv']:
             raise ValueError('inits type not found')
             
-        print(load_init)
+        self.load_init_atac = False
+        if self.load_init:
+            if self.inits_type == 'enformer_conv':
+                self.load_init_atac = True
             
         self.filter_list_seq = [768, 896, 1024, 1152, 1280, 1536] if (self.load_init and self.inits_type == 'enformer_conv') else filter_list_seq
         
@@ -157,18 +160,18 @@ class aformer(tf.keras.Model):
         ### conv stack for sequence inputs
         self.stem_conv_atac = tf.keras.layers.Conv1D(filters= 16,
                                                      kernel_size=25,
-                                                     kernel_initializer=self.inits['stem_conv_atac_k'] if self.load_init else 'lecun_normal',
-                                                     bias_initializer=self.inits['stem_conv_atac_b'] if self.load_init else 'zeros',
+                                                     kernel_initializer=self.inits['stem_conv_atac_k'] if self.load_init_atac else 'lecun_normal',
+                                                     bias_initializer=self.inits['stem_conv_atac_b'] if self.load_init_atac else 'zeros',
                                                      padding='same')
 
         self.stem_res_conv_atac =Residual(enf_conv_block(16, 
                                                          1,
-                                                         beta_init=self.inits['stem_res_conv_atac_BN_b'] if self.load_init else None,
-                                                         gamma_init=self.inits['stem_res_conv_atac_BN_g'] if self.load_init else None,
-                                                         mean_init=self.inits['stem_res_conv_atac_BN_m'] if self.load_init else None,
-                                                         var_init=self.inits['stem_res_conv_atac_BN_v'] if self.load_init else None,
-                                                         kernel_init=self.inits['stem_res_conv_atac_k'] if self.load_init else None,
-                                                         bias_init=self.inits['stem_res_conv_atac_b'] if self.load_init else None,
+                                                         beta_init=self.inits['stem_res_conv_atac_BN_b'] if self.load_init_atac else None,
+                                                         gamma_init=self.inits['stem_res_conv_atac_BN_g'] if self.load_init_atac else None,
+                                                         mean_init=self.inits['stem_res_conv_atac_BN_m'] if self.load_init_atac else None,
+                                                         var_init=self.inits['stem_res_conv_atac_BN_v'] if self.load_init_atac else None,
+                                                         kernel_init=self.inits['stem_res_conv_atac_k'] if self.load_init_atac else None,
+                                                         bias_init=self.inits['stem_res_conv_atac_b'] if self.load_init_atac else None,
                                                          name='pointwise_conv_block_atac'))
 
 
