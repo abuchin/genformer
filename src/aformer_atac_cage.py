@@ -45,7 +45,6 @@ class aformer(tf.keras.Model):
                  predict_masked_atac_bool = True,
                  filter_list_seq=[768, 896, 1024, 1152, 1280, 1536],
                  freeze_conv_layers=False,
-                 use_global_acc=True,
                  name: str = 'aformer',
                  **kwargs):
         """ 'aformer' model based on Enformer for predicting RNA-seq from atac + sequence
@@ -84,7 +83,6 @@ class aformer(tf.keras.Model):
         self.predict_masked_atac_bool=predict_masked_atac_bool
         self.fc_dropout=fc_dropout
         self.stable_variant=stable_variant
-        self.use_global_acc=use_global_acc
         
         ## ensure load_init matches actual init inputs...
         if inits is None:
@@ -266,23 +264,20 @@ class aformer(tf.keras.Model):
                                              target_length=self.final_output_length,
                                              name='target_input')
         
-        self.final_pointwise_conv = enf_conv_block(filters=self.filter_list_seq[-1] * 2,
-                                                   beta_init=self.inits['final_point_BN_b'] if self.load_init else None,
-                                                   gamma_init=self.inits['final_point_BN_g'] if self.load_init else None,
-                                                   mean_init=self.inits['final_point_BN_m'] if self.load_init else None,
-                                                   var_init=self.inits['final_point_BN_v'] if self.load_init else None,
-                                                   kernel_init=self.inits['final_point_k'] if self.load_init else None,
-                                                   bias_init=self.inits['final_point_b'] if self.load_init else None,
+        self.final_pointwise_conv = enf_conv_block(filters=self.filter_list_seq[-1] // 8,
+                                                   #beta_init=self.inits['final_point_BN_b'] if self.load_init else None,
+                                                   #gamma_init=self.inits['final_point_BN_g'] if self.load_init else None,
+                                                   #mean_init=self.inits['final_point_BN_m'] if self.load_init else None,
+                                                   #var_init=self.inits['final_point_BN_v'] if self.load_init else None,
+                                                   #kernel_init=self.inits['final_point_k'] if self.load_init else None,
+                                                   #bias_init=self.inits['final_point_b'] if self.load_init else None,
                                                   **kwargs,
                                                   name = 'final_pointwise')
         
-        self.fc1 = kl.Dense(48,
-                            kernel_initializer='lecun_normal',
-                            bias_initializer='lecun_normal',
-                           use_bias=True)
-        self.fc1_dropout = kl.Dropout(rate=self.fc_dropout,
-                                      
-                                  **kwargs)
+        self.global_acc_block =enf_conv_block(filters=192,
+                                              **kwargs,
+                                              name = 'final_pointwise')
+        
         
         if self.predict_masked_atac_bool: 
             self.final_dense = kl.Dense(2,
@@ -335,21 +330,21 @@ class aformer(tf.keras.Model):
 
         out = self.crop_final(out)
 
+        global_acc = self.global_acc_block(global_acc,
+                                           training=training)
+        global_acc = self.dropout(global_acc,
+                        training=training)
+        global_acc = self.gelu(global_acc)
+        global_acc = tf.tile(global_acc, 
+                               [1,self.final_output_length,1])
+
+        out = tf.concat([global_acc,out],axis=2)
         out = self.final_pointwise_conv(out,
                                        training=training)
         
         out = self.dropout(out,
                         training=training)
         out = self.gelu(out)
-        if self.use_global_acc:
-            global_acc = self.fc1(global_acc)
-            global_acc = self.fc1_dropout(global_acc,
-                                          training=training)
-            global_acc = self.gelu(global_acc)
-            global_acc = tf.tile(global_acc, 
-                                   [1,self.final_output_length,1])
-
-            out = tf.concat([global_acc,out],axis=2)
 
         out = self.final_dense(out,
                                training=training)

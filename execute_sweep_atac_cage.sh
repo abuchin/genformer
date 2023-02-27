@@ -30,16 +30,16 @@ python3 train_model_atac_cage.py \
             --lr_base3="1.0e-04" \
             --decay_frac="0.50" \
             --gradient_clip="5.0" \
-            --epsilon=1.0e-14 \
+            --epsilon=1.0e-8 \
             --num_transformer_layers="4" \
             --dropout_rate="0.05" \
-            --pointwise_dropout_rate="0.05" \
+            --pointwise_dropout_rate="0.15" \
             --num_heads="4" \
             --num_random_features="256" \
             --hidden_size="1552" \
             --kernel_transformation="relu_kernel_transformation" \
             --savefreq=40 \
-            --freeze_conv_layers="False" \
+            --freeze_conv_layers="True" \
             --load_init="True" \
             --wd_1_frac=1.0e-04 \
             --wd_2_frac=1.0e-03 \
@@ -50,8 +50,10 @@ python3 train_model_atac_cage.py \
             --inits_type="enformer_performer" \
             --predict_masked_atac_bool="True" \
             --cage_scale="0.90" \
-            --optimizer="adabelief" \
+            --optimizer="adamw" \
             --stable_variant="False" \
             --atac_mask_dropout=0.05 \
-            --loss_fn="poisson"
+            --loss_fn="poisson" \
+            --use_global="True" \
+            --use_atac="True"
             

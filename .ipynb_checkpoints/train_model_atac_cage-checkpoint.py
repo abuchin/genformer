@@ -167,6 +167,9 @@ def main():
                 'use_global_acc': {
                     'values':[parse_bool_str(x) for x in args.use_global_acc.split(',')]
                 },
+                'use_atac': {
+                    'values':[parse_bool_str(x) for x in args.use_atac.split(',')]
+                },
                 'loss_fn': {
                     'values':[args.loss_fn]
                 }
@@ -278,6 +281,8 @@ def main():
                                                                 options,
                                                                 wandb.config.predict_masked_atac_bool,
                                                                 wandb.config.atac_mask_dropout,
+                                                                wandb.config.use_global_acc,
+                                                                wandb.config.use_atac,
                                                                 g)
 
             print('created dataset iterators')
@@ -319,7 +324,6 @@ def main():
                                     use_rot_emb = True,
                                     use_mask_pos = False,
                                     normalize = True,
-                                    use_global_acc=wandb.config.use_global_acc,
                                     fc_dropout=wandb.config.fc_dropout,
                                     predict_masked_atac_bool=wandb.config.predict_masked_atac_bool,
                                     num_transformer_layers=wandb.config.num_transformer_layers,
@@ -345,7 +349,7 @@ def main():
                 decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
             scheduler1_wd=optimizers.WarmUp(initial_learning_rate=wandb.config.wd_1_frac* wandb.config.lr_base1,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
-                                         decay_schedule_fn=scheduler1)
+                                         decay_schedule_fn=scheduler1_wd)
             scheduler2= tf.keras.optimizers.schedules.CosineDecay(
                 initial_learning_rate=wandb.config.lr_base2,
                 decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
@@ -357,7 +361,7 @@ def main():
                 decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
             scheduler2_wd=optimizers.WarmUp(initial_learning_rate=wandb.config.wd_2_frac* wandb.config.lr_base2,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
-                                         decay_schedule_fn=scheduler2)
+                                         decay_schedule_fn=scheduler2_wd)
             scheduler3= tf.keras.optimizers.schedules.CosineDecay(
                 initial_learning_rate=wandb.config.lr_base3,
                 decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
@@ -369,12 +373,9 @@ def main():
                 decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
             scheduler3_wd=optimizers.WarmUp(initial_learning_rate=wandb.config.wd_3_frac* wandb.config.lr_base3,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
-                                         decay_schedule_fn=scheduler3)
+                                         decay_schedule_fn=scheduler3_wd)
 
             if wandb.config.optimizer == 'adamw':
-            
-
-
                 optimizer1 = tfa.optimizers.AdamW(learning_rate=scheduler1,
                                                   weight_decay=scheduler1_wd,
                                                   epsilon=wandb.config.epsilon)
