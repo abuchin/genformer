@@ -130,14 +130,16 @@ def return_train_val_functions(model,
                 loss = tf.reduce_mean(loss_fn(target,
                                               output)) * (1. / global_batch_size)
                 
-            gradients = tape.gradient(loss, model.new_heads['human'].trainable_variables)
+            gradients = tape.gradient(loss, model.trunk.trainable_variables + model.new_heads['human'].trainable_variables)
             gradients, _ = tf.clip_by_global_norm(gradients, 
                                                   gradient_clip)
-            optimizer.apply_gradients(zip(gradients, model.new_heads['human'].trainable_variables))
+            optimizer1.apply_gradients(zip(gradients[:len(model.trunk.trainable_variables)], model.trunk.trainable_variables))
+            optimizer2.apply_gradients(zip(gradients[len(model.trunk.trainable_variables):], model.new_heads['human'].trainable_variables))
             metric_dict["hg_tr"].update_state(loss)
 
         for _ in tf.range(train_steps): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(train_step, args=(next(iterator),))
+
 
     def dist_val_step(iterator): #input_batch, model, optimizer, organism, gradient_clip):
         @tf.function(jit_compile=True)
@@ -697,10 +699,14 @@ def parse_args(parser):
                         default=196608,
                         type=int,
                         help='input_length')
-    parser.add_argument('--lr_base',
-                        dest='lr_base',
+    parser.add_argument('--lr_base1',
+                        dest='lr_base1',
                         default="1.0e-04",
-                        help='lr_base')
+                        help='lr_base1')
+    parser.add_argument('--lr_base2',
+                        dest='lr_base2',
+                        default="1.0e-04",
+                        help='lr_base2')
     parser.add_argument('--epsilon',
                         dest='epsilon',
                         default=1.0e-8,

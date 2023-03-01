@@ -15,7 +15,8 @@ python3 train_model.py \
             --min_delta=0.00001 \
             --model_save_dir="gs://picard-testing-176520/paired_rampage_atac/enformer_baseline/models" \
             --model_save_basename="enformer_baseline" \
-            --lr_base="5.0e-04" \
+            --lr_base1="5.0e-07" \
+            --lr_base2="5.0e-04" \
             --epsilon=1.0e-8 \
             --num_parallel=4 \
             --savefreq=25 \
