@@ -1,0 +1,7 @@
+
+WARNING:absl:options.experimental_threading is deprecated. Use options.threading instead.
+starting epoch_ 1
+building model...
+loading enformer weights...
+total params: tf.Tensor(230011446, shape=(), dtype=int32)
+[34m[1mwandb[39m[22m: Ctrl + C detected. Stopping sweep.

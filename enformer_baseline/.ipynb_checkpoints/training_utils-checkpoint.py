@@ -75,6 +75,7 @@ consolidate into single simpler function
 
 def return_train_val_functions(model,
                                optimizers,
+                               freeze_trunk,
                                strategy,
                                metric_dict,
                                train_steps, 
@@ -103,8 +104,12 @@ def return_train_val_functions(model,
     train_steps is the # steps in a single epoch
     val_steps is the # steps to fully iterate over validation set
     """
-    
-    optimizer1,optimizer2=optimizers
+    if freeze_trunk:
+        print('only train output heads')
+        optimizer = optimizers
+    else:
+        print('train full model with two optimizer scheme')
+        optimizer1,optimizer2=optimizers
 
     metric_dict["hg_tr"] = tf.keras.metrics.Mean("hg_tr_loss",
                                                  dtype=tf.float32)
@@ -118,7 +123,8 @@ def return_train_val_functions(model,
     metric_dict['R2'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
     loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
 
-    def dist_train_step_transfer(iterator):
+            
+    def dist_train_step_full(iterator):
         @tf.function(jit_compile=True)
         def train_step(inputs):
             target=tf.cast(inputs['target'],
@@ -137,6 +143,29 @@ def return_train_val_functions(model,
                                                   gradient_clip)
             optimizer1.apply_gradients(zip(gradients[:len(model.trunk.trainable_variables)], model.trunk.trainable_variables))
             optimizer2.apply_gradients(zip(gradients[len(model.trunk.trainable_variables):], model.new_heads['human'].trainable_variables))
+            metric_dict["hg_tr"].update_state(loss)
+
+        for _ in tf.range(train_steps): ## for loop within @tf.fuction for improved TPU performance
+            strategy.run(train_step, args=(next(iterator),))
+            
+    def dist_train_step_head_only(iterator):
+        @tf.function(jit_compile=True)
+        def train_step(inputs):
+            target=tf.cast(inputs['target'],
+                           dtype = tf.float32)
+            sequence=tf.cast(inputs['sequence'],
+                             dtype=tf.float32)
+            with tf.GradientTape() as tape:
+
+                output = model(sequence, is_training=True)['human']
+
+                loss = tf.reduce_mean(loss_fn(target,
+                                              output)) * (1. / global_batch_size)
+                
+            gradients = tape.gradient(loss, model.new_heads['human'].trainable_variables)
+            gradients, _ = tf.clip_by_global_norm(gradients, 
+                                                  gradient_clip)
+            optimizer.apply_gradients(zip(gradients, model.new_heads['human'].trainable_variables))
             metric_dict["hg_tr"].update_state(loss)
 
         for _ in tf.range(train_steps): ## for loop within @tf.fuction for improved TPU performance
@@ -164,12 +193,12 @@ def return_train_val_functions(model,
         @tf.function(jit_compile=True)
         def val_step(inputs):
             target=tf.cast(inputs['target'],
-                           dtype = tf.float32)[:,:,:27]
+                           dtype = tf.float32)
             sequence=tf.cast(inputs['sequence'],
                              dtype=tf.float32)
             tss_mask =tf.cast(inputs['tss_mask'],dtype=tf.float32)
 
-            output = tf.cast(model(sequence, is_training=False)['human'][:,:,:27],
+            output = tf.cast(model(sequence, is_training=False)['human'],
                              dtype=tf.float32)
             
             pred = tf.reduce_sum(output * tss_mask,axis=1)
@@ -225,7 +254,7 @@ def return_train_val_functions(model,
         for _ in tf.range(1): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(val_step, args=(next(iterator),))
         
-    return dist_train_step_transfer, dist_val_step, dist_val_step_TSS, build_step,metric_dict
+    return dist_train_step_full, dist_train_step_head_only, dist_val_step, dist_val_step_TSS, build_step,metric_dict
 
 
 def deserialize_tr(serialized_example,input_length,max_shift, out_length,num_targets, g):
@@ -271,13 +300,14 @@ def deserialize_tr(serialized_example,input_length,max_shift, out_length,num_tar
     target_cage = target[:,:27]
     diff = tf.math.sqrt(tf.nn.relu(target_cage - 500.0 * tf.ones(target_cage.shape,dtype=tf.float16)))
     target_cage = tf.clip_by_value(target_cage, clip_value_min=0.0, clip_value_max=500.0) + diff
-    
+    target = target_cage
+    """
     target_atac = target[:,27:]
     diff = tf.math.sqrt(tf.nn.relu(target_atac - 64.0 * tf.ones(target_atac.shape,dtype=tf.float16)))
     target_atac = tf.clip_by_value(target_atac, clip_value_min=0.0, clip_value_max=64.0) + diff
-    
-    target = tf.concat([target_cage,target_atac],
-                       axis=1)
+    """
+    #target = tf.concat([target_cage,target_atac],
+    #                   axis=1)
     
     if rev_comp == 1:
         sequence = tf.gather(sequence, [3, 2, 1, 0], axis=-1)
@@ -287,7 +317,7 @@ def deserialize_tr(serialized_example,input_length,max_shift, out_length,num_tar
     return {'sequence': tf.ensure_shape(sequence,
                                         [input_length,4]),
             'target': tf.ensure_shape(target,
-                                      [896,num_targets])}
+                                      [896,27])}
             
 def deserialize_val(serialized_example,input_length,max_shift, out_length,num_targets):
     """Deserialize bytes stored in TFRecordFile."""
@@ -319,18 +349,19 @@ def deserialize_val(serialized_example,input_length,max_shift, out_length,num_ta
     target_cage = target[:,:27]
     diff = tf.math.sqrt(tf.nn.relu(target_cage - 500.0 * tf.ones(target_cage.shape,dtype=tf.float16)))
     target_cage = tf.clip_by_value(target_cage, clip_value_min=0.0, clip_value_max=500.0) + diff
-    
+    target = target_cage
+    """
     target_atac = target[:,27:]
     diff = tf.math.sqrt(tf.nn.relu(target_atac - 64.0 * tf.ones(target_atac.shape,dtype=tf.float16)))
     target_atac = tf.clip_by_value(target_atac, clip_value_min=0.0, clip_value_max=64.0) + diff
-    
-    target = tf.concat([target_cage,target_atac],
-                       axis=1)
+    """
+    #target = tf.concat([target_cage,target_atac],
+    #                   axis=1)
     
     return {'sequence': tf.ensure_shape(sequence,
                                         [input_length,4]),
             'target': tf.ensure_shape(target,
-                                      [896,num_targets])}
+                                      [896,27])}
 
 
 def deserialize_val_TSS(serialized_example,input_length,max_shift, out_length,num_targets):
@@ -362,13 +393,14 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift, out_length,nu
     target_cage = target[:,:27]
     diff = tf.math.sqrt(tf.nn.relu(target_cage - 500.0 * tf.ones(target_cage.shape,dtype=tf.float16)))
     target_cage = tf.clip_by_value(target_cage, clip_value_min=0.0, clip_value_max=500.0) + diff
-    
+    target = target_cage
+    """
     target_atac = target[:,27:]
     diff = tf.math.sqrt(tf.nn.relu(target_atac - 64.0 * tf.ones(target_atac.shape,dtype=tf.float16)))
     target_atac = tf.clip_by_value(target_atac, clip_value_min=0.0, clip_value_max=64.0) + diff
-    
-    target = tf.concat([target_cage,target_atac],
-                       axis=1)
+    """
+    #target = tf.concat([target_cage,target_atac],
+    #                   axis=1)
     
     tss_mask = tf.io.parse_tensor(example['tss_mask'],
                                   out_type=tf.int32)
@@ -385,7 +417,7 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift, out_length,nu
     return {'sequence': tf.ensure_shape(sequence,
                                         [input_length,4]),
             'target': tf.ensure_shape(target,
-                                      [896,num_targets]),
+                                      [896,27]),
             'tss_mask': tf.ensure_shape(tss_mask,
                                         [896,1]),
             'gene_name': tf.ensure_shape(gene_name,
@@ -727,6 +759,9 @@ def parse_args(parser):
                         type=str)
     parser.add_argument('--use_enformer_weights',
                         dest='use_enformer_weights',
+                        type=str)
+    parser.add_argument('--freeze_trunk',
+                        dest='freeze_trunk',
                         type=str)
     parser.add_argument('--input_length',
                         dest='input_length',

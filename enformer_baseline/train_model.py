@@ -84,6 +84,9 @@ def main():
                 },
                 'use_enformer_weights': {
                     'values':[parse_bool_str(x) for x in args.use_enformer_weights.split(',')]
+                },
+                'freeze_trunk': {
+                    'values':[parse_bool_str(x) for x in args.freeze_trunk.split(',')]
                 }
                 }
 
@@ -179,7 +182,7 @@ def main():
 
                 
             
-            enformer_model = enformer.Enformer(output_heads_dict = {'human': 54})
+            enformer_model = enformer.Enformer(output_heads_dict = {'human': 27})
             SEQ_LENGTH = 196608
 
             date_string = f'{datetime.now():%Y-%m-%d %H:%M:%S%z}'
@@ -198,7 +201,6 @@ def main():
             scheduler1=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base1,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps,
                                          decay_schedule_fn=scheduler1)
-            
             scheduler2= tf.keras.optimizers.schedules.CosineDecay(
                 initial_learning_rate=wandb.config.lr_base2,
                 decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=1.0)
@@ -208,20 +210,24 @@ def main():
             optimizer1 = tf.keras.optimizers.Adam(learning_rate=scheduler1,epsilon=wandb.config.epsilon)
             
             optimizer2 = tf.keras.optimizers.Adam(learning_rate=scheduler2,epsilon=wandb.config.epsilon)
-            optimizers_in = optimizer1,optimizer2
+            if wandb.config.freeze_trunk:
+                optimizers_in = optimizer2
+            else:
+                optimizers_in = optimizer1,optimizer2
 
             metric_dict = {}
             
 
-            train_step, val_step, val_step_TSS, build_step,metric_dict = training_utils.return_train_val_functions(enformer_model,
-                                                                                                        optimizers_in,
-                                                                                                        strategy,
-                                                                                                        metric_dict,
-                                                                                                        wandb.config.train_steps,
-                                                                                                        wandb.config.val_steps,
-                                                                                                        wandb.config.val_steps_TSS,
-                                                                                                        GLOBAL_BATCH_SIZE,
-                                                                                                        wandb.config.gradient_clip)
+            train_step_full,train_step_head, val_step, val_step_TSS, build_step,metric_dict = training_utils.return_train_val_functions(enformer_model,
+                                                                                                                                        optimizers_in,
+                                                                                                                                        wandb.config.freeze_trunk,
+                                                                                                                                        strategy,
+                                                                                                                                        metric_dict,
+                                                                                                                                        wandb.config.train_steps,
+                                                                                                                                        wandb.config.val_steps,
+                                                                                                                                        wandb.config.val_steps_TSS,
+                                                                                                                                        GLOBAL_BATCH_SIZE,
+                                                                                                                                        wandb.config.gradient_clip)
             
             
             ### main training loop
@@ -238,6 +244,7 @@ def main():
                 start = time.time()
                 if epoch_i == 1:
                     # run once to build the model w/o updating anything
+                    print('building model...')
                     build_step(val_data_it)
                     
                     if wandb.config.use_enformer_weights:
@@ -248,8 +255,16 @@ def main():
                             tf.saved_model.LoadOptions(experimental_io_device='/job:localhost')
                             latest = tf.train.latest_checkpoint(args.enformer_checkpoint_path)
                             checkpoint.restore(latest,options=options)#.assert_existing_objects_matched()
+                    total_params = 0
+                    for k in enformer_model.trainable_variables:
+                        var = k.values[0]
+                        total_params += tf.size(var)
+                    print('total params: ' + str(total_params)) 
 
-                train_step(tr_data_it)
+                if wandb.config.freeze_trunk:
+                    train_step_head(tr_data_it)
+                else:
+                    train_step_full(tr_data_it)
                     
                 end = time.time()
                 duration = (end - start) / 60.

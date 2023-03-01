@@ -25,4 +25,5 @@ python3 train_model.py \
             --val_examples_TSS=2138 \
             --num_targets=54 \
             --use_enformer_weights="True" \
-            --enformer_checkpoint_path="sonnet_weights"
+            --enformer_checkpoint_path="sonnet_weights" \
+            --freeze_trunk="True"
