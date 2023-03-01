@@ -74,7 +74,7 @@ consolidate into single simpler function
 
 
 def return_train_val_functions(model,
-                               optimizer,
+                               optimizers,
                                strategy,
                                metric_dict,
                                train_steps, 
@@ -103,6 +103,8 @@ def return_train_val_functions(model,
     train_steps is the # steps in a single epoch
     val_steps is the # steps to fully iterate over validation set
     """
+    
+    optimizer1,optimizer2=optimizers
 
     metric_dict["hg_tr"] = tf.keras.metrics.Mean("hg_tr_loss",
                                                  dtype=tf.float32)
