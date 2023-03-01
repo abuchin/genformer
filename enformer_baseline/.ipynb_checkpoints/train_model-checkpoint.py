@@ -70,20 +70,11 @@ def main():
                 'goal': 'minimize'
             },
             'parameters': {
-                'lr_base1': {
-                    'values':[float(x) for x in args.lr_base1.split(',')]
-                },
-                'lr_base2': {
-                    'values':[float(x) for x in args.lr_base2.split(',')]
+                'lr_base': {
+                    'values':[float(x) for x in args.lr_base.split(',')]
                 },
                 'epsilon': {
                     'values':[args.epsilon]
-                },
-                'beta1': {
-                    'values':[float(x) for x in args.beta1.split(',')]
-                },
-                'beta2': {
-                    'values':[float(x) for x in args.beta2.split(',')]
                 },
                 'gradient_clip': {
                     'values': [float(x) for x in args.gradient_clip.split(',')]
@@ -106,7 +97,7 @@ def main():
         ## rest must be w/in strategy scope
         with strategy.scope():
             config_defaults = {
-                "lr_base1": 0.01 ### will be overwritten
+                "lr_base": 0.01 ### will be overwritten
             }
             
             ### log training parameters
@@ -129,13 +120,17 @@ def main():
             wandb.config.val_examples=args.val_examples
             wandb.config.val_examples_TSS=args.val_examples_TSS
             
-            run_name = '_'.join(['LR1-' + str(wandb.config.lr_base1),
-                                 'LR2-' + str(wandb.config.lr_base2),
+            run_name = '_'.join(['ENFORMER',
+                                 'LR-' + str(wandb.config.lr_base),
                                  'GC-' + str(wandb.config.gradient_clip),
                                  'init-' + str(wandb.config.use_enformer_weights),
                                  args.model_save_basename])
-            wandb.run.name = run_name
-            base_name = wandb.config.model_save_basename + "_" + run_name
+            date_string = f'{datetime.now():%Y-%m-%d %H:%M:%S%z}'
+            date_string = date_string.replace(' ','_')
+            
+            wandb.run.name = run_name + "_" + date_string
+            base_name = wandb.config.model_save_basename + "_" + wandb.run.name
+            
             '''
             TPU init options
             '''
@@ -180,7 +175,7 @@ def main():
 
                 
             
-            enformer_model = enformer.Enformer(output_heads_dict = {'human': 62})
+            enformer_model = enformer.Enformer(output_heads_dict = {'human': 54})
             SEQ_LENGTH = 196608
 
             date_string = f'{datetime.now():%Y-%m-%d %H:%M:%S%z}'
@@ -192,30 +187,21 @@ def main():
 
             model_checkpoint = tf.train.Checkpoint(module=enformer_model)
                 
-    
-            scheduler1= tf.keras.optimizers.schedules.CosineDecay(
-                initial_learning_rate=wandb.config.lr_base1,
-                decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=1.0)
-            scheduler1=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base1,
-                                         warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps,
-                                         decay_schedule_fn=scheduler1)
             
-            scheduler2= tf.keras.optimizers.schedules.CosineDecay(
-                initial_learning_rate=wandb.config.lr_base2,
+            scheduler= tf.keras.optimizers.schedules.CosineDecay(
+                initial_learning_rate=wandb.config.lr_base,
                 decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=1.0)
-            schedule2=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base2,
+            schedule=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base,
                                          warmup_steps=math.ceil(wandb.config.warmup_frac*wandb.config.total_steps),
-                                         decay_schedule_fn=scheduler2)
-            optimizer1 = tf.keras.optimizers.Adam(learning_rate=scheduler1,epsilon=1e-08)
+                                         decay_schedule_fn=scheduler)
             
-            optimizer2 = tf.keras.optimizers.Adam(learning_rate=scheduler2,epsilon=1e-08)
-            optimizers_in = optimizer1,optimizer2
+            optimizer = tf.keras.optimizers.Adam(learning_rate=scheduler,epsilon=wandb.config.epsilon)
 
             metric_dict = {}
             
 
             train_step, val_step, val_step_TSS, build_step,metric_dict = training_utils.return_train_val_functions(enformer_model,
-                                                                                                        optimizers_in,
+                                                                                                        optimizer,
                                                                                                         strategy,
                                                                                                         metric_dict,
                                                                                                         wandb.config.train_steps,
@@ -269,14 +255,14 @@ def main():
                           step=epoch_i)
                 pearsonsR=metric_dict['pearsonsR'].result()['PearsonR'].numpy()
                 wandb.log({'human_val_tracks_pearsons': np.nanmean(pearsonsR),
-                           'human_ATAC_pearsons': np.nanmean(pearsonsR[31:]),
-                           'human_CAGE_pearsons': np.nanmean(pearsonsR[:31])},
+                           'human_ATAC_pearsons': np.nanmean(pearsonsR[27:]),
+                           'human_CAGE_pearsons': np.nanmean(pearsonsR[:27])},
                           step=epoch_i)
 
                 R2=metric_dict['R2'].result()['R2'].numpy()
                 wandb.log({'human_val_tracks_R2': np.nanmean(R2),
-                           'human_ATAC_R2': np.nanmean(R2[31:]),
-                           'human_CAGE_R2': np.nanmean(R2[:31])},
+                           'human_ATAC_R2': np.nanmean(R2[27:]),
+                           'human_CAGE_R2': np.nanmean(R2[:27])},
                           step=epoch_i)
                 print('computing TSS quant metrics')
                 

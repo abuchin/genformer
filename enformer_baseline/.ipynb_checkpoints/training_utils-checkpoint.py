@@ -74,7 +74,7 @@ consolidate into single simpler function
 
 
 def return_train_val_functions(model,
-                               optimizers_in,
+                               optimizer,
                                strategy,
                                metric_dict,
                                train_steps, 
@@ -104,8 +104,6 @@ def return_train_val_functions(model,
     val_steps is the # steps to fully iterate over validation set
     """
 
-    optimizer1,optimizer2=optimizers_in
-
     metric_dict["hg_tr"] = tf.keras.metrics.Mean("hg_tr_loss",
                                                  dtype=tf.float32)
     metric_dict["hg_val"] = tf.keras.metrics.Mean("hg_val_loss",
@@ -132,11 +130,10 @@ def return_train_val_functions(model,
                 loss = tf.reduce_mean(loss_fn(target,
                                               output)) * (1. / global_batch_size)
                 
-            gradients = tape.gradient(loss, model.trunk.trainable_variables + model.new_heads['human'].trainable_variables)
+            gradients = tape.gradient(loss, model.new_heads['human'].trainable_variables)
             gradients, _ = tf.clip_by_global_norm(gradients, 
                                                   gradient_clip)
-            optimizer1.apply_gradients(zip(gradients[:len(model.trunk.trainable_variables)], model.trunk.trainable_variables))
-            optimizer2.apply_gradients(zip(gradients[len(model.trunk.trainable_variables):], model.new_heads['human'].trainable_variables))
+            optimizer.apply_gradients(zip(gradients, model.new_heads['human'].trainable_variables))
             metric_dict["hg_tr"].update_state(loss)
 
         for _ in tf.range(train_steps): ## for loop within @tf.fuction for improved TPU performance
@@ -163,12 +160,12 @@ def return_train_val_functions(model,
         @tf.function(jit_compile=True)
         def val_step(inputs):
             target=tf.cast(inputs['target'],
-                           dtype = tf.float32)[:,:,:31]
+                           dtype = tf.float32)[:,:,:27]
             sequence=tf.cast(inputs['sequence'],
                              dtype=tf.float32)
             tss_mask =tf.cast(inputs['tss_mask'],dtype=tf.float32)
 
-            output = tf.cast(model(sequence, is_training=False)['human'][:,:,:31],
+            output = tf.cast(model(sequence, is_training=False)['human'][:,:,:27],
                              dtype=tf.float32)
             
             pred = tf.reduce_sum(output * tss_mask,axis=1)
@@ -267,8 +264,6 @@ def deserialize_tr(serialized_example,input_length,max_shift, out_length,num_tar
                       [320,0],
                       [896,-1])
     
-    
-    
     if rev_comp == 1:
         sequence = tf.gather(sequence, [3, 2, 1, 0], axis=-1)
         sequence = tf.reverse(sequence, axis=[0])
@@ -346,9 +341,9 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift, out_length,nu
                       [896,-1])
     
     gene_name= tf.io.parse_tensor(example['gene_name'],out_type=tf.int32)
-    gene_name = tf.tile(tf.expand_dims(gene_name,axis=0),[31])
+    gene_name = tf.tile(tf.expand_dims(gene_name,axis=0),[27])
     
-    cell_types = tf.range(0,31)
+    cell_types = tf.range(0,27)
 
     
     return {'sequence': tf.ensure_shape(sequence,
@@ -358,9 +353,9 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift, out_length,nu
             'tss_mask': tf.ensure_shape(tss_mask,
                                         [896,1]),
             'gene_name': tf.ensure_shape(gene_name,
-                                         [31,]),
+                                         [27,]),
             'cell_types': tf.ensure_shape(cell_types,
-                                           [31,])}
+                                           [27,])}
                     
 def return_dataset(gcs_path,
                    split,
@@ -702,17 +697,13 @@ def parse_args(parser):
                         default=196608,
                         type=int,
                         help='input_length')
-    parser.add_argument('--lr_base1',
-                        dest='lr_base1',
+    parser.add_argument('--lr_base',
+                        dest='lr_base',
                         default="1.0e-04",
-                        help='lr_base1')
-    parser.add_argument('--lr_base2',
-                        dest='lr_base2',
-                        default="1.0e-04",
-                        help='lr_base2')
+                        help='lr_base')
     parser.add_argument('--epsilon',
                         dest='epsilon',
-                        default=1.0e-10,
+                        default=1.0e-8,
                         type=float,
                         help= 'epsilon')
     parser.add_argument('--savefreq',
@@ -724,25 +715,15 @@ def parse_args(parser):
                         type=int,
                         default=0,
                         help= 'total_steps')
-    parser.add_argument('--beta1',
-                        dest='beta1',
-                        type=str,
-                        default="0.90",
-                        help= 'beta1')
-    parser.add_argument('--beta2',
-                        dest='beta2',
-                        type=str,
-                        default="0.999",
-                        help= 'beta2')
     parser.add_argument('--gradient_clip',
                         dest='gradient_clip',
                         type=str,
-                        default="0.2",
+                        default="5.0",
                         help= 'gradient_clip')
     parser.add_argument('--num_targets',
                         dest='num_targets',
                         type=int,
-                        default=96,
+                        default=54,
                         help= 'num_targets')
     parser.add_argument('--train_examples', dest = 'train_examples',
                         type=int, help='train_examples')
