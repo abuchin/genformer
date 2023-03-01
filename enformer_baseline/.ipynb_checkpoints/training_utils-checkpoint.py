@@ -268,6 +268,17 @@ def deserialize_tr(serialized_example,input_length,max_shift, out_length,num_tar
                       [320,0],
                       [896,-1])
     
+    target_cage = target[:,:27]
+    diff = tf.math.sqrt(tf.nn.relu(target_cage - 500.0 * tf.ones(target_cage.shape,dtype=tf.float16)))
+    target_cage = tf.clip_by_value(target_cage, clip_value_min=0.0, clip_value_max=500.0) + diff
+    
+    target_atac = target[:,27:]
+    diff = tf.math.sqrt(tf.nn.relu(target_atac - 64.0 * tf.ones(target_atac.shape,dtype=tf.float16)))
+    target_atac = tf.clip_by_value(target_atac, clip_value_min=0.0, clip_value_max=64.0) + diff
+    
+    target = tf.concat([target_cage,target_atac],
+                       axis=1)
+    
     if rev_comp == 1:
         sequence = tf.gather(sequence, [3, 2, 1, 0], axis=-1)
         sequence = tf.reverse(sequence, axis=[0])
@@ -305,6 +316,16 @@ def deserialize_val(serialized_example,input_length,max_shift, out_length,num_ta
                       [320,0],
                       [896,-1])
     
+    target_cage = target[:,:27]
+    diff = tf.math.sqrt(tf.nn.relu(target_cage - 500.0 * tf.ones(target_cage.shape,dtype=tf.float16)))
+    target_cage = tf.clip_by_value(target_cage, clip_value_min=0.0, clip_value_max=500.0) + diff
+    
+    target_atac = target[:,27:]
+    diff = tf.math.sqrt(tf.nn.relu(target_atac - 64.0 * tf.ones(target_atac.shape,dtype=tf.float16)))
+    target_atac = tf.clip_by_value(target_atac, clip_value_min=0.0, clip_value_max=64.0) + diff
+    
+    target = tf.concat([target_cage,target_atac],
+                       axis=1)
     
     return {'sequence': tf.ensure_shape(sequence,
                                         [input_length,4]),
@@ -337,6 +358,17 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift, out_length,nu
     target = tf.slice(target,
                       [320,0],
                       [896,-1])
+    
+    target_cage = target[:,:27]
+    diff = tf.math.sqrt(tf.nn.relu(target_cage - 500.0 * tf.ones(target_cage.shape,dtype=tf.float16)))
+    target_cage = tf.clip_by_value(target_cage, clip_value_min=0.0, clip_value_max=500.0) + diff
+    
+    target_atac = target[:,27:]
+    diff = tf.math.sqrt(tf.nn.relu(target_atac - 64.0 * tf.ones(target_atac.shape,dtype=tf.float16)))
+    target_atac = tf.clip_by_value(target_atac, clip_value_min=0.0, clip_value_max=64.0) + diff
+    
+    target = tf.concat([target_cage,target_atac],
+                       axis=1)
     
     tss_mask = tf.io.parse_tensor(example['tss_mask'],
                                   out_type=tf.int32)
