@@ -182,7 +182,7 @@ def main():
 
                 
             
-            enformer_model = enformer.Enformer(output_heads_dict = {'human': 27})
+            enformer_model = enformer.Enformer(output_heads_dict = {'human': 54})
             SEQ_LENGTH = 196608
 
             date_string = f'{datetime.now():%Y-%m-%d %H:%M:%S%z}'
