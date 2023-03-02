@@ -22,7 +22,7 @@ python3 train_model.py \
             --savefreq=25 \
             --train_examples=34021 \
             --val_examples=2213 \
-            --val_examples_TSS=2138 \
+            --val_examples_TSS=2135 \
             --num_targets=54 \
             --use_enformer_weights="True" \
             --enformer_checkpoint_path="sonnet_weights" \
