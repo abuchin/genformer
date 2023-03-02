@@ -193,12 +193,12 @@ def return_train_val_functions(model,
         @tf.function(jit_compile=True)
         def val_step(inputs):
             target=tf.cast(inputs['target'],
-                           dtype = tf.float32)[:,:,:27]
+                           dtype = tf.float32)#[:,:,:27]
             sequence=tf.cast(inputs['sequence'],
                              dtype=tf.float32)
             tss_mask =tf.cast(inputs['tss_mask'],dtype=tf.float32)
 
-            output = tf.cast(model(sequence, is_training=False)['human'][:,:,:27],
+            output = tf.cast(model(sequence, is_training=False)['human'],#[:,:,:27],
                              dtype=tf.float32)
             
             pred = tf.reduce_sum(output * tss_mask,axis=1)
@@ -213,7 +213,7 @@ def return_train_val_functions(model,
 
         
         ta_pred = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
-        ta_true = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
+        ta_true = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array fto store vals
         ta_celltype = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
         ta_genemap = tf.TensorArray(tf.int32, size=0, dynamic_size=True)        
         
@@ -298,16 +298,16 @@ def deserialize_tr(serialized_example,input_length,max_shift, out_length,num_tar
                       [896,-1])
     
     target_cage = target[:,:27]
-    diff = tf.math.sqrt(tf.nn.relu(target_cage - 1000.0 * tf.ones(target_cage.shape,dtype=tf.float16)))
-    target_cage = tf.clip_by_value(target_cage, clip_value_min=0.0, clip_value_max=1000.0) + diff
-    #target = target_cage
+    diff = tf.math.sqrt(tf.nn.relu(target_cage - 500.0 * tf.ones(target_cage.shape,dtype=tf.float16)))
+    target_cage = tf.clip_by_value(target_cage, clip_value_min=0.0, clip_value_max=500.0) + diff
+    target = target_cage
 
-    target_atac = target[:,27:]
-    diff = tf.math.sqrt(tf.nn.relu(target_atac - 64.0 * tf.ones(target_atac.shape,dtype=tf.float16)))
-    target_atac = tf.clip_by_value(target_atac, clip_value_min=0.0, clip_value_max=64.0) + diff
+    #target_atac = target[:,27:]
+    #diff = tf.math.sqrt(tf.nn.relu(target_atac - 64.0 * tf.ones(target_atac.shape,dtype=tf.float16)))
+    #target_atac = tf.clip_by_value(target_atac, clip_value_min=0.0, clip_value_max=64.0) + diff
 
-    target = tf.concat([target_cage,target_atac],
-                       axis=1)
+    #target = tf.concat([target_cage,target_atac],
+    #                   axis=1)
     
     if rev_comp == 1:
         sequence = tf.gather(sequence, [3, 2, 1, 0], axis=-1)
@@ -317,7 +317,7 @@ def deserialize_tr(serialized_example,input_length,max_shift, out_length,num_tar
     return {'sequence': tf.ensure_shape(sequence,
                                         [input_length,4]),
             'target': tf.ensure_shape(target,
-                                      [896,54])}
+                                      [896,27])}
             
 def deserialize_val(serialized_example,input_length,max_shift, out_length,num_targets):
     """Deserialize bytes stored in TFRecordFile."""
@@ -347,21 +347,21 @@ def deserialize_val(serialized_example,input_length,max_shift, out_length,num_ta
                       [896,-1])
     
     target_cage = target[:,:27]
-    diff = tf.math.sqrt(tf.nn.relu(target_cage - 1000.0 * tf.ones(target_cage.shape,dtype=tf.float16)))
-    target_cage = tf.clip_by_value(target_cage, clip_value_min=0.0, clip_value_max=1000.0) + diff
-    #target = target_cage
+    diff = tf.math.sqrt(tf.nn.relu(target_cage - 500.0 * tf.ones(target_cage.shape,dtype=tf.float16)))
+    target_cage = tf.clip_by_value(target_cage, clip_value_min=0.0, clip_value_max=500.0) + diff
+    target = target_cage
     
-    target_atac = target[:,27:]
-    diff = tf.math.sqrt(tf.nn.relu(target_atac - 64.0 * tf.ones(target_atac.shape,dtype=tf.float16)))
-    target_atac = tf.clip_by_value(target_atac, clip_value_min=0.0, clip_value_max=64.0) + diff
+    #target_atac = target[:,27:]
+    #diff = tf.math.sqrt(tf.nn.relu(target_atac - 64.0 * tf.ones(target_atac.shape,dtype=tf.float16)))
+    #target_atac = tf.clip_by_value(target_atac, clip_value_min=0.0, clip_value_max=64.0) + diff
 
-    target = tf.concat([target_cage,target_atac],
-                       axis=1)
+    #target = tf.concat([target_cage,target_atac],
+    #                   axis=1)
     
     return {'sequence': tf.ensure_shape(sequence,
                                         [input_length,4]),
             'target': tf.ensure_shape(target,
-                                      [896,54])}
+                                      [896,27])}
 
 
 def deserialize_val_TSS(serialized_example,input_length,max_shift, out_length,num_targets):
@@ -391,15 +391,15 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift, out_length,nu
                       [896,-1])
     
     target_cage = target[:,:27]
-    diff = tf.math.sqrt(tf.nn.relu(target_cage - 1000.0 * tf.ones(target_cage.shape,dtype=tf.float16)))
-    target_cage = tf.clip_by_value(target_cage, clip_value_min=0.0, clip_value_max=1000.0) + diff
-
-    target_atac = target[:,27:]
-    diff = tf.math.sqrt(tf.nn.relu(target_atac - 64.0 * tf.ones(target_atac.shape,dtype=tf.float16)))
-    target_atac = tf.clip_by_value(target_atac, clip_value_min=0.0, clip_value_max=64.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(target_cage - 500.0 * tf.ones(target_cage.shape,dtype=tf.float16)))
+    target_cage = tf.clip_by_value(target_cage, clip_value_min=0.0, clip_value_max=500.0) + diff
+    target = target_cage
+    #target_atac = target[:,27:]
+    #diff = tf.math.sqrt(tf.nn.relu(target_atac - 64.0 * tf.ones(target_atac.shape,dtype=tf.float16)))
+    #target_atac = tf.clip_by_value(target_atac, clip_value_min=0.0, clip_value_max=64.0) + diff
     
-    target = tf.concat([target_cage,target_atac],
-                       axis=1)
+    #target = tf.concat([target_cage,target_atac],
+    #                   axis=1)
     
     tss_mask = tf.io.parse_tensor(example['tss_mask'],
                                   out_type=tf.int32)
@@ -416,7 +416,7 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift, out_length,nu
     return {'sequence': tf.ensure_shape(sequence,
                                         [input_length,4]),
             'target': tf.ensure_shape(target,
-                                      [896,54]),
+                                      [896,27]),
             'tss_mask': tf.ensure_shape(tss_mask,
                                         [896,1]),
             'gene_name': tf.ensure_shape(gene_name,
