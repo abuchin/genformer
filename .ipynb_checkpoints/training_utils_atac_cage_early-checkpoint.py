@@ -792,8 +792,8 @@ def deserialize_tr(serialized_example,
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
-    diff = tf.math.sqrt(tf.nn.relu(cage - 500.0 * tf.ones(cage.shape)))
-    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=500.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(cage - 2000.0 * tf.ones(cage.shape)))
+    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=2000.0) + diff
 
     if rev_comp == 1:
         sequence = tf.gather(sequence, [3, 2, 1, 0], axis=-1)
@@ -900,8 +900,8 @@ def deserialize_val(serialized_example,input_length,max_shift,output_length_ATAC
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
-    diff = tf.math.sqrt(tf.nn.relu(cage - 500.0 * tf.ones(cage.shape)))
-    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=500.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(cage - 2000.0 * tf.ones(cage.shape)))
+    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=2000.0) + diff
     
     if predict_masked_atac_bool:
         atac_out = tf.reduce_sum(tf.reshape(atac, [-1,tiling_req]),axis=1,keepdims=True)
@@ -1002,8 +1002,8 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length_
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
-    diff = tf.math.sqrt(tf.nn.relu(cage - 500.0 * tf.ones(cage.shape)))
-    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=500.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(cage - 2000.0 * tf.ones(cage.shape)))
+    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=2000.0) + diff
 
     tss_tokens = tf.io.parse_tensor(data['tss_tokens'],
                                   out_type=tf.int32)

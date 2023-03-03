@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 python3 train_model_atac_cage_early.py \
-            --tpu_name="node-5" \
+            --tpu_name="node-6" \
             --tpu_zone="us-central1-a" \
             --wandb_project="paired_rampage_atac" \
             --wandb_user="njaved" \
@@ -16,9 +16,9 @@ python3 train_model_atac_cage_early.py \
             --max_shift=10 \
             --batch_size=4 \
             --num_epochs=100 \
-            --train_examples=10000 \
-            --val_examples=500 \
-            --val_examples_TSS=500 \
+            --train_examples=250000 \
+            --val_examples=59751 \
+            --val_examples_TSS=57618 \
             --BN_momentum=0.90 \
             --warmup_frac=0.005 \
             --patience=50 \
@@ -31,17 +31,17 @@ python3 train_model_atac_cage_early.py \
             --decay_frac="0.50" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-8 \
-            --num_transformer_layers="4" \
+            --num_transformer_layers="6" \
             --dropout_rate="0.05" \
             --pointwise_dropout_rate="0.15" \
             --num_heads="4" \
             --num_random_features="256" \
             --kernel_transformation="relu_kernel_transformation" \
             --savefreq=40 \
-            --freeze_conv_layers="True" \
+            --freeze_conv_layers="False" \
             --load_init="True" \
-            --wd_1_frac=1.0e-03 \
-            --wd_2_frac=1.0e-03 \
+            --wd_1_frac=1.0e-04 \
+            --wd_2_frac=1.0e-04 \
             --fc_dropout=0.10 \
             --rectify="True" \
             --multitask_checkpoint_path="/home/jupyter/dev/BE_CD69_paper_2022/enformer_fine_tuning/checkpoint/sonnet_weights" \
