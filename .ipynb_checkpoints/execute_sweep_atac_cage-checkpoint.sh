@@ -1,33 +1,33 @@
 #!/bin/bash -l
 
-python3 train_model_atac_cage.py \
-            --tpu_name="pod" \
-            --tpu_zone="us-east1-d" \
-            --wandb_project="enformer_baseline" \
+python3 train_model_atac_cage_early.py \
+            --tpu_name="node-5" \
+            --tpu_zone="us-central1-a" \
+            --wandb_project="paired_rampage_atac" \
             --wandb_user="njaved" \
-            --wandb_sweep_name="aformer_baseline" \
+            --wandb_sweep_name="paired_rampage_atac" \
             --gcs_project="picard-testing-176520" \
-            --gcs_path="gs://picard-testing-176520/genformer_atac_rampage_globalacc_conv/preprocessed" \
-            --gcs_path_TSS="gs://picard-testing-176520/genformer_atac_rampage_globalacc_conv_TSS/preprocessed" \
+            --gcs_path="gs://picard-testing-176520/genformer_atac_rampage_globalacc_conv_rpgc" \
+            --gcs_path_TSS="gs://picard-testing-176520/genformer_atac_rampage_globalacc_conv_rpgc_TSS" \
             --input_length=196608 \
             --output_length=1536 \
+            --output_length_ATAC=49152 \
             --final_output_length=896 \
             --max_shift=10 \
             --batch_size=4 \
             --num_epochs=100 \
-            --train_examples=250000 \
-            --val_examples=68603 \
-            --val_examples_TSS=64759 \
+            --train_examples=10000 \
+            --val_examples=500 \
+            --val_examples_TSS=500 \
             --BN_momentum=0.90 \
             --warmup_frac=0.005 \
             --patience=50 \
             --output_res=128 \
             --min_delta=0.000005 \
-            --model_save_dir="gs://picard-testing-176520/aformer_baseline" \
+            --model_save_dir="gs://picard-testing-176520/paired_rampage_atac/genformer/models" \
             --model_save_basename="aformer_baseline" \
-            --lr_base1="2.0e-06" \
-            --lr_base2="7.5e-05" \
-            --lr_base3="1.0e-04" \
+            --lr_base1="5.0e-06" \
+            --lr_base2="1.0e-04" \
             --decay_frac="0.50" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-8 \
@@ -36,24 +36,26 @@ python3 train_model_atac_cage.py \
             --pointwise_dropout_rate="0.15" \
             --num_heads="4" \
             --num_random_features="256" \
-            --hidden_size="1552" \
             --kernel_transformation="relu_kernel_transformation" \
             --savefreq=40 \
             --freeze_conv_layers="True" \
             --load_init="True" \
-            --wd_1_frac=1.0e-04 \
+            --wd_1_frac=1.0e-03 \
             --wd_2_frac=1.0e-03 \
-            --wd_3_frac=1.0e-03 \
             --fc_dropout=0.10 \
             --rectify="True" \
-            --multitask_checkpoint_path="gs://picard-testing-176520/enformer_performer_pretrain_atac_mean/models/enformer_performer_pretrain_atac_mean_EP_full_dataset__196k_load_init-True_freeze-False_LR1-1e-06_LR2-0.0001_T-4_F-1536_D-0.4_2023-02-24_16:27:50/iteration_16" \
-            --inits_type="enformer_performer" \
+            --multitask_checkpoint_path="/home/jupyter/dev/BE_CD69_paper_2022/enformer_fine_tuning/checkpoint/sonnet_weights" \
+            --inits_type="enformer_conv" \
             --predict_masked_atac_bool="True" \
-            --cage_scale="0.90" \
+            --cage_scale="0.50" \
             --optimizer="adamw" \
             --stable_variant="False" \
-            --atac_mask_dropout=0.05 \
+            --atac_mask_dropout=0.10 \
             --loss_fn="poisson" \
             --use_global="True" \
-            --use_atac="True"
+            --use_atac="True" \
+            --log_atac="True" \
+            --learnable_PE="True" \
+            --global_acc_size=128
+                        
             

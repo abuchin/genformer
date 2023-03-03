@@ -45,6 +45,8 @@ class aformer(tf.keras.Model):
                  predict_masked_atac_bool = True,
                  filter_list_seq=[768, 896, 1024, 1152, 1280, 1536],
                  freeze_conv_layers=False,
+                 learnable_PE = False,
+                 learnable_PE_hidden=128,
                  name: str = 'aformer',
                  **kwargs):
         """ 'aformer' model based on Enformer for predicting RNA-seq from atac + sequence
@@ -83,6 +85,8 @@ class aformer(tf.keras.Model):
         self.predict_masked_atac_bool=predict_masked_atac_bool
         self.fc_dropout=fc_dropout
         self.stable_variant=stable_variant
+        self.learnable_PE=learnable_PE
+        self.learnable_PE_hidden=learnable_PE_hidden
         
         ## ensure load_init matches actual init inputs...
         if inits is None:
@@ -185,7 +189,14 @@ class aformer(tf.keras.Model):
                                           k_init=self.inits['stem_pool'] if self.load_init else None,
                                           train=False if self.freeze_conv_layers else True,
                                           name ='stem_pool')
-
+        
+        
+        self.pos_embedding_learned = tf.keras.layers.Embedding(self.output_length, 
+                                                               embeddings_initializer='glorot_uniform',
+                                                               self.learnable_PE_hidden, 
+                                                               input_length=self.output_length)
+        
+        
 
         self.conv_tower = tf.keras.Sequential([
             tf.keras.Sequential([
@@ -308,6 +319,7 @@ class aformer(tf.keras.Model):
 
         sequence,atac,global_acc = inputs
         
+
         x = self.stem_conv(sequence,
                            training=training)
 
@@ -329,8 +341,13 @@ class aformer(tf.keras.Model):
         transformer_input = tf.concat([x,atac_x],
                                       axis=2)
         
-
-        transformer_input_x=self.sin_pe(transformer_input)
+        if self.learnable_PE:
+            input_pos_indices = tf.range(self.output_length)
+            PE = self.pos_embedding_learned(input_pos_indices)
+            transformer_input_x = tf.concat([transformer_input, PE],
+                                          axis=2)
+        else:
+            transformer_input_x=self.sin_pe(transformer_input)
 
         out,att_matrices = self.performer(transformer_input_x,
                                                   training=training)
