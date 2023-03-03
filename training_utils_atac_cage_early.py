@@ -759,8 +759,8 @@ def deserialize_tr(serialized_example,
     atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
                                               out_type=tf.float32),
                            [output_length_ATAC,1])
-    diff = tf.math.sqrt(tf.nn.relu(atac - 64.0 * tf.ones(atac.shape)))
-    atac = tf.clip_by_value(atac, clip_value_min=0.0, clip_value_max=64.0) + diff
+    #diff = tf.math.sqrt(tf.nn.relu(atac - 64.0 * tf.ones(atac.shape)))
+    #atac = tf.clip_by_value(atac, clip_value_min=0.0, clip_value_max=64.0) + diff
     
     atac = atac + tf.math.abs(g.normal(atac.shape,
                                                mean=0.0,
@@ -792,8 +792,9 @@ def deserialize_tr(serialized_example,
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
-    diff = tf.math.sqrt(tf.nn.relu(cage - 2000.0 * tf.ones(cage.shape)))
-    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=2000.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(cage - 850.0 * tf.ones(cage.shape)))
+    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=850.0) + diff
+    cage = tf.cast(tf.cast(cage,dtype=tf.float16),dtype=tf.float32) ### round to be consistent with Enformer
 
     if rev_comp == 1:
         sequence = tf.gather(sequence, [3, 2, 1, 0], axis=-1)
@@ -871,8 +872,8 @@ def deserialize_val(serialized_example,input_length,max_shift,output_length_ATAC
     atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
                                               out_type=tf.float32),
                            [output_length_ATAC,1])
-    diff = tf.math.sqrt(tf.nn.relu(atac - 64.0 * tf.ones(atac.shape)))
-    atac = tf.clip_by_value(atac, clip_value_min=0.0, clip_value_max=64.0) + diff
+    #diff = tf.math.sqrt(tf.nn.relu(atac - 64.0 * tf.ones(atac.shape)))
+    #atac = tf.clip_by_value(atac, clip_value_min=0.0, clip_value_max=64.0) + diff
     if log_atac: 
         atac = tf.math.log1p(atac)
     if not use_atac:
@@ -900,8 +901,9 @@ def deserialize_val(serialized_example,input_length,max_shift,output_length_ATAC
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
-    diff = tf.math.sqrt(tf.nn.relu(cage - 2000.0 * tf.ones(cage.shape)))
-    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=2000.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(cage - 850.0 * tf.ones(cage.shape)))
+    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=850.0) + diff
+    cage = tf.cast(tf.cast(cage,dtype=tf.float16),dtype=tf.float32) ### round to be consistent with Enformer
     
     if predict_masked_atac_bool:
         atac_out = tf.reduce_sum(tf.reshape(atac, [-1,tiling_req]),axis=1,keepdims=True)
@@ -972,8 +974,8 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length_
     atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
                                               out_type=tf.float32),
                            [output_length_ATAC,1])
-    diff = tf.math.sqrt(tf.nn.relu(atac - 64.0 * tf.ones(atac.shape)))
-    atac = tf.clip_by_value(atac, clip_value_min=0.0, clip_value_max=64.0) + diff
+    #diff = tf.math.sqrt(tf.nn.relu(atac - 64.0 * tf.ones(atac.shape)))
+    #atac = tf.clip_by_value(atac, clip_value_min=0.0, clip_value_max=64.0) + diff
     
     if log_atac: 
         atac = tf.math.log1p(atac)
@@ -1002,9 +1004,10 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length_
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
-    diff = tf.math.sqrt(tf.nn.relu(cage - 2000.0 * tf.ones(cage.shape)))
-    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=2000.0) + diff
-
+    diff = tf.math.sqrt(tf.nn.relu(cage - 850.0 * tf.ones(cage.shape)))
+    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=850.0) + diff
+    cage = tf.cast(tf.cast(cage,dtype=tf.float16),dtype=tf.float32) ### round to be consistent with Enformer
+    
     tss_tokens = tf.io.parse_tensor(data['tss_tokens'],
                                   out_type=tf.int32)
     tss_tokens = tf.expand_dims(tss_tokens,axis=1)
