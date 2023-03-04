@@ -145,6 +145,12 @@ class FFN(kl.Layer):
         self.ffn_widening = 2
         self.ffn_dropout = dropout_rate
         self.load_init=load_init
+        self.FFN_LN_gamma_init=None,
+        self.FFN_LN_beta_init=FFN_LN_beta_init
+        self.FFN_kernel1_init=FFN_kernel1_init
+        self.FFN_bias1_init=FFN_bias1_init
+        self.FFN_kernel2_init=FFN_kernel2_init
+        self.FFN_bias2_init=FFN_bias2_init
         
             
         self.FFN_layer_norm = kl.LayerNormalization(axis=-1,
@@ -170,7 +176,14 @@ class FFN(kl.Layer):
         config = {
             "ffn_channels":self.ffn_channels,
             "ffn_widening":self.ffn_widening,
-            "ffn_dropout":self.ffn_dropout
+            "ffn_dropout":self.ffn_dropout,
+            "load_init": self.load_init,
+            "FFN_LN_gamma_init":self.FFN_LN_gamma_init,
+            "FFN_LN_beta_init":self.FFN_LN_beta_init,
+            "FFN_kernel1_init":self.FFN_kernel1_init,
+            "FFN_bias1_init":self.FFN_bias1_init,
+            "FFN_kernel2_init":self.FFN_kernel2_init,
+            "FFN_bias2_init":self.FFN_bias2_init
         }
         base_config = super().get_config()
         return {**base_config,**config}
@@ -247,6 +260,12 @@ class Performer(kl.Layer):
         self.normalize=normalize
         self.seed=seed
         self.load_init=load_init
+        self.FFN_LN_gamma_init=None,
+        self.FFN_LN_beta_init=FFN_LN_beta_init
+        self.FFN_kernel1_init=FFN_kernel1_init
+        self.FFN_bias1_init=FFN_bias1_init
+        self.FFN_kernel2_init=FFN_kernel2_init
+        self.FFN_bias2_init=FFN_bias2_init
         
         self.layer_norm = kl.LayerNormalization(axis=-1,
                                                   scale=True,
@@ -297,7 +316,14 @@ class Performer(kl.Layer):
             "use_mask_pos":self.use_mask_pos,
             "d_model":self.d_model,
             "normalize":self.normalize,
-            "seed":self.seed
+            "seed":self.seed,
+            "load_init": self.load_init,
+            "FFN_LN_gamma_init":self.FFN_LN_gamma_init,
+            "FFN_LN_beta_init":self.FFN_LN_beta_init,
+            "FFN_kernel1_init":self.FFN_kernel1_init,
+            "FFN_bias1_init":self.FFN_bias1_init,
+            "FFN_kernel2_init":self.FFN_kernel2_init,
+            "FFN_bias2_init":self.FFN_bias2_init
         }
         base_config = super().get_config()
         return{**base_config, **config}
@@ -389,6 +415,12 @@ class Performer_stable(kl.Layer):
         self.normalize=normalize
         self.seed=seed
         self.load_init=load_init
+        self.FFN_LN_gamma_init=None,
+        self.FFN_LN_beta_init=FFN_LN_beta_init
+        self.FFN_kernel1_init=FFN_kernel1_init
+        self.FFN_bias1_init=FFN_bias1_init
+        self.FFN_kernel2_init=FFN_kernel2_init
+        self.FFN_bias2_init=FFN_bias2_init
         
         
         self.layer_norm = ScaleNorm(self.d_model ** 0.50)
@@ -434,7 +466,14 @@ class Performer_stable(kl.Layer):
             "use_mask_pos":self.use_mask_pos,
             "d_model":self.d_model,
             "normalize":self.normalize,
-            "seed":self.seed
+            "seed":self.seed,
+            "load_init": self.load_init,
+            "FFN_LN_gamma_init":self.FFN_LN_gamma_init,
+            "FFN_LN_beta_init":self.FFN_LN_beta_init,
+            "FFN_kernel1_init":self.FFN_kernel1_init,
+            "FFN_bias1_init":self.FFN_bias1_init,
+            "FFN_kernel2_init":self.FFN_kernel2_init,
+            "FFN_bias2_init":self.FFN_bias2_init
         }
         base_config = super().get_config()
         return{**base_config, **config}
@@ -768,7 +807,8 @@ class Performer_Encoder_stable(kl.Layer):
             "use_mask_pos":self.use_mask_pos,
             "normalize":self.normalize,
             "norm":self.norm,
-            "seed":self.seed
+            "seed":self.seed,
+            "inits":self.inits
         }
 
         base_config = super().get_config()
@@ -910,7 +950,7 @@ class SoftmaxPooling1D(kl.Layer):
             "per_channel":self._per_channel
         })
         return config
-
+@tf.keras.utils.register_keras_serializable()
 class FixedPositionalEmbedding(tf.keras.layers.Layer):
     def __init__(self, dim, max_seq_len):
         super().__init__()
@@ -928,9 +968,9 @@ class FixedPositionalEmbedding(tf.keras.layers.Layer):
         return tf.cast(self.emb[None, :x.shape[1], :],
                        dtype=tf.bfloat16)
 
+@tf.keras.utils.register_keras_serializable()
 class TargetLengthCrop1D(kl.Layer):
     """Crop sequence to match the desired target length."""
-
     def __init__(self,
                uncropped_length: int = 768,
                target_length: int = 448,

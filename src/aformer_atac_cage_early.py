@@ -38,13 +38,11 @@ class aformer(tf.keras.Model):
                  stable_variant=True,
                  seed = 3,
                  load_init=False,
-                 fc_dropout=0.4,
                  inits=None,
                  inits_type='enformer_conv',
                  predict_masked_atac_bool = True,
                  filter_list_seq=[768, 896, 1024, 1152, 1280, 1536],
                  filter_list_atac=[32, 64],
-                 atac_filter_final = 16,
                  global_acc_size=64,
                  freeze_conv_layers=False,
                  learnable_PE = False,
@@ -84,10 +82,8 @@ class aformer(tf.keras.Model):
         self.load_init=load_init
         self.inits_type=inits_type
         self.predict_masked_atac_bool=predict_masked_atac_bool
-        self.fc_dropout=fc_dropout
         self.stable_variant=stable_variant
         self.learnable_PE=learnable_PE
-        self.atac_filter_final=atac_filter_final
         self.global_acc_size=global_acc_size
         
         ## ensure load_init matches actual init inputs...
@@ -108,7 +104,7 @@ class aformer(tf.keras.Model):
             else:
                 raise ValueError('inits type not found')
             
-        self.filter_list_seq = [768, 896, 1024, 1152, 1280, 1536] if (self.load_init and self.inits_type == 'enformer_conv') else filter_list_seq
+        #self.filter_list_seq = [768, 896, 1024, 1152, 1280, 1536] if (self.load_init and self.inits_type == 'enformer_conv') else filter_list_seq
         
         
         self.hidden_size=self.filter_list_seq[-1] + self.filter_list_atac[-1] + self.global_acc_size
@@ -340,7 +336,7 @@ class aformer(tf.keras.Model):
     def call(self, inputs, training:bool=True):
 
         sequence,atac,global_acc = inputs
-        
+
         x = self.stem_conv(sequence,
                            training=training)
 
@@ -403,27 +399,37 @@ class aformer(tf.keras.Model):
 
     def get_config(self):
         config = {
-            "dropout_rate":self.dropout_rate,
-            "input_length": self.input_length,
-            "dim_reduce_length_seq": self.dim_reduce_length_seq,
+            "kernel_transformation":self.kernel_transformation,
+            "dropout_rate": self.dropout_rate,
+            "pointwise_dropout_rate": self.pointwise_dropout_rate,
             "num_heads": self.num_heads,
-            "hidden_size": self.hidden_size,
+            "input_length": self.input_length,
             "numerical_stabilizer": self.numerical_stabilizer,
-            "kernel_transformation": self.kernel_transformation,
             "nb_random_features": self.nb_random_features,
-            "shared_transformer_depth" : self.shared_transformer_depth,
-            "pre_transf_channels":self.pre_transf_channels,
-            "d_model":self.d_model,
+            "num_transformer_layers": self.num_transformer_layers,
+            "output_length" : self.output_length,
+            "final_output_length":self.final_output_length,
             "norm":self.norm,
-            "dim":self.dim,
             "max_seq_length":self.max_seq_length,
             "rel_pos_bins":self.rel_pos_bins,
             "use_rot_emb":self.use_rot_emb,
             "use_mask_pos":self.use_mask_pos,
             "normalize":self.normalize,
-            "seed":self.seed
+            "seed":self.seed,
+            "inits":self.inits,
+            "filter_list_seq":self.filter_list_seq,
+            "filter_list_atac":self.filter_list_atac,
+            "freeze_conv_layers":self.freeze_conv_layers,
+            "load_init":self.load_init,
+            "inits_type":self.inits_type,
+            "predict_masked_atac_bool":self.predict_masked_atac_bool,
+            "stable_variant":self.stable_variant,
+            "learnable_PE":self.learnable_PE,
+            "global_acc_size":self.global_acc_size
             
         }
+        
+
         
         base_config = super().get_config()
         return {**base_config, **config}
@@ -436,55 +442,65 @@ class aformer(tf.keras.Model):
     #                              tf.TensorSpec([None, 1572], tf.float32)])
     def predict_on_batch(self, inputs, training:bool=False):
         
-        sequence, TSSs, exons, peaks, atac = inputs
-        
+        sequence,atac,global_acc = inputs
 
-        ### seq convs
         x = self.stem_conv(sequence,
                            training=training)
+
         x = self.stem_res_conv(x,
                                training=training)
+
         x = self.stem_pool(x,
                            training=training)
-        enformer_conv_out = self.conv_tower(x,
-                                            training=training)
 
-        ### atac convs
-        x_atac = self.stem_conv(atac,
-                           training=training)
-        x_atac = self.stem_res_conv(x_atac,
-                               training=training)
-        x_atac = self.stem_pool(x_atac,
-                           training=training)
-        atac_conv_out = self.conv_tower(x_atac,
-                                            training=training)
+        x = self.conv_tower(x,
+                            training=training)
 
-        tf_processed = self.tf_module(tf_inputs, 
-                                      training=training)
-        tf_processed = tf.expand_dims(tf_processed, 
-                                      axis=1)
-        tf_processed = tf.tile(tf_processed, 
-                               [1,self.dim_reduce_length,1])
+        atac_x = self.stem_conv_atac(atac,
+                                     training=training)
+
+        atac_x = self.stem_res_conv_atac(atac_x,
+                                         training=training)
+        atac_x = self.stem_pool_atac(atac_x,training=training)
+        atac_x = self.conv_tower_atac(atac_x,training=training)
         
-        enformer_conv_out = tf.concat([enformer_conv_out,
-                                        atac_conv_out,
-                                        tf_processed,
-                                        TSSs,
-                                        exons],axis=2)
+        global_acc = self.global_acc_block(global_acc,
+                                           training=training)
+        global_acc = self.dropout(global_acc,
+                        training=training)
+        global_acc = self.gelu(global_acc)
+        global_acc = tf.tile(global_acc, 
+                               [1,self.output_length,1])
 
-        enformer_conv_out = self.conv_mix_block(enformer_conv_out,
-                                                training=training)
-        enformer_conv_out = self.sin_pe(enformer_conv_out)
-        shared_transformer_out,att_matrices_shared = self.shared_transformer(enformer_conv_out,
-                                                                             training=training)
+        transformer_input = tf.concat([x,atac_x,global_acc],
+                                      axis=2)
+        
+        
+        if self.learnable_PE:
+            input_pos_indices = tf.range(self.output_length)
+            PE = self.pos_embedding_learned(input_pos_indices)
+            PE = tf.expand_dims(PE,axis=0)
+            PE = tf.tile(PE,
+                         [transformer_input.shape[0],1,1])
+            transformer_input_x = transformer_input + PE
+        else:
+            transformer_input_x=self.sin_pe(transformer_input)
 
-        rna_output = self.final_pointwise_rna(shared_transformer_out)
-        rna_output = self.dropout(rna_output,
-                                  training=training)
-        rna_output = self.gelu(rna_output)
-        rna_output = self.rna_head(rna_output,
-                                   training=training)
+        out,att_matrices = self.performer(transformer_input_x,
+                                                  training=training)
 
-        return rna_output, att_matrices_shared
+        out = self.crop_final(out)
+
+        out = self.final_pointwise_conv(out,
+                                       training=training)
+        
+        out = self.dropout(out,
+                        training=training)
+        out = self.gelu(out)
+
+        out = self.final_dense(out,
+                               training=training)
+
+        return out, att_matrices
     
 

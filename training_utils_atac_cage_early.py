@@ -68,52 +68,103 @@ def tf_tpu_initialize(tpu_name,zone):
     return strategy
 
 
-def get_initializers_enformer_conv(checkpoint_path):
+def get_initializers_enformer_conv(checkpoint_path,
+                                   from_enformer_bool,
+                                   num_convs):
     
     inside_checkpoint=tf.train.list_variables(tf.train.latest_checkpoint(checkpoint_path))
     reader = tf.train.load_checkpoint(checkpoint_path)
 
-    initializers_dict = {'stem_conv_k': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/0/w/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_conv_b': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/0/b/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_k': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/1/_module/_layers/2/w/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_b': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/1/_module/_layers/2/b/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_BN_g': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/1/_module/_layers/0/scale/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_BN_b': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/1/_module/_layers/0/offset/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_BN_m': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/1/_module/_layers/0/moving_mean/average/.ATTRIBUTES/VARIABLE_VALUE')[0,0:]),
-                         'stem_res_conv_BN_v': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/1/_module/_layers/0/moving_variance/average/.ATTRIBUTES/VARIABLE_VALUE')[0,0:]),
-                         'stem_pool': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/2/_logit_linear/w/.ATTRIBUTES/VARIABLE_VALUE'))}
+    
+    if from_enformer_bool:
+        initializers_dict = {'stem_conv_k': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/0/w/.ATTRIBUTES/VARIABLE_VALUE')),
+                             'stem_conv_b': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/0/b/.ATTRIBUTES/VARIABLE_VALUE')),
+                             'stem_res_conv_k': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/1/_module/_layers/2/w/.ATTRIBUTES/VARIABLE_VALUE')),
+                             'stem_res_conv_b': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/1/_module/_layers/2/b/.ATTRIBUTES/VARIABLE_VALUE')),
+                             'stem_res_conv_BN_g': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/1/_module/_layers/0/scale/.ATTRIBUTES/VARIABLE_VALUE')),
+                             'stem_res_conv_BN_b': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/1/_module/_layers/0/offset/.ATTRIBUTES/VARIABLE_VALUE')),
+                             'stem_res_conv_BN_m': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/1/_module/_layers/0/moving_mean/average/.ATTRIBUTES/VARIABLE_VALUE')[0,0:]),
+                             'stem_res_conv_BN_v': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/1/_module/_layers/0/moving_variance/average/.ATTRIBUTES/VARIABLE_VALUE')[0,0:]),
+                             'stem_pool': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/2/_logit_linear/w/.ATTRIBUTES/VARIABLE_VALUE'))}
 
-    for i in range(6):
-        var_name_stem = 'module/_trunk/_layers/1/_layers/' + str(i) + '/_layers/' #0/moving_mean/_counter/.ATTRIBUTES/VARIABLE_VALUE'
+        for i in range(num_convs):
+            var_name_stem = 'module/_trunk/_layers/1/_layers/' + str(i) + '/_layers/' #0/moving_mean/_counter/.ATTRIBUTES/VARIABLE_VALUE'
 
-        conv1_k = var_name_stem + '0/_layers/2/w/.ATTRIBUTES/VARIABLE_VALUE'
-        conv1_b = var_name_stem + '0/_layers/2/b/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_g = var_name_stem + '0/_layers/0/scale/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_b = var_name_stem + '0/_layers/0/offset/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_m = var_name_stem + '0/_layers/0/moving_mean/average/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_v = var_name_stem + '0/_layers/0/moving_variance/average/.ATTRIBUTES/VARIABLE_VALUE'
-        conv2_k = var_name_stem + '1/_module/_layers/2/w/.ATTRIBUTES/VARIABLE_VALUE'
-        conv2_b = var_name_stem + '1/_module/_layers/2/b/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_g = var_name_stem + '1/_module/_layers/0/scale/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_b = var_name_stem + '1/_module/_layers/0/offset/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_m = var_name_stem + '1/_module/_layers/0/moving_mean/average/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_v = var_name_stem + '1/_module/_layers/0/moving_variance/average/.ATTRIBUTES/VARIABLE_VALUE'
-        pool = var_name_stem + '2/_logit_linear/w/.ATTRIBUTES/VARIABLE_VALUE'
+            conv1_k = var_name_stem + '0/_layers/2/w/.ATTRIBUTES/VARIABLE_VALUE'
+            conv1_b = var_name_stem + '0/_layers/2/b/.ATTRIBUTES/VARIABLE_VALUE'
+            BN1_g = var_name_stem + '0/_layers/0/scale/.ATTRIBUTES/VARIABLE_VALUE'
+            BN1_b = var_name_stem + '0/_layers/0/offset/.ATTRIBUTES/VARIABLE_VALUE'
+            BN1_m = var_name_stem + '0/_layers/0/moving_mean/average/.ATTRIBUTES/VARIABLE_VALUE'
+            BN1_v = var_name_stem + '0/_layers/0/moving_variance/average/.ATTRIBUTES/VARIABLE_VALUE'
+            conv2_k = var_name_stem + '1/_module/_layers/2/w/.ATTRIBUTES/VARIABLE_VALUE'
+            conv2_b = var_name_stem + '1/_module/_layers/2/b/.ATTRIBUTES/VARIABLE_VALUE'
+            BN2_g = var_name_stem + '1/_module/_layers/0/scale/.ATTRIBUTES/VARIABLE_VALUE'
+            BN2_b = var_name_stem + '1/_module/_layers/0/offset/.ATTRIBUTES/VARIABLE_VALUE'
+            BN2_m = var_name_stem + '1/_module/_layers/0/moving_mean/average/.ATTRIBUTES/VARIABLE_VALUE'
+            BN2_v = var_name_stem + '1/_module/_layers/0/moving_variance/average/.ATTRIBUTES/VARIABLE_VALUE'
+            pool = var_name_stem + '2/_logit_linear/w/.ATTRIBUTES/VARIABLE_VALUE'
 
-        out_dict = {'conv1_k_' + str(i): inits.Constant(reader.get_tensor(conv1_k)),
-                    'conv1_b_' + str(i): inits.Constant(reader.get_tensor(conv1_b)),
-                    'BN1_g_' + str(i): inits.Constant(reader.get_tensor(BN1_g)),
-                    'BN1_b_' + str(i): inits.Constant(reader.get_tensor(BN1_b)),
-                    'BN1_m_' + str(i): inits.Constant(reader.get_tensor(BN1_m)),
-                    'BN1_v_' + str(i): inits.Constant(reader.get_tensor(BN1_v)),
-                    'conv2_k_' + str(i): inits.Constant(reader.get_tensor(conv2_k)),
-                    'conv2_b_' + str(i): inits.Constant(reader.get_tensor(conv2_b)),
-                    'BN2_g_' + str(i): inits.Constant(reader.get_tensor(BN2_g)),
-                    'BN2_b_' + str(i): inits.Constant(reader.get_tensor(BN2_b)),
-                    'BN2_m_' + str(i): inits.Constant(reader.get_tensor(BN2_m)),
-                    'BN2_v_' + str(i): inits.Constant(reader.get_tensor(BN2_v)),
-                    'pool_' + str(i): inits.Constant(reader.get_tensor(pool))}
-        initializers_dict.update(out_dict)
+            out_dict = {'conv1_k_' + str(i): inits.Constant(reader.get_tensor(conv1_k)),
+                        'conv1_b_' + str(i): inits.Constant(reader.get_tensor(conv1_b)),
+                        'BN1_g_' + str(i): inits.Constant(reader.get_tensor(BN1_g)),
+                        'BN1_b_' + str(i): inits.Constant(reader.get_tensor(BN1_b)),
+                        'BN1_m_' + str(i): inits.Constant(reader.get_tensor(BN1_m)),
+                        'BN1_v_' + str(i): inits.Constant(reader.get_tensor(BN1_v)),
+                        'conv2_k_' + str(i): inits.Constant(reader.get_tensor(conv2_k)),
+                        'conv2_b_' + str(i): inits.Constant(reader.get_tensor(conv2_b)),
+                        'BN2_g_' + str(i): inits.Constant(reader.get_tensor(BN2_g)),
+                        'BN2_b_' + str(i): inits.Constant(reader.get_tensor(BN2_b)),
+                        'BN2_m_' + str(i): inits.Constant(reader.get_tensor(BN2_m)),
+                        'BN2_v_' + str(i): inits.Constant(reader.get_tensor(BN2_v)),
+                        'pool_' + str(i): inits.Constant(reader.get_tensor(pool))}
+            initializers_dict.update(out_dict)
+    else:
+
+        initializers_dict = {'stem_conv_k': inits.Constant(reader.get_tensor('stem_conv/kernel/.ATTRIBUTES/VARIABLE_VALUE')),
+                             'stem_conv_b': inits.Constant(reader.get_tensor('stem_conv/bias/.ATTRIBUTES/VARIABLE_VALUE')),
+                             'stem_res_conv_k': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE')),
+                             'stem_res_conv_b': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE')),
+                             'stem_res_conv_BN_g': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/gamma/.ATTRIBUTES/VARIABLE_VALUE')),
+                             'stem_res_conv_BN_b': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/beta/.ATTRIBUTES/VARIABLE_VALUE')),
+                             'stem_res_conv_BN_m': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/moving_mean/.ATTRIBUTES/VARIABLE_VALUE')),
+                             'stem_res_conv_BN_v': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/moving_variance/.ATTRIBUTES/VARIABLE_VALUE')),
+                             'stem_pool': inits.Constant(reader.get_tensor('stem_pool/_logit_linear/kernel/.ATTRIBUTES/VARIABLE_VALUE'))}
+
+        for i in range(num_convs):
+            var_name_stem = 'conv_tower/layer_with_weights-' + str(i) + '/layer_with_weights-'
+            
+
+
+            conv1_k = var_name_stem + '0/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE'
+            conv1_b = var_name_stem + '0/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE'
+            BN1_g = var_name_stem + '0/layer_with_weights-0/gamma/.ATTRIBUTES/VARIABLE_VALUE'
+            BN1_b = var_name_stem + '0/layer_with_weights-0/beta/.ATTRIBUTES/VARIABLE_VALUE'
+            BN1_m = var_name_stem + '0/layer_with_weights-0/moving_mean/.ATTRIBUTES/VARIABLE_VALUE'
+            BN1_v = var_name_stem + '0/layer_with_weights-0/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'
+            
+            conv2_k = var_name_stem + '1/_layer/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE'
+            conv2_b = var_name_stem + '1/_layer/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE'
+            BN2_g = var_name_stem + '1/_layer/layer_with_weights-0/gamma/.ATTRIBUTES/VARIABLE_VALUE'
+            BN2_b = var_name_stem + '1/_layer/layer_with_weights-0/beta/.ATTRIBUTES/VARIABLE_VALUE'
+            BN2_m = var_name_stem + '1/_layer/layer_with_weights-0/moving_mean/.ATTRIBUTES/VARIABLE_VALUE'
+            BN2_v = var_name_stem + '1/_layer/layer_with_weights-0/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'
+            pool = var_name_stem + '2/_logit_linear/kernel/.ATTRIBUTES/VARIABLE_VALUE'
+            
+
+            out_dict = {'conv1_k_' + str(i): inits.Constant(reader.get_tensor(conv1_k)),
+                        'conv1_b_' + str(i): inits.Constant(reader.get_tensor(conv1_b)),
+                        'BN1_g_' + str(i): inits.Constant(reader.get_tensor(BN1_g)),
+                        'BN1_b_' + str(i): inits.Constant(reader.get_tensor(BN1_b)),
+                        'BN1_m_' + str(i): inits.Constant(reader.get_tensor(BN1_m)),
+                        'BN1_v_' + str(i): inits.Constant(reader.get_tensor(BN1_v)),
+                        'conv2_k_' + str(i): inits.Constant(reader.get_tensor(conv2_k)),
+                        'conv2_b_' + str(i): inits.Constant(reader.get_tensor(conv2_b)),
+                        'BN2_g_' + str(i): inits.Constant(reader.get_tensor(BN2_g)),
+                        'BN2_b_' + str(i): inits.Constant(reader.get_tensor(BN2_b)),
+                        'BN2_m_' + str(i): inits.Constant(reader.get_tensor(BN2_m)),
+                        'BN2_v_' + str(i): inits.Constant(reader.get_tensor(BN2_v)),
+                        'pool_' + str(i): inits.Constant(reader.get_tensor(pool))}
+            initializers_dict.update(out_dict)
     return initializers_dict
 
 def get_initializers_enformer_performer(checkpoint_path,
@@ -775,18 +826,21 @@ def deserialize_tr(serialized_example,
                              dtype=tf.float32))
     
     ### here we generate a masked output vector length since we are predicting at 1536
-    atac_mask = tf.ones(output_length,dtype=tf.float32)
+    atac_mask = tf.ones(output_length // 4,dtype=tf.float32)
     atac_mask=tf.nn.experimental.stateless_dropout(atac_mask, 
-                                                     rate=atac_mask_dropout, 
-                                                     seed=[0,seq_shift]) / (1. / (1.0-atac_mask_dropout))
+                                                     rate=(atac_mask_dropout), 
+                                                     seed=[0,seq_shift]) / (1. / (1.0-(atac_mask_dropout)))
     atac_mask = tf.expand_dims(atac_mask,axis=1)
-    atac_mask_store = 1.0 - atac_mask
+    atac_mask = tf.tile(atac_mask, [1,4])
+    atac_mask = tf.reshape(atac_mask, [-1])
+    atac_mask = tf.expand_dims(atac_mask,axis=1)
+    atac_mask_store = 1.0 - atac_mask ## invert the mask, since we want to store which values were masked and loss should be computed over
     atac_mask_store = tf.slice(atac_mask_store,
                             [crop_size,0],
                             [output_length-2*crop_size,-1])
     tiling_req = output_length_ATAC // output_length
     atac_mask = tf.expand_dims(tf.reshape(tf.tile(atac_mask, [1,tiling_req]),[-1]),axis=1)
-    
+
     masked_atac = atac * atac_mask
     
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
@@ -883,19 +937,21 @@ def deserialize_val(serialized_example,input_length,max_shift,output_length_ATAC
                              dtype=tf.float32))
     
     ### here we generate a masked output vector length since we are predicting at 1536
-    atac_mask = tf.ones(output_length,dtype=tf.float32)
+    atac_mask = tf.ones(output_length // 4,dtype=tf.float32)
     atac_mask=tf.nn.experimental.stateless_dropout(atac_mask, 
-                                                     rate=atac_mask_dropout, 
-                                                     seed=[0,seq_shift]) / (1. / (1.0-atac_mask_dropout))
+                                                     rate=(atac_mask_dropout), 
+                                                     seed=[0,seq_shift]) / (1. / (1.0-(atac_mask_dropout)))
     atac_mask = tf.expand_dims(atac_mask,axis=1)
-    atac_mask_store = 1.0 - atac_mask
+    atac_mask = tf.tile(atac_mask, [1,4])
+    atac_mask = tf.reshape(atac_mask, [-1])
+    atac_mask = tf.expand_dims(atac_mask,axis=1)
+    atac_mask_store = 1.0 - atac_mask ## invert the mask, since we want to store which values were masked and loss should be computed over
     atac_mask_store = tf.slice(atac_mask_store,
                             [crop_size,0],
                             [output_length-2*crop_size,-1])
-                               
     tiling_req = output_length_ATAC // output_length
     atac_mask = tf.expand_dims(tf.reshape(tf.tile(atac_mask, [1,tiling_req]),[-1]),axis=1)
-    
+
     masked_atac = atac * atac_mask
 
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
@@ -987,10 +1043,13 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length_
                              dtype=tf.float32))
                            
     ### here we generate a masked output vector length since we are predicting at 1536
-    atac_mask = tf.ones(output_length,dtype=tf.float32)
-    atac_mask=tf.nn.experimental.stateless_dropout(atac_mask, ## set to 0 at some percentage
-                                                     rate=atac_mask_dropout, 
-                                                     seed=[0,seq_shift]) / (1. / (1.0-atac_mask_dropout))
+    atac_mask = tf.ones(output_length // 4,dtype=tf.float32)
+    atac_mask=tf.nn.experimental.stateless_dropout(atac_mask, 
+                                                     rate=(atac_mask_dropout), 
+                                                     seed=[0,seq_shift]) / (1. / (1.0-(atac_mask_dropout)))
+    atac_mask = tf.expand_dims(atac_mask,axis=1)
+    atac_mask = tf.tile(atac_mask, [1,4])
+    atac_mask = tf.reshape(atac_mask, [-1])
     atac_mask = tf.expand_dims(atac_mask,axis=1)
     atac_mask_store = 1.0 - atac_mask ## invert the mask, since we want to store which values were masked and loss should be computed over
     atac_mask_store = tf.slice(atac_mask_store,
@@ -1293,7 +1352,7 @@ def make_plots(y_trues,
     fig_overall,ax_overall=plt.subplots(figsize=(6,6))
     
     ## scatter plot for 50k points max
-    idx = np.random.choice(np.arange(len(true_zscore)), 100, replace=False)
+    idx = np.random.choice(np.arange(len(true_zscore)), 50, replace=False)
     
     data = np.vstack([true_zscore[idx],
                       pred_zscore[idx]])
@@ -1632,11 +1691,6 @@ def parse_args(parser):
                         type=float,
                         default=0.05,
                         help= 'atac_mask_dropout')
-    parser.add_argument('--fc_dropout',
-                        dest='fc_dropout',
-                        type=float,
-                        default=0.25,
-                        help= 'fc_dropout')
     parser.add_argument('--cage_scale',
                         dest='cage_scale',
                         type=str,
@@ -1682,6 +1736,11 @@ def parse_args(parser):
                         type=str,
                         default="True",
                         help= 'log_atac')
+    parser.add_argument('--sonnet_weights_bool',
+                        dest='sonnet_weights_bool',
+                        type=str,
+                        default="False",
+                        help= 'sonnet_weights_bool')
     parser.add_argument('--global_acc_size',
                         dest='global_acc_size',
                         type=str,

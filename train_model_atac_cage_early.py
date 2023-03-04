@@ -149,9 +149,6 @@ def main():
                 'atac_mask_dropout': {
                     'values': [args.atac_mask_dropout]
                 },
-                'fc_dropout': {
-                    'values': [args.fc_dropout]
-                },
                 'rectify': {
                     'values':[parse_bool_str(x) for x in args.rectify.split(',')]
                 },
@@ -181,7 +178,10 @@ def main():
                 },
                 'global_acc_size': {
                     'values': [int(x) for x in args.global_acc_size.split(',')]
-                }
+                },
+                'sonnet_weights_bool': {
+                    'values':[parse_bool_str(x) for x in args.sonnet_weights_bool.split(',')]
+                },
             }
     }
 
@@ -228,7 +228,7 @@ def main():
             
             
             run_name = '_'.join(["GENFORMER",
-                                 "glob_acc" + str(wandb.config.use_global_acc),
+                                 "glob_acc-" + str(wandb.config.use_global_acc),
                                  "atac-" + str(wandb.config.use_atac),
                                  "mask-" + str(wandb.config.predict_masked_atac_bool),
                                  'load-' + str(wandb.config.load_init),
@@ -307,7 +307,9 @@ def main():
                                                                          wandb.config.stable_variant)
             elif wandb.config.inits_type == 'enformer_conv':
                 print('loaded enformer conv weights')
-                inits=training_utils.get_initializers_enformer_conv(args.multitask_checkpoint_path)
+                inits=training_utils.get_initializers_enformer_conv(args.multitask_checkpoint_path,
+                                                                    wandb.config.sonnet_weights_bool,
+                                                                    len(wandb.config.filter_list_seq))
                 wandb.config.update({"filter_list_seq": [768, 896, 1024, 1152, 1280, 1536]},
                                     allow_val_change=True)
             else:
@@ -337,7 +339,6 @@ def main():
                                     use_rot_emb = True,
                                     use_mask_pos = False,
                                     normalize = True,
-                                    fc_dropout=wandb.config.fc_dropout,
                                     predict_masked_atac_bool=wandb.config.predict_masked_atac_bool,
                                     num_transformer_layers=wandb.config.num_transformer_layers,
                                     inits=inits,
