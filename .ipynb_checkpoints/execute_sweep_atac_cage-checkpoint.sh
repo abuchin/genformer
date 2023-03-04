@@ -16,9 +16,9 @@ python3 train_model_atac_cage_early.py \
             --max_shift=10 \
             --batch_size=8 \
             --num_epochs=100 \
-            --train_examples=900000 \
+            --train_examples=250000 \
             --val_examples=59751  \
-            --val_examples_TSS= 57618 \
+            --val_examples_TSS=57618 \
             --BN_momentum=0.90 \
             --warmup_frac=0.005 \
             --patience=50 \

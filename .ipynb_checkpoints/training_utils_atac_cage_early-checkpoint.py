@@ -815,16 +815,16 @@ def deserialize_tr(serialized_example,
     
     atac = atac + tf.math.abs(g.normal(atac.shape,
                                                mean=0.0,
-                                               stddev=0.05,
+                                               stddev=0.00001,
                                                dtype=tf.float32))
-    if log_atac: 
-        atac = tf.math.log1p(atac)
     if not use_atac:
         atac = tf.math.abs(g.normal(atac.shape,
                              mean=0.0,
-                             stddev=0.25,
+                             stddev=0.00001,
                              dtype=tf.float32))
-    
+    if log_atac: 
+        atac = tf.math.log1p(atac)
+
     ### here we generate a masked output vector length since we are predicting at 1536
     atac_mask = tf.ones(output_length // 4,dtype=tf.float32)
     atac_mask=tf.nn.experimental.stateless_dropout(atac_mask, 
@@ -877,7 +877,7 @@ def deserialize_tr(serialized_example,
     if not use_global_acc:
         global_acc = g.normal(global_acc.shape,
                               mean=0.0,
-                              stddev=0.025,
+                              stddev=0.00025,
                               dtype=tf.float32)
     
     if predict_masked_atac_bool:
@@ -928,13 +928,13 @@ def deserialize_val(serialized_example,input_length,max_shift,output_length_ATAC
                            [output_length_ATAC,1])
     #diff = tf.math.sqrt(tf.nn.relu(atac - 64.0 * tf.ones(atac.shape)))
     #atac = tf.clip_by_value(atac, clip_value_min=0.0, clip_value_max=64.0) + diff
-    if log_atac: 
-        atac = tf.math.log1p(atac)
     if not use_atac:
         atac = tf.math.abs(g.normal(atac.shape,
                              mean=0.0,
-                             stddev=0.25,
+                             stddev=0.00001,
                              dtype=tf.float32))
+    if log_atac: 
+        atac = tf.math.log1p(atac)
     
     ### here we generate a masked output vector length since we are predicting at 1536
     atac_mask = tf.ones(output_length // 4,dtype=tf.float32)
@@ -978,7 +978,7 @@ def deserialize_val(serialized_example,input_length,max_shift,output_length_ATAC
     if not use_global_acc:
         global_acc = g.normal(global_acc.shape,
                               mean=0.0,
-                              stddev=0.025,
+                              stddev=0.00025,
                               dtype=tf.float32)
     
     if predict_masked_atac_bool:
@@ -1033,14 +1033,13 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length_
     #diff = tf.math.sqrt(tf.nn.relu(atac - 64.0 * tf.ones(atac.shape)))
     #atac = tf.clip_by_value(atac, clip_value_min=0.0, clip_value_max=64.0) + diff
     
-    if log_atac: 
-        atac = tf.math.log1p(atac)
-    
     if not use_atac:
         atac = tf.math.abs(g.normal(atac.shape,
                              mean=0.0,
-                             stddev=0.25,
+                             stddev=0.00001,
                              dtype=tf.float32))
+    if log_atac: 
+        atac = tf.math.log1p(atac)
                            
     ### here we generate a masked output vector length since we are predicting at 1536
     atac_mask = tf.ones(output_length // 4,dtype=tf.float32)
@@ -1088,7 +1087,7 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length_
     if not use_global_acc:
         global_acc = g.normal(global_acc.shape,
                               mean=0.0,
-                              stddev=0.025,
+                              stddev=0.00025,
                               dtype=tf.float32)
 
     if predict_masked_atac_bool:
