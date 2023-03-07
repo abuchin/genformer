@@ -825,12 +825,12 @@ def deserialize_tr(serialized_example,
         atac = tf.math.log1p(atac)
 
     ### here we generate a masked output vector length since we are predicting at 1536
-    atac_mask = tf.ones(output_length // 4,dtype=tf.float32)
+    atac_mask = tf.ones(output_length // 2,dtype=tf.float32)
     atac_mask=tf.nn.experimental.stateless_dropout(atac_mask, 
                                                      rate=(atac_mask_dropout), 
                                                      seed=[0,seq_shift]) / (1. / (1.0-(atac_mask_dropout)))
     atac_mask = tf.expand_dims(atac_mask,axis=1)
-    atac_mask = tf.tile(atac_mask, [1,4])
+    atac_mask = tf.tile(atac_mask, [1,2])
     atac_mask = tf.reshape(atac_mask, [-1])
     atac_mask = tf.expand_dims(atac_mask,axis=1)
     atac_mask_store = 1.0 - atac_mask ## invert the mask, since we want to store which values were masked and loss should be computed over
@@ -845,8 +845,8 @@ def deserialize_tr(serialized_example,
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
-    diff = tf.math.sqrt(tf.nn.relu(cage - 2000.0 * tf.ones(cage.shape)))
-    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=2000.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(cage - 850.0 * tf.ones(cage.shape)))
+    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=850.0) + diff
     cage = tf.cast(tf.cast(cage,dtype=tf.float16),dtype=tf.float32) ### round to be consistent with Enformer
 
     if rev_comp == 1:
@@ -935,12 +935,12 @@ def deserialize_val(serialized_example,input_length,max_shift,output_length_ATAC
         atac = tf.math.log1p(atac)
     
     ### here we generate a masked output vector length since we are predicting at 1536
-    atac_mask = tf.ones(output_length // 4,dtype=tf.float32)
+    atac_mask = tf.ones(output_length // 2,dtype=tf.float32)
     atac_mask=tf.nn.experimental.stateless_dropout(atac_mask, 
                                                      rate=(atac_mask_dropout), 
                                                      seed=[0,seq_shift]) / (1. / (1.0-(atac_mask_dropout)))
     atac_mask = tf.expand_dims(atac_mask,axis=1)
-    atac_mask = tf.tile(atac_mask, [1,4])
+    atac_mask = tf.tile(atac_mask, [1,2])
     atac_mask = tf.reshape(atac_mask, [-1])
     atac_mask = tf.expand_dims(atac_mask,axis=1)
     atac_mask_store = 1.0 - atac_mask ## invert the mask, since we want to store which values were masked and loss should be computed over
@@ -955,8 +955,8 @@ def deserialize_val(serialized_example,input_length,max_shift,output_length_ATAC
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
-    diff = tf.math.sqrt(tf.nn.relu(cage - 2000.0 * tf.ones(cage.shape)))
-    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=2000.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(cage - 850.0 * tf.ones(cage.shape)))
+    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=850.0) + diff
     cage = tf.cast(tf.cast(cage,dtype=tf.float16),dtype=tf.float32) ### round to be consistent with Enformer
     
     if predict_masked_atac_bool:
@@ -1028,8 +1028,7 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length_
     atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
                                               out_type=tf.float32),
                            [output_length_ATAC,1])
-    #diff = tf.math.sqrt(tf.nn.relu(atac - 64.0 * tf.ones(atac.shape)))
-    #atac = tf.clip_by_value(atac, clip_value_min=0.0, clip_value_max=64.0) + diff
+
     
     if not use_atac:
         atac = tf.math.abs(g.normal(atac.shape,
@@ -1040,12 +1039,12 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length_
         atac = tf.math.log1p(atac)
                            
     ### here we generate a masked output vector length since we are predicting at 1536
-    atac_mask = tf.ones(output_length // 4,dtype=tf.float32)
+    atac_mask = tf.ones(output_length // 2,dtype=tf.float32)
     atac_mask=tf.nn.experimental.stateless_dropout(atac_mask, 
                                                      rate=(atac_mask_dropout), 
                                                      seed=[0,seq_shift]) / (1. / (1.0-(atac_mask_dropout)))
     atac_mask = tf.expand_dims(atac_mask,axis=1)
-    atac_mask = tf.tile(atac_mask, [1,4])
+    atac_mask = tf.tile(atac_mask, [1,2])
     atac_mask = tf.reshape(atac_mask, [-1])
     atac_mask = tf.expand_dims(atac_mask,axis=1)
     atac_mask_store = 1.0 - atac_mask ## invert the mask, since we want to store which values were masked and loss should be computed over
@@ -1060,8 +1059,8 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length_
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
-    diff = tf.math.sqrt(tf.nn.relu(cage - 2000.0 * tf.ones(cage.shape)))
-    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=2000.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(cage - 850.0 * tf.ones(cage.shape)))
+    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=850.0) + diff
     cage = tf.cast(tf.cast(cage,dtype=tf.float16),dtype=tf.float32) ### round to be consistent with Enformer
     
     tss_tokens = tf.io.parse_tensor(data['tss_tokens'],
@@ -1349,7 +1348,7 @@ def make_plots(y_trues,
     fig_overall,ax_overall=plt.subplots(figsize=(6,6))
     
     ## scatter plot for 50k points max
-    idx = np.random.choice(np.arange(len(true_zscore)), 50, replace=False)
+    idx = np.random.choice(np.arange(len(true_zscore)), 2000, replace=False)
     
     data = np.vstack([true_zscore[idx],
                       pred_zscore[idx]])

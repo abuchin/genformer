@@ -85,6 +85,7 @@ class aformer(tf.keras.Model):
         self.stable_variant=stable_variant
         self.learnable_PE=learnable_PE
         self.global_acc_size=global_acc_size
+        self.BN_momentum=BN_momentum
         
         ## ensure load_init matches actual init inputs...
         if inits is None:
@@ -130,18 +131,17 @@ class aformer(tf.keras.Model):
                            dilation_rate=1,
                            **kwargs):
             return tf.keras.Sequential([
-              syncbatchnorm(axis=-1,
-                            center=True,
-                            scale=True,
-                            momentum=BN_momentum,
-                            beta_initializer=beta_init if self.load_init else "zeros",
-                            gamma_initializer=gamma_init if self.load_init else "ones",
-                            trainable=train,
-                            moving_mean_initializer=mean_init if self.load_init else "zeros",
-                            moving_variance_initializer=var_init if self.load_init else "ones",
-                            **kwargs),
-              tfa.layers.GELU(),
-              tf.keras.layers.Conv1D(filters,
+                sync_batch_norm_fp32(
+                              beta_init=beta_init if self.load_init else "zeros",
+                              gamma_init=gamma_init if self.load_init else "ones",
+                              train=train,
+                              momentum=self.BN_momentum,
+                              epsilon=1.0e-05,
+                              mean_init=mean_init if self.load_init else "zeros",
+                              var_init=var_init if self.load_init else "ones",
+                              **kwargs),
+                tfa.layers.GELU(),
+                tf.keras.layers.Conv1D(filters,
                                      width, 
                                      kernel_initializer=kernel_init if self.load_init else w_init,
                                      bias_initializer=bias_init if self.load_init else bias_init,

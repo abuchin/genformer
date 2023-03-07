@@ -74,7 +74,98 @@ class crop(kl.Layer):
         out = inputs[..., crop_size:-crop_size, :]
         return out
 
+@tf.keras.utils.register_keras_serializable()
+class layer_norm_fp32(kl.Layer):
+    def __init__(self,
+                 epsilon=1e-05,
+                 beta_initializer="zeros",
+                 gamma_initializer="ones",
+                 name: str = 'layer_norm_fp32',
+                 **kwargs):
 
+        super().__init__(name=name, **kwargs)
+        self.epsilon=epsilon
+        self.beta_initializer=beta_initializer
+        self.gamma_initializer=gamma_initializer
+        self.layer_norm = kl.LayerNormalization(axis=-1,
+                                                  scale=True,
+                                                  center=True,
+                                                    epsilon=self.epsilon,
+                                                  beta_initializer=self.beta_initializer,
+                                                  gamma_initializer=self.gamma_initializer)
+
+    def get_config(self):
+        config = {
+            "epsilon":self.epsilon
+        }
+        base_config = super().get_config()
+        return {**base_config, **config}
+    
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+    
+    def call(self, inputs, training=None):
+        x = tf.cast(inputs,dtype=tf.float32)
+        x = self.layer_norm(x)
+        return tf.cast(x, dtype=tf.bfloat16)
+
+    
+@tf.keras.utils.register_keras_serializable()
+class sync_batch_norm_fp32(kl.Layer):
+    def __init__(self,
+                 beta_init=None,
+                 gamma_init=None,
+                 mean_init=None,
+                 var_init=None,
+                 epsilon=1e-05,
+                 train=True,
+                 momentum = 0.90,
+                 load_init=True,
+                 name: str = 'sync_batch_norm_fp32',
+                 **kwargs):
+
+        super().__init__(name=name, **kwargs)
+        self.epsilon=epsilon
+        self.load_init=load_init
+        self.beta_init=beta_init
+        self.gamma_init=gamma_init
+        self.mean_init=mean_init
+        self.var_init=var_init
+        self.train=train
+        self.momentum=momentum
+        self.batch_norm = syncbatchnorm(axis=-1,
+                                          center=True,
+                                          scale=True,
+                                          beta_initializer=self.beta_init if self.load_init else "zeros",
+                                          gamma_initializer=self.gamma_init if self.load_init else "ones",
+                                          trainable=self.train,
+                                          momentum=self.momentum,
+                                          epsilon=self.epsilon,
+                                          moving_mean_initializer=self.mean_init if self.load_init else "zeros",
+                                          moving_variance_initializer=self.var_init if self.load_init else "ones",
+                                          **kwargs)
+
+    def get_config(self):
+        config = {
+            "epsilon":self.epsilon,
+            "load_init":self.load_init,
+            "beta_init":self.beta_init,
+            "gamma_init":self.gamma_init,
+            "mean_init":self.mean_init,
+            "var_init":self.var_init
+        }
+        base_config = super().get_config()
+        return {**base_config, **config}
+    
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+    
+    def call(self, inputs, training=None):
+        x = tf.cast(inputs, dtype=tf.float32)
+        x = self.batch_norm(x,training=training)
+        return tf.cast(x, dtype=tf.bfloat16)
 
 @tf.keras.utils.register_keras_serializable()
 class conv_mix_block(kl.Layer):
@@ -153,12 +244,9 @@ class FFN(kl.Layer):
         self.FFN_bias2_init=FFN_bias2_init
         
             
-        self.FFN_layer_norm = kl.LayerNormalization(axis=-1,
-                                                  scale=True,
-                                                  center=True,
-                                                  epsilon=1e-05,
-                                                    beta_initializer=FFN_LN_beta_init if self.load_init else "zeros",
-                                                  gamma_initializer=FFN_LN_gamma_init if self.load_init else "ones")
+        self.FFN_layer_norm = layer_norm_fp32(epsilon=1e-05,
+                                                  beta_initializer="zeros",
+                                                  gamma_initializer="ones")
         self.FFN_dense_wide = kl.Dense(self.ffn_channels*self.ffn_widening,
                                        activation='linear',
                                        kernel_initializer=FFN_kernel1_init if self.load_init else 'lecun_normal',
@@ -267,12 +355,9 @@ class Performer(kl.Layer):
         self.FFN_kernel2_init=FFN_kernel2_init
         self.FFN_bias2_init=FFN_bias2_init
         
-        self.layer_norm = kl.LayerNormalization(axis=-1,
-                                                  scale=True,
-                                                  center=True,
-                                                    epsilon=1e-05,
-                                                  beta_initializer=LN_beta_init if self.load_init else "zeros",
-                                                  gamma_initializer=LN_gamma_init if self.load_init else "ones")
+        self.layer_norm = layer_norm_fp32(epsilon=1e-05,
+                                                  beta_initializer="zeros",
+                                                  gamma_initializer="ones")
         
 
         self.self_attention = fa_rpe.Attention(hidden_size=self.d_model,
@@ -595,10 +680,7 @@ class Performer_Encoder(kl.Layer):
                                  FFN_bias2_init= inits["FFN_narr_b" + str(i)] if self.load_init else None,
                                  **kwargs) for i in range(self.num_layers)]
         
-        self.layer_norm = kl.LayerNormalization(axis=-1,
-                                                  scale=True,
-                                                  center=True,
-                                                epsilon=1e-05,
+        self.layer_norm = layer_norm_fp32(epsilon=1e-05,
                                                   beta_initializer=self.inits["performer_encoder_LN_b"] if self.load_init else "zeros",
                                                   gamma_initializer=self.inits["performer_encoder_LN_g"] if self.load_init else "ones")
         
@@ -758,12 +840,15 @@ class Performer_Encoder_stable(kl.Layer):
                                  FFN_bias2_init= inits["FFN_narr_b" + str(i)] if self.load_init else None,
                                  **kwargs) for i in range(self.num_layers)]
         
-        self.layer_norm = kl.LayerNormalization(axis=-1,
-                                                  scale=True,
-                                                  center=True,
-                                                epsilon=1e-05,
+        self.layer_norm = layer_norm_fp32(epsilon=1e-05,
                                                   beta_initializer=self.inits["performer_encoder_LN_b"] if self.load_init else "zeros",
                                                   gamma_initializer=self.inits["performer_encoder_LN_g"] if self.load_init else "ones")
+        #kl.LayerNormalization(axis=-1,
+                          #                        scale=True,
+                          #                        center=True,
+                          #                      epsilon=1e-05,
+                          #                        beta_initializer=self.inits["performer_encoder_LN_b"] if self.load_init else "zeros",
+                          #                        gamma_initializer=self.inits["performer_encoder_LN_g"] if self.load_init else "ones")
         
         
         
@@ -990,461 +1075,6 @@ class TargetLengthCrop1D(kl.Layer):
         else:
             return inputs[..., trim:-trim, :]
 
-############################ output head module #####################################
-@tf.keras.utils.register_keras_serializable()
-class output_head_rna(kl.Layer):
-    def __init__(self,
-                 num_channels_out,
-                 dropout_rate = 0.10,
-                 name: str = 'output_head_rna',
-                 **kwargs):
-        """
-        Args:
-
-        """
-        super().__init__(name=name, **kwargs)
-        self.dropout_rate = dropout_rate
-        self.num_channels_out = num_channels_out
-        
-        self.dense1 = kl.Dense(units= self.num_channels_out // 8,
-                               use_bias=False)
-        
-        self.gap = kl.GlobalAveragePooling1D(**kwargs)
-        
-        self.dense2 = kl.Dense(units= self.num_channels_out // 16,
-                               use_bias=False)
-        
-        self.gelu = tfa.layers.GELU()
-        self.dropout = kl.Dropout(rate=self.dropout_rate,
-                                  **kwargs)
-        self.final_dense = kl.Dense(units=1,
-                                    use_bias=True)
-        self.final_softplus = tf.keras.layers.Activation('softplus')
-        
-        
-        
-    def get_config(self):
-        base_config = super().get_config()
-        return {**base_config, **config}
-    
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
-    
-    def call(self, inputs, training=None):
-        x=self.dense1(inputs,training=training)
-        x=self.gelu(x)
-        x=self.dropout(x,training=training)
-        
-        x=self.gap(x)
-        
-        x=self.dense2(x)
-        x=self.gelu(x)
-        x=self.dropout(x,training=training)
-        
-        x = self.final_dense(x)
-        return self.final_softplus(x)
-    
-
-    
-@tf.keras.utils.register_keras_serializable()
-class output_head_atac(kl.Layer):
-    def __init__(self,
-                 dropout_rate: float,
-                 name: str = 'output_head_atac',
-                 **kwargs):
-        """
-        Args:
-
-        """
-        super().__init__(name=name, **kwargs)
-        
-        self.dropout_rate = dropout_rate
-        
-        self.dense1 = kl.Dense(units=64,
-                                    use_bias=True)
-        self.gelu = tfa.layers.GELU()
-        
-        self.dense2 = kl.Dense(units=16,
-                                    use_bias=True)
-        
-        self.final_dense_regression = kl.Dense(units=1,
-                                    use_bias=True)
-        self.final_softplus_regression = tf.keras.layers.Activation('softplus')
-        
-        self.dropout1 = kl.Dropout(rate=self.dropout_rate,
-                                  **kwargs)
-        self.dropout2 = kl.Dropout(rate=self.dropout_rate // 2,
-                                  **kwargs)
-        
-        ### need to dim reduce by factor of 8 before classification
-        ### dimension here is 768
-        ### need to get to dimension of 96
-        ### pool by 8
-        self.pool = SoftmaxPooling1D(per_channel=True,
-                                     w_init_scale=2.0,
-                                     pool_size=8,
-                                     k_init=None,
-                                     train=True)
-        #self.flatten = kl.Flatten()
-        self.final_dense_class = kl.Dense(units=1,
-                                          use_bias=True)
-        #self.final_sigmoid_class = tf.keras.layers.Activation('sigmoid')
-        
-    def get_config(self):
-        base_config = super().get_config()
-        return {**base_config, **config}
-    
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
-    
-    def call(self, inputs, training=None):
-        x = self.dense1(inputs)
-        x = self.gelu(x)
-        x = self.dropout1(x,training=training)
-        x = self.dense2(x)
-        x = self.gelu(x)
-        x = self.dropout2(x,training=training)
-        
-        x_reg = self.final_dense_regression(x)
-
-        x_class = self.pool(x)
-        
-        x_class = self.final_dense_class(x_class)
-        return self.final_softplus_regression(x_reg),\
-                x_class
-
-
-############################ tf_module module #####################################
-@tf.keras.utils.register_keras_serializable()
-class tf_module(kl.Layer):
-    def __init__(self,
-                 TF_inputs: int = 128,
-                 dropout_rate: float = 0.1,
-                 name: str = 'headmodule_block',
-                 **kwargs):
-        """Enformer style conv stack block
-        Args:
-            num_channels
-            conv_filter_size
-            stride: default 1 for no dim reduction
-            name: Module name.
-        """
-        super().__init__(name=name, **kwargs)
-        self.TF_inputs=TF_inputs
-        self.dropout_rate=dropout_rate
-        
-        self.dense_1 = kl.Dense(units=self.TF_inputs,
-                                use_bias=False)
-        self.dense_2 = kl.Dense(units=self.TF_inputs // 2,
-                                use_bias=False)
-        self.dense_3 = kl.Dense(units=self.TF_inputs // 4,
-                                use_bias=False)
-        self.gelu = tfa.layers.GELU()
-        self.dropout = kl.Dropout(rate=self.dropout_rate,
-                                  **kwargs)
-
-    def get_config(self):
-        config = {
-            "TF_inputs":self.TF_inputs,
-            "dropout_rate":self.dropout_rate
-        }
-        base_config = super().get_config()
-        return {**base_config, **config}
-    
-
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
-    
-    def call(self, inputs, training=None):
-        x = self.dense_1(inputs)
-        x = self.gelu(x)
-        x = self.dropout(x,training=training)
-        x = self.dense_2(x)
-        x = self.gelu(x)
-        x = self.dense_3(x)
-        x = self.gelu(x)
-        return x
-    
-    
-    
-############################ tf_module module #####################################
-@tf.keras.utils.register_keras_serializable()
-class peaks_module(kl.Layer):
-    def __init__(self,
-                 reduce_channels: int = 64,
-                 name: str = 'peaks_module',
-                 **kwargs):
-        """Enformer style conv stack block
-        Args:
-            num_channels
-            conv_filter_size
-            stride: default 1 for no dim reduction
-            name: Module name.
-        """
-        super().__init__(name=name, **kwargs)
-        self.reduce_channels=reduce_channels
-        #self.dropout_rate=dropout_rate
-        
-        self.gap = kl.GlobalAveragePooling1D(**kwargs)
-        
-        self.dense1 = kl.Dense(units= self.reduce_channels,
-                               use_bias=False)
-        self.gelu = tfa.layers.GELU()
-        self.dropout = kl.Dropout(rate=0.10,
-                                  **kwargs)
-        self.dense2 = kl.Dense(units= self.reduce_channels//4,
-                               use_bias=False)
-        
-        #self.conv_mix_block1 = conv_mix_block(num_channels_out=self.reduce_channels*2)
-        #self.layer_norm1 = kl.LayerNormalization(axis=-1,
-        #                                          scale=True,
-        #                                          center=True,
-        #                                          beta_initializer="zeros",
-        #                                          gamma_initializer="ones")
-
-        #self.gelu = tfa.layers.GELU()
-        
-        ##self.conv_mix_block2 = conv_mix_block(num_channels_out=self.reduce_channels)
-        #self.layer_norm2 = kl.LayerNormalization(axis=-1,
-        #                                          scale=True,
-        #                                          center=True,
-        #                                          beta_initializer="zeros",
-        #                                          gamma_initializer="ones")
-
-
-
-
-    def get_config(self):
-        config = {
-            "reduce_channels":self.reduce_channels
-        }
-        base_config = super().get_config()
-        return {**base_config, **config}
-    
-
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
-    
-    def call(self, inputs, training=None):
-        x = self.gap(inputs,training=training)
-        x = self.dense1(x)
-        x = self.gelu(x)
-        x = self.dropout(x,training=training)
-        x = self.dense2(x)
-        x = self.gelu(x)
-        x = self.dropout(x,training=training)
-        
-        """
-        x = self.conv_mix_block1(x)
-        x = self.layer_norm1(x)
-        x = self.gelu(x)
-        x = self.conv_mix_block2(x)
-        x = self.layer_norm2(x)
-        x = self.gelu(x)
-        """
-        return x
-
-    
-@tf.keras.utils.register_keras_serializable()
-class Performer_Encoder_noPE(kl.Layer):
-    def __init__(self,
-                 num_layers,
-                 num_heads=4,
-                 dim=8,
-                 d_model=32,
-                 nb_random_features=256,
-                 hidden_size=32,
-                 numerical_stabilizer=1.0e-10,
-                 attention_dropout = .1,
-                 normalize=True,
-                 norm=True,
-                 seed=42,
-                 kernel_transformation: str = 'softmax_kernel_transformation',
-                 name = 'performer_stack',
-                 **kwargs):
-        
-        
-        super().__init__(name=name, **kwargs)
-        """Performer Encoder block
-        Args:
-            hidden size: ~channel dimension for transformer input
-            num_heads: num attention heads
-            attention_dropout: post attention layer dropout rate
-            numerical_stabilizer: small float for stability
-            nb_random_features: dim for projection matrix
-            widening: scaling factor for how many channels to start w/
-                      e.g. widening = 2, num_channels = 12 means start w/ 24
-            dropout_rate: transformer MLP dropout rate
-            dropout_rate: dropout rate used throughout network
-            kernel_transformation: softmax or relu kernel transform for fast att.
-            positional_encoding_type: absolute sinusoidal or relative(rotary)
-            name: Module name.
-        """
-        self.num_layers=num_layers
-        self.num_heads=num_heads
-        self.dim=dim
-        self.hidden_size=hidden_size
-        self.d_model=d_model
-        self.nb_random_features=nb_random_features
-        self.attention_dropout=attention_dropout
-        self.numerical_stabilizer=numerical_stabilizer
-        self.normalize=normalize
-        self.norm=norm
-        self.kernel_transformation=kernel_transformation
-        self.seed=seed
-        
-        self.layers = [Performer_nope(d_model=self.d_model, 
-                                 normalize=self.normalize,
-                                 hidden_size=self.hidden_size,
-                                 num_heads=self.num_heads, 
-                                 attention_dropout=self.attention_dropout, 
-                                 numerical_stabilizer=self.numerical_stabilizer,
-                                 nb_random_features=self.nb_random_features,
-                                 kernel_transformation=self.kernel_transformation,
-                                 seed=self.seed,
-                                 **kwargs) for i in range(self.num_layers)]
-        
-        self.layer_norm = kl.LayerNormalization(axis=-1,
-                                                  scale=True,
-                                                  center=True,
-                                                epsilon=1e-05,
-                                                  beta_initializer="zeros",
-                                                  gamma_initializer="ones")
-        
-
-    
-    def get_config(self):
-        config = {
-            "hidden_size":self.hidden_size,
-            "num_heads":self.num_heads,
-            "attention_dropout":self.attention_dropout,
-            "numerical_stabilizer":self.numerical_stabilizer,
-            "nb_random_features":self.nb_random_features,
-            "kernel_transformation":self.kernel_transformation,
-            "num_layers":self.num_layers,
-            "dim":self.dim,
-            "d_model":self.d_model,
-            "normalize":self.normalize,
-            "norm":self.norm,
-            "seed":self.seed
-        }
-
-        base_config = super().get_config()
-        return{**base_config, **config}
-    
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
-    
-    def call(self, x, training=None, **kwargs):
-        att_matrices={}
-        x = self.layer_norm(x)
-            
-        for idx,layer in enumerate(self.layers):
-            x,k_prime,q_prime = layer(x, training=training)
-            att_matrices['layer_' + str(idx)] = (k_prime,q_prime)
-            
-        return x,att_matrices
-    
-    
-@tf.keras.utils.register_keras_serializable()
-class Performer_nope(kl.Layer):
-    def __init__(self,
-                 d_model,
-                 normalize,
-                 hidden_size: int,
-                 num_heads: int,
-                 seed: int,
-                 attention_dropout: float,
-                 numerical_stabilizer: float,
-                 nb_random_features: int,
-                 kernel_transformation: str = 'relu_kernel_transformation',
-                 name = 'transformer_layer',
-                 **kwargs):
-        super().__init__(name=name, **kwargs)
-        """Transformer block w/ performer attention
-        Args:
-            hidden size: ~channel dimension for transformer input
-            num_heads: num attention heads
-            attention_dropout: post attention layer dropout rate
-            numerical_stabilizer: small float for stability
-            nb_random_features: dim for projection matrix
-            widening: scaling factor for how many channels to start w/
-                      e.g. widening = 2, num_channels = 12 means start w/ 24
-            dropout_rate: transformer MLP dropout rate
-            kernel_transformation: softmax or relu kernel transform for fast att.
-            positional_encoding_type: absolute sinusoidal or relative(rotary)
-            name: Module name.
-        """
-        self.hidden_size=hidden_size
-        self.num_heads=num_heads
-        self.attention_dropout=attention_dropout
-        self.kernel_transformation=kernel_transformation 
-        self.numerical_stabilizer=numerical_stabilizer
-        self.nb_random_features=nb_random_features
-        self.d_model=d_model
-        self.normalize=normalize
-        self.seed=seed
-        
-        
-        self.layer_norm = kl.LayerNormalization(axis=-1,
-                                                  scale=True,
-                                                  center=True,
-                                                  beta_initializer="zeros",
-                                                  gamma_initializer="ones")
-        self.self_attention = fa_rpe.Attention(hidden_size=self.d_model,
-                                                   num_heads=self.num_heads,
-                                                   nb_random_features=self.nb_random_features,
-                                                   attention_dropout=self.attention_dropout,
-                                                   use_rot_emb=False,
-                                                   use_mask_pos=False,
-                                                   normalize=self.normalize,
-                                                   kernel_transformation=self.kernel_transformation,
-                                                   numerical_stabilizer=self.numerical_stabilizer,
-                                                   seed=self.seed,
-                                                   **kwargs)
-        self.dropout = kl.Dropout(rate=self.attention_dropout,**kwargs)
-        self.FFN = FFN(num_channels=self.hidden_size,
-                       dropout_rate=self.attention_dropout,
-                       name='FFN',
-                       **kwargs)         
-    
-    def get_config(self):
-        config = {
-            "hidden_size":self.hidden_size,
-            "num_heads":self.num_heads,
-            "attention_dropout":self.attention_dropout,
-            "numerical_stabilizer":self.numerical_stabilizer,
-            "nb_random_features":self.nb_random_features,
-            "kernel_transformation":self.kernel_transformation,
-            "d_model":self.d_model,
-            "normalize":self.normalize,
-            "seed":self.seed
-        }
-        base_config = super().get_config()
-        return{**base_config, **config}
-    
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
-    
-    def call(self, inputs, rpe=None, training=None, **kwargs):
-        x = self.layer_norm(inputs)
-        x, k_prime, q_prime = self.self_attention(tf.cast(x,dtype=tf.float32),
-                                                  tf.cast(x,dtype=tf.float32),
-                                                  rpe=None,
-                                                  **kwargs)
-
-        x = self.dropout(x, training=training)
-
-        mha_output = x + inputs
-        ## ffn
-        FFN_out = self.FFN(mha_output,training=training,**kwargs)
-        return self.layer_norm(FFN_out + mha_output), k_prime, q_prime
 
     
 @tf.keras.utils.register_keras_serializable()

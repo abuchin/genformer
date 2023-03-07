@@ -1,14 +1,14 @@
 #!/bin/bash -l
 
 python3 train_model.py \
-            --tpu_name="pod" \
+            --tpu_name="pod1" \
             --tpu_zone="us-east1-d" \
             --wandb_project="paired_rampage_atac" \
             --wandb_user="njaved" \
             --wandb_sweep_name="paired_rampage_atac" \
             --gcs_project="picard-testing-176520" \
-            --gcs_path="gs://picard-testing-176520/paired_rampage_atac/enformer_baseline/tfrecords"\
-            --gcs_path_TSS="gs://picard-testing-176520/paired_rampage_atac/enformer_baseline/tfrecords_tss" \
+            --gcs_path="gs://picard-testing-176520/paired_rampage_atac/enformer_baseline/tfrecords_ends_only"\
+            --gcs_path_TSS="gs://picard-testing-176520/paired_rampage_atac/enformer_baseline/tfrecords_tss_ends_only" \
             --num_epochs=50 \
             --warmup_frac=0.146 \
             --patience=30\
