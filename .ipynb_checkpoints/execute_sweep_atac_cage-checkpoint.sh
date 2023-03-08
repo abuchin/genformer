@@ -1,9 +1,9 @@
 #!/bin/bash -l
 
 python3 train_model_atac_cage_early.py \
-            --tpu_name="node-8" \
-            --tpu_zone="us-central1-a" \
-            --wandb_project="test_paired_rampage_atac" \
+            --tpu_name="pod" \
+            --tpu_zone="us-east1-d" \
+            --wandb_project="paired_rampage_atac" \
             --wandb_user="njaved" \
             --wandb_sweep_name="paired_rampage_atac" \
             --gcs_project="picard-testing-176520" \
@@ -18,11 +18,11 @@ python3 train_model_atac_cage_early.py \
             --max_shift=10 \
             --batch_size=4 \
             --num_epochs=100 \
-            --train_examples=1000 \
-            --val_examples=150  \
-            --val_examples_ho=150  \
-            --val_examples_TSS=150 \
-            --val_examples_TSS_ho=150 \
+            --train_examples=250000 \
+            --val_examples=59751  \
+            --val_examples_ho=11065  \
+            --val_examples_TSS=57618 \
+            --val_examples_TSS_ho=4775 \
             --BN_momentum=0.90 \
             --warmup_frac=0.005 \
             --patience=50 \
@@ -42,10 +42,10 @@ python3 train_model_atac_cage_early.py \
             --num_random_features="256" \
             --kernel_transformation="relu_kernel_transformation" \
             --savefreq=15 \
-            --freeze_conv_layers="True" \
+            --freeze_conv_layers="False" \
             --load_init="True" \
-            --wd_1_frac=1.0e-03 \
-            --wd_2_frac=1.0e-02 \
+            --wd_1_frac=0.0 \
+            --wd_2_frac=0.0 \
             --rectify="True" \
             --multitask_checkpoint_path="gs://picard-testing-176520/sonnet_weights/sonnet_weights" \
             --filter_list_seq="768,896,1024,1152,1280,1536" \

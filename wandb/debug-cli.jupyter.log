@@ -1,0 +1,4 @@
+2023-03-08 17:18:27 INFO URL being requested: GET https://www.googleapis.com/discovery/v1/apis/tpu/v1/rest
+2023-03-08 17:18:27 INFO URL being requested: GET https://tpu.googleapis.com/v1/projects/picard-testing-176520/locations/us-central1-a/nodes/tpu-genformer-v2-6?alt=json
+2023-03-08 17:18:27 INFO Attempting refresh to obtain initial access_token
+2023-03-08 17:18:27 INFO Refreshing access_token

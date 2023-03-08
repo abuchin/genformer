@@ -1,0 +1,160 @@
+2023-03-08 17:18:24,547 INFO    StreamThr :4730 [internal.py:wandb_internal():93] W&B internal server running at pid: 4730, started at: 2023-03-08 17:18:24.546124
+2023-03-08 17:18:24,551 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: status
+2023-03-08 17:18:24,553 DEBUG   SenderThread:4730 [sender.py:send_request():316] send_request: status
+2023-03-08 17:18:24,558 DEBUG   SenderThread:4730 [sender.py:send():302] send: header
+2023-03-08 17:18:24,558 INFO    WriterThread:4730 [datastore.py:open_for_write():75] open: /home/jupyter/dev/aformer/wandb/run-20230308_171824-o9gg8gnw/run-o9gg8gnw.wandb
+2023-03-08 17:18:24,590 DEBUG   SenderThread:4730 [sender.py:send():302] send: run
+2023-03-08 17:18:24,739 INFO    SenderThread:4730 [dir_watcher.py:__init__():216] watching files in: /home/jupyter/dev/aformer/wandb/run-20230308_171824-o9gg8gnw/files
+2023-03-08 17:18:24,740 INFO    SenderThread:4730 [sender.py:_start_run_threads():916] run started: o9gg8gnw with start time 1678295904.544779
+2023-03-08 17:18:24,740 DEBUG   SenderThread:4730 [sender.py:send():302] send: summary
+2023-03-08 17:18:24,740 INFO    SenderThread:4730 [sender.py:_save_file():1156] saving file wandb-summary.json with policy end
+2023-03-08 17:18:24,742 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: check_version
+2023-03-08 17:18:24,742 DEBUG   SenderThread:4730 [sender.py:send_request():316] send_request: check_version
+2023-03-08 17:18:24,874 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: run_start
+2023-03-08 17:18:25,742 INFO    Thread-12 :4730 [dir_watcher.py:_on_file_created():275] file/dir created: /home/jupyter/dev/aformer/wandb/run-20230308_171824-o9gg8gnw/files/wandb-summary.json
+2023-03-08 17:18:27,458 DEBUG   HandlerThread:4730 [meta.py:__init__():35] meta init
+2023-03-08 17:18:27,458 DEBUG   HandlerThread:4730 [meta.py:__init__():50] meta init done
+2023-03-08 17:18:27,459 DEBUG   HandlerThread:4730 [meta.py:probe():216] probe
+2023-03-08 17:18:27,461 DEBUG   HandlerThread:4730 [meta.py:_setup_git():206] setup git
+2023-03-08 17:18:27,493 DEBUG   HandlerThread:4730 [meta.py:_setup_git():213] setup git done
+2023-03-08 17:18:27,494 DEBUG   HandlerThread:4730 [meta.py:_save_pip():54] save pip
+2023-03-08 17:18:27,495 DEBUG   HandlerThread:4730 [meta.py:_save_pip():68] save pip done
+2023-03-08 17:18:27,495 DEBUG   HandlerThread:4730 [meta.py:_save_conda():75] save conda
+2023-03-08 17:18:27,885 INFO    Thread-12 :4730 [dir_watcher.py:_on_file_created():275] file/dir created: /home/jupyter/dev/aformer/wandb/run-20230308_171824-o9gg8gnw/files/conda-environment.yaml
+2023-03-08 17:18:27,886 INFO    Thread-12 :4730 [dir_watcher.py:_on_file_created():275] file/dir created: /home/jupyter/dev/aformer/wandb/run-20230308_171824-o9gg8gnw/files/requirements.txt
+2023-03-08 17:18:41,823 DEBUG   HandlerThread:4730 [meta.py:_save_conda():85] save conda done
+2023-03-08 17:18:41,823 DEBUG   HandlerThread:4730 [meta.py:probe():254] probe done
+2023-03-08 17:18:41,828 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: stop_status
+2023-03-08 17:18:41,829 DEBUG   SenderThread:4730 [sender.py:send_request():316] send_request: stop_status
+2023-03-08 17:18:41,891 INFO    Thread-12 :4730 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230308_171824-o9gg8gnw/files/conda-environment.yaml
+2023-03-08 17:18:41,891 INFO    Thread-12 :4730 [dir_watcher.py:_on_file_created():275] file/dir created: /home/jupyter/dev/aformer/wandb/run-20230308_171824-o9gg8gnw/files/wandb-metadata.json
+2023-03-08 17:18:43,030 DEBUG   SenderThread:4730 [sender.py:send():302] send: telemetry
+2023-03-08 17:18:43,031 DEBUG   SenderThread:4730 [sender.py:send():302] send: telemetry
+2023-03-08 17:18:43,032 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,032 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,032 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,032 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,032 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,033 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,033 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,033 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,033 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,033 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,033 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,033 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,033 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,034 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,034 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,034 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,034 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,034 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,034 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,034 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,034 DEBUG   SenderThread:4730 [sender.py:send():302] send: telemetry
+2023-03-08 17:18:43,034 DEBUG   SenderThread:4730 [sender.py:send():302] send: run
+2023-03-08 17:18:43,114 INFO    SenderThread:4730 [sender.py:send_run():797] updated run: o9gg8gnw
+2023-03-08 17:18:43,115 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,116 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,116 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,116 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,116 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,116 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:43,117 DEBUG   SenderThread:4730 [sender.py:send():302] send: files
+2023-03-08 17:18:43,117 INFO    SenderThread:4730 [sender.py:_save_file():1156] saving file wandb-metadata.json with policy now
+2023-03-08 17:18:43,387 INFO    Thread-16 :4730 [upload_job.py:push():138] Uploaded file /tmp/tmp3vz5wcuywandb/61qxntji-wandb-metadata.json
+2023-03-08 17:18:43,892 INFO    Thread-12 :4730 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230308_171824-o9gg8gnw/files/config.yaml
+2023-03-08 17:18:43,893 INFO    Thread-12 :4730 [dir_watcher.py:_on_file_created():275] file/dir created: /home/jupyter/dev/aformer/wandb/run-20230308_171824-o9gg8gnw/files/output.log
+2023-03-08 17:18:45,893 INFO    Thread-12 :4730 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230308_171824-o9gg8gnw/files/output.log
+2023-03-08 17:18:50,902 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: stop_status
+2023-03-08 17:18:50,903 DEBUG   SenderThread:4730 [sender.py:send_request():316] send_request: stop_status
+2023-03-08 17:18:53,795 DEBUG   SenderThread:4730 [sender.py:send():302] send: config
+2023-03-08 17:18:54,898 INFO    Thread-12 :4730 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230308_171824-o9gg8gnw/files/config.yaml
+2023-03-08 17:18:55,553 DEBUG   SenderThread:4730 [sender.py:send():302] send: stats
+2023-03-08 17:18:55,898 INFO    Thread-12 :4730 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230308_171824-o9gg8gnw/files/output.log
+2023-03-08 17:18:57,899 INFO    Thread-12 :4730 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230308_171824-o9gg8gnw/files/output.log
+2023-03-08 17:18:59,900 INFO    Thread-12 :4730 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230308_171824-o9gg8gnw/files/output.log
+2023-03-08 17:19:08,518 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: stop_status
+2023-03-08 17:19:08,518 DEBUG   SenderThread:4730 [sender.py:send_request():316] send_request: stop_status
+2023-03-08 17:19:11,906 INFO    Thread-12 :4730 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230308_171824-o9gg8gnw/files/output.log
+2023-03-08 17:19:17,909 INFO    Thread-12 :4730 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230308_171824-o9gg8gnw/files/output.log
+2023-03-08 17:19:23,557 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: stop_status
+2023-03-08 17:19:23,558 DEBUG   SenderThread:4730 [sender.py:send_request():316] send_request: stop_status
+2023-03-08 17:19:25,636 DEBUG   SenderThread:4730 [sender.py:send():302] send: stats
+2023-03-08 17:19:38,598 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: stop_status
+2023-03-08 17:19:38,598 DEBUG   SenderThread:4730 [sender.py:send_request():316] send_request: stop_status
+2023-03-08 17:19:53,636 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: stop_status
+2023-03-08 17:19:53,636 DEBUG   SenderThread:4730 [sender.py:send_request():316] send_request: stop_status
+2023-03-08 17:19:55,721 DEBUG   SenderThread:4730 [sender.py:send():302] send: stats
+2023-03-08 17:20:04,139 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: partial_history
+2023-03-08 17:20:05,930 INFO    Thread-12 :4730 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230308_171824-o9gg8gnw/files/output.log
+2023-03-08 17:20:08,706 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: stop_status
+2023-03-08 17:20:08,707 DEBUG   SenderThread:4730 [sender.py:send_request():316] send_request: stop_status
+2023-03-08 17:20:15,910 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: partial_history
+2023-03-08 17:20:16,150 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: partial_history
+2023-03-08 17:20:16,173 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: partial_history
+2023-03-08 17:20:17,936 INFO    Thread-12 :4730 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230308_171824-o9gg8gnw/files/output.log
+2023-03-08 17:20:21,938 INFO    Thread-12 :4730 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230308_171824-o9gg8gnw/files/output.log
+2023-03-08 17:20:23,742 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: stop_status
+2023-03-08 17:20:23,743 DEBUG   SenderThread:4730 [sender.py:send_request():316] send_request: stop_status
+2023-03-08 17:20:25,801 DEBUG   SenderThread:4730 [sender.py:send():302] send: stats
+2023-03-08 17:20:29,987 DEBUG   SenderThread:4730 [sender.py:send():302] send: exit
+2023-03-08 17:20:29,987 INFO    SenderThread:4730 [sender.py:send_exit():438] handling exit code: 0
+2023-03-08 17:20:29,988 INFO    SenderThread:4730 [sender.py:send_exit():440] handling runtime: 125
+2023-03-08 17:20:29,988 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: poll_exit
+2023-03-08 17:20:29,989 INFO    SenderThread:4730 [sender.py:_save_file():1156] saving file wandb-summary.json with policy end
+2023-03-08 17:20:29,989 INFO    SenderThread:4730 [sender.py:send_exit():446] send defer
+2023-03-08 17:20:29,989 DEBUG   SenderThread:4730 [sender.py:send_request():316] send_request: poll_exit
+2023-03-08 17:20:29,990 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: defer
+2023-03-08 17:20:29,990 INFO    HandlerThread:4730 [handler.py:handle_request_defer():164] handle defer: 0
+2023-03-08 17:20:29,990 DEBUG   SenderThread:4730 [sender.py:send_request():316] send_request: defer
+2023-03-08 17:20:29,991 INFO    SenderThread:4730 [sender.py:send_request_defer():455] handle sender defer: 0
+2023-03-08 17:20:29,991 INFO    SenderThread:4730 [sender.py:transition_state():459] send defer: 1
+2023-03-08 17:20:29,991 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: defer
+2023-03-08 17:20:29,992 INFO    HandlerThread:4730 [handler.py:handle_request_defer():164] handle defer: 1
+2023-03-08 17:20:30,013 DEBUG   SenderThread:4730 [sender.py:send_request():316] send_request: defer
+2023-03-08 17:20:30,014 INFO    SenderThread:4730 [sender.py:send_request_defer():455] handle sender defer: 1
+2023-03-08 17:20:30,014 INFO    SenderThread:4730 [sender.py:transition_state():459] send defer: 2
+2023-03-08 17:20:30,014 DEBUG   SenderThread:4730 [sender.py:send():302] send: stats
+2023-03-08 17:20:30,015 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: defer
+2023-03-08 17:20:30,015 INFO    HandlerThread:4730 [handler.py:handle_request_defer():164] handle defer: 2
+2023-03-08 17:20:30,016 DEBUG   SenderThread:4730 [sender.py:send():302] send: history
+2023-03-08 17:20:30,016 DEBUG   SenderThread:4730 [sender.py:send():302] send: summary
+2023-03-08 17:20:30,017 INFO    SenderThread:4730 [sender.py:_save_file():1156] saving file wandb-summary.json with policy end
+2023-03-08 17:20:30,018 DEBUG   SenderThread:4730 [sender.py:send_request():316] send_request: defer
+2023-03-08 17:20:30,018 INFO    SenderThread:4730 [sender.py:send_request_defer():455] handle sender defer: 2
+2023-03-08 17:20:30,018 INFO    SenderThread:4730 [sender.py:transition_state():459] send defer: 3
+2023-03-08 17:20:30,018 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: defer
+2023-03-08 17:20:30,018 INFO    HandlerThread:4730 [handler.py:handle_request_defer():164] handle defer: 3
+2023-03-08 17:20:30,018 DEBUG   SenderThread:4730 [sender.py:send_request():316] send_request: defer
+2023-03-08 17:20:30,019 INFO    SenderThread:4730 [sender.py:send_request_defer():455] handle sender defer: 3
+2023-03-08 17:20:30,019 INFO    SenderThread:4730 [sender.py:transition_state():459] send defer: 4
+2023-03-08 17:20:30,019 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: defer
+2023-03-08 17:20:30,019 INFO    HandlerThread:4730 [handler.py:handle_request_defer():164] handle defer: 4
+2023-03-08 17:20:30,020 DEBUG   SenderThread:4730 [sender.py:send():302] send: summary
+2023-03-08 17:20:30,021 INFO    SenderThread:4730 [sender.py:_save_file():1156] saving file wandb-summary.json with policy end
+2023-03-08 17:20:30,021 DEBUG   SenderThread:4730 [sender.py:send_request():316] send_request: defer
+2023-03-08 17:20:30,021 INFO    SenderThread:4730 [sender.py:send_request_defer():455] handle sender defer: 4
+2023-03-08 17:20:30,021 INFO    SenderThread:4730 [sender.py:transition_state():459] send defer: 5
+2023-03-08 17:20:30,022 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: defer
+2023-03-08 17:20:30,022 INFO    HandlerThread:4730 [handler.py:handle_request_defer():164] handle defer: 5
+2023-03-08 17:20:30,022 DEBUG   SenderThread:4730 [sender.py:send_request():316] send_request: defer
+2023-03-08 17:20:30,022 INFO    SenderThread:4730 [sender.py:send_request_defer():455] handle sender defer: 5
+2023-03-08 17:20:30,022 INFO    SenderThread:4730 [sender.py:transition_state():459] send defer: 6
+2023-03-08 17:20:30,023 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: defer
+2023-03-08 17:20:30,023 INFO    HandlerThread:4730 [handler.py:handle_request_defer():164] handle defer: 6
+2023-03-08 17:20:30,023 DEBUG   SenderThread:4730 [sender.py:send_request():316] send_request: defer
+2023-03-08 17:20:30,023 INFO    SenderThread:4730 [sender.py:send_request_defer():455] handle sender defer: 6
+2023-03-08 17:20:30,092 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: poll_exit
+2023-03-08 17:20:30,942 INFO    Thread-12 :4730 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230308_171824-o9gg8gnw/files/wandb-summary.json
+2023-03-08 17:20:31,942 INFO    Thread-12 :4730 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230308_171824-o9gg8gnw/files/output.log
+2023-03-08 17:20:33,253 INFO    SenderThread:4730 [sender.py:transition_state():459] send defer: 7
+2023-03-08 17:20:33,253 DEBUG   SenderThread:4730 [sender.py:send_request():316] send_request: poll_exit
+2023-03-08 17:20:33,254 DEBUG   HandlerThread:4730 [handler.py:handle_request():141] handle_request: defer
+2023-03-08 17:20:33,254 INFO    HandlerThread:4730 [handler.py:handle_request_defer():164] handle defer: 7
+2023-03-08 17:20:33,255 DEBUG   SenderThread:4730 [sender.py:send_request():316] send_request: defer
+2023-03-08 17:20:33,255 INFO    SenderThread:4730 [sender.py:send_request_defer():455] handle sender defer: 7
+2023-03-08 17:20:33,255 INFO    SenderThread:4730 [dir_watcher.py:finish():362] shutting down directory watcher
+2023-03-08 17:20:33,693 WARNING StreamThr :4730 [internal.py:is_dead():388] Internal process exiting, parent pid 4529 disappeared
+2023-03-08 17:20:33,693 ERROR   StreamThr :4730 [internal.py:wandb_internal():149] Internal process shutdown.
+2023-03-08 17:20:33,893 INFO    MainThread:4730 [internal.py:handle_exit():80] Internal process exited
+2023-03-08 17:20:33,895 WARNING MsgRouterThr:4730 [router.py:message_loop():73] EOFError seen in message_loop

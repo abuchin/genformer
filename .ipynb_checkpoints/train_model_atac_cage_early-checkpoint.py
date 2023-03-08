@@ -232,7 +232,7 @@ def main():
             
             
             run_name = '_'.join(["GENFORMER",
-                                 str(wandb.config.input_length)[:3] + 'k',
+                                 str(int(wandb.config.input_length) / 1000)[:4].rstrip('.') + 'k',
                                  "glob_acc-" + str(wandb.config.use_global_acc),
                                  "atac-" + str(wandb.config.use_atac),
                                  "mask-" + str(wandb.config.predict_masked_atac_bool),
