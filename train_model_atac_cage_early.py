@@ -210,11 +210,15 @@ def main():
             #wandb.init(mode="disabled")
             wandb.config.tpu=args.tpu_name
             wandb.config.gcs_path=args.gcs_path
+            wandb.config.gcs_path_holdout=args.gcs_path_holdout
             wandb.config.gcs_path_TSS=args.gcs_path_TSS
+            wandb.config.gcs_path_TSS_holdout=args.gcs_path_TSS_holdout
             wandb.config.num_epochs=args.num_epochs
             wandb.config.train_examples=args.train_examples
             wandb.config.val_examples=args.val_examples
+            wandb.config.val_examples_ho=args.val_examples_ho
             wandb.config.val_examples_TSS=args.val_examples_TSS
+            wandb.config.val_examples_TSS_ho=args.val_examples_TSS_ho
             wandb.config.batch_size=args.batch_size
             wandb.config.warmup_frac=args.warmup_frac
             wandb.config.patience=args.patience
@@ -228,6 +232,7 @@ def main():
             
             
             run_name = '_'.join(["GENFORMER",
+                                 str(wandb.config.input_length)[:3] + 'k',
                                  "glob_acc-" + str(wandb.config.use_global_acc),
                                  "atac-" + str(wandb.config.use_atac),
                                  "mask-" + str(wandb.config.predict_masked_atac_bool),
@@ -264,21 +269,29 @@ def main():
             
             num_train=wandb.config.train_examples
             num_val=wandb.config.val_examples
+            num_val_ho=wandb.config.val_examples_ho
             num_val_TSS=wandb.config.val_examples_TSS#4192000
-
+            num_val_TSS_ho=wandb.config.val_examples_TSS_ho
+            
             wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE)},
                                 allow_val_change=True)
             wandb.config.update({"val_steps" : num_val // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
+            wandb.config.update({"val_steps_ho" : num_val_ho // GLOBAL_BATCH_SIZE},
+                                allow_val_change=True)
             wandb.config.update({"val_steps_TSS" : num_val_TSS // GLOBAL_BATCH_SIZE},
+                                allow_val_change=True)
+            wandb.config.update({"val_steps_TSS_ho" : num_val_TSS_ho // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
             wandb.config.update({"total_steps": num_train // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
             
 
-            data_train,data_val,data_val_TSS = \
+            data_train,data_val,data_val_ho,data_val_TSS,data_val_TSS_ho = \
                     training_utils.return_distributed_iterators(wandb.config.gcs_path,
+                                                                wandb.config.gcs_path_holdout,
                                                                 wandb.config.gcs_path_TSS,
+                                                                wandb.config.gcs_path_TSS_holdout,
                                                                 GLOBAL_BATCH_SIZE,
                                                                 wandb.config.input_length,
                                                                 wandb.config.max_shift,
@@ -409,13 +422,15 @@ def main():
             
             metric_dict = {}
 
-            train_step_masked_atac,train_step, \
-                val_step_masked_atac,val_step, \
-                    val_step_TSS_masked_atac, val_step_TSS, \
+            train_step_masked_atac, train_step, \
+                val_step_masked_atac, val_step_masked_atac_ho, val_step, val_step_ho, \
+                    val_step_TSS_masked_atac, val_step_TSS_masked_atac_ho, val_step_TSS, val_step_TSS_ho, \
                         build_step, metric_dict = training_utils.return_train_val_functions(model,
                                                                                             wandb.config.train_steps,
                                                                                             wandb.config.val_steps,
+                                                                                            wandb.config.val_steps_ho,
                                                                                             wandb.config.val_steps_TSS,
+                                                                                            wandb.config.val_steps_TSS_ho,
                                                                                             optimizers_in,
                                                                                             strategy,
                                                                                             metric_dict,
@@ -423,6 +438,8 @@ def main():
                                                                                             wandb.config.gradient_clip,
                                                                                             wandb.config.cage_scale,
                                                                                             wandb.config.loss_fn)
+
+
                 
 
             global_step = 0
@@ -463,45 +480,62 @@ def main():
                 
                 if wandb.config.predict_masked_atac_bool:
                     val_step_masked_atac(data_val)
+                    val_step_masked_atac_ho(data_val_ho)
                 else:
                     val_step(data_val)
+                    val_step_ho(data_val_ho)
                 
                 val_loss = metric_dict['val_loss'].result().numpy()
                 cage_pearsons = metric_dict['CAGE_PearsonR'].result()['PearsonR'].numpy()
                 cage_R2 = metric_dict['CAGE_R2'].result()['R2'].numpy()
                 
+                cage_pearsons_ho = metric_dict['CAGE_PearsonR_ho'].result()['PearsonR'].numpy()
+                cage_R2_ho = metric_dict['CAGE_R2_ho'].result()['R2'].numpy()
+                
                 print('val_loss: ' + str(val_loss))
                 print('human_CAGE_pearsons: ' + str(cage_pearsons))
                 print('human_CAGE_R2: ' + str(cage_R2))
+                print('human_CAGE_pearsons_ho: ' + str(cage_pearsons_ho))
+                print('human_CAGE_R2_ho: ' + str(cage_R2_ho))
                 
                 val_losses.append(val_loss)
                 val_pearsons.append(cage_pearsons)
                 wandb.log({'human_val_loss': val_loss,
                            'human_CAGE_pearsons': cage_pearsons,
-                           'human_CAGE_R2': cage_R2},step=epoch_i)
+                           'human_CAGE_R2': cage_R2,
+                           'human_CAGE_pearsons_ho': cage_pearsons_ho,
+                           'human_CAGE_R2_ho': cage_R2_ho},step=epoch_i)
                 
                 if wandb.config.predict_masked_atac_bool:
                     atac_pearsons = metric_dict['ATAC_PearsonR'].result()['PearsonR'].numpy()
                     atac_R2 = metric_dict['ATAC_R2'].result()['R2'].numpy()
+                    atac_pearsons_ho = metric_dict['ATAC_PearsonR_ho'].result()['PearsonR'].numpy()
+                    atac_R2_ho = metric_dict['ATAC_R2_ho'].result()['R2'].numpy()
                     wandb.log({'human_ATAC_pearsons': atac_pearsons,
-                               'human_ATAC_R2': atac_R2},step=epoch_i)
+                               'human_ATAC_R2': atac_R2,
+                               'human_ATAC_pearsons_ho': atac_pearsons_ho,
+                               'human_ATAC_R2_ho': atac_R2_ho},step=epoch_i)
                     print('human_ATAC_pearsons: ' + str(atac_pearsons))
                     print('human_ATAC_R2: ' + str(atac_R2))
+                    print('human_ATAC_pearsons_ho: ' + str(atac_pearsons_ho))
+                    print('human_ATAC_R2_ho: ' + str(atac_R2_ho))
                     
                     wandb.log({'human_val_loss_CAGE': metric_dict['val_loss_CAGE'].result().numpy(),
                                'human_val_loss_ATAC': metric_dict['val_loss_ATAC'].result().numpy()},
                                step=epoch_i)
 
                 
-                if epoch_i % 3 == 0: 
+                if epoch_i % 2 == 0: 
                     if wandb.config.predict_masked_atac_bool:
                         val_step_TSS_masked_atac(data_val_TSS)
+                        val_step_TSS_masked_atac_ho(data_val_TSS_ho)
                     else:
                         val_step_TSS(data_val_TSS)
+                        val_step_TSS_ho(data_val_TSS_ho)
 
                     val_pearson_TSS = metric_dict['corr_stats'].result()['pearsonR'].numpy()
                     val_R2_TSS = metric_dict['corr_stats'].result()['R2'].numpy()
-
+                    
                     y_trues = metric_dict['corr_stats'].result()['y_trues'].numpy()
                     y_preds = metric_dict['corr_stats'].result()['y_preds'].numpy()
                     cell_types = metric_dict['corr_stats'].result()['cell_types'].numpy()
@@ -509,7 +543,7 @@ def main():
 
                     print('making plots')
                     figures,corrs_overall= training_utils.make_plots(y_trues,y_preds,
-                                                                     cell_types,gene_map)
+                                                                     cell_types,gene_map, 5000)
 
 
                     fig_cell_spec, fig_gene_spec, fig_overall=figures 
@@ -525,6 +559,34 @@ def main():
                     wandb.log({'hg_OVERALL_TSS_predictions': fig_overall,
                                'cross_cell_dist': fig_cell_spec,
                                'cross_gene_dist': fig_gene_spec},
+                              step=epoch_i)
+                    
+                        
+                    val_pearson_TSS_ho= metric_dict['corr_stats_ho'].result()['pearsonR'].numpy()
+                    val_R2_TSS_ho = metric_dict['corr_stats_ho'].result()['R2'].numpy()
+                    
+                    y_trues = metric_dict['corr_stats_ho'].result()['y_trues'].numpy()
+                    y_preds = metric_dict['corr_stats_ho'].result()['y_preds'].numpy()
+                    cell_types = metric_dict['corr_stats_ho'].result()['cell_types'].numpy()
+                    gene_map = metric_dict['corr_stats_ho'].result()['gene_map'].numpy()
+
+                    print('making plots')
+                    figures,corrs_overall= training_utils.make_plots(y_trues,y_preds,
+                                                                     cell_types,gene_map, 1000)
+
+                    fig_cell_spec, fig_gene_spec, fig_overall=figures 
+
+                    cell_specific_corrs, gene_specific_corrs = corrs_overall
+
+                    print('cell_specific_correlation_ho: ' + str(cell_specific_corrs))
+                    print('gene_specific_correlation_ho: ' + str(gene_specific_corrs))
+
+                    wandb.log({'gene_spec_mean_corrs_ho': gene_specific_corrs,
+                               'cell_spec_mean_corrs_ho': cell_specific_corrs},
+                              step=epoch_i)
+                    wandb.log({'hg_OVERALL_TSS_predictions_ho': fig_overall,
+                               'cross_cell_dist_ho': fig_cell_spec,
+                               'cross_gene_dist_ho': fig_gene_spec},
                               step=epoch_i)
                 
 
