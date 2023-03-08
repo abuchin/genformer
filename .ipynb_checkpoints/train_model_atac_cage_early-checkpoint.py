@@ -548,13 +548,16 @@ def main():
 
                     fig_cell_spec, fig_gene_spec, fig_overall=figures 
 
-                    cell_specific_corrs, gene_specific_corrs = corrs_overall
+                    cell_specific_corrs, gene_specific_corrs, \
+                        cell_specific_corrs_sp, gene_specific_corrs_sp= corrs_overall
 
                     print('cell_specific_correlation: ' + str(cell_specific_corrs))
                     print('gene_specific_correlation: ' + str(gene_specific_corrs))
 
                     wandb.log({'gene_spec_mean_corrs': gene_specific_corrs,
-                               'cell_spec_mean_corrs': cell_specific_corrs},
+                               'cell_spec_mean_corrs': cell_specific_corrs,
+                               'gene_spec_mean_corrs_sp': gene_specific_corrs_sp,
+                               'cell_spec_mean_corrs_sp': cell_specific_corrs_sp},
                               step=epoch_i)
                     wandb.log({'hg_OVERALL_TSS_predictions': fig_overall,
                                'cross_cell_dist': fig_cell_spec,
@@ -576,13 +579,16 @@ def main():
 
                     fig_cell_spec, fig_gene_spec, fig_overall=figures 
 
-                    cell_specific_corrs, gene_specific_corrs = corrs_overall
+                    cell_specific_corrs, gene_specific_corrs, \
+                        cell_specific_corrs_sp, gene_specific_corrs_sp= corrs_overall
 
                     print('cell_specific_correlation_ho: ' + str(cell_specific_corrs))
                     print('gene_specific_correlation_ho: ' + str(gene_specific_corrs))
 
                     wandb.log({'gene_spec_mean_corrs_ho': gene_specific_corrs,
-                               'cell_spec_mean_corrs_ho': cell_specific_corrs},
+                               'cell_spec_mean_corrs_ho': cell_specific_corrs,
+                               'gene_spec_mean_corrs_sp_ho': gene_specific_corrs_sp,
+                               'cell_spec_mean_corrs_sp_ho': cell_specific_corrs_sp},
                               step=epoch_i)
                     wandb.log({'hg_OVERALL_TSS_predictions_ho': fig_overall,
                                'cross_cell_dist_ho': fig_cell_spec,

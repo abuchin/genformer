@@ -1570,16 +1570,20 @@ def make_plots(y_trues,
 
     try: 
         cell_specific_corrs=results_df.groupby('cell_type_encoding')[['true_zscore','pred_zscore']].corr(method='pearson').unstack().iloc[:,1].tolist()
+        cell_specific_corrs_sp=results_df.groupby('cell_type_encoding')[['true_zscore','pred_zscore']].corr(method='spearman').unstack().iloc[:,1].tolist()
     except np.linalg.LinAlgError as err:
         cell_specific_corrs = [0.0] * len(np.unique(cell_types))
 
     try: 
         gene_specific_corrs=results_df.groupby('gene_encoding')[['true_zscore','pred_zscore']].corr(method='pearson').unstack().iloc[:,1].tolist()
+        gene_specific_corrs_sp=results_df.groupby('gene_encoding')[['true_zscore','pred_zscore']].corr(method='spearman').unstack().iloc[:,1].tolist()
     except np.linalg.LinAlgError as err:
         gene_specific_corrs = [0.0] * len(np.unique(gene_map))
     
     corrs_overall = np.nanmean(cell_specific_corrs), \
-                        np.nanmean(gene_specific_corrs)
+                        np.nanmean(gene_specific_corrs), \
+                            np.nanmean(cell_specific_corrs_sp), \
+                                np.nanmean(gene_specific_corrs_sp)
                         
         
     fig_overall,ax_overall=plt.subplots(figsize=(6,6))
