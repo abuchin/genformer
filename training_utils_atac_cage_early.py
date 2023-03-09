@@ -289,130 +289,6 @@ def get_initializers_enformer_performer(checkpoint_path,
     return initializers_dict
 
 
-
-def extract_batch_norm_stats(model):
-    gamma_names=[]
-    gamma_vars=[]
-    gamma_layer_num=[]
-    beta_names=[]
-    beta_vars=[]
-    beta_layer_num=[]
-    moving_means_names=[]
-    moving_means_vars=[]
-    moving_means_layer_num=[]
-    moving_vars_names=[]
-    moving_vars_vars=[]
-    moving_vars_layer_num=[]
-
-    all_vars=[(k,x.name,x) for k,x in enumerate(model.stem_res_conv.variables)]
-
-    for gamma_tuple in all_vars:
-        if 'sync_batch_normalization' in gamma_tuple[1]:
-
-            specific_var = gamma_tuple[1].split('/')[1].split(':')[0]
-            layer_num=0
-            var_name = specific_var + "_1"
-            if (('gamma' in var_name) or 'moving_variance' in var_name):
-                vals = list(np.log(1.0+gamma_tuple[-1].values[0].numpy()))
-            else:
-                vals = list(np.log(1.0+np.abs(gamma_tuple[-1].values[0].numpy())) * \
-                                    np.sign(gamma_tuple[-1].values[0].numpy()))
-            #print(vals)
-            names = []
-            layer_nums=[]
-            for variable_val in vals:
-                names.append(var_name)
-                layer_nums.append(layer_num)
-            if 'gamma' in var_name:
-                gamma_names += names
-                gamma_vars += vals
-                gamma_layer_num += layer_nums
-            if 'beta' in var_name:
-                beta_names += names
-                beta_vars += vals
-                beta_layer_num += layer_nums
-            if 'moving_mean' in var_name:
-                moving_means_names += names
-                moving_means_vars += vals
-                moving_means_layer_num += layer_nums
-            if 'moving_variance' in var_name:
-                moving_vars_names += names
-                moving_vars_vars += vals    
-                moving_vars_layer_num += layer_nums
-
-
-    all_vars=[(k,x.name,x) for k,x in enumerate(model.conv_tower.variables)]
-
-    for gamma_tuple in all_vars:
-        if 'sync_batch_normalization' in gamma_tuple[1]:
-            specific_var = gamma_tuple[1].split('/')[1].split(':')[0]
-            layer_num= int(gamma_tuple[1].split('/')[0].split('_')[-1])+1
-
-            var_name = specific_var + "_" + str(layer_num)
-            if (('gamma' in var_name) or 'moving_variance' in var_name):
-                vals = list(np.log(1.0+gamma_tuple[-1].values[0].numpy()))
-            else:
-                vals = list(np.log(1.0+np.abs(gamma_tuple[-1].values[0].numpy())) * \
-                                    np.sign(gamma_tuple[-1].values[0].numpy()))
-
-            names = []
-            layer_nums=[]
-            for variable_val in vals:
-                names.append(var_name)
-                layer_nums.append(layer_num)
-            if 'gamma' in var_name:
-                gamma_names += names
-                gamma_vars += vals
-                gamma_layer_num += layer_nums
-            if 'beta' in var_name:
-                beta_names += names
-                beta_vars += vals
-                beta_layer_num += layer_nums
-            if 'moving_mean' in var_name:
-                moving_means_names += names
-                moving_means_vars += vals
-                moving_means_layer_num += layer_nums
-            if 'moving_variance' in var_name:
-                moving_vars_names += names
-                moving_vars_vars += vals    
-                moving_vars_layer_num += layer_nums
-    
-
-    gamma_df=pd.DataFrame(list(zip(gamma_names, gamma_vars,gamma_layer_num)), columns =['layer', 'values','layer_num'])
-    gamma_df=gamma_df.sort_values(by="layer_num",ascending=False)
-    fig_gamma,ax_gamma=plt.subplots(figsize=(6,6))
-    sns.kdeplot(data=gamma_df, x="values", hue="layer")
-    plt.xlabel("log(1.0+gamma)")
-    plt.ylabel("count")
-    plt.title("batch_norm_gamma")
-    
-    beta_df=pd.DataFrame(list(zip(beta_names, beta_vars,beta_layer_num)), columns =['layer', 'values','layer_num'])
-    beta_df=beta_df.sort_values(by="layer_num",ascending=False)
-    fig_beta,ax_beta=plt.subplots(figsize=(6,6))
-    sns.kdeplot(data=beta_df, x="values", hue="layer")
-    plt.xlabel("log(1.0+|beta|)*sign(beta)")
-    plt.ylabel("count")
-    plt.title("batch_norm_beta")
-
-    moving_means_df=pd.DataFrame(list(zip(moving_means_names, moving_means_vars,moving_means_layer_num)), columns =['layer', 'values','layer_num'])
-    moving_means_df=moving_means_df.sort_values(by="layer_num",ascending=False)
-    fig_moving_means,ax_moving_means=plt.subplots(figsize=(6,6))
-    sns.kdeplot(data=moving_means_df, x="values", hue="layer")
-    plt.xlabel("log(1.0+|moving_mean|)*sign(moving_mean)")
-    plt.ylabel("count")
-    plt.title("batch_norm_moving_mean")
-    
-    moving_vars_df=pd.DataFrame(list(zip(moving_vars_names, moving_vars_vars,moving_vars_layer_num)), columns =['layer', 'values','layer_num'])
-    moving_vars_df=moving_vars_df.sort_values(by="layer_num",ascending=False)
-    fig_moving_vars,ax_moving_vars=plt.subplots(figsize=(6,6))
-    sns.kdeplot(data=moving_vars_df, x="values", hue="layer")
-    plt.xlabel("log(1.0+moving_variance)")
-    plt.ylabel("count")
-    plt.title("batch_norm_moving_var")
-    
-    return fig_gamma, fig_beta, fig_moving_means,fig_moving_vars
-
-
 def return_train_val_functions(model,
                                train_steps,
                                val_steps,
@@ -1008,7 +884,10 @@ def deserialize_tr(serialized_example,
     atac_mask = tf.tile(atac_mask, [1,2])
     atac_mask = tf.reshape(atac_mask, [-1])
     atac_mask = tf.expand_dims(atac_mask,axis=1)
-    atac_mask_store = 1.0 - atac_mask ## invert the mask, since we want to store which values were masked and loss should be computed over
+    if atac_mask_dropout == 0.0:
+        atac_mask_store = tf.ones_like(atac_mask)
+    else:
+        atac_mask_store = 1.0 - atac_mask ## invert the mask, since we want to store which values were masked and loss should be computed over
     atac_mask_store = tf.slice(atac_mask_store,
                             [crop_size,0],
                             [output_length-2*crop_size,-1])
@@ -1123,7 +1002,10 @@ def deserialize_val(serialized_example,input_length,max_shift,output_length_ATAC
     atac_mask = tf.tile(atac_mask, [1,2])
     atac_mask = tf.reshape(atac_mask, [-1])
     atac_mask = tf.expand_dims(atac_mask,axis=1)
-    atac_mask_store = 1.0 - atac_mask ## invert the mask, since we want to store which values were masked and loss should be computed over
+    if atac_mask_dropout == 0.0:
+        atac_mask_store = tf.ones_like(atac_mask)
+    else:
+        atac_mask_store = 1.0 - atac_mask ## invert the mask, since we want to store which values were masked and loss should be computed over
     atac_mask_store = tf.slice(atac_mask_store,
                             [crop_size,0],
                             [output_length-2*crop_size,-1])
@@ -1235,7 +1117,10 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length_
     atac_mask = tf.tile(atac_mask, [1,2])
     atac_mask = tf.reshape(atac_mask, [-1])
     atac_mask = tf.expand_dims(atac_mask,axis=1)
-    atac_mask_store = 1.0 - atac_mask ## invert the mask, since we want to store which values were masked and loss should be computed over
+    if atac_mask_dropout == 0.0:
+        atac_mask_store = tf.ones_like(atac_mask)
+    else:
+        atac_mask_store = 1.0 - atac_mask ## invert the mask, since we want to store which values were masked and loss should be computed over
     atac_mask_store = tf.slice(atac_mask_store,
                             [crop_size,0],
                             [output_length-2*crop_size,-1])
