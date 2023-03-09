@@ -306,7 +306,7 @@ class aformer(tf.keras.Model):
                                              target_length=self.final_output_length,
                                              name='target_input')
         
-        self.final_pointwise_conv = enf_conv_block(filters=self.filter_list_seq[-1] // 8,
+        self.final_pointwise_conv = enf_conv_block(filters=self.filter_list_seq[-1] // 6,
                                                   **kwargs,
                                                   name = 'final_pointwise')
         

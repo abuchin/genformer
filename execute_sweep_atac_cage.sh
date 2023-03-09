@@ -31,7 +31,7 @@ python3 train_model_atac_cage_early.py \
             --model_save_dir="gs://picard-testing-176520/paired_rampage_atac/genformer/models" \
             --model_save_basename="aformer_baseline" \
             --lr_base1="5.0e-06" \
-            --lr_base2="1.0e-04" \
+            --lr_base2="2.5e-05" \
             --decay_frac="1.0" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-8 \
@@ -54,10 +54,10 @@ python3 train_model_atac_cage_early.py \
             --cage_scale="0.50" \
             --optimizer="adamw" \
             --stable_variant="False" \
-            --atac_mask_dropout=0.10 \
+            --atac_mask_dropout=0.0 \
             --loss_fn="poisson" \
-            --use_global="True" \
-            --use_atac="True" \
+            --use_global="False" \
+            --use_atac="False" \
             --log_atac="True" \
             --learnable_PE="True" \
             --global_acc_size=128 \
