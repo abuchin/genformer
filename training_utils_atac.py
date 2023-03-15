@@ -300,11 +300,7 @@ def return_train_val_functions(model,
                                gradient_clip):
     
     poisson_loss_func = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
-    bce_loss_func = tf.keras.losses.BinaryFocalCrossentropy(reduction=tf.keras.losses.Reduction.NONE,
-                                                            from_logits=False,
-                                                            apply_class_balancing=True,
-                                                            alpha=0.25,
-                                                            gamma=2.0)
+
 
     optimizer1,optimizer2=optimizers_in
 
