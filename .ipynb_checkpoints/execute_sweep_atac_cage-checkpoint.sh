@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model_atac_cage_early.py \
-            --tpu_name="pod" \
-            --tpu_zone="us-east1-d" \
+            --tpu_name="node-2" \
+            --tpu_zone="us-central1-a" \
             --wandb_project="paired_rampage_atac" \
             --wandb_user="njaved" \
             --wandb_sweep_name="paired_rampage_atac" \
@@ -50,17 +50,18 @@ python3 train_model_atac_cage_early.py \
             --multitask_checkpoint_path="gs://picard-testing-176520/sonnet_weights/sonnet_weights" \
             --filter_list_seq="768,896,1024,1152,1280,1536" \
             --inits_type="enformer_conv" \
-            --predict_masked_atac_bool="True" \
+            --predict_masked_atac_bool="False" \
             --cage_scale="0.50" \
             --optimizer="adamw" \
             --stable_variant="False" \
             --atac_mask_dropout=0.0 \
             --loss_fn="poisson" \
-            --use_global="False" \
-            --use_atac="False" \
+            --use_global="True,False" \
+            --use_atac="True,False" \
             --log_atac="True" \
             --learnable_PE="True" \
-            --global_acc_size=128 \
-            --sonnet_weights_bool="True"
+            --global_acc_size=32 \
+            --sonnet_weights_bool="True" \
+            --tss_mask_bool_regularization="True"
                         
             

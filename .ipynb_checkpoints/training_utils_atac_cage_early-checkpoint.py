@@ -649,7 +649,6 @@ def return_train_val_functions(model,
                            training=False)
             output = tf.cast(output,dtype=tf.float32)
             
-            
             tss_tokens = tf.cast(inputs['tss_tokens'],dtype=tf.float32)
             gene_token = inputs['gene_token']
             cell_type = inputs['cell_type']
@@ -818,6 +817,7 @@ def deserialize_tr(serialized_example,
                    output_length,
                    crop_size,
                    output_res,
+                   tss_mask_bool_pretrain,
                    predict_masked_atac_bool,
                    atac_mask_dropout,
                    use_global_acc,
@@ -829,13 +829,19 @@ def deserialize_tr(serialized_example,
         'sequence': tf.io.FixedLenFeature([], tf.string),
         'atac': tf.io.FixedLenFeature([], tf.string),
         'cage': tf.io.FixedLenFeature([], tf.string),
+        'tss_tokens': tf.io.FixedLenFeature([], tf.string),
         'cell_specific_conv_arr': tf.io.FixedLenFeature([], tf.string)
     }
     ### stochastic sequence shift and gaussian noise
 
 
     rev_comp = tf.math.round(g.uniform([], 0, 1))
-
+    
+    if tss_mask_bool_pretrain:
+        tss_mask_rng = g.uniform([], 0, 3,dtype=tf.int32)
+    else:
+        tss_mask_rng = 1
+        
     shift = g.uniform(shape=(),
                       minval=0,
                       maxval=max_shift,
@@ -884,6 +890,17 @@ def deserialize_tr(serialized_example,
     atac_mask = tf.tile(atac_mask, [1,2])
     atac_mask = tf.reshape(atac_mask, [-1])
     atac_mask = tf.expand_dims(atac_mask,axis=1)
+    
+    tss_tokens = tf.cast(tf.io.parse_tensor(data['tss_tokens'],
+                                  out_type=tf.int32),dtype=tf.float32)
+    tss_tokens = tf.expand_dims(tss_tokens,axis=1)
+    tss_tokens = \
+        tf.concat([tf.zeros([crop_size,1],dtype=tf.float32), tss_tokens,tf.zeros([crop_size,1],dtype=tf.float32)],axis=0)
+    
+    #### with ~1/3 prob, set the tss_mask rng 
+    if tss_mask_rng == 0:
+        atac_mask = tf.math.ceil((atac_mask + tss_tokens) / 2.0)
+        
     if atac_mask_dropout == 0.0:
         atac_mask_store = tf.ones_like(atac_mask)
     else:
@@ -902,6 +919,7 @@ def deserialize_tr(serialized_example,
     diff = tf.math.sqrt(tf.nn.relu(cage - 850.0 * tf.ones(cage.shape)))
     cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=850.0) + diff
     cage = tf.cast(tf.cast(cage,dtype=tf.float16),dtype=tf.float32) ### round to be consistent with Enformer
+    
 
     if rev_comp == 1:
         sequence = tf.gather(sequence, [3, 2, 1, 0], axis=-1)
@@ -910,6 +928,7 @@ def deserialize_tr(serialized_example,
         masked_atac = tf.reverse(masked_atac,axis=[0])
         atac_mask_store = tf.reverse(atac_mask_store,axis=[0])
         cage = tf.reverse(cage,axis=[0])
+        tss_tokens= tf.reverse(tss_tokens,axis=[0])
         
         
     if predict_masked_atac_bool:
@@ -933,9 +952,17 @@ def deserialize_tr(serialized_example,
     if not use_global_acc:
         global_acc = g.normal(global_acc.shape,
                               mean=0.0,
-                              stddev=0.00025,
+                              stddev=0.001,
                               dtype=tf.float32)
-    
+        
+    ### with 1/3 probability, mask the TSS_sequences
+    if tss_mask_rng == 0:
+        out_sequence_mask=(1-tss_tokens)
+        out_sequence_mask = tf.reshape(tf.tile(out_sequence_mask, [1,output_res]), [input_length,1])
+    else:
+        out_sequence_mask = tf.ones([input_length,1],dtype=tf.float32)
+    sequence=sequence*tf.cast(out_sequence_mask,dtype=tf.float32) * out_sequence_mask
+        
     if predict_masked_atac_bool:
     
         return {'sequence': tf.ensure_shape(sequence,
@@ -946,6 +973,9 @@ def deserialize_tr(serialized_example,
                                           [output_length-crop_size*2,1]),
                 'global_acc': tf.ensure_shape(global_acc,
                                           [1,1536]),
+                'tss_mask_rng': tss_mask_rng,
+                'out_sequence_mask': tf.ensure_shape(out_sequence_mask,
+                                                     [65536,1]),
                 'target': tf.ensure_shape(target,
                                           [output_length-crop_size*2,2])}
     else:
@@ -1041,7 +1071,7 @@ def deserialize_val(serialized_example,input_length,max_shift,output_length_ATAC
     if not use_global_acc:
         global_acc = g.normal(global_acc.shape,
                               mean=0.0,
-                              stddev=0.00025,
+                              stddev=0.001,
                               dtype=tf.float32)
     
     if predict_masked_atac_bool:
@@ -1157,7 +1187,7 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift,output_length_
     if not use_global_acc:
         global_acc = g.normal(global_acc.shape,
                               mean=0.0,
-                              stddev=0.00025,
+                              stddev=0.001,
                               dtype=tf.float32)
 
     if predict_masked_atac_bool:
@@ -1214,6 +1244,7 @@ def return_dataset(gcs_path,
                    options,
                    num_parallel,
                    num_epoch,
+                   tss_mask_bool_pretrain,
                    predict_masked_atac_bool,
                    atac_mask_dropout,
                    use_global_acc,
@@ -1247,6 +1278,7 @@ def return_dataset(gcs_path,
                                                             output_length,
                                                             crop_size,
                                                             output_res,
+                                                            tss_mask_bool_pretrain,
                                                             predict_masked_atac_bool,
                                                             atac_mask_dropout,
                                                             use_global_acc,
@@ -1303,6 +1335,7 @@ def return_distributed_iterators(gcs_path,
                                  num_epoch,
                                  strategy,
                                  options,
+                                 tss_mask_bool_pretrain,
                                  predict_masked_atac_bool,
                                  atac_mask_dropout,
                                  use_global_acc,
@@ -1327,6 +1360,7 @@ def return_distributed_iterators(gcs_path,
                              options,
                              num_parallel_calls,
                              num_epoch,
+                             tss_mask_bool_pretrain,
                              predict_masked_atac_bool,
                              atac_mask_dropout,
                              use_global_acc,
@@ -1347,6 +1381,7 @@ def return_distributed_iterators(gcs_path,
                               options,
                               num_parallel_calls,
                               num_epoch,
+                              False,
                               predict_masked_atac_bool,
                               atac_mask_dropout,
                               use_global_acc,
@@ -1366,6 +1401,7 @@ def return_distributed_iterators(gcs_path,
                               options,
                               num_parallel_calls,
                               num_epoch,
+                              False,
                               predict_masked_atac_bool,
                               atac_mask_dropout,
                               use_global_acc,
@@ -1386,6 +1422,7 @@ def return_distributed_iterators(gcs_path,
                                   options,
                                   num_parallel_calls,
                                   num_epoch,
+                                  False,
                                   predict_masked_atac_bool,
                                   atac_mask_dropout,
                                   use_global_acc,
@@ -1407,6 +1444,7 @@ def return_distributed_iterators(gcs_path,
                                   options,
                                   num_parallel_calls,
                                   num_epoch,
+                                     False,
                                   predict_masked_atac_bool,
                                   atac_mask_dropout,
                                   use_global_acc,
@@ -1874,6 +1912,11 @@ def parse_args(parser):
                         type=str,
                         default="192",
                         help= 'global_acc_size')
+    parser.add_argument('--tss_mask_bool_regularization',
+                        dest='tss_mask_bool_regularization',
+                        type=str,
+                        default="False",
+                        help= 'tss_mask_bool_regularization')
     args = parser.parse_args()
     return parser
 

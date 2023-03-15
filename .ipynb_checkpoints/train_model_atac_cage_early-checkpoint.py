@@ -182,6 +182,9 @@ def main():
                 'sonnet_weights_bool': {
                     'values':[parse_bool_str(x) for x in args.sonnet_weights_bool.split(',')]
                 },
+                'tss_mask_bool_regularization': {
+                    'values':[parse_bool_str(x) for x in args.tss_mask_bool_regularization.split(',')]
+                }
             }
     }
 
@@ -303,6 +306,7 @@ def main():
                                                                 args.num_epochs,
                                                                 strategy,
                                                                 options,
+                                                                wandb.config.tss_mask_bool_regularization,
                                                                 wandb.config.predict_masked_atac_bool,
                                                                 wandb.config.atac_mask_dropout,
                                                                 wandb.config.use_global_acc,

@@ -61,11 +61,11 @@ def parse_dict_input_tuple(input_str,global_batch_size):
     if ';' in input_str:
         dict_items = input_str.split(';')
         for item in dict_items:
-            out_dict[item.split(':')[0]]=(int(item.split(':')[1].split(',')[0]) // global_batch_size),\
-                                            (int(item.split(':')[1].split(',')[1]) // global_batch_size)
+            out_dict[item.split(':')[0]]=(int(item.split(':')[1].split(',')[0]) // global_batch_size + 1),\
+                                            (int(item.split(':')[1].split(',')[1]) // global_batch_size + 1 )
     else:
-        out_dict[input_str.split(':')[0]]=(int(input_str.split(':')[1].split(',')[0]) // global_batch_size),\
-                                            (int(input_str.split(':')[1].split(',')[1]) // global_batch_size)
+        out_dict[input_str.split(':')[0]]=(int(input_str.split(':')[1].split(',')[0]) // global_batch_size + 1 ),\
+                                            (int(input_str.split(':')[1].split(',')[1]) // global_batch_size + 1)
     
     return out_dict
     
@@ -255,7 +255,7 @@ def main():
             organism_dict = parse_dict_input_tuple(args.num_examples_dict,
                                                    GLOBAL_BATCH_SIZE)
 
-            wandb.config.update({"total_steps" : (organism_dict['human'][0] + organism_dict['mouse'][0]) // GLOBAL_BATCH_SIZE},
+            wandb.config.update({"total_steps" : (organism_dict['human'][0] + organism_dict['mouse'][0]) // GLOBAL_BATCH_SIZE + 1},
                                 allow_val_change=True)
             wandb.config.update({"val_steps_TSS": args.val_examples_TSS // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
