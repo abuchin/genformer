@@ -649,7 +649,8 @@ def deserialize_val(serialized_example,
                    seq_mask_dropout,
                    atac_mask_dropout,
                    use_global_acc,
-                   log_atac):
+                   log_atac,
+                    g):
     """Deserialize bytes stored in TFRecordFile."""
     ## parse out feature map
     feature_map = {
@@ -823,7 +824,8 @@ def return_dataset(gcs_path,
                                                              seq_mask_dropout,
                                                             atac_mask_dropout,
                                                             use_global_acc,
-                                                            log_atac),
+                                                            log_atac,
+                                                            g),
                       deterministic=False,
                       num_parallel_calls=num_parallel)
 
