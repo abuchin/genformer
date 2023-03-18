@@ -536,14 +536,16 @@ def deserialize_tr(serialized_example,
     
     ### here set up masking of one of the peaks
 
+    center = (output_length-2*crop_size)//2
+    ### here set up masking of one of the peaks
     mask_indices_temp = tf.where(peaks_crop[:,0] > 0)[:,0]
     ridx = tf.concat([tf.random.shuffle(mask_indices_temp),
-                      tf.constant([448],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
-    mask_indices=[[ridx[0]-2+320],
-                  [ridx[0]-1+320],
-                  [ridx[0]+320],
-                  [ridx[0]+1+320],
-                  [ridx[0]+2+320]]
+                      tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
+    mask_indices=[[ridx[0]-2+crop_size],
+                  [ridx[0]-1+crop_size],
+                  [ridx[0]+crop_size],
+                  [ridx[0]+1+crop_size],
+                  [ridx[0]+2+crop_size]]
                   
     st=tf.SparseTensor(
         indices=mask_indices,
@@ -570,7 +572,7 @@ def deserialize_tr(serialized_example,
     full_atac_mask = tf.concat([edge_append,atac_mask,edge_append],axis=0)
     full_comb_mask = tf.math.floor((dense_peak_mask + full_atac_mask)/2)
     full_comb_mask_store = 1.0 - full_comb_mask
-    full_comb_mask_store = full_comb_mask_store[320:-320,:]
+    full_comb_mask_store = full_comb_mask_store[crop_size:-crop_size,:]
     tiling_req = output_length_ATAC // output_length
     full_comb_mask = tf.expand_dims(tf.reshape(tf.tile(full_comb_mask, [1,tiling_req]),[-1]),axis=1)
     masked_atac = atac * full_comb_mask
@@ -680,15 +682,16 @@ def deserialize_val(serialized_example,
                      [crop_size,0],
                      [output_length-2*crop_size,-1])
     
+    center = (output_length-2*crop_size)//2
     ### here set up masking of one of the peaks
     mask_indices_temp = tf.where(peaks_crop[:,0] > 0)[:,0]
     ridx = tf.concat([tf.random.shuffle(mask_indices_temp),
-                      tf.constant([448],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
-    mask_indices=[[ridx[0]-2+320],
-                  [ridx[0]-1+320],
-                  [ridx[0]+320],
-                  [ridx[0]+1+320],
-                  [ridx[0]+2+320]]
+                      tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
+    mask_indices=[[ridx[0]-2+crop_size],
+                  [ridx[0]-1+crop_size],
+                  [ridx[0]+crop_size],
+                  [ridx[0]+1+crop_size],
+                  [ridx[0]+2+crop_size]]
     
     st=tf.SparseTensor(
         indices=mask_indices,
@@ -715,7 +718,7 @@ def deserialize_val(serialized_example,
     full_atac_mask = tf.concat([edge_append,atac_mask,edge_append],axis=0)
     full_comb_mask = tf.math.floor((dense_peak_mask + full_atac_mask)/2)
     full_comb_mask_store = 1.0 - full_comb_mask
-    full_comb_mask_store = full_comb_mask_store[320:-320,:]
+    full_comb_mask_store = full_comb_mask_store[crop_size:-crop_size,:]
     tiling_req = output_length_ATAC // output_length
     full_comb_mask = tf.expand_dims(tf.reshape(tf.tile(full_comb_mask, [1,tiling_req]),[-1]),axis=1)
     masked_atac = atac * full_comb_mask
