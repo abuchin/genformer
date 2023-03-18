@@ -42,7 +42,7 @@ class aformer(tf.keras.Model):
                  inits_type='enformer_conv',
                  filter_list_seq=[768, 896, 1024, 1152, 1280, 1536],
                  filter_list_atac=[32, 64],
-                 global_acc_size=64,
+                 #global_acc_size=64,
                  freeze_conv_layers=False,
                  learnable_PE = False,
                  name: str = 'aformer',
@@ -82,7 +82,7 @@ class aformer(tf.keras.Model):
         self.inits_type=inits_type
         self.stable_variant=stable_variant
         self.learnable_PE=learnable_PE
-        self.global_acc_size=global_acc_size
+        #self.global_acc_size=global_acc_size
         self.BN_momentum=BN_momentum
         
         ## ensure load_init matches actual init inputs...
@@ -106,8 +106,8 @@ class aformer(tf.keras.Model):
         #self.filter_list_seq = [768, 896, 1024, 1152, 1280, 1536] if (self.load_init and self.inits_type == 'enformer_conv') else filter_list_seq
         
         
-        self.hidden_size=self.filter_list_seq[-1] + self.filter_list_atac[-1] + self.global_acc_size
-        self.d_model = self.filter_list_seq[-1] + self.filter_list_atac[-1] + self.global_acc_size
+        self.hidden_size=self.filter_list_seq[-1] + self.filter_list_atac[-1] #+ self.global_acc_size
+        self.d_model = self.filter_list_seq[-1] + self.filter_list_atac[-1] #+ self.global_acc_size
             
         self.dim = self.hidden_size  // self.num_heads
         
@@ -308,9 +308,9 @@ class aformer(tf.keras.Model):
                                                   **kwargs,
                                                   name = 'final_pointwise')
         
-        self.global_acc_block =enf_conv_block(filters=self.global_acc_size,
-                                              **kwargs,
-                                              name = 'final_pointwise')
+        #self.global_acc_block =enf_conv_block(filters=self.global_acc_size,
+        #                                      **kwargs,
+        #                                      name = 'final_pointwise')
         
         
         self.final_dense_profile = kl.Dense(1,
@@ -327,7 +327,7 @@ class aformer(tf.keras.Model):
         
     def call(self, inputs, training:bool=True):
 
-        sequence,atac,global_acc = inputs
+        sequence,atac = inputs
 
         x = self.stem_conv(sequence,
                            training=training)
@@ -349,6 +349,7 @@ class aformer(tf.keras.Model):
         atac_x = self.stem_pool_atac(atac_x,training=training)
         atac_x = self.conv_tower_atac(atac_x,training=training)
         
+        """
         global_acc = self.global_acc_block(global_acc,
                                            training=training)
         global_acc = self.dropout(global_acc,
@@ -359,7 +360,9 @@ class aformer(tf.keras.Model):
 
         transformer_input = tf.concat([x,atac_x,global_acc],
                                       axis=2)
-        
+        """
+        transformer_input = tf.concat([x,atac_x],
+                                      axis=2)
         
         if self.learnable_PE:
             input_pos_indices = tf.range(self.output_length)
@@ -415,8 +418,8 @@ class aformer(tf.keras.Model):
             "load_init":self.load_init,
             "inits_type":self.inits_type,
             "stable_variant":self.stable_variant,
-            "learnable_PE":self.learnable_PE,
-            "global_acc_size":self.global_acc_size
+            "learnable_PE":self.learnable_PE#,
+            #"global_acc_size":self.global_acc_size
             
         }
         
@@ -433,7 +436,7 @@ class aformer(tf.keras.Model):
     #                              tf.TensorSpec([None, 1572], tf.float32)])
     def predict_on_batch(self, inputs, training:bool=False):
         
-        sequence,atac,global_acc = inputs
+        sequence,atac = inputs
 
         x = self.stem_conv(sequence,
                            training=training)
@@ -455,6 +458,7 @@ class aformer(tf.keras.Model):
         atac_x = self.stem_pool_atac(atac_x,training=training)
         atac_x = self.conv_tower_atac(atac_x,training=training)
         
+        """
         global_acc = self.global_acc_block(global_acc,
                                            training=training)
         global_acc = self.dropout(global_acc,
@@ -462,10 +466,12 @@ class aformer(tf.keras.Model):
         global_acc = self.gelu(global_acc)
         global_acc = tf.tile(global_acc, 
                                [1,self.output_length,1])
-
+        
         transformer_input = tf.concat([x,atac_x,global_acc],
                                       axis=2)
-        
+        """
+        transformer_input = tf.concat([x,atac_x],
+                                      axis=2)
         
         if self.learnable_PE:
             input_pos_indices = tf.range(self.output_length)
@@ -482,16 +488,16 @@ class aformer(tf.keras.Model):
 
         out = self.crop_final(out)
 
-        out = self.final_pointwise_conv(out,
+        final_point = self.final_pointwise_conv(out,
                                        training=training)
         
-        out = self.dropout(out,
+        out = self.dropout(final_point,
                         training=training)
         out = self.gelu(out)
 
         out_profile = self.final_dense_profile(out,
                                training=training)
 
-        return out_profile, att_matrices
+        return out_profile, final_point, att_matrices
     
 

@@ -155,18 +155,18 @@ def main():
                 'stable_variant': {
                     'values':[parse_bool_str(x) for x in args.stable_variant.split(',')]
                 },
-                'use_global_acc': {
-                    'values':[parse_bool_str(x) for x in args.use_global_acc.split(',')]
-                },
+                #'use_global_acc': {
+                #    'values':[parse_bool_str(x) for x in args.use_global_acc.split(',')]
+                #},
                 'log_atac': {
                     'values':[parse_bool_str(x) for x in args.log_atac.split(',')]
                 },
                 'learnable_PE': {
                     'values':[parse_bool_str(x) for x in args.learnable_PE.split(',')]
                 },
-                'global_acc_size': {
-                    'values': [int(x) for x in args.global_acc_size.split(',')]
-                },
+                #'global_acc_size': {
+                #    'values': [int(x) for x in args.global_acc_size.split(',')]
+                #},
                 'sonnet_weights_bool': {
                     'values':[parse_bool_str(x) for x in args.sonnet_weights_bool.split(',')]
                 }
@@ -217,7 +217,7 @@ def main():
             
             run_name = '_'.join(["genformer_atac",
                                  str(int(wandb.config.input_length) / 1000)[:4].rstrip('.') + 'k',
-                                 "glob_acc-" + str(wandb.config.use_global_acc),
+                                 "glob_acc-False",
                                  'load-' + str(wandb.config.load_init),
                                  'frz-' + str(wandb.config.freeze_conv_layers),
                                  'LR1-' + str(wandb.config.lr_base1),
@@ -278,7 +278,7 @@ def main():
                                                                 options,
                                                                 wandb.config.seq_mask_dropout,
                                                                 wandb.config.atac_mask_dropout,
-                                                                wandb.config.use_global_acc,
+                                                                #wandb.config.use_global_acc,
                                                                 wandb.config.log_atac,
                                                                 g)
 
@@ -325,8 +325,8 @@ def main():
                                     freeze_conv_layers=wandb.config.freeze_conv_layers,
                                     filter_list_seq=wandb.config.filter_list_seq,
                                     filter_list_atac=wandb.config.filter_list_atac,
-                                    learnable_PE=wandb.config.learnable_PE,
-                                    global_acc_size=wandb.config.global_acc_size)
+                                    learnable_PE=wandb.config.learnable_PE)
+                                    #global_acc_size=wandb.config.global_acc_size)
             
 
             print('initialized model')

@@ -329,12 +329,12 @@ def return_train_val_functions(model,
         def train_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
+            #global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
             mask=tf.cast(inputs['mask'],dtype=tf.float32)
             peaks=tf.cast(inputs['peaks'],dtype=tf.float32)
 
-            input_tuple = sequence, atac, global_acc
+            input_tuple = sequence, atac#, global_acc
 
             with tf.GradientTape(watch_accessed_variables=False) as tape:
                 conv_vars = model.stem_conv.trainable_variables + \
@@ -348,9 +348,9 @@ def return_train_val_functions(model,
                                         model.conv_tower_atac.trainable_variables + \
                                         model.pos_embedding_learned.trainable_variables + \
                                         model.performer.trainable_variables + \
-                                        model.global_acc_block.trainable_variables + \
                                         model.final_pointwise_conv.trainable_variables + \
                                         model.final_dense_profile.trainable_variables 
+                                        #model.global_acc_block.trainable_variables + \
 
                 vars_all = conv_vars + performer_vars
                 for var in vars_all:
@@ -391,11 +391,11 @@ def return_train_val_functions(model,
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
+            #global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
             mask=tf.cast(inputs['mask'],dtype=tf.float32)
             peaks=tf.cast(inputs['peaks'],dtype=tf.float32)
             
-            input_tuple = sequence,atac,global_acc
+            input_tuple = sequence,atac#,global_acc
 
             output_profile = model(input_tuple,
                                    training=False)
@@ -437,12 +437,12 @@ def return_train_val_functions(model,
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
+            #global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
             mask=tf.cast(inputs['mask'],dtype=tf.float32)
             peaks=tf.cast(inputs['peaks'],dtype=tf.float32)
             mask_indices = tf.where(mask[0,:,0] == 1.0)[:,0]
             
-            input_tuple = sequence,atac,global_acc
+            input_tuple = sequence,atac#,global_acc
 
             output_profile = model(input_tuple,
                                                 training=False)
@@ -469,8 +469,8 @@ def return_train_val_functions(model,
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
-            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)         
-            input_tuple = sequence,atac,global_acc
+            #global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)         
+            input_tuple = sequence,atac#,global_acc
 
             output = model(input_tuple,
                            training=False)
@@ -490,7 +490,7 @@ def deserialize_tr(serialized_example,
                    output_res,
                    seq_mask_dropout,
                    atac_mask_dropout,
-                   use_global_acc,
+                   #use_global_acc,
                    log_atac,
                    g):
     """Deserialize bytes stored in TFRecordFile."""
@@ -610,7 +610,7 @@ def deserialize_tr(serialized_example,
     atac_out = tf.slice(atac_out,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
-
+    """
     global_acc = tf.ensure_shape(tf.io.parse_tensor(data['cell_specific_conv_arr'],
                                               out_type=tf.float32),
                            [1536])
@@ -624,7 +624,7 @@ def deserialize_tr(serialized_example,
                               mean=0.0,
                               stddev=0.001,
                               dtype=tf.float32)
-        
+    """
         
     return {'sequence': tf.ensure_shape(masked_seq,
                                         [input_length,4]),
@@ -632,8 +632,8 @@ def deserialize_tr(serialized_example,
                                     [output_length_ATAC,1]),
             'mask': tf.ensure_shape(full_comb_mask_store,
                                     [output_length-crop_size*2,1]),
-            'global_acc': tf.ensure_shape(global_acc,
-                                      [1,1536]),
+            #'global_acc': tf.ensure_shape(global_acc,
+            #                          [1,1536]),
             'peaks': tf.ensure_shape(peaks_crop,
                                       [output_length-crop_size*2,1]),
             'target': tf.ensure_shape(atac_out,
@@ -648,8 +648,9 @@ def deserialize_val(serialized_example,
                    output_res,
                    seq_mask_dropout,
                    atac_mask_dropout,
-                   use_global_acc,
-                   log_atac):
+                   #use_global_acc,
+                   log_atac,
+                    g):
     """Deserialize bytes stored in TFRecordFile."""
     ## parse out feature map
     feature_map = {
@@ -729,7 +730,7 @@ def deserialize_val(serialized_example,
     atac_out = tf.slice(atac_out,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
-
+    """
     global_acc = tf.ensure_shape(tf.io.parse_tensor(data['cell_specific_conv_arr'],
                                               out_type=tf.float32),
                            [1536])
@@ -743,7 +744,7 @@ def deserialize_val(serialized_example,
                               mean=0.0,
                               stddev=0.001,
                               dtype=tf.float32)
-        
+    """
         
     return {'sequence': tf.ensure_shape(sequence,
                                         [input_length,4]),
@@ -751,8 +752,8 @@ def deserialize_val(serialized_example,
                                     [output_length_ATAC,1]),
             'mask': tf.ensure_shape(full_comb_mask_store,
                                     [output_length-crop_size*2,1]),
-            'global_acc': tf.ensure_shape(global_acc,
-                                      [1,1536]),
+            #'global_acc': tf.ensure_shape(global_acc,
+            #                          [1,1536]),
             'peaks': tf.ensure_shape(peaks_crop,
                                       [output_length-crop_size*2,1]),
             'target': tf.ensure_shape(atac_out,
@@ -773,7 +774,7 @@ def return_dataset(gcs_path,
                    num_epoch,
                    seq_mask_dropout,
                    atac_mask_dropout,
-                   use_global_acc,
+                   #use_global_acc,
                    log_atac,
                    g):
     """
@@ -804,7 +805,7 @@ def return_dataset(gcs_path,
                                                             output_res,
                                                             seq_mask_dropout,
                                                             atac_mask_dropout,
-                                                            use_global_acc,
+                                                            #use_global_acc,
                                                             log_atac,
                                                             g),
                               deterministic=False,
@@ -822,8 +823,9 @@ def return_dataset(gcs_path,
                                                             output_res,
                                                              seq_mask_dropout,
                                                             atac_mask_dropout,
-                                                            use_global_acc,
-                                                            log_atac),
+                                                            #use_global_acc,
+                                                            log_atac,
+                                                            g),
                       deterministic=False,
                       num_parallel_calls=num_parallel)
 
@@ -845,7 +847,7 @@ def return_distributed_iterators(gcs_path,
                                  options,
                                  seq_mask_dropout,
                                  atac_mask_dropout,
-                                 use_global_acc,
+                                 #use_global_acc,
                                  log_atac,
                                  g):
 
@@ -863,7 +865,7 @@ def return_distributed_iterators(gcs_path,
                              num_epoch,
                              seq_mask_dropout,
                              atac_mask_dropout,
-                             use_global_acc,
+                             #use_global_acc,
                              log_atac,
                              g)
     
@@ -882,7 +884,7 @@ def return_distributed_iterators(gcs_path,
                               num_epoch,
                               seq_mask_dropout,
                               atac_mask_dropout,
-                              use_global_acc,
+                              #use_global_acc,
                               log_atac,
                               g)
     
@@ -900,7 +902,7 @@ def return_distributed_iterators(gcs_path,
                               num_epoch,
                                  seq_mask_dropout,
                               atac_mask_dropout,
-                              use_global_acc,
+                              #use_global_acc,
                               log_atac,
                               g)
 
@@ -1194,11 +1196,11 @@ def parse_args(parser):
                         type=str,
                         default="True",
                         help= 'rectify')
-    parser.add_argument('--use_global_acc',
-                        dest='use_global_acc',
-                        type=str,
-                        default="True",
-                        help= 'use_global_acc')
+    #parser.add_argument('--use_global_acc',
+    #                    dest='use_global_acc',
+    #                    type=str,
+    #                    default="True",
+    #                    help= 'use_global_acc')
     parser.add_argument('--inits_type',
                         dest='inits_type',
                         type=str,
@@ -1224,11 +1226,11 @@ def parse_args(parser):
                         type=str,
                         default="False",
                         help= 'sonnet_weights_bool')
-    parser.add_argument('--global_acc_size',
-                        dest='global_acc_size',
-                        type=str,
-                        default="192",
-                        help= 'global_acc_size')
+    #parser.add_argument('--global_acc_size',
+    #                    dest='global_acc_size',
+    #                    type=str,
+    #                    default="192",
+    #                    help= 'global_acc_size')
     args = parser.parse_args()
     return parser
 

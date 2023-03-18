@@ -169,13 +169,12 @@ def get_initializers_enformer_conv(checkpoint_path,
 
 def get_initializers_enformer_performer(checkpoint_path,
                                         num_transformer_layers,
-                                        stable_variant):
+                                        stable_variant,
+                                        learnable_PE):
     
     inside_checkpoint=tf.train.list_variables(tf.train.latest_checkpoint(checkpoint_path))
     reader = tf.train.load_checkpoint(checkpoint_path)
     
-    print(inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/moving_mean/.ATTRIBUTES/VARIABLE_VALUE')))
-
     initializers_dict = {'stem_conv_k': inits.Constant(reader.get_tensor('stem_conv/kernel/.ATTRIBUTES/VARIABLE_VALUE')),
                          'stem_conv_b': inits.Constant(reader.get_tensor('stem_conv/bias/.ATTRIBUTES/VARIABLE_VALUE')),
                          'stem_res_conv_k': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE')),
@@ -207,6 +206,9 @@ def get_initializers_enformer_performer(checkpoint_path,
     
 
     initializers_dict['stem_pool'] = inits.Constant(reader.get_tensor('stem_pool/_logit_linear/kernel/.ATTRIBUTES/VARIABLE_VALUE'))
+    
+    
+    
 
     ## load in convolutional weights
     for i in range(6):
@@ -286,6 +288,8 @@ def get_initializers_enformer_performer(checkpoint_path,
 
         initializers_dict.update(out_dict)
         
+    learnable_PE
+    
     return initializers_dict
 
 
