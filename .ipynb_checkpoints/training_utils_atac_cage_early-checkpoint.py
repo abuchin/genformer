@@ -169,8 +169,7 @@ def get_initializers_enformer_conv(checkpoint_path,
 
 def get_initializers_enformer_performer(checkpoint_path,
                                         num_transformer_layers,
-                                        stable_variant,
-                                        learnable_PE):
+                                        stable_variant):
     
     inside_checkpoint=tf.train.list_variables(tf.train.latest_checkpoint(checkpoint_path))
     reader = tf.train.load_checkpoint(checkpoint_path)
@@ -179,33 +178,34 @@ def get_initializers_enformer_performer(checkpoint_path,
                          'stem_conv_b': inits.Constant(reader.get_tensor('stem_conv/bias/.ATTRIBUTES/VARIABLE_VALUE')),
                          'stem_res_conv_k': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE')),
                          'stem_res_conv_b': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_BN_g': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/gamma/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_BN_b': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/beta/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_BN_m': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/moving_mean/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_BN_v': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'))}
+                         'stem_res_conv_BN_g': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/batch_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE')),
+                         'stem_res_conv_BN_b': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/batch_norm/beta/.ATTRIBUTES/VARIABLE_VALUE')),
+                         'stem_res_conv_BN_m': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/batch_norm/moving_mean/.ATTRIBUTES/VARIABLE_VALUE')),
+                         'stem_res_conv_BN_v': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/batch_norm/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'))}
     
 
     out_dict = {'stem_conv_atac_k': inits.Constant(reader.get_tensor('stem_conv_atac/kernel/.ATTRIBUTES/VARIABLE_VALUE')),
                          'stem_conv_atac_b': inits.Constant(reader.get_tensor('stem_conv_atac/bias/.ATTRIBUTES/VARIABLE_VALUE')),
                          'stem_res_conv_atac_k': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE')),
                          'stem_res_conv_atac_b': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_atac_BN_g': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-0/gamma/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_atac_BN_b': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-0/beta/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_atac_BN_m': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-0/moving_mean/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_atac_BN_v': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-0/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'))}
+                         'stem_res_conv_atac_BN_g': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-0/batch_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE')),
+                         'stem_res_conv_atac_BN_b': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-0/batch_norm/beta/.ATTRIBUTES/VARIABLE_VALUE')),
+                         'stem_res_conv_atac_BN_m': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-0/batch_norm/moving_mean/.ATTRIBUTES/VARIABLE_VALUE')),
+                         'stem_res_conv_atac_BN_v': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-0/batch_norm/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'))}
     initializers_dict.update(out_dict)
     
     
     out_dict = {'final_point_k': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE')),
                          'final_point_b': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'final_point_BN_g': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-0/gamma/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'final_point_BN_b': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-0/beta/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'final_point_BN_m': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-0/moving_mean/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'final_point_BN_v': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-0/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'))}
+                         'final_point_BN_g': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-0/batch_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE')),
+                         'final_point_BN_b': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-0/batch_norm/beta/.ATTRIBUTES/VARIABLE_VALUE')),
+                         'final_point_BN_m': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-0/batch_norm/moving_mean/.ATTRIBUTES/VARIABLE_VALUE')),
+                         'final_point_BN_v': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-0/batch_norm/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'))}
     initializers_dict.update(out_dict)
     
 
     initializers_dict['stem_pool'] = inits.Constant(reader.get_tensor('stem_pool/_logit_linear/kernel/.ATTRIBUTES/VARIABLE_VALUE'))
+    initializers_dict['stem_pool_atac'] = inits.Constant(reader.get_tensor('stem_pool_atac/_logit_linear/kernel/.ATTRIBUTES/VARIABLE_VALUE'))
 
     ## load in convolutional weights
     for i in range(6):
@@ -213,17 +213,17 @@ def get_initializers_enformer_performer(checkpoint_path,
 
         conv1_k = var_name_stem + '0/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE'
         conv1_b = var_name_stem + '0/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_g = var_name_stem + '0/layer_with_weights-0/gamma/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_b = var_name_stem + '0/layer_with_weights-0/beta/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_m = var_name_stem + '0/layer_with_weights-0/moving_mean/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_v = var_name_stem + '0/layer_with_weights-0/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'
+        BN1_g = var_name_stem + '0/layer_with_weights-0/batch_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE'
+        BN1_b = var_name_stem + '0/layer_with_weights-0/batch_norm/beta/.ATTRIBUTES/VARIABLE_VALUE'
+        BN1_m = var_name_stem + '0/layer_with_weights-0/batch_norm/moving_mean/.ATTRIBUTES/VARIABLE_VALUE'
+        BN1_v = var_name_stem + '0/layer_with_weights-0/batch_norm/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'
         
         conv2_k = var_name_stem + '1/_layer/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE'
         conv2_b = var_name_stem + '1/_layer/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_g = var_name_stem + '1/_layer/layer_with_weights-0/gamma/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_b = var_name_stem + '1/_layer/layer_with_weights-0/beta/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_m = var_name_stem + '1/_layer/layer_with_weights-0/moving_mean/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_v = var_name_stem + '1/_layer/layer_with_weights-0/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'
+        BN2_g = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE'
+        BN2_b = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/beta/.ATTRIBUTES/VARIABLE_VALUE'
+        BN2_m = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/moving_mean/.ATTRIBUTES/VARIABLE_VALUE'
+        BN2_v = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'
         pool = var_name_stem + '2/_logit_linear/kernel/.ATTRIBUTES/VARIABLE_VALUE'
 
         out_dict = {'conv1_k_' + str(i): inits.Constant(reader.get_tensor(conv1_k)),
@@ -243,18 +243,51 @@ def get_initializers_enformer_performer(checkpoint_path,
         initializers_dict.update(out_dict)
         
         
-    ## load in convolutional weights
+    ## load in convolutional weights ATAC
+    for i in range(2):
+        var_name_stem = 'conv_tower_atac/layer_with_weights-' + str(i) + '/layer_with_weights-' #0/moving_mean/_counter/.ATTRIBUTES/VARIABLE_VALUE'
+
+        conv1_k = var_name_stem + '0/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE'
+        conv1_b = var_name_stem + '0/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE'
+        BN1_g = var_name_stem + '0/layer_with_weights-0/batch_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE'
+        BN1_b = var_name_stem + '0/layer_with_weights-0/batch_norm/beta/.ATTRIBUTES/VARIABLE_VALUE'
+        BN1_m = var_name_stem + '0/layer_with_weights-0/batch_norm/moving_mean/.ATTRIBUTES/VARIABLE_VALUE'
+        BN1_v = var_name_stem + '0/layer_with_weights-0/batch_norm/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'
+        
+        conv2_k = var_name_stem + '1/_layer/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE'
+        conv2_b = var_name_stem + '1/_layer/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE'
+        BN2_g = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE'
+        BN2_b = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/beta/.ATTRIBUTES/VARIABLE_VALUE'
+        BN2_m = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/moving_mean/.ATTRIBUTES/VARIABLE_VALUE'
+        BN2_v = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'
+        pool = var_name_stem + '2/_logit_linear/kernel/.ATTRIBUTES/VARIABLE_VALUE'
+
+        out_dict = {'conv_at1_k_' + str(i): inits.Constant(reader.get_tensor(conv1_k)),
+                    'conv_at1_b_' + str(i): inits.Constant(reader.get_tensor(conv1_b)),
+                    'BN_at1_g_' + str(i): inits.Constant(reader.get_tensor(BN1_g)),
+                    'BN_at1_b_' + str(i): inits.Constant(reader.get_tensor(BN1_b)),
+                    'BN_at1_m_' + str(i): inits.Constant(reader.get_tensor(BN1_m)),
+                    'BN_at1_v_' + str(i): inits.Constant(reader.get_tensor(BN1_v)),
+                    'conv_at2_k_' + str(i): inits.Constant(reader.get_tensor(conv2_k)),
+                    'conv_at2_b_' + str(i): inits.Constant(reader.get_tensor(conv2_b)),
+                    'BN_at2_g_' + str(i): inits.Constant(reader.get_tensor(BN2_g)),
+                    'BN_at2_b_' + str(i): inits.Constant(reader.get_tensor(BN2_b)),
+                    'BN_at2_m_' + str(i): inits.Constant(reader.get_tensor(BN2_m)),
+                    'BN_at2_v_' + str(i): inits.Constant(reader.get_tensor(BN2_v))}
+
+        out_dict['pool_at_' + str(i)] = inits.Constant(reader.get_tensor(pool))
+        initializers_dict.update(out_dict)
     
     
-    initializers_dict['performer_encoder_LN_b'] = inits.Constant(reader.get_tensor("performer/layer_norm/beta/.ATTRIBUTES/VARIABLE_VALUE"))
-    initializers_dict['performer_encoder_LN_g'] = inits.Constant(reader.get_tensor("performer/layer_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE"))
+    initializers_dict['performer_encoder_LN_b'] = inits.Constant(reader.get_tensor("performer/layer_norm/layer_norm/beta/.ATTRIBUTES/VARIABLE_VALUE"))
+    initializers_dict['performer_encoder_LN_g'] = inits.Constant(reader.get_tensor("performer/layer_norm/layer_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE"))
     
     for i in range(num_transformer_layers):
         var_name_stem = 'performer/layers/' + str(i) + '/' #0/moving_mean/_counter/.ATTRIBUTES/VARIABLE_VALUE'
 
         if not stable_variant:
-            LN_b=var_name_stem + 'layer_norm/beta/.ATTRIBUTES/VARIABLE_VALUE'
-            LN_g=var_name_stem + 'layer_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE'
+            LN_b=var_name_stem + 'layer_norm/layer_norm/beta/.ATTRIBUTES/VARIABLE_VALUE'
+            LN_g=var_name_stem + 'layer_norm/layer_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE'
             out_dict = {'LN_b' + str(i): inits.Constant(reader.get_tensor(LN_b)),
                         'LN_g' + str(i): inits.Constant(reader.get_tensor(LN_g))}
             initializers_dict.update(out_dict)
@@ -268,8 +301,8 @@ def get_initializers_enformer_performer(checkpoint_path,
         FFN_narr_b=var_name_stem + "FFN/FFN_dense_narrow/bias/.ATTRIBUTES/VARIABLE_VALUE"
         FFN_wide_k=var_name_stem + "FFN/FFN_dense_wide/kernel/.ATTRIBUTES/VARIABLE_VALUE"
         FFN_wide_b=var_name_stem + "FFN/FFN_dense_wide/bias/.ATTRIBUTES/VARIABLE_VALUE"
-        FFN_LN_b=var_name_stem + "FFN/FFN_layer_norm/beta/.ATTRIBUTES/VARIABLE_VALUE"
-        FFN_LN_g=var_name_stem + "FFN/FFN_layer_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE"
+        FFN_LN_b=var_name_stem + "FFN/FFN_layer_norm/layer_norm/beta/.ATTRIBUTES/VARIABLE_VALUE"
+        FFN_LN_g=var_name_stem + "FFN/FFN_layer_norm/layer_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE"
     
 
         out_dict = {'SA_k' + str(i): inits.Constant(reader.get_tensor(SA_k)),
@@ -285,6 +318,11 @@ def get_initializers_enformer_performer(checkpoint_path,
 
         initializers_dict.update(out_dict)
         
+        
+        out_dict = {'pos_embedding_learned': inits.Constant(reader.get_tensor('pos_embedding_learned/embeddings/.ATTRIBUTES/VARIABLE_VALUE'))}
+        initializers_dict.update(out_dict)      
+                    
+                    
     return initializers_dict
 
 
@@ -299,21 +337,12 @@ def return_train_val_functions(model,
                                metric_dict,
                                global_batch_size,
                                gradient_clip,
-                               cage_scale,
-                               loss_fn='poisson'):
+                               cage_scale):
     
-    if loss_fn == 'poisson': 
-        loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
-    elif loss_fn == 'mse':
-        loss_fn = tf.keras.losses.MeanSquaredError(reduction=tf.keras.losses.Reduction.NONE)
-    elif loss_fn == 'mse_log':
-        loss_fn = tf.keras.losses.MeanSquaredLogarithmicError(reduction=tf.keras.losses.Reduction.NONE)
-    elif loss_fn == 'mae':
-        loss_fn = tf.keras.losses.MeanAbsoluteError(reduction=tf.keras.losses.Reduction.NONE)
-    else:
-        raise ValueError('loss fn not implemented')
+    loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
 
-    optimizer1,optimizer2=optimizers_in
+
+    optimizer1,optimizer2,optimizer3=optimizers_in
     
     metric_dict["corr_stats"] = metrics.correlation_stats_gene_centered(name='corr_stats')
     metric_dict["corr_stats_ho"] = metrics.correlation_stats_gene_centered(name='corr_stats_ho')
@@ -341,16 +370,14 @@ def return_train_val_functions(model,
     metric_dict['CAGE_R2_ho'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
 
 
-    def dist_train_step_masked_atac(iterator):    
+    def dist_train_step(iterator):    
         @tf.function(jit_compile=True)
         def train_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
-            atac_mask=tf.cast(inputs['atac_mask'],dtype=tf.float32)
 
-            input_tuple = sequence, atac, global_acc
+            input_tuple = sequence, atac
 
             with tf.GradientTape(watch_accessed_variables=False) as tape:
                 conv_vars = model.stem_conv.trainable_variables + \
@@ -364,12 +391,11 @@ def return_train_val_functions(model,
                                         model.conv_tower_atac.trainable_variables + \
                                         model.pos_embedding_learned.trainable_variables + \
                                         model.performer.trainable_variables + \
-                                        model.global_acc_block.trainable_variables + \
-                                        model.final_pointwise_conv.trainable_variables + \
-                                        model.final_dense.trainable_variables
+                                        model.final_pointwise_conv.trainable_variables
+                dense_vars= model.final_dense.trainable_variables
                                
                 
-                vars_all = conv_vars + performer_vars
+                vars_all = conv_vars + performer_vars + dense_vars
                 for var in vars_all:
                     tape.watch(var)
                     
@@ -378,11 +404,8 @@ def return_train_val_functions(model,
 
                 output = tf.cast(output,dtype=tf.float32)
 
-                target_atac = tf.gather(target[:,:,0], tf.where(atac_mask[0,:,0] == 1.0)[:,0],axis=1)
-                output_atac = tf.gather(output[:,:,0], tf.where(atac_mask[0,:,0] == 1.0)[:,0],axis=1)
-
-                atac_loss = tf.reduce_mean(loss_fn(target_atac,
-                                                   output_atac)) * (1.0 - cage_scale) * (1. / global_batch_size)
+                atac_loss = tf.reduce_mean(loss_fn(target[:,:,0],
+                                                   output[:,:,0])) * (1.0 - cage_scale) * (1. / global_batch_size)
                 
                 cage_loss = tf.reduce_mean(loss_fn(target[:,:,1],output[:,:,1])) * cage_scale * (1. / global_batch_size)
                 loss = atac_loss + cage_loss
@@ -393,75 +416,23 @@ def return_train_val_functions(model,
             
             optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], 
                                            conv_vars))
-            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):len(conv_vars + performer_vars)], 
                                            performer_vars))
+            optimizer3.apply_gradients(zip(gradients[len(conv_vars+performer_vars):], 
+                                           dense_vars))
             metric_dict["train_loss"].update_state(loss)
         
         for _ in tf.range(train_steps):
             strategy.run(train_step,
                          args=(next(iterator),))
             
-            
-    def dist_train_step(iterator):    
-        @tf.function(jit_compile=True)
-        def train_step(inputs):
-            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
-            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
-            target=tf.cast(inputs['target'],dtype=tf.float32)
 
-            input_tuple = sequence, atac, global_acc
-
-            with tf.GradientTape(watch_accessed_variables=False) as tape:
-                conv_vars = model.stem_conv.trainable_variables + \
-                            model.stem_res_conv.trainable_variables + \
-                            model.stem_pool.trainable_variables + \
-                            model.conv_tower.trainable_variables
-                
-                performer_vars =  model.stem_conv_atac.trainable_variables + \
-                                    model.stem_res_conv_atac.trainable_variables + \
-                                        model.stem_pool_atac.trainable_variables + \
-                                        model.conv_tower_atac.trainable_variables + \
-                                        model.pos_embedding_learned.trainable_variables + \
-                                        model.performer.trainable_variables + \
-                                        model.global_acc_block.trainable_variables + \
-                                        model.final_pointwise_conv.trainable_variables + \
-                                        model.final_dense.trainable_variables
-                
-                vars_all = conv_vars + performer_vars
-                for var in vars_all:
-                    tape.watch(var)
-                    
-                output = model(input_tuple,
-                               training=True)
-
-                output = tf.cast(output,dtype=tf.float32)
-                cage_loss = loss_fn(target,output)
-                loss = tf.math.reduce_mean(cage_loss)
-
-                loss = loss * (1. / global_batch_size)
-
-            gradients = tape.gradient(loss, vars_all)
-            gradients, _ = tf.clip_by_global_norm(gradients, 
-                                                  gradient_clip)
-            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], 
-                                           conv_vars))
-            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
-                                           performer_vars))
-            metric_dict["train_loss"].update_state(loss)
-        
-        for _ in tf.range(train_steps):
-            strategy.run(train_step,
-                         args=(next(iterator),))
-
-    def dist_val_step_masked_atac(iterator):
+    def dist_val_step(iterator):
         @tf.function(jit_compile=True)
         def val_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
-            atac_mask=tf.cast(inputs['atac_mask'],dtype=tf.float32)
             
             input_tuple = sequence,atac,global_acc
 
@@ -494,36 +465,7 @@ def return_train_val_functions(model,
             strategy.run(val_step,
                          args=(next(iterator),))
             
-    def dist_val_step(iterator):
-        @tf.function(jit_compile=True)
-        def val_step(inputs):
-            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
-            target=tf.cast(inputs['target'],dtype=tf.float32)
-            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
-            
-            input_tuple = sequence,atac,global_acc
-
-            output = model(input_tuple,
-                           training=False)
-            output = tf.cast(output,dtype=tf.float32)
-            
-            cage_loss = loss_fn(target,output)
-            loss = tf.math.reduce_mean(cage_loss)
-            metric_dict['CAGE_PearsonR'].update_state(target, 
-                                                      output)
-            metric_dict['CAGE_R2'].update_state(target, 
-                                                output)
-
-            loss = tf.math.reduce_mean(loss) * (1. / global_batch_size)
-
-            metric_dict["val_loss"].update_state(loss)
-
-        for _ in tf.range(val_steps): ## for loop within @tf.fuction for improved TPU performance
-            strategy.run(val_step,
-                         args=(next(iterator),))
-
-    def dist_val_step_masked_atac_ho(iterator):
+    def dist_val_step_ho(iterator):
         @tf.function(jit_compile=True)
         def val_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
@@ -557,84 +499,7 @@ def return_train_val_functions(model,
         for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(val_step,
                          args=(next(iterator),))
-            
-    def dist_val_step_ho(iterator):
-        @tf.function(jit_compile=True)
-        def val_step(inputs):
-            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
-            target=tf.cast(inputs['target'],dtype=tf.float32)
-            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
-            
-            input_tuple = sequence,atac,global_acc
-
-            output = model(input_tuple,
-                           training=False)
-            output = tf.cast(output,dtype=tf.float32)
-            
-            cage_loss = loss_fn(target,output)
-            loss = tf.math.reduce_mean(cage_loss)
-            metric_dict['CAGE_PearsonR_ho'].update_state(target, 
-                                                      output)
-            metric_dict['CAGE_R2_ho'].update_state(target, 
-                                                output)
-
-            loss = tf.math.reduce_mean(loss) * (1. / global_batch_size)
-
-        for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
-            strategy.run(val_step,
-                         args=(next(iterator),))
     
-    def dist_val_step_TSS_masked_atac(iterator): #input_batch, model, optimizer, organism, gradient_clip):
-        @tf.function(jit_compile=True)
-        def val_step(inputs):
-            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
-            target=tf.cast(inputs['target'],dtype=tf.float32)
-            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
-            input_tuple = sequence, atac,global_acc
-
-            output = model(input_tuple,
-                           training=False)
-            output = tf.cast(output,dtype=tf.float32)
-            
-            tss_tokens = tf.cast(inputs['tss_tokens'],dtype=tf.float32)
-            gene_token = inputs['gene_token']
-            cell_type = inputs['cell_type']
-            
-            pred = tf.reduce_sum(tf.cast(output,dtype=tf.float32)[:,:,1:] * tss_tokens,axis=1)
-            true = tf.reduce_sum(target[:,:,1:] * tss_tokens,axis=1)
-
-            return pred,true,gene_token,cell_type
-        
-        ta_pred = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
-        ta_true = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
-        ta_celltype = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
-        ta_genemap = tf.TensorArray(tf.int32, size=0, dynamic_size=True)        
-
-        for _ in tf.range(val_steps_TSS): ## for loop within @tf.fuction for improved TPU performance
-
-            pred_rep, true_rep, gene_rep, cell_type_rep = strategy.run(val_step,
-                                                                       args=(next(iterator),))
-            
-            pred_reshape = tf.reshape(strategy.gather(pred_rep, axis=0), [-1]) # reshape to 1D
-            true_reshape = tf.reshape(strategy.gather(true_rep, axis=0), [-1])
-            cell_type_reshape = tf.reshape(strategy.gather(cell_type_rep, axis=0), [-1])
-            gene_map_reshape = tf.reshape(strategy.gather(gene_rep, axis=0), [-1])
-            
-            ta_pred = ta_pred.write(_, pred_reshape)
-            ta_true = ta_true.write(_, true_reshape)
-            ta_celltype = ta_celltype.write(_, cell_type_reshape)
-            ta_genemap = ta_genemap.write(_, gene_map_reshape)
-        metric_dict["corr_stats"].update_state(ta_true.concat(),
-                                                  ta_pred.concat(),
-                                                  ta_celltype.concat(),
-                                                  ta_genemap.concat())
-        ta_true.close()
-        ta_pred.close()
-        ta_celltype.close()
-        ta_genemap.close()
-        
     def dist_val_step_TSS(iterator): #input_batch, model, optimizer, organism, gradient_clip):
         @tf.function(jit_compile=True)
         def val_step(inputs):
@@ -652,12 +517,11 @@ def return_train_val_functions(model,
             gene_token = inputs['gene_token']
             cell_type = inputs['cell_type']
             
-            pred = tf.reduce_sum(tf.cast(output,dtype=tf.float32) * tss_tokens,axis=1)
-            true = tf.reduce_sum(target * tss_tokens,axis=1)
-            
+            pred = tf.reduce_sum(tf.cast(output,dtype=tf.float32)[:,:,1:] * tss_tokens,axis=1)
+            true = tf.reduce_sum(target[:,:,1:] * tss_tokens,axis=1)
+
             return pred,true,gene_token,cell_type
-
-
+        
         ta_pred = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
         ta_true = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
         ta_celltype = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
@@ -685,9 +549,9 @@ def return_train_val_functions(model,
         ta_pred.close()
         ta_celltype.close()
         ta_genemap.close()
-
         
-    def dist_val_step_TSS_masked_atac_ho(iterator): #input_batch, model, optimizer, organism, gradient_clip):
+
+    def dist_val_step_TSS_ho(iterator): #input_batch, model, optimizer, organism, gradient_clip):
         @tf.function(jit_compile=True)
         def val_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
@@ -737,56 +601,6 @@ def return_train_val_functions(model,
         ta_celltype.close()
         ta_genemap.close()
         
-    def dist_val_step_TSS_ho(iterator): #input_batch, model, optimizer, organism, gradient_clip):
-        @tf.function(jit_compile=True)
-        def val_step(inputs):
-            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
-            target=tf.cast(inputs['target'],dtype=tf.float32)
-            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
-            input_tuple = sequence, atac,global_acc
-
-            output = model(input_tuple,
-                           training=False)
-            output = tf.cast(output,dtype=tf.float32)
-            
-            tss_tokens = tf.cast(inputs['tss_tokens'],dtype=tf.float32)
-            gene_token = inputs['gene_token']
-            cell_type = inputs['cell_type']
-            
-            pred = tf.reduce_sum(tf.cast(output,dtype=tf.float32) * tss_tokens,axis=1)
-            true = tf.reduce_sum(target * tss_tokens,axis=1)
-            
-            return pred,true,gene_token,cell_type
-
-
-        ta_pred = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
-        ta_true = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
-        ta_celltype = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
-        ta_genemap = tf.TensorArray(tf.int32, size=0, dynamic_size=True)        
-
-        for _ in tf.range(val_steps_TSS_ho): ## for loop within @tf.fuction for improved TPU performance
-
-            pred_rep, true_rep, gene_rep, cell_type_rep = strategy.run(val_step,
-                                                                       args=(next(iterator),))
-            
-            pred_reshape = tf.reshape(strategy.gather(pred_rep, axis=0), [-1]) # reshape to 1D
-            true_reshape = tf.reshape(strategy.gather(true_rep, axis=0), [-1])
-            cell_type_reshape = tf.reshape(strategy.gather(cell_type_rep, axis=0), [-1])
-            gene_map_reshape = tf.reshape(strategy.gather(gene_rep, axis=0), [-1])
-            
-            ta_pred = ta_pred.write(_, pred_reshape)
-            ta_true = ta_true.write(_, true_reshape)
-            ta_celltype = ta_celltype.write(_, cell_type_reshape)
-            ta_genemap = ta_genemap.write(_, gene_map_reshape)
-        metric_dict["corr_stats_ho"].update_state(ta_true.concat(),
-                                                  ta_pred.concat(),
-                                                  ta_celltype.concat(),
-                                                  ta_genemap.concat())
-        ta_true.close()
-        ta_pred.close()
-        ta_celltype.close()
-        ta_genemap.close()
     
     def build_step(iterator): #input_batch, model, optimizer, organism, gradient_clip):
         @tf.function(jit_compile=True)
@@ -804,9 +618,9 @@ def return_train_val_functions(model,
             strategy.run(val_step, args=(next(iterator),))
     
 
-    return dist_train_step_masked_atac,dist_train_step, \
-            dist_val_step_masked_atac, dist_val_step_masked_atac_ho, dist_val_step, dist_val_step_ho, \
-                dist_val_step_TSS_masked_atac, dist_val_step_TSS_masked_atac_ho, dist_val_step_TSS, dist_val_step_TSS_ho, \
+    return dist_train_step, \
+            dist_val_step, dist_val_step_ho, \
+                dist_val_step_TSS, dist_val_step_TSS_ho, \
                         build_step, metric_dict
 
 def deserialize_tr(serialized_example,

@@ -43,7 +43,6 @@ class aformer(tf.keras.Model):
                  predict_masked_atac_bool = True,
                  filter_list_seq=[768, 896, 1024, 1152, 1280, 1536],
                  filter_list_atac=[32, 64],
-                 global_acc_size=64,
                  freeze_conv_layers=False,
                  learnable_PE = False,
                  name: str = 'aformer',
@@ -84,7 +83,7 @@ class aformer(tf.keras.Model):
         self.predict_masked_atac_bool=predict_masked_atac_bool
         self.stable_variant=stable_variant
         self.learnable_PE=learnable_PE
-        self.global_acc_size=global_acc_size
+        #self.global_acc_size=global_acc_size
         self.BN_momentum=BN_momentum
         
         ## ensure load_init matches actual init inputs...
@@ -108,8 +107,8 @@ class aformer(tf.keras.Model):
         #self.filter_list_seq = [768, 896, 1024, 1152, 1280, 1536] if (self.load_init and self.inits_type == 'enformer_conv') else filter_list_seq
         
         
-        self.hidden_size=self.filter_list_seq[-1] + self.filter_list_atac[-1] + self.global_acc_size
-        self.d_model = self.filter_list_seq[-1] + self.filter_list_atac[-1] + self.global_acc_size
+        self.hidden_size=self.filter_list_seq[-1] + self.filter_list_atac[-1]# + self.global_acc_size
+        self.d_model = self.filter_list_seq[-1] + self.filter_list_atac[-1] #+ self.global_acc_size
             
         self.dim = self.hidden_size  // self.num_heads
         
@@ -189,9 +188,11 @@ class aformer(tf.keras.Model):
                                                          bias_init=self.inits['stem_res_conv_atac_b'] if self.load_init_atac else None,
                                                          name='pointwise_conv_block_atac'))
         self.stem_pool_atac = SoftmaxPooling1D(per_channel=True,
-                                          w_init_scale=2.0,
-                                          pool_size=2,
-                                          name ='stem_pool_atac')
+                                              w_init_scale=2.0,
+                                              pool_size=2,
+                                               k_init=self.inits['stem_pool_atac'] if self.load_init else None,
+                                              train=False if self.freeze_conv_layers else True,
+                                              name ='stem_pool_atac')
 
 
         self.stem_pool = SoftmaxPooling1D(per_channel=True,
@@ -203,6 +204,7 @@ class aformer(tf.keras.Model):
         
         self.pos_embedding_learned = tf.keras.layers.Embedding(self.output_length, 
                                                                self.hidden_size,
+                                                               embeddings_initializer=self.inits['pos_embedding_learned'],
                                                                input_length=self.output_length)
 
 
@@ -242,13 +244,28 @@ class aformer(tf.keras.Model):
         self.conv_tower_atac = tf.keras.Sequential([
             tf.keras.Sequential([
                 enf_conv_block(filters=num_filters, 
-                               width=5, 
+                               width=5,
+                               beta_init=self.inits['BN_at1_b_' + str(i)] if self.load_init else None,
+                               gamma_init=self.inits['BN_at1_g_' + str(i)] if self.load_init else None,
+                               mean_init=self.inits['BN_at1_m_' + str(i)] if self.load_init else None,
+                               var_init=self.inits['BN_at1_v_' + str(i)] if self.load_init else None,
+                               kernel_init=self.inits['conv_at1_k_' + str(i)] if self.load_init else None,
+                               bias_init=self.inits['conv_at1_b_' + str(i)] if self.load_init else None,
+                               train=False if self.freeze_conv_layers else True,
                                dilation_rate=2,
                                padding='same'),
                 Residual(enf_conv_block(filters=num_filters, width=1, 
+                                       beta_init=self.inits['BN_at2_b_' + str(i)] if self.load_init else None,
+                                       gamma_init=self.inits['BN_at2_g_' + str(i)] if self.load_init else None,
+                                       mean_init=self.inits['BN_at2_m_' + str(i)] if self.load_init else None,
+                                       var_init=self.inits['BN_at2_v_' + str(i)] if self.load_init else None,
+                                       kernel_init=self.inits['conv_at2_k_' + str(i)] if self.load_init else None,
+                                       bias_init=self.inits['conv_at2_b_' + str(i)] if self.load_init else None,
+                                        train=False if self.freeze_conv_layers else True,
                                         name='pointwise_conv_block')),
                 SoftmaxPooling1D(per_channel=True,
                                  w_init_scale=2.0,
+                                 k_init=self.inits['pool_at_'+str(i)] if self.load_init else None,
                                  pool_size=4),
                 ],
                        name=f'conv_tower_block_atac_{i}')
@@ -307,12 +324,19 @@ class aformer(tf.keras.Model):
                                              name='target_input')
         
         self.final_pointwise_conv = enf_conv_block(filters=self.filter_list_seq[-1] // 6,
+                                                   beta_init=self.inits['final_point_BN_b'] if self.load_init_atac else None,
+                                                   gamma_init=self.inits['final_point_BN_g'] if self.load_init_atac else None,
+                                                   mean_init=self.inits['final_point_BN_m'] if self.load_init_atac else None,
+                                                   var_init=self.inits['final_point_BN_v'] if self.load_init_atac else None,
+                                                   kernel_init=self.inits['final_point_k'] if self.load_init_atac else None,
+                                                   bias_init=self.inits['final_point_b'] if self.load_init_atac else None,
+                                                   train=False if self.freeze_conv_layers else True,
                                                   **kwargs,
                                                   name = 'final_pointwise')
         
-        self.global_acc_block =enf_conv_block(filters=self.global_acc_size,
-                                              **kwargs,
-                                              name = 'final_pointwise')
+        #self.global_acc_block =enf_conv_block(filters=self.global_acc_size,
+        #                                      **kwargs,
+        #                                      name = 'final_pointwise')
         
         
         if self.predict_masked_atac_bool: 
@@ -335,7 +359,7 @@ class aformer(tf.keras.Model):
         
     def call(self, inputs, training:bool=True):
 
-        sequence,atac,global_acc = inputs
+        sequence,atac = inputs
 
         x = self.stem_conv(sequence,
                            training=training)
@@ -356,16 +380,7 @@ class aformer(tf.keras.Model):
                                          training=training)
         atac_x = self.stem_pool_atac(atac_x,training=training)
         atac_x = self.conv_tower_atac(atac_x,training=training)
-        
-        global_acc = self.global_acc_block(global_acc,
-                                           training=training)
-        global_acc = self.dropout(global_acc,
-                        training=training)
-        global_acc = self.gelu(global_acc)
-        global_acc = tf.tile(global_acc, 
-                               [1,self.output_length,1])
-
-        transformer_input = tf.concat([x,atac_x,global_acc],
+        transformer_input = tf.concat([x,atac_x],
                                       axis=2)
         
         
@@ -424,8 +439,7 @@ class aformer(tf.keras.Model):
             "inits_type":self.inits_type,
             "predict_masked_atac_bool":self.predict_masked_atac_bool,
             "stable_variant":self.stable_variant,
-            "learnable_PE":self.learnable_PE,
-            "global_acc_size":self.global_acc_size
+            "learnable_PE":self.learnable_PE
             
         }
         
@@ -442,7 +456,7 @@ class aformer(tf.keras.Model):
     #                              tf.TensorSpec([None, 1572], tf.float32)])
     def predict_on_batch(self, inputs, training:bool=False):
         
-        sequence,atac,global_acc = inputs
+        sequence,atac = inputs
 
         x = self.stem_conv(sequence,
                            training=training)
@@ -464,15 +478,7 @@ class aformer(tf.keras.Model):
         atac_x = self.stem_pool_atac(atac_x,training=training)
         atac_x = self.conv_tower_atac(atac_x,training=training)
         
-        global_acc = self.global_acc_block(global_acc,
-                                           training=training)
-        global_acc = self.dropout(global_acc,
-                        training=training)
-        global_acc = self.gelu(global_acc)
-        global_acc = tf.tile(global_acc, 
-                               [1,self.output_length,1])
-
-        transformer_input = tf.concat([x,atac_x,global_acc],
+        transformer_input = tf.concat([x,atac_x],
                                       axis=2)
         
         
