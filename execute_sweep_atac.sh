@@ -1,6 +1,6 @@
 #!/bin/bash -l
 
-python3 train_model_atac_early.py \
+python3 train_model_atac.py \
             --tpu_name="pod" \
             --tpu_zone="us-east1-d" \
             --wandb_project="atac_pretraining" \
