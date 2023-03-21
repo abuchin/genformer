@@ -519,7 +519,7 @@ def deserialize_tr(serialized_example,
                    output_length,
                    crop_size,
                    output_res,
-                   seq_mask_dropout,
+                   #seq_mask_dropout,
                    atac_mask_dropout,
                    #use_global_acc,
                    log_atac,
@@ -536,7 +536,7 @@ def deserialize_tr(serialized_example,
     ### stochastic sequence shift and gaussian noise
 
     rev_comp = tf.math.round(g.uniform([], 0, 1))
-    seq_mask_int = g.uniform([], 0, 3,dtype=tf.int32)
+    seq_mask_int = g.uniform([], 0, 4,dtype=tf.int32)
     stupid_random_seed = g.uniform([], 0, 1000,dtype=tf.int32)
     shift = g.uniform(shape=(),
                       minval=0,
@@ -572,17 +572,22 @@ def deserialize_tr(serialized_example,
     mask_indices_temp = tf.where(peaks_crop[:,0] > 0)[:,0]
     ridx = tf.concat([tf.random.shuffle(mask_indices_temp),
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
-    mask_indices=[[ridx[0]-2+crop_size],
+    mask_indices=[[ridx[0]-4+crop_size],
+                  [ridx[0]-3+crop_size],
+                   [ridx[0]-2+crop_size],
                   [ridx[0]-1+crop_size],
                   [ridx[0]+crop_size],
                   [ridx[0]+1+crop_size],
-                  [ridx[0]+2+crop_size]]
+                  [ridx[0]+2+crop_size],
+                  [ridx[0]+3+crop_size],
+                  [ridx[0]+4+crop_size]]
                   
     st=tf.SparseTensor(
         indices=mask_indices,
         values=[1.0]*len(mask_indices),
         dense_shape=[output_length])
     dense_peak_mask=tf.sparse.to_dense(st)
+    dense_peak_mask_store = dense_peak_mask
     dense_peak_mask=1.0-dense_peak_mask
     dense_peak_mask = tf.expand_dims(dense_peak_mask,axis=1)
 
@@ -617,14 +622,14 @@ def deserialize_tr(serialized_example,
         masked_atac = tf.math.log1p(masked_atac)
     
     ### here set up the sequence masking
-    seq_mask=tf.nn.experimental.stateless_dropout((full_comb_mask_store),
-                                                  rate=(1.0-seq_mask_dropout),
-                                                  seed=[0,stupid_random_seed]) / (1. / (seq_mask_dropout))
-    seq_mask = 1.0 - seq_mask
-    full_seq_mask = tf.concat([edge_append,seq_mask,edge_append],axis=0)
-    tiling_req_seq = input_length // output_length
-    full_seq_mask = tf.expand_dims(tf.reshape(tf.tile(full_seq_mask, [1,tiling_req_seq]),[-1]),axis=1)
-    masked_seq = sequence * full_seq_mask
+    if seq_mask_int == 0:
+        seq_mask = 1.0 - dense_peak_mask_store
+        seq_mask = tf.expand_dims(seq_mask,axis=1)
+        tiling_req_seq = input_length // output_length
+        seq_mask = tf.expand_dims(tf.reshape(tf.tile(seq_mask, [1,tiling_req_seq]),[-1]),axis=1)
+        masked_seq = sequence * seq_mask
+    else:
+        masked_seq = sequence
     
     if rev_comp == 1:
         masked_seq = tf.gather(masked_seq, [3, 2, 1, 0], axis=-1)
@@ -633,31 +638,17 @@ def deserialize_tr(serialized_example,
         masked_atac = tf.reverse(masked_atac,axis=[0])
         atac_mask_store = tf.reverse(atac_mask_store,axis=[0])
         peaks_crop=tf.reverse(peaks_crop,axis=[0])
-        seq_mask=tf.reverse(seq_mask,axis=[0])
+        dense_peak_mask=tf.reverse(dense_peak_mask, axis=[0])
         
         
     atac_out = tf.reduce_sum(tf.reshape(atac_target, [-1,tiling_req]),axis=1,keepdims=True)
-    diff = tf.math.sqrt(tf.nn.relu(atac_out - 64.0 * tf.ones(atac_out.shape)))
-    atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=64.0) + diff
+    #diff = tf.math.sqrt(tf.nn.relu(atac_out - 64.0 * tf.ones(atac_out.shape)))
+    #atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=64.0) + diff
     atac_out = tf.cast(tf.cast(atac_out,dtype=tf.float16),dtype=tf.float32) ### round to be consistent with Enformer
     atac_out = tf.slice(atac_out,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
-    """
-    global_acc = tf.ensure_shape(tf.io.parse_tensor(data['cell_specific_conv_arr'],
-                                              out_type=tf.float32),
-                           [1536])
-    global_acc=tf.expand_dims(global_acc,axis=0)
-    
-    global_acc = tf.math.asinh(global_acc)
-    global_acc = (global_acc - tf.math.reduce_mean(global_acc)) / tf.math.reduce_std(global_acc)
-    
-    if not use_global_acc:
-        global_acc = g.normal(global_acc.shape,
-                              mean=0.0,
-                              stddev=0.001,
-                              dtype=tf.float32)
-    """
+
         
     return {'sequence': tf.ensure_shape(masked_seq,
                                         [input_length,4]),
@@ -665,8 +656,8 @@ def deserialize_tr(serialized_example,
                                     [output_length_ATAC,1]),
             'mask': tf.ensure_shape(full_comb_mask_store,
                                     [output_length-crop_size*2,1]),
-            #'global_acc': tf.ensure_shape(global_acc,
-            #                          [1,1536]),
+            'dense_peak_mask': tf.ensure_shape(dense_peak_mask,
+                                    [output_length,1]),
             'peaks': tf.ensure_shape(peaks_crop,
                                       [output_length-crop_size*2,1]),
             'target': tf.ensure_shape(atac_out,
@@ -679,7 +670,7 @@ def deserialize_val(serialized_example,
                    output_length,
                    crop_size,
                    output_res,
-                   seq_mask_dropout,
+                   #seq_mask_dropout,
                    atac_mask_dropout,
                    #use_global_acc,
                    log_atac,
@@ -718,17 +709,22 @@ def deserialize_val(serialized_example,
     mask_indices_temp = tf.where(peaks_crop[:,0] > 0)[:,0]
     ridx = tf.concat([tf.random.shuffle(mask_indices_temp),
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
-    mask_indices=[[ridx[0]-2+crop_size],
+    mask_indices=[[ridx[0]-4+crop_size],
+                  [ridx[0]-3+crop_size],
+                   [ridx[0]-2+crop_size],
                   [ridx[0]-1+crop_size],
                   [ridx[0]+crop_size],
                   [ridx[0]+1+crop_size],
-                  [ridx[0]+2+crop_size]]
+                  [ridx[0]+2+crop_size],
+                  [ridx[0]+3+crop_size],
+                  [ridx[0]+4+crop_size]]
     
     st=tf.SparseTensor(
         indices=mask_indices,
         values=[1.0]*len(mask_indices),
         dense_shape=[output_length])
     dense_peak_mask=tf.sparse.to_dense(st)
+    dense_peak_mask_store = dense_peak_mask
     dense_peak_mask=1.0-dense_peak_mask
     dense_peak_mask = tf.expand_dims(dense_peak_mask,axis=1)
 
@@ -758,28 +754,13 @@ def deserialize_val(serialized_example,
         masked_atac = tf.math.log1p(masked_atac)
         
     atac_out = tf.reduce_sum(tf.reshape(atac_target, [-1,tiling_req]),axis=1,keepdims=True)
-    diff = tf.math.sqrt(tf.nn.relu(atac_out - 64.0 * tf.ones(atac_out.shape)))
-    atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=64.0) + diff
+    #diff = tf.math.sqrt(tf.nn.relu(atac_out - 64.0 * tf.ones(atac_out.shape)))
+    #atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=64.0) + diff
     atac_out = tf.cast(tf.cast(atac_out,dtype=tf.float16),dtype=tf.float32) ### round to be consistent with Enformer
     atac_out = tf.slice(atac_out,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
-    """
-    global_acc = tf.ensure_shape(tf.io.parse_tensor(data['cell_specific_conv_arr'],
-                                              out_type=tf.float32),
-                           [1536])
-    global_acc=tf.expand_dims(global_acc,axis=0)
-    
-    global_acc = tf.math.asinh(global_acc)
-    global_acc = (global_acc - tf.math.reduce_mean(global_acc)) / tf.math.reduce_std(global_acc)
-    
-    if not use_global_acc:
-        global_acc = g.normal(global_acc.shape,
-                              mean=0.0,
-                              stddev=0.001,
-                              dtype=tf.float32)
-    """
-        
+
     return {'sequence': tf.ensure_shape(sequence,
                                         [input_length,4]),
             'atac': tf.ensure_shape(masked_atac,
@@ -806,7 +787,7 @@ def return_dataset(gcs_path,
                    options,
                    num_parallel,
                    num_epoch,
-                   seq_mask_dropout,
+                   #seq_mask_dropout,
                    atac_mask_dropout,
                    #use_global_acc,
                    log_atac,
@@ -837,7 +818,7 @@ def return_dataset(gcs_path,
                                                             output_length,
                                                             crop_size,
                                                             output_res,
-                                                            seq_mask_dropout,
+                                                            #seq_mask_dropout,
                                                             atac_mask_dropout,
                                                             #use_global_acc,
                                                             log_atac,
@@ -855,8 +836,8 @@ def return_dataset(gcs_path,
                                                             output_length,
                                                             crop_size,
                                                             output_res,
-                                                             seq_mask_dropout,
-                                                            atac_mask_dropout,
+                                                             #seq_mask_dropout,
+                                                            0.10,
                                                             #use_global_acc,
                                                             log_atac,
                                                             g),
@@ -879,7 +860,7 @@ def return_distributed_iterators(gcs_path,
                                  num_epoch,
                                  strategy,
                                  options,
-                                 seq_mask_dropout,
+                                 #seq_mask_dropout,
                                  atac_mask_dropout,
                                  #use_global_acc,
                                  log_atac,
@@ -897,7 +878,7 @@ def return_distributed_iterators(gcs_path,
                              options,
                              num_parallel_calls,
                              num_epoch,
-                             seq_mask_dropout,
+                             #seq_mask_dropout,
                              atac_mask_dropout,
                              #use_global_acc,
                              log_atac,
@@ -916,7 +897,7 @@ def return_distributed_iterators(gcs_path,
                               options,
                               num_parallel_calls,
                               num_epoch,
-                              seq_mask_dropout,
+                              #seq_mask_dropout,
                               atac_mask_dropout,
                               #use_global_acc,
                               log_atac,
@@ -934,7 +915,7 @@ def return_distributed_iterators(gcs_path,
                               options,
                               num_parallel_calls,
                               num_epoch,
-                                 seq_mask_dropout,
+                                 #seq_mask_dropout,
                               atac_mask_dropout,
                               #use_global_acc,
                               log_atac,
@@ -1220,11 +1201,11 @@ def parse_args(parser):
                         type=float,
                         default=0.05,
                         help= 'atac_mask_dropout')
-    parser.add_argument('--seq_mask_dropout',
-                        dest='seq_mask_dropout',
-                        type=float,
-                        default=0.05,
-                        help= 'seq_mask_dropout')
+    #parser.add_argument('--seq_mask_dropout',
+    #                    dest='seq_mask_dropout',
+    #                    type=float,
+    #                    default=0.05,
+    #                    help= 'seq_mask_dropout')
     parser.add_argument('--rectify',
                         dest='rectify',
                         type=str,

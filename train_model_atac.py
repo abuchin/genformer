@@ -27,7 +27,7 @@ from tensorflow import strings as tfs
 from tensorflow.keras import mixed_precision
 
 ## custom modules
-import src.aformer_atac_early as aformer
+import src.aformer_atac as aformer
 import src.metrics as metrics
 import src.optimizers as optimizers
 import src.schedulers as schedulers
@@ -142,9 +142,6 @@ def main():
                 },
                 'atac_mask_dropout': {
                     'values': [args.atac_mask_dropout]
-                },
-                'seq_mask_dropout': {
-                    'values':[args.seq_mask_dropout]
                 },
                 'rectify': {
                     'values':[parse_bool_str(x) for x in args.rectify.split(',')]
@@ -276,7 +273,6 @@ def main():
                                                                 args.num_epochs,
                                                                 strategy,
                                                                 options,
-                                                                wandb.config.seq_mask_dropout,
                                                                 wandb.config.atac_mask_dropout,
                                                                 #wandb.config.use_global_acc,
                                                                 wandb.config.log_atac,
