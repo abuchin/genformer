@@ -561,7 +561,8 @@ def deserialize_tr(serialized_example,
     peaks = tf.ensure_shape(tf.io.parse_tensor(data['peaks'],
                                               out_type=tf.int32),
                            [output_length])
-    peaks_crop = tf.slice(tf.expand_dims(peaks,axis=1),
+    peaks = tf.expand_dims(peaks,axis=1)
+    peaks_crop = tf.slice(peaks,
                      [crop_size,0],
                      [output_length-2*crop_size,-1])
     
@@ -659,7 +660,7 @@ def deserialize_tr(serialized_example,
             'dense_peak_mask': tf.ensure_shape(dense_peak_mask,
                                     [output_length,1]),
             'peaks': tf.ensure_shape(peaks,
-                                      [output_length-crop_size*2,1]),
+                                      [output_length,1]),
             'target': tf.ensure_shape(atac_out,
                                       [output_length-crop_size*2,1])}
 
@@ -700,7 +701,8 @@ def deserialize_val(serialized_example,
     peaks = tf.ensure_shape(tf.io.parse_tensor(data['peaks'],
                                               out_type=tf.int32),
                            [output_length])
-    peaks_crop = tf.slice(tf.expand_dims(peaks,axis=1),
+    peaks = tf.expand_dims(peaks,axis=1)
+    peaks_crop = tf.slice(peaks,
                      [crop_size,0],
                      [output_length-2*crop_size,-1])
     
