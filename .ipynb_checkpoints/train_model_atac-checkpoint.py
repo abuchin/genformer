@@ -459,12 +459,25 @@ def main():
                 print('human_ATAC_R2_ho: ' + str(atac_R2_ho))
                 #print('human_ATAC_pr_ho: ' + str(atac_pr_ho))
 
-                
-                
                 wandb.log({'human_ATAC_pearsons': atac_pearsons,
                            'human_ATAC_R2': atac_R2,
                            'human_ATAC_pearsons_ho': atac_pearsons_ho,
                            'human_ATAC_R2_ho': atac_R2_ho},step=epoch_i)
+                
+                y_trues = metric_dict['corr_stats'].result()['y_trues'].numpy()
+                y_preds = metric_dict['corr_stats'].result()['y_preds'].numpy()
+                cell_types = metric_dict['corr_stats'].result()['cell_types'].numpy()
+                gene_map = metric_dict['corr_stats'].result()['gene_map'].numpy()
+
+                print('making plots')
+                fig_overall,overall_corr= training_utils.make_plots(y_trues,y_preds,
+                                                                 cell_types,gene_map, 150)
+
+
+                wandb.log({'overal_corr': overall_corr},
+                          step=epoch_i)
+                wandb.log({'OVERALL_ATAC_predictions': fig_overall},
+                          step=epoch_i)
                 
                 end = time.time()
                 duration = (end - start) / 60.

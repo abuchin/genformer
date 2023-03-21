@@ -357,9 +357,7 @@ def return_train_val_functions(model,
     metric_dict['ATAC_PearsonR_ho'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
     metric_dict['ATAC_R2_ho'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
     
-    #metric_dict['ATAC_pr'] = tf.keras.metrics.AUC(curve='PR')
-    #metric_dict['ATAC_pr_ho'] = tf.keras.metrics.AUC(curve='PR')
-
+    metric_dict["corr_stats"] = metrics.correlation_stats_gene_centered(name='corr_stats')
 
     def dist_train_step(iterator):    
         @tf.function(jit_compile=True)
@@ -487,9 +485,7 @@ def return_train_val_functions(model,
             metric_dict['ATAC_R2_ho'].update_state(target_atac, 
                                                 output_atac)
             
-            #metric_dict['ATAC_pr_ho'].update_state(target_peaks,
-            #                                       output_peaks)
-                
+
         for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(val_step,
                          args=(next(iterator),))
@@ -1301,3 +1297,74 @@ def log2(x):
 
 
 
+def make_plots(y_trues,
+               y_preds, 
+               cell_types, 
+               gene_map, num_points):
+
+    results_df = pd.DataFrame()
+    results_df['true'] = y_trues
+    results_df['pred'] = y_preds
+    results_df['gene_encoding'] =gene_map
+    results_df['cell_type_encoding'] = cell_types
+    
+    results_df['true'] = np.log2(1.0+results_df['true'])
+    results_df['pred'] = np.log2(1.0+results_df['pred'])
+    
+    true=results_df[['true']].to_numpy()[:,0]
+
+    pred=results_df[['pred']].to_numpy()[:,0]
+
+    try: 
+        overall_corr=results_df[['true','pred']].corr(method='pearson').unstack().iloc[:,1].tolist()
+        #cell_specific_corrs_sp=results_df[['true','pred']].corr(method='spearman').unstack().iloc[:,1].tolist()
+    except np.linalg.LinAlgError as err:
+        overall_corr = [0.0] * len(np.unique(cell_types))
+
+    fig_overall,ax_overall=plt.subplots(figsize=(6,6))
+    
+    ## scatter plot for 50k points max
+    idx = np.random.choice(np.arange(len(true)), num_points, replace=False)
+    
+    data = np.vstack([true[idx],
+                      pred[idx]])
+    
+    min_true = min(true)
+    max_true = max(true)
+    
+    min_pred = min(pred)
+    max_pred = max(pred)
+    
+    
+    try:
+        kernel = stats.gaussian_kde(data)(data)
+        sns.scatterplot(
+            x=true[idx],
+            y=pred[idx],
+            c=kernel,
+            cmap="viridis")
+        ax_overall.set_xlim(min_true,max_true)
+        ax_overall.set_ylim(min_pred,max_pred)
+        plt.xlabel("log-true")
+        plt.ylabel("log-pred")
+        plt.title("overall atac corr")
+    except np.linalg.LinAlgError as err:
+        sns.scatterplot(
+            x=true[idx],
+            y=pred[idx],
+            cmap="viridis")
+        ax_overall.set_xlim(min_true,max_true)
+        ax_overall.set_ylim(min_pred,max_pred)
+        plt.xlabel("log-true")
+        plt.ylabel("log-pred")
+        plt.title("overall atac corr")
+    except ValueError:
+        sns.scatterplot(
+            x=true[idx],
+            y=pred[idx],
+            cmap="viridis")
+        plt.xlabel("log-true")
+        plt.ylabel("log-pred")
+        plt.title("overall atac corr")
+
+    return fig_overall, overall_corr

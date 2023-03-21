@@ -459,8 +459,6 @@ def main():
                 print('human_ATAC_R2_ho: ' + str(atac_R2_ho))
                 #print('human_ATAC_pr_ho: ' + str(atac_pr_ho))
 
-                
-                
                 wandb.log({'human_ATAC_pearsons': atac_pearsons,
                            'human_ATAC_R2': atac_R2,
                            'human_ATAC_pearsons_ho': atac_pearsons_ho,

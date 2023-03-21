@@ -1,0 +1,70 @@
+wandb_version: 1
+
+BN_momentum:
+  value: 0.9
+atac_mask_dropout:
+  value: 0.15
+decay_frac:
+  value: 0.5
+dropout_rate:
+  value: 0.05
+epsilon:
+  value: 1.0e-14
+filter_list_atac:
+  value:
+  - 32
+  - 64
+filter_list_seq:
+  value:
+  - 512
+  - 640
+  - 768
+  - 896
+  - 1024
+  - 1152
+final_output_length:
+  value: 896
+freeze_conv_layers:
+  value: false
+gradient_clip:
+  value: 5
+input_length:
+  value: 196608
+kernel_transformation:
+  value: relu_kernel_transformation
+learnable_PE:
+  value: true
+load_init:
+  value: false
+log_atac:
+  value: true
+lr_base1:
+  value: 5.0e-06
+lr_base2:
+  value: 0.00025
+num_heads:
+  value: 8
+num_random_features:
+  value: 256
+num_transformer_layers:
+  value: 2
+optimizer:
+  value: adabelief
+output_length:
+  value: 1536
+output_length_ATAC:
+  value: 49152
+output_res:
+  value: 128
+pointwise_dropout_rate:
+  value: 0.1
+rectify:
+  value: true
+sonnet_weights_bool:
+  value: true
+stable_variant:
+  value: false
+wd_1_frac:
+  value: 0
+wd_2_frac:
+  value: 0

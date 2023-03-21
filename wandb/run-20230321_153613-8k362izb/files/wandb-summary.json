@@ -1,0 +1,1 @@
+{"human_train_loss": -2.2313194274902344, "_timestamp": 1679415766.4891832, "_runtime": 2792.699504137039, "human_val_loss": -2.677063226699829, "human_ATAC_pearsons": 0.23526164889335632, "human_ATAC_R2": -0.005513668060302734, "human_ATAC_pearsons_ho": 0.4529307782649994, "human_ATAC_R2_ho": 0.0015537738800048828, "_step": 11, "_wandb": {"runtime": 2800}}
