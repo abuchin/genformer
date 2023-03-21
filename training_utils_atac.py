@@ -637,7 +637,7 @@ def deserialize_tr(serialized_example,
         atac_target = tf.reverse(atac_target,axis=[0])
         masked_atac = tf.reverse(masked_atac,axis=[0])
         atac_mask_store = tf.reverse(atac_mask_store,axis=[0])
-        peaks_crop=tf.reverse(peaks_crop,axis=[0])
+        peaks=tf.reverse(peaks,axis=[0])
         dense_peak_mask=tf.reverse(dense_peak_mask, axis=[0])
         
         
@@ -658,7 +658,7 @@ def deserialize_tr(serialized_example,
                                     [output_length-crop_size*2,1]),
             'dense_peak_mask': tf.ensure_shape(dense_peak_mask,
                                     [output_length,1]),
-            'peaks': tf.ensure_shape(peaks_crop,
+            'peaks': tf.ensure_shape(peaks,
                                       [output_length-crop_size*2,1]),
             'target': tf.ensure_shape(atac_out,
                                       [output_length-crop_size*2,1])}
@@ -769,8 +769,8 @@ def deserialize_val(serialized_example,
                                     [output_length-crop_size*2,1]),
             #'global_acc': tf.ensure_shape(global_acc,
             #                          [1,1536]),
-            'peaks': tf.ensure_shape(peaks_crop,
-                                      [output_length-crop_size*2,1]),
+            'peaks': tf.ensure_shape(peaks,
+                                      [output_length,1]),
             'target': tf.ensure_shape(atac_out,
                                       [output_length-crop_size*2,1])}
 
