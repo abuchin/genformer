@@ -42,7 +42,7 @@ class Enformer(snt.Module):
     def __init__(self,
                channels: int = 1536,
                num_transformer_layers: int = 11,
-                 output_heads_dict: dict = {'human': 98},
+                 output_heads_dict: dict = {'human': 54},
                num_heads: int = 8,
                pooling_type: str = 'attention',
                dropout_rate: float = 0.40,
