@@ -2,7 +2,7 @@
 
 python3 train_model_atac.py \
             --tpu_name="pod" \
-            --tpu_zone="us-central1-a" \
+            --tpu_zone="us-east1-d" \
             --wandb_project="atac_pretraining" \
             --wandb_user="njaved" \
             --wandb_sweep_name="atac_pretraining" \
@@ -14,7 +14,7 @@ python3 train_model_atac.py \
             --output_length_ATAC=49152 \
             --final_output_length=896 \
             --max_shift=10 \
-            --batch_size=16 \
+            --batch_size=8 \
             --num_epochs=150 \
             --train_examples=500000 \
             --val_examples=75000  \
@@ -26,12 +26,12 @@ python3 train_model_atac.py \
             --min_delta=0.000005 \
             --model_save_dir="gs://picard-testing-176520/genformer_atac_pretrain/models" \
             --model_save_basename="aformer_baseline" \
-            --lr_base1="5.0e-06" \
+            --lr_base1="2.5e-04" \
             --lr_base2="2.5e-04" \
             --decay_frac="0.5" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-14 \
-            --num_transformer_layers="2" \
+            --num_transformer_layers="4" \
             --dropout_rate="0.05" \
             --pointwise_dropout_rate="0.10" \
             --num_heads="8" \
