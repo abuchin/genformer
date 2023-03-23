@@ -328,16 +328,16 @@ def get_initializers_enformer_performer(checkpoint_path,
 
 def return_train_val_functions(model,
                                train_steps,
-                               val_steps,
                                val_steps_ho,
                                optimizers_in,
                                strategy,
                                metric_dict,
                                global_batch_size,
-                               gradient_clip):
+                               gradient_clip,
+                               bce_loss_scale):
     
     poisson_loss_func = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
-
+    bce_loss_func = tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
 
     optimizer1,optimizer2=optimizers_in
 
@@ -346,16 +346,16 @@ def return_train_val_functions(model,
     metric_dict["val_loss"] = tf.keras.metrics.Mean("val_loss",
                                                   dtype=tf.float32)
     
-    #metric_dict["val_loss_bce"] = tf.keras.metrics.Mean("val_loss_bce",
-    #                                              dtype=tf.float32)
+    metric_dict["val_loss_bce"] = tf.keras.metrics.Mean("val_loss_bce",
+                                                  dtype=tf.float32)
     metric_dict["val_loss_poisson"] = tf.keras.metrics.Mean("val_loss_poisson",
                                                   dtype=tf.float32)
     
     metric_dict['ATAC_PearsonR'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
     metric_dict['ATAC_R2'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
     
-    metric_dict['ATAC_PearsonR_ho'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
-    metric_dict['ATAC_R2_ho'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
+    metric_dict['ATAC_PR'] = tf.keras.metrics.AUC(curve='PR')
+    metric_dict['ATAC_ROC'] = tf.keras.metrics.AUC(curve='ROC')
     
     metric_dict["corr_stats"] = metrics.correlation_stats_gene_centered(name='corr_stats')
 
@@ -366,8 +366,9 @@ def return_train_val_functions(model,
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
             #global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
-            mask=tf.cast(inputs['mask'],dtype=tf.float32)
-            peaks=tf.cast(inputs['peaks'],dtype=tf.float32)
+            mask=tf.cast(inputs['mask'],dtype=tf.int32)
+            mask_gathered=tf.cast(inputs['mask_gathered'],dtype=tf.int32)
+            peaks=tf.cast(inputs['peaks'],dtype=tf.int32)
 
             input_tuple = sequence, atac#, global_acc
 
@@ -384,26 +385,36 @@ def return_train_val_functions(model,
                                         model.pos_embedding_learned.trainable_variables + \
                                         model.performer.trainable_variables + \
                                         model.final_pointwise_conv.trainable_variables + \
-                                        model.final_dense_profile.trainable_variables 
+                                        model.final_dense_profile.trainable_variables + \
+                                        model.final_dense_peaks.trainable_variables
                                         #model.global_acc_block.trainable_variables + \
 
                 vars_all = conv_vars + performer_vars
                 for var in vars_all:
                     tape.watch(var)
                     
-                output_profile = model(input_tuple,
+                output_profile,output_peaks = model(input_tuple,
                                        training=True)
                 output_profile = tf.cast(output_profile,dtype=tf.float32) # ensure cast to float32
+                output_peaks = tf.cast(output_peaks,dtype=tf.float32)
                 
-                mask_indices = tf.where(mask[0,:,0] == 1.0)[:,0]
+                mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
 
                 target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
                 output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
                 
                 poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac,
-                                                                output_atac))  * (1. / global_batch_size)
+                                                                output_atac))  * (1. / global_batch_size) * (1.0-bce_loss_scale)
+                
+                
+                mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
+                target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
+                output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
+                
+                bce_loss = tf.reduce_mean(bce_loss_func(target_peaks,
+                                                        output_peaks)) * (1./ global_batch_size) * bce_loss_scale
 
-                loss = poisson_loss
+                loss = poisson_loss + bce_loss
 
             gradients = tape.gradient(loss, vars_all)
             gradients, _ = tf.clip_by_global_norm(gradients, 
@@ -420,8 +431,6 @@ def return_train_val_functions(model,
                          args=(next(iterator),))
             
             
-
-
     def dist_val_step(iterator):
         @tf.function(jit_compile=True)
         def val_step(inputs):
@@ -429,37 +438,61 @@ def return_train_val_functions(model,
             target=tf.cast(inputs['target'],dtype=tf.float32)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
             #global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
-            mask=tf.cast(inputs['mask'],dtype=tf.float32)
-            peaks=tf.cast(inputs['peaks'],dtype=tf.float32)
+            mask=tf.cast(inputs['mask'],dtype=tf.int32)
+            mask_gathered=tf.cast(inputs['mask_gathered'],dtype=tf.int32)
+            peaks=tf.cast(inputs['peaks'],dtype=tf.int32)
             
             input_tuple = sequence,atac#,global_acc
 
-            output_profile = model(input_tuple,
-                                   training=False)
+            output_profile,output_peaks = model(input_tuple,
+                                                training=False)
             output_profile = tf.cast(output_profile,dtype=tf.float32) # ensure cast to float32
+            output_peaks = tf.cast(output_peaks,dtype=tf.float32)
             
-            mask_indices = tf.where(mask[0,:,0] == 1.0)[:,0]
+            mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
             
             target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
             output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
+            
+            
+            mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
+            target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
+            output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
+
+            bce_loss = tf.reduce_mean(bce_loss_func(target_peaks,
+                                                    output_peaks)) * (1./ global_batch_size) * bce_loss_scale
 
             poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac,
-                                                            output_atac)) * (1. / global_batch_size)
+                                                            output_atac)) * (1. / global_batch_size) + (1.0-bce_loss_scale)
 
-            loss = poisson_loss 
+            loss = poisson_loss + bce_loss
 
             metric_dict['ATAC_PearsonR'].update_state(target_atac, 
                                                       output_atac)
             metric_dict['ATAC_R2'].update_state(target_atac, 
                                                 output_atac)
-        
-            metric_dict["val_loss"].update_state(loss)
             
-        for _ in tf.range(val_steps): ## for loop within @tf.fuction for improved TPU performance
+            metric_dict['ATAC_PR'].update_state(target_peaks,
+                                                output_peaks)
+            metric_dict['ATAC_ROC'].update_state(target_peaks,
+                                                 output_peaks)
+            
+            metric_dict["val_loss"].update_state(loss)
+            metric_dict["val_loss_poisson"].update_state(poisson_loss)
+            metric_dict["val_loss_bce"].update_state(bce_loss)
+            
+        
+        ta_pred = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_true = tf.TensorArray(tf.float32, size=0, dynamic_size=True) # tensor array to store vals
+        ta_celltype = tf.TensorArray(tf.int32, size=0, dynamic_size=True) # tensor array to store preds
+        ta_genemap = tf.TensorArray(tf.int32, size=0, dynamic_size=True)  
+            
+        for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(val_step,
                          args=(next(iterator),))
             
-
+            
+    """
     def dist_val_step_ho(iterator):
         @tf.function(jit_compile=True)
         def val_step(inputs):
@@ -489,7 +522,7 @@ def return_train_val_functions(model,
         for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(val_step,
                          args=(next(iterator),))
-    
+    """
     def build_step(iterator): #input_batch, model, optimizer, organism, gradient_clip):
         @tf.function(jit_compile=True)
         def val_step(inputs):
@@ -506,7 +539,7 @@ def return_train_val_functions(model,
             strategy.run(val_step, args=(next(iterator),))
     
 
-    return dist_train_step,dist_val_step,dist_val_step_ho, build_step, metric_dict
+    return dist_train_step,dist_val_step, build_step, metric_dict
 
 def deserialize_tr(serialized_example,
                    input_length,
@@ -517,7 +550,7 @@ def deserialize_tr(serialized_example,
                    output_res,
                    #seq_mask_dropout,
                    atac_mask_dropout,
-                   #use_global_acc,
+                   mask_size,
                    log_atac,
                    g):
     """Deserialize bytes stored in TFRecordFile."""
@@ -576,8 +609,7 @@ def deserialize_tr(serialized_example,
                   [ridx[0]+crop_size],
                   [ridx[0]+1+crop_size],
                   [ridx[0]+2+crop_size],
-                  [ridx[0]+3+crop_size],
-                  [ridx[0]+4+crop_size]]
+                  [ridx[0]+3+crop_size]]
                   
     st=tf.SparseTensor(
         indices=mask_indices,
@@ -591,14 +623,19 @@ def deserialize_tr(serialized_example,
     atac_target = atac ## store the target
 
     ### here set up the ATAC masking
+    num_mask_bins = mask_size // output_res
+
     out_length_cropped = output_length-2*crop_size
+    if out_length_cropped % num_mask_bins != 0:
+        raise ValueError('ensure that masking region size divided by output res is a factor of the cropped output length')
     edge_append = tf.ones((crop_size,1),dtype=tf.float32)
-    atac_mask = tf.ones(out_length_cropped // 2,dtype=tf.float32)
+    atac_mask = tf.ones(out_length_cropped // num_mask_bins,dtype=tf.float32)
+
     atac_mask=tf.nn.experimental.stateless_dropout(atac_mask,
                                               rate=(atac_mask_dropout),
                                               seed=[0,stupid_random_seed-5]) / (1. / (1.0-(atac_mask_dropout)))
     atac_mask = tf.expand_dims(atac_mask,axis=1)
-    atac_mask = tf.tile(atac_mask, [1,2])
+    atac_mask = tf.tile(atac_mask, [1,num_mask_bins])
     atac_mask = tf.reshape(atac_mask, [-1])
     atac_mask = tf.expand_dims(atac_mask,axis=1)
     atac_mask_store = 1.0 - atac_mask
@@ -634,7 +671,7 @@ def deserialize_tr(serialized_example,
         atac_target = tf.reverse(atac_target,axis=[0])
         masked_atac = tf.reverse(masked_atac,axis=[0])
         atac_mask_store = tf.reverse(atac_mask_store,axis=[0])
-        peaks=tf.reverse(peaks,axis=[0])
+        peaks_crop=tf.reverse(peaks_crop,axis=[0])
         dense_peak_mask=tf.reverse(dense_peak_mask, axis=[0])
         
         
@@ -645,7 +682,12 @@ def deserialize_tr(serialized_example,
     atac_out = tf.slice(atac_out,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
-
+    
+    
+    peaks_gathered = tf.reduce_max(tf.reshape(peaks_crop, [(output_length-2*crop_size) // 4, -1]),
+                                   axis=1,keepdims=True)
+    mask_gathered = tf.reduce_max(tf.reshape(full_comb_mask_store, [(output_length-2*crop_size) // 4, -1]),
+                                   axis=1,keepdims=True)
         
     return {'sequence': tf.ensure_shape(masked_seq,
                                         [input_length,4]),
@@ -653,10 +695,10 @@ def deserialize_tr(serialized_example,
                                     [output_length_ATAC,1]),
             'mask': tf.ensure_shape(full_comb_mask_store,
                                     [output_length-crop_size*2,1]),
-            'dense_peak_mask': tf.ensure_shape(dense_peak_mask,
-                                    [output_length,1]),
-            'peaks': tf.ensure_shape(peaks,
-                                      [output_length,1]),
+            'mask_gathered': tf.ensure_shape(mask_gathered,
+                                    [(output_length-crop_size*2) // 4,1]),
+            'peaks': tf.ensure_shape(peaks_gathered,
+                                      [(output_length-2*crop_size) // 4,1]),
             'target': tf.ensure_shape(atac_out,
                                       [output_length-crop_size*2,1])}
 
@@ -669,7 +711,7 @@ def deserialize_val(serialized_example,
                    output_res,
                    #seq_mask_dropout,
                    atac_mask_dropout,
-                   #use_global_acc,
+                   mask_size,
                    log_atac,
                     g):
     """Deserialize bytes stored in TFRecordFile."""
@@ -729,14 +771,15 @@ def deserialize_val(serialized_example,
     atac_target = atac ## store the target
 
     ### here set up the ATAC masking
+    num_mask_bins = mask_size // output_res
     out_length_cropped = output_length-2*crop_size
     edge_append = tf.ones((crop_size,1),dtype=tf.float32)
-    atac_mask = tf.ones(out_length_cropped // 2,dtype=tf.float32)
+    atac_mask = tf.ones(out_length_cropped // num_mask_bins,dtype=tf.float32)
     atac_mask=tf.nn.experimental.stateless_dropout(atac_mask,
                                               rate=(atac_mask_dropout),
                                               seed=[0,1]) / (1. / (1.0-(atac_mask_dropout)))
     atac_mask = tf.expand_dims(atac_mask,axis=1)
-    atac_mask = tf.tile(atac_mask, [1,2])
+    atac_mask = tf.tile(atac_mask, [1,num_mask_bins])
     atac_mask = tf.reshape(atac_mask, [-1])
     atac_mask = tf.expand_dims(atac_mask,axis=1)
     atac_mask_store = 1.0 - atac_mask
@@ -759,16 +802,21 @@ def deserialize_val(serialized_example,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
 
+    peaks_gathered = tf.reduce_max(tf.reshape(peaks_crop, [(output_length-2*crop_size) // 4, -1]),
+                                   axis=1,keepdims=True)
+    mask_gathered = tf.reduce_max(tf.reshape(full_comb_mask_store, [(output_length-2*crop_size) // 4, -1]),
+                                   axis=1,keepdims=True)
+    
     return {'sequence': tf.ensure_shape(sequence,
                                         [input_length,4]),
             'atac': tf.ensure_shape(masked_atac,
                                     [output_length_ATAC,1]),
             'mask': tf.ensure_shape(full_comb_mask_store,
                                     [output_length-crop_size*2,1]),
-            #'global_acc': tf.ensure_shape(global_acc,
-            #                          [1,1536]),
-            'peaks': tf.ensure_shape(peaks,
-                                      [output_length,1]),
+            'mask_gathered': tf.ensure_shape(mask_gathered,
+                                    [(output_length-crop_size*2)//4,1]),
+            'peaks': tf.ensure_shape(peaks_gathered,
+                                      [(output_length-2*crop_size) // 4,1]),
             'target': tf.ensure_shape(atac_out,
                                       [output_length-crop_size*2,1])}
 
@@ -787,7 +835,7 @@ def return_dataset(gcs_path,
                    num_epoch,
                    #seq_mask_dropout,
                    atac_mask_dropout,
-                   #use_global_acc,
+                   random_mask_size,
                    log_atac,
                    g):
     """
@@ -818,7 +866,7 @@ def return_dataset(gcs_path,
                                                             output_res,
                                                             #seq_mask_dropout,
                                                             atac_mask_dropout,
-                                                            #use_global_acc,
+                                                            random_mask_size,
                                                             log_atac,
                                                             g),
                               deterministic=False,
@@ -835,8 +883,8 @@ def return_dataset(gcs_path,
                                                             crop_size,
                                                             output_res,
                                                              #seq_mask_dropout,
-                                                            0.10,
-                                                            #use_global_acc,
+                                                            atac_mask_dropout,
+                                                            random_mask_size,
                                                             log_atac,
                                                             g),
                       deterministic=False,
@@ -860,12 +908,12 @@ def return_distributed_iterators(gcs_path,
                                  options,
                                  #seq_mask_dropout,
                                  atac_mask_dropout,
-                                 #use_global_acc,
+                                 random_mask_size,
                                  log_atac,
                                  g):
 
     tr_data = return_dataset(gcs_path,
-                             "train",
+                             "valid",
                              global_batch_size,
                              input_length,
                              output_length_ATAC,
@@ -878,7 +926,7 @@ def return_distributed_iterators(gcs_path,
                              num_epoch,
                              #seq_mask_dropout,
                              atac_mask_dropout,
-                             #use_global_acc,
+                             random_mask_size,
                              log_atac,
                              g)
     
@@ -897,7 +945,7 @@ def return_distributed_iterators(gcs_path,
                               num_epoch,
                               #seq_mask_dropout,
                               atac_mask_dropout,
-                              #use_global_acc,
+                              random_mask_size,
                               log_atac,
                               g)
     
@@ -915,7 +963,7 @@ def return_distributed_iterators(gcs_path,
                               num_epoch,
                                  #seq_mask_dropout,
                               atac_mask_dropout,
-                              #use_global_acc,
+                              random_mask_size,
                               log_atac,
                               g)
 
@@ -1032,8 +1080,8 @@ def parse_args(parser):
                         type=int, help='num_epochs')
     parser.add_argument('--train_examples', dest = 'train_examples',
                         type=int)
-    parser.add_argument('--val_examples', dest = 'val_examples',
-                        type=int, help='val_examples')
+    #parser.add_argument('--val_examples', dest = 'val_examples',
+    #                    type=int, help='val_examples')
     parser.add_argument('--val_examples_ho', dest = 'val_examples_ho',
                         type=int, help='val_examples_ho')
     parser.add_argument('--patience', dest = 'patience',
@@ -1108,6 +1156,11 @@ def parse_args(parser):
                         default=1.0e-16,
                         type=float,
                         help= 'epsilon')
+    parser.add_argument('--bce_loss_scale',
+                        dest='bce_loss_scale',
+                        default=0.90,
+                        type=float,
+                        help= 'bce_loss_scale')
     parser.add_argument('--gradient_clip',
                         dest='gradient_clip',
                         type=str,
@@ -1239,6 +1292,11 @@ def parse_args(parser):
                         type=str,
                         default="False",
                         help= 'sonnet_weights_bool')
+    parser.add_argument('--random_mask_size',
+                        dest='random_mask_size',
+                        type=str,
+                        default="1152",
+                        help= 'random_mask_size')
     #parser.add_argument('--global_acc_size',
     #                    dest='global_acc_size',
     #                    type=str,

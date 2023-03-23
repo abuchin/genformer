@@ -343,6 +343,17 @@ class aformer(tf.keras.Model):
                                     kernel_initializer='lecun_normal',
                                     bias_initializer='lecun_normal',
                                     use_bias=True)
+        
+        self.peaks_pool = SoftmaxPooling1D(per_channel=True,
+                                          w_init_scale=2.0,
+                                          pool_size=4,
+                                          name ='peaks_pool')
+        
+        self.final_dense_peaks = kl.Dense(1,
+                                    activation='sigmoid',
+                                    kernel_initializer='lecun_normal',
+                                    bias_initializer='lecun_normal',
+                                    use_bias=True)
 
 
         self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
@@ -414,7 +425,11 @@ class aformer(tf.keras.Model):
         out_profile = self.final_dense_profile(out,
                                training=training)
 
-        return out_profile
+        out_peaks = self.peaks_pool(out)
+        out_peaks = self.final_dense_peaks(out_peaks,
+                                           training=training)
+
+        return out_profile,out_peaks
     
 
     def get_config(self):
@@ -483,18 +498,6 @@ class aformer(tf.keras.Model):
         atac_x = self.stem_pool_atac(atac_x,training=training)
         atac_x = self.conv_tower_atac(atac_x,training=training)
         
-        """
-        global_acc = self.global_acc_block(global_acc,
-                                           training=training)
-        global_acc = self.dropout(global_acc,
-                        training=training)
-        global_acc = self.gelu(global_acc)
-        global_acc = tf.tile(global_acc, 
-                               [1,self.output_length,1])
-        
-        transformer_input = tf.concat([x,atac_x,global_acc],
-                                      axis=2)
-        """
         transformer_input = tf.concat([x,atac_x],
                                       axis=2)
         
@@ -522,7 +525,9 @@ class aformer(tf.keras.Model):
 
         out_profile = self.final_dense_profile(out,
                                training=training)
+        out_peaks = self.final_dense_peaks(out,
+                               training=training)
 
-        return out_profile, final_point, att_matrices
+        return out_profile, out_peaks, final_point, att_matrices
     
 

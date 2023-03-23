@@ -166,6 +166,12 @@ def main():
                 #},
                 'sonnet_weights_bool': {
                     'values':[parse_bool_str(x) for x in args.sonnet_weights_bool.split(',')]
+                },
+                'random_mask_size': {
+                    'values':[int(x) for x in args.random_mask_size.split(',')]
+                },
+                'bce_loss_scale': {
+                    'values':[args.bce_loss_scale]
                 }
             }
     }
@@ -198,7 +204,7 @@ def main():
             wandb.config.gcs_path_holdout=args.gcs_path_holdout
             wandb.config.num_epochs=args.num_epochs
             wandb.config.train_examples=args.train_examples
-            wandb.config.val_examples=args.val_examples
+            #wandb.config.val_examples=args.val_examples
             wandb.config.val_examples_ho=args.val_examples_ho
             wandb.config.batch_size=args.batch_size
             wandb.config.warmup_frac=args.warmup_frac
@@ -246,13 +252,13 @@ def main():
             print('global batch size:', GLOBAL_BATCH_SIZE)
             
             num_train=wandb.config.train_examples
-            num_val=wandb.config.val_examples
+            #num_val=wandb.config.val_examples
             num_val_ho=wandb.config.val_examples_ho
             
             wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE)},
                                 allow_val_change=True)
-            wandb.config.update({"val_steps" : num_val // GLOBAL_BATCH_SIZE},
-                                allow_val_change=True)
+            #wandb.config.update({"val_steps" : num_val // GLOBAL_BATCH_SIZE},
+            #                    allow_val_change=True)
             wandb.config.update({"val_steps_ho" : num_val_ho // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
             wandb.config.update({"total_steps": num_train // GLOBAL_BATCH_SIZE},
@@ -274,7 +280,7 @@ def main():
                                                                 strategy,
                                                                 options,
                                                                 wandb.config.atac_mask_dropout,
-                                                                #wandb.config.use_global_acc,
+                                                                wandb.config.random_mask_size,
                                                                 wandb.config.log_atac,
                                                                 g)
 
@@ -382,16 +388,17 @@ def main():
             
             metric_dict = {}
 
-            train_step, val_step, val_step_ho, \
+            train_step, val_step, \
                 build_step, metric_dict = training_utils.return_train_val_functions(model,
                                                                                 wandb.config.train_steps,
-                                                                                wandb.config.val_steps,
+                                                                                #wandb.config.val_steps,
                                                                                 wandb.config.val_steps_ho,
                                                                                 optimizers_in,
                                                                                 strategy,
                                                                                 metric_dict,
                                                                                 GLOBAL_BATCH_SIZE,
-                                                                                wandb.config.gradient_clip)
+                                                                                wandb.config.gradient_clip,
+                                                                                    wandb.config.bce_loss_scale)
 
 
             global_step = 0
@@ -427,58 +434,40 @@ def main():
                 
                 start = time.time()
                 
-                val_step(data_val)
+                val_step(data_val_ho)
                 val_loss = metric_dict['val_loss'].result().numpy()
+                val_loss_poisson = metric_dict['val_loss_poisson'].result().numpy()
+                val_loss_bce = metric_dict['val_loss_bce'].result().numpy()
                 print('val_loss: ' + str(val_loss))
+                print('val_loss_poisson: ' + str(val_loss_poisson))
+                print('val_loss_bce: ' + str(val_loss_bce))
                 val_losses.append(val_loss)
                 
-                val_loss_poisson = metric_dict['val_loss_poisson'].result().numpy()
-                #val_loss_bce = metric_dict['val_loss_bce'].result().numpy()
-                wandb.log({'human_val_loss': metric_dict['val_loss'].result().numpy()},
+                wandb.log({'human_val_loss': metric_dict['val_loss'].result().numpy(),
+                           'human_val_loss_poisson': metric_dict['val_loss_poisson'].result().numpy(),
+                           'human_val_loss_bce': metric_dict['val_loss_bce'].result().numpy()},
                            #'human_val_loss_poisson': metric_dict['val_loss_poisson'].result().numpy()},
                            #'human_val_loss_bce': metric_dict['val_loss_bce'].result().numpy()},
                            step=epoch_i)
                 
                 atac_pearsons = metric_dict['ATAC_PearsonR'].result()['PearsonR'].numpy()
-                val_pearsons.append(atac_pearsons)
                 atac_R2 = metric_dict['ATAC_R2'].result()['R2'].numpy()
+                atac_roc = metric_dict['ATAC_ROC'].result().numpy()
+                atac_pr = metric_dict['ATAC_PR'].result().numpy()
+                
+                val_pearsons.append(atac_pearsons)
                 #atac_pr = metric_dict['ATAC_pr'].result().numpy()
                 print('human_ATAC_pearsons: ' + str(atac_pearsons))
                 print('human_ATAC_R2: ' + str(atac_R2))
-                #print('human_ATAC_pr: ' + str(atac_pr))
-                
-                val_step_ho(data_val_ho)
-                
-                atac_pearsons_ho = metric_dict['ATAC_PearsonR_ho'].result()['PearsonR'].numpy()
-                atac_R2_ho = metric_dict['ATAC_R2_ho'].result()['R2'].numpy()
-
-                #atac_pr_ho = metric_dict['ATAC_pr_ho'].result().numpy()
-                
-
-                print('human_ATAC_pearsons_ho: ' + str(atac_pearsons_ho))
-                print('human_ATAC_R2_ho: ' + str(atac_R2_ho))
-                #print('human_ATAC_pr_ho: ' + str(atac_pr_ho))
+                print('human_ATAC_PR: ' + str(atac_pr))
+                print('human_ATAC_ROC: ' + str(atac_roc))
 
                 wandb.log({'human_ATAC_pearsons': atac_pearsons,
                            'human_ATAC_R2': atac_R2,
-                           'human_ATAC_pearsons_ho': atac_pearsons_ho,
-                           'human_ATAC_R2_ho': atac_R2_ho},step=epoch_i)
-                
-                y_trues = metric_dict['corr_stats'].result()['y_trues'].numpy()
-                y_preds = metric_dict['corr_stats'].result()['y_preds'].numpy()
-                cell_types = metric_dict['corr_stats'].result()['cell_types'].numpy()
-                gene_map = metric_dict['corr_stats'].result()['gene_map'].numpy()
+                           'human_ATAC_ROC': atac_roc,
+                           'human_ATAC_PR': atac_pr},step=epoch_i)
+                        
 
-                print('making plots')
-                fig_overall,overall_corr= training_utils.make_plots(y_trues,y_preds,
-                                                                 cell_types,gene_map, 150)
-
-
-                wandb.log({'overal_corr': overall_corr},
-                          step=epoch_i)
-                wandb.log({'OVERALL_ATAC_predictions': fig_overall},
-                          step=epoch_i)
-                
                 end = time.time()
                 duration = (end - start) / 60.
                 print('completed epoch ' + str(epoch_i) + ' validation')
