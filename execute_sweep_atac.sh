@@ -16,8 +16,8 @@ python3 train_model_atac.py \
             --max_shift=10 \
             --batch_size=4 \
             --num_epochs=150 \
-            --train_examples=250 \
-            --val_examples_ho=100 \
+            --train_examples=500000 \
+            --val_examples_ho=28769 \
             --BN_momentum=0.90 \
             --warmup_frac=0.005 \
             --patience=50 \
@@ -30,7 +30,7 @@ python3 train_model_atac.py \
             --decay_frac="0.40" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-14 \
-            --num_transformer_layers="6" \
+            --num_transformer_layers="2" \
             --dropout_rate="0.10" \
             --pointwise_dropout_rate="0.10" \
             --num_heads="8" \
@@ -43,7 +43,7 @@ python3 train_model_atac.py \
             --wd_2_frac=0.0 \
             --rectify="True" \
             --multitask_checkpoint_path="gs://picard-testing-176520/sonnet_weights/sonnet_weights" \
-            --filter_list_seq="512,640,768,896,1024,1152" \
+            --filter_list_seq="384,512,640,768,896,1024" \
             --inits_type="enformer_conv" \
             --optimizer="adabelief" \
             --stable_variant="False" \
