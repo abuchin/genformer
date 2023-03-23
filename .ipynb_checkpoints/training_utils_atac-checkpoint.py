@@ -491,23 +491,6 @@ def return_train_val_functions(model,
             strategy.run(val_step,
                          args=(next(iterator),))
             
-            pred_reshape = tf.reshape(strategy.gather(pred_rep, axis=0), [-1]) # reshape to 1D
-            true_reshape = tf.reshape(strategy.gather(true_rep, axis=0), [-1])
-            cell_type_reshape = tf.reshape(strategy.gather(cell_type_rep, axis=0), [-1])
-            gene_map_reshape = tf.reshape(strategy.gather(gene_rep, axis=0), [-1])
-            
-            ta_pred = ta_pred.write(_, pred_reshape)
-            ta_true = ta_true.write(_, true_reshape)
-            ta_celltype = ta_celltype.write(_, cell_type_reshape)
-            ta_genemap = ta_genemap.write(_, gene_map_reshape)
-        metric_dict["corr_stats"].update_state(ta_true.concat(),
-                                                  ta_pred.concat(),
-                                                  ta_celltype.concat(),
-                                                  ta_genemap.concat())
-        ta_true.close()
-        ta_pred.close()
-        ta_celltype.close()
-        ta_genemap.close()
             
     """
     def dist_val_step_ho(iterator):
@@ -701,9 +684,9 @@ def deserialize_tr(serialized_example,
                         [output_length-2*crop_size,-1])
     
     
-    peaks_gathered = tf.reduce_max(tf.reshape(peaks_crop, [(output_length-2*crop_size) // 4, -1]),
+    peaks_gathered = tf.reduce_max(tf.reshape(peaks_crop, [(output_length-2*crop_size) // 2, -1]),
                                    axis=1,keepdims=True)
-    mask_gathered = tf.reduce_max(tf.reshape(full_comb_mask_store, [(output_length-2*crop_size) // 4, -1]),
+    mask_gathered = tf.reduce_max(tf.reshape(full_comb_mask_store, [(output_length-2*crop_size) // 2, -1]),
                                    axis=1,keepdims=True)
         
     return {'sequence': tf.ensure_shape(masked_seq,
@@ -713,9 +696,9 @@ def deserialize_tr(serialized_example,
             'mask': tf.ensure_shape(full_comb_mask_store,
                                     [output_length-crop_size*2,1]),
             'mask_gathered': tf.ensure_shape(mask_gathered,
-                                    [(output_length-crop_size*2) // 4,1]),
+                                    [(output_length-crop_size*2) // 2,1]),
             'peaks': tf.ensure_shape(peaks_gathered,
-                                      [(output_length-2*crop_size) // 4,1]),
+                                      [(output_length-2*crop_size) // 2,1]),
             'target': tf.ensure_shape(atac_out,
                                       [output_length-crop_size*2,1])}
 
@@ -819,9 +802,9 @@ def deserialize_val(serialized_example,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
 
-    peaks_gathered = tf.reduce_max(tf.reshape(peaks_crop, [(output_length-2*crop_size) // 4, -1]),
+    peaks_gathered = tf.reduce_max(tf.reshape(peaks_crop, [(output_length-2*crop_size) // 2, -1]),
                                    axis=1,keepdims=True)
-    mask_gathered = tf.reduce_max(tf.reshape(full_comb_mask_store, [(output_length-2*crop_size) // 4, -1]),
+    mask_gathered = tf.reduce_max(tf.reshape(full_comb_mask_store, [(output_length-2*crop_size) // 2, -1]),
                                    axis=1,keepdims=True)
     
     return {'sequence': tf.ensure_shape(sequence,
@@ -831,9 +814,9 @@ def deserialize_val(serialized_example,
             'mask': tf.ensure_shape(full_comb_mask_store,
                                     [output_length-crop_size*2,1]),
             'mask_gathered': tf.ensure_shape(mask_gathered,
-                                    [(output_length-crop_size*2)//4,1]),
+                                    [(output_length-crop_size*2)//2,1]),
             'peaks': tf.ensure_shape(peaks_gathered,
-                                      [(output_length-2*crop_size) // 4,1]),
+                                      [(output_length-2*crop_size) // 2,1]),
             'target': tf.ensure_shape(atac_out,
                                       [output_length-crop_size*2,1])}
 

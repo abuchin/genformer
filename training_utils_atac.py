@@ -684,9 +684,9 @@ def deserialize_tr(serialized_example,
                         [output_length-2*crop_size,-1])
     
     
-    peaks_gathered = tf.reduce_max(tf.reshape(peaks_crop, [(output_length-2*crop_size) // 4, -1]),
+    peaks_gathered = tf.reduce_max(tf.reshape(peaks_crop, [(output_length-2*crop_size) // 2, -1]),
                                    axis=1,keepdims=True)
-    mask_gathered = tf.reduce_max(tf.reshape(full_comb_mask_store, [(output_length-2*crop_size) // 4, -1]),
+    mask_gathered = tf.reduce_max(tf.reshape(full_comb_mask_store, [(output_length-2*crop_size) // 2, -1]),
                                    axis=1,keepdims=True)
         
     return {'sequence': tf.ensure_shape(masked_seq,
@@ -696,9 +696,9 @@ def deserialize_tr(serialized_example,
             'mask': tf.ensure_shape(full_comb_mask_store,
                                     [output_length-crop_size*2,1]),
             'mask_gathered': tf.ensure_shape(mask_gathered,
-                                    [(output_length-crop_size*2) // 4,1]),
+                                    [(output_length-crop_size*2) // 2,1]),
             'peaks': tf.ensure_shape(peaks_gathered,
-                                      [(output_length-2*crop_size) // 4,1]),
+                                      [(output_length-2*crop_size) // 2,1]),
             'target': tf.ensure_shape(atac_out,
                                       [output_length-crop_size*2,1])}
 
@@ -802,9 +802,9 @@ def deserialize_val(serialized_example,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
 
-    peaks_gathered = tf.reduce_max(tf.reshape(peaks_crop, [(output_length-2*crop_size) // 4, -1]),
+    peaks_gathered = tf.reduce_max(tf.reshape(peaks_crop, [(output_length-2*crop_size) // 2, -1]),
                                    axis=1,keepdims=True)
-    mask_gathered = tf.reduce_max(tf.reshape(full_comb_mask_store, [(output_length-2*crop_size) // 4, -1]),
+    mask_gathered = tf.reduce_max(tf.reshape(full_comb_mask_store, [(output_length-2*crop_size) // 2, -1]),
                                    axis=1,keepdims=True)
     
     return {'sequence': tf.ensure_shape(sequence,
@@ -814,9 +814,9 @@ def deserialize_val(serialized_example,
             'mask': tf.ensure_shape(full_comb_mask_store,
                                     [output_length-crop_size*2,1]),
             'mask_gathered': tf.ensure_shape(mask_gathered,
-                                    [(output_length-crop_size*2)//4,1]),
+                                    [(output_length-crop_size*2)//2,1]),
             'peaks': tf.ensure_shape(peaks_gathered,
-                                      [(output_length-2*crop_size) // 4,1]),
+                                      [(output_length-2*crop_size) // 2,1]),
             'target': tf.ensure_shape(atac_out,
                                       [output_length-crop_size*2,1])}
 

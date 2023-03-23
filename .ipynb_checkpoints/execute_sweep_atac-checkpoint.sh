@@ -14,7 +14,7 @@ python3 train_model_atac.py \
             --output_length_ATAC=49152 \
             --final_output_length=896 \
             --max_shift=10 \
-            --batch_size=8 \
+            --batch_size=4 \
             --num_epochs=150 \
             --train_examples=500000 \
             --val_examples_ho=28769 \
@@ -51,7 +51,7 @@ python3 train_model_atac.py \
             --log_atac="True" \
             --learnable_PE="True" \
             --sonnet_weights_bool="True" \
-            --random_mask_size="512" \
+            --random_mask_size="896" \
             --bce_loss_scale=0.90
                         
             

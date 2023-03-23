@@ -346,7 +346,7 @@ class aformer(tf.keras.Model):
         
         self.peaks_pool = SoftmaxPooling1D(per_channel=True,
                                           w_init_scale=2.0,
-                                          pool_size=4,
+                                          pool_size=2,
                                           name ='peaks_pool')
         
         self.final_dense_peaks = kl.Dense(1,
