@@ -47,7 +47,7 @@ python3 train_model_atac.py \
             --inits_type="enformer_conv" \
             --optimizer="adabelief" \
             --stable_variant="False" \
-            --atac_mask_dropout=0.30 \
+            --atac_mask_dropout=0.40 \
             --log_atac="True" \
             --learnable_PE="True" \
             --sonnet_weights_bool="True" \
