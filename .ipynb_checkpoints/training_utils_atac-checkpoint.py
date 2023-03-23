@@ -358,6 +358,9 @@ def return_train_val_functions(model,
     metric_dict['ATAC_ROC'] = tf.keras.metrics.AUC(curve='ROC')
     
     metric_dict["corr_stats"] = metrics.correlation_stats_gene_centered(name='corr_stats')
+    
+    metric_dict['ATAC_TP'] = tf.keras.metrics.Sum()
+    metric_dict['ATAC_T'] = tf.keras.metrics.Sum()
 
     def dist_train_step(iterator):    
         @tf.function(jit_compile=True)
@@ -477,6 +480,9 @@ def return_train_val_functions(model,
             metric_dict['ATAC_ROC'].update_state(target_peaks,
                                                  output_peaks)
             
+            metric_dict['ATAC_TP'].update_state(target_peaks)
+            metric_dict['ATAC_T'].update_state((target_peaks + (1-target_peaks)))   
+            
             metric_dict["val_loss"].update_state(loss)
             metric_dict["val_loss_poisson"].update_state(poisson_loss)
             metric_dict["val_loss_bce"].update_state(bce_loss)
@@ -565,7 +571,8 @@ def deserialize_tr(serialized_example,
     ### stochastic sequence shift and gaussian noise
 
     rev_comp = tf.math.round(g.uniform([], 0, 1))
-    seq_mask_int = g.uniform([], 0, 4,dtype=tf.int32)
+    seq_mask_int = g.uniform([], 0, 5,dtype=tf.int32)
+    full_atac_mask_int = g.uniform([], 0, 4,dtype=tf.int32)
     stupid_random_seed = g.uniform([], 0, 1000,dtype=tf.int32)
     shift = g.uniform(shape=(),
                       minval=0,
@@ -602,8 +609,7 @@ def deserialize_tr(serialized_example,
     mask_indices_temp = tf.where(peaks_crop[:,0] > 0)[:,0]
     ridx = tf.concat([tf.random.shuffle(mask_indices_temp),
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
-    mask_indices=[[ridx[0]-4+crop_size],
-                  [ridx[0]-3+crop_size],
+    mask_indices=[[ridx[0]-3+crop_size],
                    [ridx[0]-2+crop_size],
                   [ridx[0]-1+crop_size],
                   [ridx[0]+crop_size],
@@ -647,16 +653,22 @@ def deserialize_tr(serialized_example,
     full_comb_mask = tf.expand_dims(tf.reshape(tf.tile(full_comb_mask, [1,tiling_req]),[-1]),axis=1)
     masked_atac = atac * full_comb_mask
     
+    
+    ## at low probability, also mask the entire ATAC signal and still ask for prediction
+    ## force network to solely use sequence features
+    if full_atac_mask_int == 0:
+        masked_atac = tf.zeros(masked_atac.shape,dtype=tf.float32)
+
     ### add some low level gaussian noise before taking log
     masked_atac = masked_atac + tf.math.abs(g.normal(atac.shape,
                                                mean=0.0,
-                                               stddev=1.0e-7,
+                                               stddev=5.0e-7,
                                                dtype=tf.float32))
     if log_atac: 
         masked_atac = tf.math.log1p(masked_atac)
     
     ### here set up the sequence masking
-    if seq_mask_int == 0:
+    if (seq_mask_int == 0) and (full_atac_mask_int != 0):
         seq_mask = 1.0 - dense_peak_mask_store
         seq_mask = tf.expand_dims(seq_mask,axis=1)
         tiling_req_seq = input_length // output_length
@@ -749,15 +761,13 @@ def deserialize_val(serialized_example,
     mask_indices_temp = tf.where(peaks_crop[:,0] > 0)[:,0]
     ridx = tf.concat([tf.random.shuffle(mask_indices_temp),
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
-    mask_indices=[[ridx[0]-4+crop_size],
-                  [ridx[0]-3+crop_size],
+    mask_indices=[[ridx[0]-3+crop_size],
                    [ridx[0]-2+crop_size],
                   [ridx[0]-1+crop_size],
                   [ridx[0]+crop_size],
                   [ridx[0]+1+crop_size],
                   [ridx[0]+2+crop_size],
-                  [ridx[0]+3+crop_size],
-                  [ridx[0]+4+crop_size]]
+                  [ridx[0]+3+crop_size]]
     
     st=tf.SparseTensor(
         indices=mask_indices,
