@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model_atac.py \
-            --tpu_name="node-5" \
-            --tpu_zone="us-central1-a" \
+            --tpu_name="pod" \
+            --tpu_zone="us-east1-d" \
             --wandb_project="atac_pretraining" \
             --wandb_user="njaved" \
             --wandb_sweep_name="atac_pretraining" \
@@ -30,7 +30,7 @@ python3 train_model_atac.py \
             --decay_frac="0.40" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-14 \
-            --num_transformer_layers="2" \
+            --num_transformer_layers="1" \
             --dropout_rate="0.10" \
             --pointwise_dropout_rate="0.10" \
             --num_heads="8" \
@@ -47,11 +47,11 @@ python3 train_model_atac.py \
             --inits_type="enformer_conv" \
             --optimizer="adabelief" \
             --stable_variant="False" \
-            --atac_mask_dropout=0.20 \
+            --atac_mask_dropout=0.30 \
             --log_atac="True" \
             --learnable_PE="True" \
             --sonnet_weights_bool="True" \
-            --random_mask_size="896" \
+            --random_mask_size="2048" \
             --bce_loss_scale=0.90
                         
             
