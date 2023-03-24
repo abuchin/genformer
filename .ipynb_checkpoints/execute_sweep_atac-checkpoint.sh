@@ -43,7 +43,7 @@ python3 train_model_atac.py \
             --wd_2_frac=0.0 \
             --rectify="True" \
             --multitask_checkpoint_path="gs://picard-testing-176520/sonnet_weights/sonnet_weights" \
-            --filter_list_seq="384,512,640,768,896,1024" \
+            --filter_list_seq="16,32,64,128,256,512" \
             --inits_type="enformer_conv" \
             --optimizer="adabelief" \
             --stable_variant="False" \
@@ -51,7 +51,7 @@ python3 train_model_atac.py \
             --log_atac="True" \
             --learnable_PE="True" \
             --sonnet_weights_bool="True" \
-            --random_mask_size="1792" \
+            --random_mask_size="1024" \
             --bce_loss_scale=0.90
                         
             
