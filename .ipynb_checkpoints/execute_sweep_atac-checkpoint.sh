@@ -47,11 +47,11 @@ python3 train_model_atac.py \
             --inits_type="enformer_conv" \
             --optimizer="adabelief" \
             --stable_variant="False" \
-            --atac_mask_dropout=0.40 \
+            --atac_mask_dropout=0.25 \
             --log_atac="True" \
             --learnable_PE="True" \
             --sonnet_weights_bool="True" \
-            --random_mask_size="2048" \
+            --random_mask_size="1792" \
             --bce_loss_scale=0.90
                         
             
