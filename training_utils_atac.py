@@ -1340,6 +1340,16 @@ def parse_args(parser):
                         type=str,
                         default="False",
                         help= 'sonnet_weights_bool')
+    parser.add_argument('--use_atac',
+                        dest='use_atac',
+                        type=str,
+                        default="True",
+                        help= 'use_atac')
+    parser.add_argument('--use_seq',
+                        dest='use_seq',
+                        type=str,
+                        default="True",
+                        help= 'use_seq')
     parser.add_argument('--random_mask_size',
                         dest='random_mask_size',
                         type=str,
