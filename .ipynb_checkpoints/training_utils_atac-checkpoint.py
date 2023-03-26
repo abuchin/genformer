@@ -555,10 +555,11 @@ def deserialize_tr(serialized_example,
                    output_length,
                    crop_size,
                    output_res,
-                   #seq_mask_dropout,
                    atac_mask_dropout,
                    mask_size,
                    log_atac,
+                   use_atac,
+                   use_seq,
                    g):
     """Deserialize bytes stored in TFRecordFile."""
     ## parse out feature map
@@ -704,6 +705,13 @@ def deserialize_tr(serialized_example,
                                    axis=1,keepdims=True)
     mask_gathered = tf.reduce_max(tf.reshape(full_comb_mask_store, [(output_length-2*crop_size) // 2, -1]),
                                    axis=1,keepdims=True)
+    
+    
+    if not use_atac:
+        masked_atac = random_shuffled_tokens
+    if not use_seq:
+        masked_seq = tf.random.shuffle(masked_seq)
+        
         
     return {'sequence': tf.ensure_shape(masked_seq,
                                         [input_length,4]),
@@ -731,6 +739,8 @@ def deserialize_val(serialized_example,
                    atac_mask_dropout,
                    mask_size,
                    log_atac,
+                   use_atac,
+                   use_seq,
                     g):
     """Deserialize bytes stored in TFRecordFile."""
     ## parse out feature map
@@ -825,6 +835,12 @@ def deserialize_val(serialized_example,
     mask_gathered = tf.reduce_max(tf.reshape(full_comb_mask_store, [(output_length-2*crop_size) // 2, -1]),
                                    axis=1,keepdims=True)
     
+    
+    if not use_atac:
+        masked_atac = random_shuffled_tokens
+    if not use_seq:
+        masked_seq = tf.random.shuffle(masked_seq)
+    
     return {'sequence': tf.ensure_shape(sequence,
                                         [input_length,4]),
             'atac': tf.ensure_shape(masked_atac,
@@ -855,6 +871,8 @@ def return_dataset(gcs_path,
                    atac_mask_dropout,
                    random_mask_size,
                    log_atac,
+                   use_atac,
+                   use_seq,
                    g):
     """
     return a tf dataset object for given gcs path
@@ -886,6 +904,8 @@ def return_dataset(gcs_path,
                                                             atac_mask_dropout,
                                                             random_mask_size,
                                                             log_atac,
+                                                           use_atac,
+                                                           use_seq,
                                                             g),
                               deterministic=False,
                               num_parallel_calls=num_parallel)
@@ -904,6 +924,8 @@ def return_dataset(gcs_path,
                                                             atac_mask_dropout,
                                                             random_mask_size,
                                                             log_atac,
+                                                           use_atac,
+                                                           use_seq,
                                                             g),
                       deterministic=False,
                       num_parallel_calls=num_parallel)
@@ -928,6 +950,8 @@ def return_distributed_iterators(gcs_path,
                                  atac_mask_dropout,
                                  random_mask_size,
                                  log_atac,
+                                   use_atac,
+                                   use_seq,
                                  g):
 
     tr_data = return_dataset(gcs_path,
@@ -946,6 +970,8 @@ def return_distributed_iterators(gcs_path,
                              atac_mask_dropout,
                              random_mask_size,
                              log_atac,
+                                   use_atac,
+                                   use_seq,
                              g)
     
 
@@ -965,6 +991,8 @@ def return_distributed_iterators(gcs_path,
                               atac_mask_dropout,
                               random_mask_size,
                               log_atac,
+                                   use_atac,
+                                   use_seq,
                               g)
     
     val_data_ho = return_dataset(gcs_path_ho,
@@ -983,6 +1011,8 @@ def return_distributed_iterators(gcs_path,
                               atac_mask_dropout,
                               random_mask_size,
                               log_atac,
+                                   use_atac,
+                                   use_seq,
                               g)
 
 

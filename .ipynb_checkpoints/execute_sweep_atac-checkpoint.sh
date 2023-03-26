@@ -52,6 +52,8 @@ python3 train_model_atac.py \
             --learnable_PE="True" \
             --sonnet_weights_bool="True" \
             --random_mask_size="1024" \
-            --bce_loss_scale=0.90
+            --bce_loss_scale=0.90 \
+            --use_atac="False" \
+            --use_seq="False"
                         
             

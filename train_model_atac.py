@@ -161,6 +161,12 @@ def main():
                 'learnable_PE': {
                     'values':[parse_bool_str(x) for x in args.learnable_PE.split(',')]
                 },
+                'use_atac': {
+                    'values':[parse_bool_str(x) for x in args.use_atac.split(',')]
+                },
+                'use_seq': {
+                    'values':[parse_bool_str(x) for x in args.use_seq.split(',')]
+                },
                 #'global_acc_size': {
                 #    'values': [int(x) for x in args.global_acc_size.split(',')]
                 #},
@@ -282,6 +288,8 @@ def main():
                                                                 wandb.config.atac_mask_dropout,
                                                                 wandb.config.random_mask_size,
                                                                 wandb.config.log_atac,
+                                                                wandb.config.use_atac,
+                                                                wandb.config.use_seq,
                                                                 g)
 
 
