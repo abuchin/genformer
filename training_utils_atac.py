@@ -573,7 +573,7 @@ def deserialize_tr(serialized_example,
 
     rev_comp = tf.math.round(g.uniform([], 0, 1))
     seq_mask_int = g.uniform([], 0, 5,dtype=tf.int32)
-    full_atac_mask_int = g.uniform([], 0, 4,dtype=tf.int32)
+    full_atac_mask_int = g.uniform([], 0, 5,dtype=tf.int32)
     stupid_random_seed = g.uniform([], 0, 1000,dtype=tf.int32)
     shift = g.uniform(shape=(),
                       minval=0,
@@ -646,6 +646,7 @@ def deserialize_tr(serialized_example,
     full_comb_mask = tf.math.floor((dense_peak_mask + full_atac_mask)/2)
     ## here store the mask tokens
     full_comb_mask_store = 1.0 - full_comb_mask
+    full_comb_mask_full_store = full_comb_mask_store
     full_comb_mask_store = full_comb_mask_store[crop_size:-crop_size,:]
     tiling_req = output_length_ATAC // output_length
     full_comb_mask = tf.expand_dims(tf.reshape(tf.tile(full_comb_mask, [1,tiling_req]),[-1]),axis=1)
@@ -672,9 +673,8 @@ def deserialize_tr(serialized_example,
         masked_atac = tf.math.log1p(masked_atac)
     
     ### here set up the sequence masking
-    if (seq_mask_int == 0) and (full_atac_mask_int != 0):
-        seq_mask = 1.0 - dense_peak_mask_store
-        seq_mask = tf.expand_dims(seq_mask,axis=1)
+    if (seq_mask_int == 0):
+        seq_mask = 1.0 - full_comb_mask_full_store
         tiling_req_seq = input_length // output_length
         seq_mask = tf.expand_dims(tf.reshape(tf.tile(seq_mask, [1,tiling_req_seq]),[-1]),axis=1)
         masked_seq = sequence * seq_mask
@@ -1361,9 +1361,6 @@ def rev_comp_one_hot(sequence):
                       depth = 4, 
                       dtype=tf.float32)
     return out
-
-
-
 
 
 def log2(x):
