@@ -466,7 +466,7 @@ def return_train_val_functions(model,
                                                     output_peaks)) * (1./ global_batch_size) * bce_loss_scale
 
             poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac,
-                                                            output_atac)) * (1. / global_batch_size) + (1.0-bce_loss_scale)
+                                                            output_atac)) * (1. / global_batch_size) * (1.0-bce_loss_scale)
 
             loss = poisson_loss + bce_loss
 
@@ -674,7 +674,7 @@ def deserialize_tr(serialized_example,
         masked_atac = tf.math.log1p(masked_atac)
     
     ### here set up the sequence masking
-    if (seq_mask_int == 0):
+    if ((seq_mask_int == 0) and (full_atac_mask_int != 0)):
         seq_mask = 1.0 - full_comb_mask_full_store
         tiling_req_seq = input_length // output_length
         seq_mask = tf.expand_dims(tf.reshape(tf.tile(seq_mask, [1,tiling_req_seq]),[-1]),axis=1)
