@@ -389,6 +389,7 @@ def return_train_val_functions(model,
                                         model.performer.trainable_variables + \
                                         model.final_pointwise_conv.trainable_variables + \
                                         model.final_dense_profile.trainable_variables + \
+                                        model.peaks_pool + \
                                         model.final_dense_peaks.trainable_variables
                                         #model.global_acc_block.trainable_variables + \
 
