@@ -654,28 +654,19 @@ def deserialize_tr(serialized_example,
     full_comb_mask = tf.expand_dims(tf.reshape(tf.tile(full_comb_mask, [1,tiling_req]),[-1]),axis=1)
 
     masked_atac = atac * full_comb_mask
-
-    ### now that we have masked specific tokens by setting them to 0, we want to randomly add wrong tokens to these positions
-    ## first, invert the mask
-    random_shuffled_tokens= tf.random.shuffle(atac)
-    full_comb_mask = (1.0-full_comb_mask)*random_shuffled_tokens
-    masked_atac = masked_atac + full_comb_mask
     
     ## at low probability, also random mask the entire ATAC signal and still ask for prediction
     ## force network to solely use sequence features
     if full_atac_mask_int == 0:
+        random_shuffled_tokens= tf.random.shuffle(atac)
         masked_atac = random_shuffled_tokens
-    
-    ### add some low level gaussian noise before taking log
-    masked_atac = masked_atac + tf.math.abs(g.normal(atac.shape,
-                                               mean=0.0,
-                                               stddev=1.0e-05,
-                                               dtype=tf.float32))
+        
     if log_atac: 
+        random_shuffled_tokens= tf.random.shuffle(atac)
         masked_atac = tf.math.log1p(masked_atac)
     
     ### here set up the sequence masking
-    if ((seq_mask_int == 0) and (full_atac_mask_int != 0)):
+    if (seq_mask_int == 0):
         seq_mask = 1.0 - full_comb_mask_full_store
         tiling_req_seq = input_length // output_length
         seq_mask = tf.expand_dims(tf.reshape(tf.tile(seq_mask, [1,tiling_req_seq]),[-1]),axis=1)
@@ -813,12 +804,6 @@ def deserialize_val(serialized_example,
     tiling_req = output_length_ATAC // output_length
     full_comb_mask = tf.expand_dims(tf.reshape(tf.tile(full_comb_mask, [1,tiling_req]),[-1]),axis=1)
     masked_atac = atac * full_comb_mask
-    
-    ### now that we have masked specific tokens by setting them to 0, we want to randomly add wrong tokens to these positions
-    ## first, invert the mask
-    random_shuffled_tokens= tf.random.shuffle(atac)
-    full_comb_mask = (1.0-full_comb_mask)*random_shuffled_tokens
-    masked_atac = masked_atac + full_comb_mask
 
     if log_atac: 
         masked_atac = tf.math.log1p(masked_atac)
@@ -838,6 +823,7 @@ def deserialize_val(serialized_example,
     
     
     if not use_atac:
+        random_shuffled_tokens= tf.random.shuffle(atac)
         masked_atac = random_shuffled_tokens
     if not use_seq:
         masked_seq = tf.random.shuffle(masked_seq)
@@ -947,7 +933,6 @@ def return_distributed_iterators(gcs_path,
                                  num_epoch,
                                  strategy,
                                  options,
-                                 #seq_mask_dropout,
                                  atac_mask_dropout,
                                  random_mask_size,
                                  log_atac,

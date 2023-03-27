@@ -152,9 +152,6 @@ def main():
                 'atac_mask_dropout': {
                     'values': [args.atac_mask_dropout]
                 },
-                'seq_mask_dropout': {
-                    'values': [args.seq_mask_dropout]
-                },
                 'rectify': {
                     'values':[parse_bool_str(x) for x in args.rectify.split(',')]
                 },
@@ -170,11 +167,14 @@ def main():
                 'learnable_PE': {
                     'values':[parse_bool_str(x) for x in args.learnable_PE.split(',')]
                 },
-                'loss_fn': {
-                    'values':[args.loss_fn]
-                },
                 'sonnet_weights_bool': {
                     'values':[parse_bool_str(x) for x in args.sonnet_weights_bool.split(',')]
+                },
+                'random_mask_size': {
+                    'values':[int(x) for x in args.random_mask_size.split(',')]
+                },
+                'bce_loss_scale': {
+                    'values':[args.bce_loss_scale]
                 }
             }
     }
@@ -293,8 +293,8 @@ def main():
                                                                 args.num_epochs,
                                                                 strategy,
                                                                 options,
-                                                                wandb.config.seq_mask_dropout,
                                                                 wandb.config.atac_mask_dropout,
+                                                                wandb.config.random_mask_size,
                                                                 wandb.config.log_atac,
                                                                 g)
 
@@ -441,7 +441,8 @@ def main():
                                                                                             metric_dict,
                                                                                             GLOBAL_BATCH_SIZE,
                                                                                             wandb.config.gradient_clip,
-                                                                                            wandb.config.cage_scale)
+                                                                                            wandb.config.cage_scale,
+                                                                                            wandb.config.bce_loss_scale)
 
 
                 
@@ -480,46 +481,70 @@ def main():
                 start = time.time()
                 
                 val_step(data_val)
-                val_step_ho(data_val_ho)
-                
                 val_loss = metric_dict['val_loss'].result().numpy()
+                val_loss_poisson = metric_dict['val_loss_poisson'].result().numpy()
+                val_loss_bce = metric_dict['val_loss_bce'].result().numpy()
+                val_loss_ATAC = metric_dict['val_loss_ATAC'].result().numpy()
+                val_loss_CAGE = metric_dict['val_loss_CAGE'].result().numpy()
+                print('val_loss: ' + str(val_loss))
+                print('val_loss_poisson: ' + str(val_loss_poisson))
+                print('val_loss_bce: ' + str(val_loss_bce))
+                print('val_loss_ATAC: ' + str(val_loss_ATAC))
+                print('val_loss_CAGE: ' + str(val_loss_CAGE))
+                
+                wandb.log({'human_val_loss': metric_dict['val_loss'].result().numpy(),
+                           'human_val_loss_poisson': metric_dict['val_loss_poisson'].result().numpy(),
+                           'human_val_loss_bce': metric_dict['val_loss_bce'].result().numpy(),
+                           'human_val_loss_CAGE': metric_dict['val_loss_CAGE'].result().numpy(),
+                           'human_val_loss_ATAC': metric_dict['val_loss_ATAC'].result().numpy()},
+                           #'human_val_loss_poisson': metric_dict['val_loss_poisson'].result().numpy()},
+                           #'human_val_loss_bce': metric_dict['val_loss_bce'].result().numpy()},
+                           step=epoch_i)
+                
+                val_losses.append(val_loss)
+                
                 cage_pearsons = metric_dict['CAGE_PearsonR'].result()['PearsonR'].numpy()
                 cage_R2 = metric_dict['CAGE_R2'].result()['R2'].numpy()
+                atac_pearsons = metric_dict['ATAC_PearsonR'].result()['PearsonR'].numpy()
+                atac_R2 = metric_dict['ATAC_R2'].result()['R2'].numpy()
+                atac_roc = metric_dict['ATAC_ROC'].result().numpy()
+                atac_pr = metric_dict['ATAC_PR'].result().numpy()
+                
+                atac_TP = metric_dict['ATAC_TP'].result().numpy()
+                atac_T = metric_dict['ATAC_T'].result().numpy()
+                
+                val_pearsons.append(cage_pearsons)
+                
+                wandb.log({'human_CAGE_pearsons': cage_pearsons,
+                           'human_CAGE_R2': cage_R2,
+                           'human_ATAC_pearsons': atac_pearsons,
+                           'human_ATAC_R2': atac_R2,
+                           'human_ATAC_ROC': atac_roc,
+                           'human_ATAC_pos_rate': (atac_TP/atac_T),
+                           'human_ATAC_PR': atac_pr},step=epoch_i)
+                
+                
+                
+                val_step_ho(data_val_ho)
                 
                 cage_pearsons_ho = metric_dict['CAGE_PearsonR_ho'].result()['PearsonR'].numpy()
                 cage_R2_ho = metric_dict['CAGE_R2_ho'].result()['R2'].numpy()
-                
-                print('val_loss: ' + str(val_loss))
-                print('human_CAGE_pearsons: ' + str(cage_pearsons))
-                print('human_CAGE_R2: ' + str(cage_R2))
-                print('human_CAGE_pearsons_ho: ' + str(cage_pearsons_ho))
-                print('human_CAGE_R2_ho: ' + str(cage_R2_ho))
-                
-                val_losses.append(val_loss)
-                val_pearsons.append(cage_pearsons)
-                wandb.log({'human_val_loss': val_loss,
-                           'human_CAGE_pearsons': cage_pearsons,
-                           'human_CAGE_R2': cage_R2,
-                           'human_CAGE_pearsons_ho': cage_pearsons_ho,
-                           'human_CAGE_R2_ho': cage_R2_ho},step=epoch_i)
-                
-
-                atac_pearsons = metric_dict['ATAC_PearsonR'].result()['PearsonR'].numpy()
-                atac_R2 = metric_dict['ATAC_R2'].result()['R2'].numpy()
                 atac_pearsons_ho = metric_dict['ATAC_PearsonR_ho'].result()['PearsonR'].numpy()
                 atac_R2_ho = metric_dict['ATAC_R2_ho'].result()['R2'].numpy()
-                wandb.log({'human_ATAC_pearsons': atac_pearsons,
-                           'human_ATAC_R2': atac_R2,
+                atac_roc_ho = metric_dict['ATAC_ROC_ho'].result().numpy()
+                atac_pr_ho = metric_dict['ATAC_PR_ho'].result().numpy()
+                
+                atac_TP_ho = metric_dict['ATAC_TP_ho'].result().numpy()
+                atac_T_ho = metric_dict['ATAC_T_ho'].result().numpy()
+                
+                
+                wandb.log({'human_CAGE_pearsons_ho': cage_pearsons_ho,
+                           'human_CAGE_R2_ho': cage_R2_ho,
                            'human_ATAC_pearsons_ho': atac_pearsons_ho,
-                           'human_ATAC_R2_ho': atac_R2_ho},step=epoch_i)
-                print('human_ATAC_pearsons: ' + str(atac_pearsons))
-                print('human_ATAC_R2: ' + str(atac_R2))
-                print('human_ATAC_pearsons_ho: ' + str(atac_pearsons_ho))
-                print('human_ATAC_R2_ho: ' + str(atac_R2_ho))
-
-                wandb.log({'human_val_loss_CAGE': metric_dict['val_loss_CAGE'].result().numpy(),
-                           'human_val_loss_ATAC': metric_dict['val_loss_ATAC'].result().numpy()},
-                           step=epoch_i)
+                           'human_ATAC_R2_ho': atac_R2_ho,
+                           'human_ATAC_ROC_ho': atac_roc_ho,
+                           'human_ATAC_pos_rate_ho': (atac_TP_ho/atac_T_ho),
+                           'human_ATAC_PR_ho': atac_pr_ho},step=epoch_i)
 
                 
                 if epoch_i % 2 == 0: 
