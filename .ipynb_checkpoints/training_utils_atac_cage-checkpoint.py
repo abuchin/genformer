@@ -339,8 +339,9 @@ def return_train_val_functions(model,
                                cage_scale,
                                bce_loss_scale):
     
-    loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
-
+    poisson_loss_func = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
+    bce_loss_func = tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.NONE,
+                                                       from_logits=True)
 
     optimizer1,optimizer2,optimizer3=optimizers_in
     
@@ -439,7 +440,7 @@ def return_train_val_functions(model,
 
                 atac_loss = (poisson_loss + bce_loss) * (1.0-cage_scale)
                 
-                cage_loss = tf.reduce_mean(loss_fn(target[:,:,1],
+                cage_loss = tf.reduce_mean(poisson_loss_func(target[:,:,1],
                                                    output_profile[:,:,1])) * cage_scale * (1. / global_batch_size)
                 loss = atac_loss + cage_loss
 
@@ -481,7 +482,7 @@ def return_train_val_functions(model,
             mask_indices = tf.where(mask[0,:,0] == 1.0)[:,0]
 
             target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
-            output_atac = tf.gather(output[:,:,0], mask_indices,axis=1)
+            output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
             
             mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
             target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
@@ -495,7 +496,7 @@ def return_train_val_functions(model,
 
             atac_loss = (poisson_loss + bce_loss) * (1.0-cage_scale)
 
-            cage_loss = tf.reduce_mean(loss_fn(target[:,:,1],
+            cage_loss = tf.reduce_mean(poisson_loss_func(target[:,:,1],
                                                output_profile[:,:,1])) * cage_scale * (1. / global_batch_size)
             loss = atac_loss + cage_loss
 
@@ -563,7 +564,7 @@ def return_train_val_functions(model,
 
             atac_loss = (poisson_loss + bce_loss) * (1.0-cage_scale)
 
-            cage_loss = tf.reduce_mean(loss_fn(target[:,:,1],
+            cage_loss = tf.reduce_mean(poisson_loss_func(target[:,:,1],
                                                output_profile[:,:,1])) * cage_scale * (1. / global_batch_size)
             loss = atac_loss + cage_loss
 
@@ -597,16 +598,17 @@ def return_train_val_functions(model,
             
             input_tuple = sequence, atac
 
-            output = model(input_tuple,
-                           training=False)
-            
-            output = tf.cast(output,dtype=tf.float32)
+            output_profile,output_peaks = model(input_tuple,
+                                                training=False)
+
+            output_profile = tf.cast(output_profile,dtype=tf.float32)
+            output_peaks = tf.cast(output_peaks,dtype=tf.float32)
             
             tss_tokens = tf.cast(inputs['tss_tokens'],dtype=tf.float32)
             gene_token = inputs['gene_token']
             cell_type = inputs['cell_type']
             
-            pred = tf.reduce_sum(tf.cast(output,dtype=tf.float32)[:,:,1:] * tss_tokens,axis=1)
+            pred = tf.reduce_sum(tf.cast(output_profile,dtype=tf.float32)[:,:,1:] * tss_tokens,axis=1)
             true = tf.reduce_sum(target[:,:,1:] * tss_tokens,axis=1)
 
             return pred,true,gene_token,cell_type
@@ -649,16 +651,17 @@ def return_train_val_functions(model,
             
             input_tuple = sequence, atac
 
-            output = model(input_tuple,
-                           training=False)
-            
-            output = tf.cast(output,dtype=tf.float32)
+            output_profile,output_peaks = model(input_tuple,
+                                                training=False)
+
+            output_profile = tf.cast(output_profile,dtype=tf.float32)
+            output_peaks = tf.cast(output_peaks,dtype=tf.float32)
             
             tss_tokens = tf.cast(inputs['tss_tokens'],dtype=tf.float32)
             gene_token = inputs['gene_token']
             cell_type = inputs['cell_type']
             
-            pred = tf.reduce_sum(tf.cast(output,dtype=tf.float32)[:,:,1:] * tss_tokens,axis=1)
+            pred = tf.reduce_sum(tf.cast(output_profile,dtype=tf.float32)[:,:,1:] * tss_tokens,axis=1)
             true = tf.reduce_sum(target[:,:,1:] * tss_tokens,axis=1)
 
             return pred,true,gene_token,cell_type
@@ -892,7 +895,7 @@ def deserialize_tr(serialized_example,
              #                                        [output_length_ATAC,1]),
             'peaks': tf.ensure_shape(peaks_gathered,
                                       [(output_length-2*crop_size) // 2,1]),
-            'target': tf.ensure_shape(atac_out,
+            'target': tf.ensure_shape(target,
                                       [output_length-crop_size*2,2])}
 
 
@@ -1019,7 +1022,7 @@ def deserialize_val(serialized_example,
                                     [(output_length-crop_size*2)//2,1]),
             'peaks': tf.ensure_shape(peaks_gathered,
                                       [(output_length-2*crop_size) // 2,1]),
-            'target': tf.ensure_shape(atac_out,
+            'target': tf.ensure_shape(target,
                                       [output_length-crop_size*2,2])}
 
 
@@ -1174,7 +1177,7 @@ def return_dataset(gcs_path,
                                                             crop_size,
                                                             output_res,
                                                             atac_mask_dropout,
-                                                                 mask_size
+                                                                 mask_size,
                                                             log_atac,
                                                                 g),
                                   deterministic=False,

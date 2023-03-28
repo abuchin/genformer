@@ -337,7 +337,8 @@ def return_train_val_functions(model,
                                bce_loss_scale):
     
     poisson_loss_func = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
-    bce_loss_func = tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
+    bce_loss_func = tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.NONE,
+                                                       from_logits=True)
 
     optimizer1,optimizer2=optimizers_in
 

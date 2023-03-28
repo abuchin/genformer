@@ -2,7 +2,7 @@
 
 python3 train_model_atac_cage.py \
             --tpu_name="pod" \
-            --tpu_zone="us-east1-d" \
+            --tpu_zone="us-central1-a" \
             --wandb_project="paired_rampage_atac" \
             --wandb_user="njaved" \
             --wandb_sweep_name="paired_rampage_atac" \
@@ -18,7 +18,7 @@ python3 train_model_atac_cage.py \
             --max_shift=10 \
             --batch_size=4 \
             --num_epochs=150 \
-            --train_examples=250000 \
+            --train_examples=500000 \
             --val_examples=59751  \
             --val_examples_ho=11065  \
             --val_examples_TSS=57618 \
@@ -30,15 +30,15 @@ python3 train_model_atac_cage.py \
             --min_delta=0.000005 \
             --model_save_dir="gs://picard-testing-176520/paired_rampage_atac/genformer/models" \
             --model_save_basename="aformer_baseline" \
-            --lr_base1="5.0e-06" \
+            --lr_base1="1.0e-04" \
             --lr_base2="1.0e-04" \
             --lr_base3="1.0e-03" \
             --decay_frac="0.50" \
             --gradient_clip="5.0" \
-            --epsilon=1.0e-8 \
-            --num_transformer_layers="9" \
-            --dropout_rate="0.05" \
-            --pointwise_dropout_rate="0.10" \
+            --epsilon=1.0e-14 \
+            --num_transformer_layers="6" \
+            --dropout_rate="0.25" \
+            --pointwise_dropout_rate="0.15" \
             --num_heads="8" \
             --num_random_features="256" \
             --kernel_transformation="relu_kernel_transformation" \
@@ -49,14 +49,15 @@ python3 train_model_atac_cage.py \
             --wd_2_frac=0.0 \
             --wd_3_frac=0.0 \
             --rectify="True" \
-            --multitask_checkpoint_path="gs://picard-testing-176520/genformer_atac_pretrain/models/aformer_baseline_genformer_atac_196k_glob_acc-False_load-True_frz-False_LR1-7.5e-06_LR2-0.00025_T-9_D-0.05_2023-03-18_01:43:51/iteration_40" \
-            --filter_list_seq="768,896,1024,1152,1280,1536" \
+            --multitask_checkpoint_path="gs://picard-testing-176520/genformer_atac_pretrain/models/aformer_baseline_genformer_atac_196k_glob_acc-False_load-False_frz-False_LR1-0.0002_LR2-0.0002_T-6_D-0.25_2023-03-25_03:14:15/iteration_54" \
+            --filter_list_seq="512,640,768,896,1024,1152" \
             --inits_type="enformer_performer" \
             --cage_scale="0.90" \
-            --optimizer="adamw" \
+            --optimizer="adabelief" \
             --stable_variant="False" \
             --atac_mask_dropout=0.05 \
-            --seq_mask_dropout=0.02 \
+            --random_mask_size="1024" \
+            --bce_loss_scale="0.90" \
             --log_atac="True" \
             --learnable_PE="True" \
             --sonnet_weights_bool="True" 

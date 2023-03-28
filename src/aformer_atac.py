@@ -350,7 +350,7 @@ class aformer(tf.keras.Model):
                                           name ='peaks_pool')
         
         self.final_dense_peaks = kl.Dense(1,
-                                    activation='sigmoid',
+                                    activation=None,
                                     kernel_initializer='lecun_normal',
                                     bias_initializer='lecun_normal',
                                     use_bias=True)

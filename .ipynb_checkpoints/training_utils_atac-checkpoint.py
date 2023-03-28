@@ -337,7 +337,8 @@ def return_train_val_functions(model,
                                bce_loss_scale):
     
     poisson_loss_func = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
-    bce_loss_func = tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
+    bce_loss_func = tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.NONE,
+                                                       from_logits=True)
 
     optimizer1,optimizer2=optimizers_in
 
@@ -654,15 +655,13 @@ def deserialize_tr(serialized_example,
     full_comb_mask = tf.expand_dims(tf.reshape(tf.tile(full_comb_mask, [1,tiling_req]),[-1]),axis=1)
 
     masked_atac = atac * full_comb_mask
-    
+    random_shuffled_tokens= tf.random.shuffle(atac)
     ## at low probability, also random mask the entire ATAC signal and still ask for prediction
     ## force network to solely use sequence features
     if full_atac_mask_int == 0:
-        random_shuffled_tokens= tf.random.shuffle(atac)
         masked_atac = random_shuffled_tokens
         
     if log_atac: 
-        random_shuffled_tokens= tf.random.shuffle(atac)
         masked_atac = tf.math.log1p(masked_atac)
     
     ### here set up the sequence masking
@@ -821,9 +820,8 @@ def deserialize_val(serialized_example,
     mask_gathered = tf.reduce_max(tf.reshape(full_comb_mask_store, [(output_length-2*crop_size) // 2, -1]),
                                    axis=1,keepdims=True)
     
-    
+    random_shuffled_tokens= tf.random.shuffle(atac)
     if not use_atac:
-        random_shuffled_tokens= tf.random.shuffle(atac)
         masked_atac = random_shuffled_tokens
     if not use_seq:
         masked_seq = tf.random.shuffle(masked_seq)

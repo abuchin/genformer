@@ -341,7 +341,7 @@ class aformer(tf.keras.Model):
                                     bias_initializer='lecun_normal',
                                     use_bias=True)
         self.final_dense_peaks = kl.Dense(1,
-                                    activation='sigmoid',
+                                    activation=None,
                                     kernel_initializer='lecun_normal',
                                     bias_initializer='lecun_normal',
                                     use_bias=True)
@@ -410,7 +410,7 @@ class aformer(tf.keras.Model):
                                training=training)
         
         out_peaks = self.peaks_pool(out)
-        out_peaks = self.final_dense_peaks(out,
+        out_peaks = self.final_dense_peaks(out_peaks,
                                training=training)
 
         return out_profile,out_peaks
@@ -509,7 +509,9 @@ class aformer(tf.keras.Model):
 
         out_profile = self.final_dense_profile(out,
                                training=training)
-        out_peaks = self.final_dense_peaks(out,
+        
+        out_peaks = self.peaks_pool(out)
+        out_peaks = self.final_dense_peaks(out_peaks,
                                training=training)
 
         return out_profile, out_peaks,final_point, att_matrices
