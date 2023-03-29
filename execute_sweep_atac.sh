@@ -30,7 +30,7 @@ python3 train_model_atac.py \
             --decay_frac="0.40" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-14 \
-            --num_transformer_layers="8" \
+            --num_transformer_layers="6" \
             --dropout_rate="0.25" \
             --pointwise_dropout_rate="0.15" \
             --num_heads="8" \
