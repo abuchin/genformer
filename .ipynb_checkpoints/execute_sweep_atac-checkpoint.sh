@@ -17,7 +17,7 @@ python3 train_model_atac.py \
             --batch_size=4 \
             --num_epochs=150 \
             --train_examples=500000 \
-            --val_examples_ho=28769 \
+            --val_examples_ho=19917 \
             --BN_momentum=0.90 \
             --warmup_frac=0.005 \
             --patience=50 \
@@ -27,7 +27,7 @@ python3 train_model_atac.py \
             --model_save_basename="aformer_baseline" \
             --lr_base1="2.5e-04" \
             --lr_base2="2.5e-04" \
-            --decay_frac="0.50" \
+            --decay_frac="0.40" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-14 \
             --num_transformer_layers="8" \
@@ -43,17 +43,17 @@ python3 train_model_atac.py \
             --wd_2_frac=0.0 \
             --rectify="True" \
             --multitask_checkpoint_path="gs://picard-testing-176520/sonnet_weights/sonnet_weights" \
-            --filter_list_seq="640,768,896,1024,1152,1280" \
+            --filter_list_seq="512,640,768,896,1024,1152" \
             --inits_type="enformer_conv" \
             --optimizer="adabelief" \
             --stable_variant="False" \
-            --atac_mask_dropout=0.15 \
+            --atac_mask_dropout=0.20 \
             --log_atac="True" \
             --learnable_PE="True" \
             --sonnet_weights_bool="True" \
-            --random_mask_size="1024" \
+            --random_mask_size="1792" \
             --bce_loss_scale=0.90 \
-            --use_atac="False" \
-            --use_seq="False"
+            --use_atac="True" \
+            --use_seq="True"
                         
             
