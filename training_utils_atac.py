@@ -627,11 +627,9 @@ def deserialize_tr(serialized_example,
     mask_indices_temp = tf.where(peaks_crop[:,0] > 0)[:,0]
     ridx = tf.concat([tf.random.shuffle(mask_indices_temp),
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
-    mask_indices=[[ridx[0]-6+crop_size],[ridx[0]-5+crop_size],[ridx[0]-4+crop_size],
-                  [ridx[0]-3+crop_size],[ridx[0]-2+crop_size],[ridx[0]-1+crop_size],
+    mask_indices=[[ridx[0]-3+crop_size],[ridx[0]-2+crop_size],[ridx[0]-1+crop_size],
                   [ridx[0]+crop_size],[ridx[0]+1+crop_size],[ridx[0]+2+crop_size],
-                  [ridx[0]+3+crop_size],[ridx[0]+4+crop_size], [ridx[0]+5+crop_size],[ridx[0]+6+crop_size],
-                  [ridx[0]+7+crop_size]]
+                  [ridx[0]+3+crop_size],[ridx[0]+4+crop_size]]
                   
     st=tf.SparseTensor(
         indices=mask_indices,
@@ -803,11 +801,9 @@ def deserialize_val(serialized_example,
     mask_indices_temp = tf.where(peaks_crop[:,0] > 0)[:,0]
     ridx = tf.concat([tf.random.shuffle(mask_indices_temp),
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
-    mask_indices=[[ridx[0]-6+crop_size],[ridx[0]-5+crop_size],[ridx[0]-4+crop_size],
-                  [ridx[0]-3+crop_size],[ridx[0]-2+crop_size],[ridx[0]-1+crop_size],
+    mask_indices=[[ridx[0]-3+crop_size],[ridx[0]-2+crop_size],[ridx[0]-1+crop_size],
                   [ridx[0]+crop_size],[ridx[0]+1+crop_size],[ridx[0]+2+crop_size],
-                  [ridx[0]+3+crop_size],[ridx[0]+4+crop_size], [ridx[0]+5+crop_size],[ridx[0]+6+crop_size],
-                  [ridx[0]+7+crop_size]]
+                  [ridx[0]+3+crop_size],[ridx[0]+4+crop_size]]
     
     st=tf.SparseTensor(
         indices=mask_indices,
