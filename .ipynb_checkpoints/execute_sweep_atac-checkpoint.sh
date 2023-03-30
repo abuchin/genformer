@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model_atac.py \
-            --tpu_name="pod" \
-            --tpu_zone="us-east1-d" \
+            --tpu_name="node-4" \
+            --tpu_zone="us-central1-a" \
             --wandb_project="atac_pretraining" \
             --wandb_user="njaved" \
             --wandb_sweep_name="atac_pretraining" \
@@ -17,7 +17,7 @@ python3 train_model_atac.py \
             --batch_size=4 \
             --num_epochs=150 \
             --train_examples=500000 \
-            --val_examples_ho=19917 \
+            --val_examples_ho=24343 \
             --BN_momentum=0.90 \
             --warmup_frac=0.005 \
             --patience=50 \
@@ -25,8 +25,8 @@ python3 train_model_atac.py \
             --min_delta=0.000005 \
             --model_save_dir="gs://picard-testing-176520/genformer_atac_pretrain/models" \
             --model_save_basename="aformer_baseline" \
-            --lr_base1="2.5e-04" \
-            --lr_base2="2.5e-04" \
+            --lr_base1="2.0e-04" \
+            --lr_base2="2.0e-04" \
             --decay_frac="0.40" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-14 \
@@ -47,12 +47,12 @@ python3 train_model_atac.py \
             --inits_type="enformer_conv" \
             --optimizer="adabelief" \
             --stable_variant="False" \
-            --atac_mask_dropout=0.20 \
+            --atac_mask_dropout=0.15 \
             --log_atac="True" \
             --learnable_PE="True" \
             --sonnet_weights_bool="True" \
             --random_mask_size="1024" \
-            --bce_loss_scale=0.90 \
+            --bce_loss_scale=0.50 \
             --use_atac="True" \
             --use_seq="True"
                         

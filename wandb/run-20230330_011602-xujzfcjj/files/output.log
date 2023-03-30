@@ -1,0 +1,39 @@
+
+global batch size: 32
+WARNING:tensorflow:From /opt/conda/lib/python3.7/site-packages/tensorflow/python/autograph/pyct/static_analysis/liveness.py:83: Analyzer.lamba_check (from tensorflow.python.autograph.pyct.static_analysis.liveness) is deprecated and will be removed after 2023-09-23.
+Instructions for updating:
+Lambda fuctions will be no more assumed to be used in the statement where they are used, or at least in the same block. https://github.com/tensorflow/tensorflow/issues/56089
+WARNING:tensorflow:From /opt/conda/lib/python3.7/site-packages/tensorflow/python/autograph/pyct/static_analysis/liveness.py:83: Analyzer.lamba_check (from tensorflow.python.autograph.pyct.static_analysis.liveness) is deprecated and will be removed after 2023-09-23.
+Instructions for updating:
+Lambda fuctions will be no more assumed to be used in the statement where they are used, or at least in the same block. https://github.com/tensorflow/tensorflow/issues/56089
+created dataset iterators
+loaded enformer conv weights
+[34m[1mwandb[39m[22m: [33mWARNING[39m Config item 'filter_list_seq' was locked by 'sweep' (ignored update).
+{'BN_momentum': 0.9, 'atac_mask_dropout': 0.15, 'bce_loss_scale': 0.9, 'decay_frac': 0.4, 'dropout_rate': 0.25, 'epsilon': 1e-14, 'filter_list_atac': [32, 64], 'filter_list_seq': [512, 640, 768, 896, 1024, 1152], 'final_output_length': 896, 'freeze_conv_layers': False, 'gradient_clip': 5, 'input_length': 196608, 'kernel_transformation': 'relu_kernel_transformation', 'learnable_PE': True, 'load_init': False, 'log_atac': True, 'lr_base1': 0.00025, 'lr_base2': 0.00025, 'num_heads': 8, 'num_random_features': 256, 'num_transformer_layers': 6, 'optimizer': 'adabelief', 'output_length': 1536, 'output_length_ATAC': 49152, 'output_res': 128, 'pointwise_dropout_rate': 0.15, 'random_mask_size': 1024, 'rectify': True, 'sonnet_weights_bool': True, 'stable_variant': False, 'use_atac': True, 'use_seq': True, 'wd_1_frac': 0, 'wd_2_frac': 0, 'lr_base': 0.01, 'tpu': 'node-4', 'gcs_path': 'gs://picard-testing-176520/genformer_atac_pretrain/196k/genformer_atac_pretrain_globalacc_conv_rpgc', 'gcs_path_mm': 'gs://picard-testing-176520/genformer_atac_pretrain/196k/genformer_atac_pretrain_globalacc_conv_rpgc_mouse', 'gcs_path_holdout': 'gs://picard-testing-176520/genformer_atac_pretrain/196k/genformer_atac_pretrain_globalacc_conv_rpgc_holdout', 'num_epochs': 150, 'train_examples': 2500, 'val_examples_ho': 500, 'batch_size': 4, 'warmup_frac': 0.005, 'patience': 50, 'min_delta': 5e-06, 'model_save_dir': 'gs://picard-testing-176520/genformer_atac_pretrain/models', 'model_save_basename': 'aformer_baseline', 'max_shift': 10, 'inits_type': 'enformer_conv', 'crop_size': 320, 'train_steps': 78, 'val_steps_ho': 15, 'total_steps': 78}
+initialized model
+building model
+/opt/conda/lib/python3.7/site-packages/keras/initializers/initializers_v2.py:121: UserWarning: The initializer RandomUniform is unseeded and being called multiple times, which will return identical values  each time (even if the initializer is unseeded). Please update your code to provide a seed to the initializer, or avoid using the same initalizer instance more than once.
+  f"The initializer {self.__class__.__name__} is unseeded "
+built model
+total params: tf.Tensor(101993426, shape=(), dtype=int32)
+starting epoch_ 1
+completed epoch 1
+train_loss: -0.033937663
+training duration(mins): 5.536434813340505
+val_loss: -0.056217823
+val_loss_poisson: -0.058114637
+val_loss_bce: 0.001896815
+human_ATAC_pearsons: 0.33803353
+human_ATAC_R2: 0.100138426
+human_ATAC_PR: 0.012151297
+human_ATAC_ROC: 0.5
+completed epoch 1 validation
+validation duration(mins): 0.6118608832359314
+patience counter at: 0
+starting epoch_ 2
+[34m[1mwandb[39m[22m: Ctrl + C detected. Stopping sweep.
+Exception ignored in: <module 'threading' from '/opt/conda/lib/python3.7/threading.py'>
+Traceback (most recent call last):
+  File "/opt/conda/lib/python3.7/threading.py", line 1307, in _shutdown
+    lock.acquire()
+KeyboardInterrupt

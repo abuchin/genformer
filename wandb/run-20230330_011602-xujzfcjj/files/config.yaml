@@ -1,0 +1,204 @@
+wandb_version: 1
+
+BN_momentum:
+  desc: null
+  value: 0.9
+_wandb:
+  desc: null
+  value:
+    cli_version: 0.13.1
+    framework: keras
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    python_version: 3.7.10
+    start_time: 1680138962.743095
+    t:
+      1:
+      - 2
+      - 3
+      - 5
+      - 53
+      - 55
+      2:
+      - 2
+      - 3
+      - 5
+      - 53
+      - 55
+      3:
+      - 16
+      - 17
+      - 19
+      - 23
+      - 37
+      4: 3.7.10
+      5: 0.13.1
+      8:
+      - 5
+atac_mask_dropout:
+  desc: null
+  value: 0.15
+batch_size:
+  desc: null
+  value: 4
+bce_loss_scale:
+  desc: null
+  value: 0.9
+crop_size:
+  desc: null
+  value: 320
+decay_frac:
+  desc: null
+  value: 0.4
+dropout_rate:
+  desc: null
+  value: 0.25
+epsilon:
+  desc: null
+  value: 1.0e-14
+filter_list_atac:
+  desc: null
+  value:
+  - 32
+  - 64
+filter_list_seq:
+  desc: null
+  value:
+  - 512
+  - 640
+  - 768
+  - 896
+  - 1024
+  - 1152
+final_output_length:
+  desc: null
+  value: 896
+freeze_conv_layers:
+  desc: null
+  value: false
+gcs_path:
+  desc: null
+  value: gs://picard-testing-176520/genformer_atac_pretrain/196k/genformer_atac_pretrain_globalacc_conv_rpgc
+gcs_path_holdout:
+  desc: null
+  value: gs://picard-testing-176520/genformer_atac_pretrain/196k/genformer_atac_pretrain_globalacc_conv_rpgc_holdout
+gcs_path_mm:
+  desc: null
+  value: gs://picard-testing-176520/genformer_atac_pretrain/196k/genformer_atac_pretrain_globalacc_conv_rpgc_mouse
+gradient_clip:
+  desc: null
+  value: 5
+inits_type:
+  desc: null
+  value: enformer_conv
+input_length:
+  desc: null
+  value: 196608
+kernel_transformation:
+  desc: null
+  value: relu_kernel_transformation
+learnable_PE:
+  desc: null
+  value: true
+load_init:
+  desc: null
+  value: false
+log_atac:
+  desc: null
+  value: true
+lr_base:
+  desc: null
+  value: 0.01
+lr_base1:
+  desc: null
+  value: 0.00025
+lr_base2:
+  desc: null
+  value: 0.00025
+max_shift:
+  desc: null
+  value: 10
+min_delta:
+  desc: null
+  value: 5.0e-06
+model_save_basename:
+  desc: null
+  value: aformer_baseline
+model_save_dir:
+  desc: null
+  value: gs://picard-testing-176520/genformer_atac_pretrain/models
+num_epochs:
+  desc: null
+  value: 150
+num_heads:
+  desc: null
+  value: 8
+num_random_features:
+  desc: null
+  value: 256
+num_transformer_layers:
+  desc: null
+  value: 6
+optimizer:
+  desc: null
+  value: adabelief
+output_length:
+  desc: null
+  value: 1536
+output_length_ATAC:
+  desc: null
+  value: 49152
+output_res:
+  desc: null
+  value: 128
+patience:
+  desc: null
+  value: 50
+pointwise_dropout_rate:
+  desc: null
+  value: 0.15
+random_mask_size:
+  desc: null
+  value: 1024
+rectify:
+  desc: null
+  value: true
+sonnet_weights_bool:
+  desc: null
+  value: true
+stable_variant:
+  desc: null
+  value: false
+total_steps:
+  desc: null
+  value: 78
+tpu:
+  desc: null
+  value: node-4
+train_examples:
+  desc: null
+  value: 2500
+train_steps:
+  desc: null
+  value: 78
+use_atac:
+  desc: null
+  value: true
+use_seq:
+  desc: null
+  value: true
+val_examples_ho:
+  desc: null
+  value: 500
+val_steps_ho:
+  desc: null
+  value: 15
+warmup_frac:
+  desc: null
+  value: 0.005
+wd_1_frac:
+  desc: null
+  value: 0
+wd_2_frac:
+  desc: null
+  value: 0

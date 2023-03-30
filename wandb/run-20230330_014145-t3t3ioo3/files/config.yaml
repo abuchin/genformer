@@ -1,0 +1,153 @@
+wandb_version: 1
+
+BN_momentum:
+  desc: null
+  value: 0.9
+_wandb:
+  desc: null
+  value:
+    cli_version: 0.13.1
+    framework: keras
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    python_version: 3.7.10
+    start_time: 1680140505.704627
+    t:
+      1:
+      - 2
+      - 3
+      - 5
+      - 53
+      - 55
+      2:
+      - 2
+      - 3
+      - 5
+      - 53
+      - 55
+      3:
+      - 2
+      - 16
+      - 19
+      - 23
+      - 37
+      4: 3.7.10
+      5: 0.13.1
+      8:
+      - 5
+atac_mask_dropout:
+  desc: null
+  value: 0.15
+bce_loss_scale:
+  desc: null
+  value: 0.9
+decay_frac:
+  desc: null
+  value: 0.4
+dropout_rate:
+  desc: null
+  value: 0.25
+epsilon:
+  desc: null
+  value: 1.0e-14
+filter_list_atac:
+  desc: null
+  value:
+  - 32
+  - 64
+filter_list_seq:
+  desc: null
+  value:
+  - 512
+  - 640
+  - 768
+  - 896
+  - 1024
+  - 1152
+final_output_length:
+  desc: null
+  value: 896
+freeze_conv_layers:
+  desc: null
+  value: false
+gcs_path:
+  desc: null
+  value: gs://picard-testing-176520/genformer_atac_pretrain/196k/genformer_atac_pretrain_globalacc_conv_rpgc
+gradient_clip:
+  desc: null
+  value: 5
+input_length:
+  desc: null
+  value: 196608
+kernel_transformation:
+  desc: null
+  value: relu_kernel_transformation
+learnable_PE:
+  desc: null
+  value: true
+load_init:
+  desc: null
+  value: false
+log_atac:
+  desc: null
+  value: true
+lr_base:
+  desc: null
+  value: 0.01
+lr_base1:
+  desc: null
+  value: 0.0002
+lr_base2:
+  desc: null
+  value: 0.0002
+num_heads:
+  desc: null
+  value: 8
+num_random_features:
+  desc: null
+  value: 256
+num_transformer_layers:
+  desc: null
+  value: 6
+optimizer:
+  desc: null
+  value: adabelief
+output_length:
+  desc: null
+  value: 1536
+output_length_ATAC:
+  desc: null
+  value: 49152
+output_res:
+  desc: null
+  value: 128
+pointwise_dropout_rate:
+  desc: null
+  value: 0.15
+random_mask_size:
+  desc: null
+  value: 1024
+rectify:
+  desc: null
+  value: true
+sonnet_weights_bool:
+  desc: null
+  value: true
+stable_variant:
+  desc: null
+  value: false
+tpu:
+  desc: null
+  value: node-4
+use_atac:
+  desc: null
+  value: true
+use_seq:
+  desc: null
+  value: true
+wd_1_frac:
+  desc: null
+  value: 0
+wd_2_frac:
+  desc: null
+  value: 0

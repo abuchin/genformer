@@ -368,7 +368,6 @@ def return_train_val_functions(model,
         def train_step(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            #global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
             mask=tf.cast(inputs['mask'],dtype=tf.int32)
             mask_gathered=tf.cast(inputs['mask_gathered'],dtype=tf.int32)
@@ -432,8 +431,11 @@ def return_train_val_functions(model,
             metric_dict["train_loss"].update_state(loss)
         
         for _ in tf.range(train_steps):
+            #human,mouse=next(iterator)
             strategy.run(train_step,
                          args=(next(iterator),))
+            #strategy.run(train_step,
+            #             args=(mouse,))
             
             
     def dist_val_step(iterator):
@@ -442,7 +444,6 @@ def return_train_val_functions(model,
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            #global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
             mask=tf.cast(inputs['mask'],dtype=tf.int32)
             mask_gathered=tf.cast(inputs['mask_gathered'],dtype=tf.int32)
             peaks=tf.cast(inputs['peaks'],dtype=tf.int32)
@@ -500,37 +501,6 @@ def return_train_val_functions(model,
                          args=(next(iterator),))
             
             
-    """
-    def dist_val_step_ho(iterator):
-        @tf.function(jit_compile=True)
-        def val_step(inputs):
-            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
-            target=tf.cast(inputs['target'],dtype=tf.float32)
-            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            #global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
-            mask=tf.cast(inputs['mask'],dtype=tf.float32)
-            peaks=tf.cast(inputs['peaks'],dtype=tf.float32)
-            mask_indices = tf.where(mask[0,:,0] == 1.0)[:,0]
-            
-            input_tuple = sequence,atac#,global_acc
-
-            output_profile = model(input_tuple,
-                                                training=False)
-            output_profile = tf.cast(output_profile,dtype=tf.float32) # ensure cast to float32
-
-            target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
-            output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
-
-            metric_dict['ATAC_PearsonR_ho'].update_state(target_atac, 
-                                                      output_atac)
-            metric_dict['ATAC_R2_ho'].update_state(target_atac, 
-                                                output_atac)
-            
-
-        for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
-            strategy.run(val_step,
-                         args=(next(iterator),))
-    """
     def build_step(iterator): #input_batch, model, optimizer, organism, gradient_clip):
         @tf.function(jit_compile=True)
         def val_step(inputs):
@@ -582,7 +552,7 @@ def deserialize_tr(serialized_example,
     '''
     rev_comp = tf.math.round(g.uniform([], 0, 1))
     seq_mask_int = g.uniform([], 0, 5,dtype=tf.int32)
-    full_atac_mask_int = g.uniform([], 0, 6,dtype=tf.int32)
+    full_atac_mask_int = g.uniform([], 0, 5,dtype=tf.int32)
     stupid_random_seed = g.uniform([], 0, 1000000,dtype=tf.int32)
     
     '''
@@ -695,12 +665,20 @@ def deserialize_tr(serialized_example,
         seq_mask = 1.0 - full_comb_mask_full_store
         tiling_req_seq = input_length // output_length
         seq_mask = tf.expand_dims(tf.reshape(tf.tile(seq_mask, [1,tiling_req_seq]),[-1]),axis=1)
-        masked_seq = sequence * seq_mask
-    elif ((seq_mask_int == 1) and (full_atac_mask_int !=0 )):
-        masked_seq = tf.random.shuffle(sequence)
+        masked_seq = sequence * seq_mask + tf.random.shuffle(sequence)*(1.0-seq_mask)
+        ## this adds random bases in place of the stretches of 0
+    elif ((seq_mask_int == 1) and (full_atac_mask_int != 0)):
+        seq_mask = 1.0 - full_comb_mask_full_store
+        tiling_req_seq = input_length // output_length
+        seq_mask = tf.expand_dims(tf.reshape(tf.tile(seq_mask, [1,tiling_req_seq]),[-1]),axis=1)
+        masked_seq = tf.random.shuffle(sequence) * seq_mask + sequence*(1.0-seq_mask)
     else:
+        seq_mask = 1.0 - full_comb_mask_full_store
+        tiling_req_seq = input_length // output_length
+        seq_mask = tf.expand_dims(tf.reshape(tf.tile(seq_mask, [1,tiling_req_seq]),[-1]),axis=1)   
         masked_seq = sequence
-    
+        
+        
     if rev_comp == 1:
         masked_seq = tf.gather(masked_seq, [3, 2, 1, 0], axis=-1)
         masked_seq = tf.reverse(masked_seq, axis=[0])
@@ -735,18 +713,12 @@ def deserialize_tr(serialized_example,
         
     return {'sequence': tf.ensure_shape(masked_seq,
                                         [input_length,4]),
-            'sequence_orig':  tf.ensure_shape(masked_seq,
-                                        [input_length,4]),
             'atac': tf.ensure_shape(masked_atac,
                                     [output_length_ATAC,1]),
             'mask': tf.ensure_shape(full_comb_mask_store,
                                     [output_length-crop_size*2,1]),
             'mask_gathered': tf.ensure_shape(mask_gathered,
                                     [(output_length-crop_size*2) // 2,1]),
-            #'full_comb_mask_invert': tf.ensure_shape(full_comb_mask_invert,
-             #                                        [output_length_ATAC,1]),
-            'seq_mask_int': seq_mask_int,
-            'full_atac_mask_int': full_atac_mask_int,
             'peaks': tf.ensure_shape(peaks_gathered,
                                       [(output_length-2*crop_size) // 2,1]),
             'target': tf.ensure_shape(atac_out,
@@ -840,8 +812,7 @@ def deserialize_val(serialized_example,
     ### now that we have masked specific tokens by setting them to 0, we want to randomly add wrong tokens to these positions
     ## first, invert the mask
     random_shuffled_tokens= tf.random.shuffle(atac)
-    full_comb_mask = (1.0-full_comb_mask)*random_shuffled_tokens
-    masked_atac = masked_atac + full_comb_mask
+    masked_atac = masked_atac + (1.0-full_comb_mask)*random_shuffled_tokens
 
     if log_atac: 
         masked_atac = tf.math.log1p(masked_atac)
@@ -933,7 +904,7 @@ def return_dataset(gcs_path,
                                                             g),
                               deterministic=False,
                               num_parallel_calls=num_parallel)
-        return dataset.repeat(num_epoch).batch(batch,drop_remainder=True).prefetch(1)
+        return dataset.repeat(num_epoch).batch(batch,drop_remainder=True)
     
         
     else:
@@ -958,6 +929,7 @@ def return_dataset(gcs_path,
 
 
 def return_distributed_iterators(gcs_path,
+                                 #gcs_path_mm,
                                  gcs_path_ho,
                                  global_batch_size,
                                  input_length,
@@ -996,7 +968,27 @@ def return_distributed_iterators(gcs_path,
                                    use_atac,
                                    use_seq,
                              g)
-
+    """
+    tr_data_mm = return_dataset(gcs_path_mm,
+                             "train",
+                             global_batch_size,
+                             input_length,
+                             output_length_ATAC,
+                             output_length,
+                             crop_size,
+                             output_res,
+                             max_shift,
+                             options,
+                             num_parallel_calls,
+                             num_epoch,
+                             #seq_mask_dropout,
+                             atac_mask_dropout,
+                             random_mask_size,
+                             log_atac,
+                                   use_atac,
+                                   use_seq,
+                             g)
+    """
 
     val_data = return_dataset(gcs_path,
                               "valid",
@@ -1039,6 +1031,8 @@ def return_distributed_iterators(gcs_path,
                               g)
 
 
+    #tr_data_zip = tf.data.Dataset.zip((tr_data, tr_data_mm)).prefetch(2)
+    
     train_dist = strategy.experimental_distribute_dataset(tr_data)
     val_dist= strategy.experimental_distribute_dataset(val_data)
     val_dist_ho=strategy.experimental_distribute_dataset(val_data_ho)
@@ -1138,6 +1132,9 @@ def parse_args(parser):
     parser.add_argument('--gcs_path',
                         dest='gcs_path',
                         help= 'google bucket containing preprocessed data')
+    #parser.add_argument('--gcs_path_mm',
+    #                    dest='gcs_path_mm',
+    #                    help= 'google bucket containing preprocessed data')
     parser.add_argument('--gcs_path_holdout',
                         dest='gcs_path_holdout',
                         help= 'google bucket containing preprocessed data')
@@ -1378,11 +1375,6 @@ def parse_args(parser):
                         type=str,
                         default="1152",
                         help= 'random_mask_size')
-    parser.add_argument('--gcs_path_mm',
-                        dest='gcs_path_mm',
-                        type=str,
-                        default=None,
-                        help= 'gcs_path_mm')
     args = parser.parse_args()
     return parser
 

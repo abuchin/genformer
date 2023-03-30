@@ -1,0 +1,63 @@
+2023-03-30 01:16:02,728 INFO    Thread-2  :14929 [wandb_setup.py:_flush():76] Configure stats pid to 14929
+2023-03-30 01:16:02,729 INFO    Thread-2  :14929 [wandb_setup.py:_flush():76] Loading settings from /home/jupyter/.config/wandb/settings
+2023-03-30 01:16:02,729 INFO    Thread-2  :14929 [wandb_setup.py:_flush():76] Loading settings from wandb/settings
+2023-03-30 01:16:02,729 INFO    Thread-2  :14929 [wandb_setup.py:_flush():76] Loading settings from environment variables: {'_require_service': 'True', 'project': 'atac_pretraining', 'entity': 'njaved', 'root_dir': '/home/jupyter/dev/aformer', 'sweep_id': 'etcei3yr', 'run_id': 'xujzfcjj', 'sweep_param_path': '/home/jupyter/dev/aformer/wandb/sweep-etcei3yr/config-xujzfcjj.yaml'}
+2023-03-30 01:16:02,729 INFO    Thread-2  :14929 [wandb_setup.py:_flush():76] Inferring run settings from compute environment: {'program_relpath': 'train_model_atac.py', 'program': 'train_model_atac.py'}
+2023-03-30 01:16:02,729 INFO    Thread-2  :14929 [wandb_init.py:_log_setup():461] Logging user logs to /home/jupyter/dev/aformer/wandb/run-20230330_011602-xujzfcjj/logs/debug.log
+2023-03-30 01:16:02,729 INFO    Thread-2  :14929 [wandb_init.py:_log_setup():462] Logging internal logs to /home/jupyter/dev/aformer/wandb/run-20230330_011602-xujzfcjj/logs/debug-internal.log
+2023-03-30 01:16:02,729 INFO    Thread-2  :14929 [wandb_init.py:init():495] calling init triggers
+2023-03-30 01:16:02,729 INFO    Thread-2  :14929 [wandb_init.py:init():499] wandb.init called with sweep_config: {'BN_momentum': 0.9, 'atac_mask_dropout': 0.15, 'bce_loss_scale': 0.9, 'decay_frac': 0.4, 'dropout_rate': 0.25, 'epsilon': 1e-14, 'filter_list_atac': [32, 64], 'filter_list_seq': [512, 640, 768, 896, 1024, 1152], 'final_output_length': 896, 'freeze_conv_layers': False, 'gradient_clip': 5, 'input_length': 196608, 'kernel_transformation': 'relu_kernel_transformation', 'learnable_PE': True, 'load_init': False, 'log_atac': True, 'lr_base1': 0.00025, 'lr_base2': 0.00025, 'num_heads': 8, 'num_random_features': 256, 'num_transformer_layers': 6, 'optimizer': 'adabelief', 'output_length': 1536, 'output_length_ATAC': 49152, 'output_res': 128, 'pointwise_dropout_rate': 0.15, 'random_mask_size': 1024, 'rectify': True, 'sonnet_weights_bool': True, 'stable_variant': False, 'use_atac': True, 'use_seq': True, 'wd_1_frac': 0, 'wd_2_frac': 0}
+config: {'lr_base': 0.01}
+2023-03-30 01:16:02,729 INFO    Thread-2  :14929 [wandb_init.py:init():548] starting backend
+2023-03-30 01:16:02,729 INFO    Thread-2  :14929 [wandb_init.py:init():552] setting up manager
+2023-03-30 01:16:02,736 INFO    Thread-2  :14929 [backend.py:_multiprocessing_setup():99] multiprocessing start_methods=fork,spawn,forkserver, using: spawn
+2023-03-30 01:16:02,742 INFO    Thread-2  :14929 [wandb_init.py:init():558] backend started and connected
+2023-03-30 01:16:02,749 INFO    Thread-2  :14929 [wandb_run.py:_config_callback():1152] config_cb None None {'BN_momentum': 0.9, 'atac_mask_dropout': 0.15, 'bce_loss_scale': 0.9, 'decay_frac': 0.4, 'dropout_rate': 0.25, 'epsilon': 1e-14, 'filter_list_atac': [32, 64], 'filter_list_seq': [512, 640, 768, 896, 1024, 1152], 'final_output_length': 896, 'freeze_conv_layers': False, 'gradient_clip': 5, 'input_length': 196608, 'kernel_transformation': 'relu_kernel_transformation', 'learnable_PE': True, 'load_init': False, 'log_atac': True, 'lr_base1': 0.00025, 'lr_base2': 0.00025, 'num_heads': 8, 'num_random_features': 256, 'num_transformer_layers': 6, 'optimizer': 'adabelief', 'output_length': 1536, 'output_length_ATAC': 49152, 'output_res': 128, 'pointwise_dropout_rate': 0.15, 'random_mask_size': 1024, 'rectify': True, 'sonnet_weights_bool': True, 'stable_variant': False, 'use_atac': True, 'use_seq': True, 'wd_1_frac': 0, 'wd_2_frac': 0}
+2023-03-30 01:16:02,755 INFO    Thread-2  :14929 [wandb_init.py:init():636] updated telemetry
+2023-03-30 01:16:02,777 INFO    Thread-2  :14929 [wandb_init.py:init():668] communicating run to backend with 30 second timeout
+2023-03-30 01:16:02,940 INFO    Thread-2  :14929 [wandb_run.py:_on_init():1982] communicating current version
+2023-03-30 01:16:03,072 INFO    Thread-2  :14929 [wandb_run.py:_on_init():1986] got version response upgrade_message: "wandb version 0.14.0 is available!  To upgrade, please run:\n $ pip install wandb --upgrade"
+
+2023-03-30 01:16:03,072 INFO    Thread-2  :14929 [wandb_init.py:init():700] starting run threads in backend
+2023-03-30 01:16:08,087 INFO    Thread-2  :14929 [wandb_run.py:_console_start():1962] atexit reg
+2023-03-30 01:16:08,087 INFO    Thread-2  :14929 [wandb_run.py:_redirect():1820] redirect: SettingsConsole.WRAP_RAW
+2023-03-30 01:16:08,088 INFO    Thread-2  :14929 [wandb_run.py:_redirect():1885] Wrapping output streams.
+2023-03-30 01:16:08,088 INFO    Thread-2  :14929 [wandb_run.py:_redirect():1907] Redirects installed.
+2023-03-30 01:16:08,089 INFO    Thread-2  :14929 [wandb_init.py:init():732] run started, returning control to user process
+2023-03-30 01:16:08,090 INFO    Thread-2  :14929 [wandb_config.py:__setitem__():149] config set tpu = node-4 - <bound method Run._config_callback of <wandb.sdk.wandb_run.Run object at 0x7f45207dd410>>
+2023-03-30 01:16:08,090 INFO    Thread-2  :14929 [wandb_run.py:_config_callback():1152] config_cb tpu node-4 None
+2023-03-30 01:16:08,090 INFO    Thread-2  :14929 [wandb_config.py:__setitem__():149] config set gcs_path = gs://picard-testing-176520/genformer_atac_pretrain/196k/genformer_atac_pretrain_globalacc_conv_rpgc - <bound method Run._config_callback of <wandb.sdk.wandb_run.Run object at 0x7f45207dd410>>
+2023-03-30 01:16:08,090 INFO    Thread-2  :14929 [wandb_run.py:_config_callback():1152] config_cb gcs_path gs://picard-testing-176520/genformer_atac_pretrain/196k/genformer_atac_pretrain_globalacc_conv_rpgc None
+2023-03-30 01:16:08,091 INFO    Thread-2  :14929 [wandb_config.py:__setitem__():149] config set gcs_path_mm = gs://picard-testing-176520/genformer_atac_pretrain/196k/genformer_atac_pretrain_globalacc_conv_rpgc_mouse - <bound method Run._config_callback of <wandb.sdk.wandb_run.Run object at 0x7f45207dd410>>
+2023-03-30 01:16:08,091 INFO    Thread-2  :14929 [wandb_run.py:_config_callback():1152] config_cb gcs_path_mm gs://picard-testing-176520/genformer_atac_pretrain/196k/genformer_atac_pretrain_globalacc_conv_rpgc_mouse None
+2023-03-30 01:16:08,091 INFO    Thread-2  :14929 [wandb_config.py:__setitem__():149] config set gcs_path_holdout = gs://picard-testing-176520/genformer_atac_pretrain/196k/genformer_atac_pretrain_globalacc_conv_rpgc_holdout - <bound method Run._config_callback of <wandb.sdk.wandb_run.Run object at 0x7f45207dd410>>
+2023-03-30 01:16:08,091 INFO    Thread-2  :14929 [wandb_run.py:_config_callback():1152] config_cb gcs_path_holdout gs://picard-testing-176520/genformer_atac_pretrain/196k/genformer_atac_pretrain_globalacc_conv_rpgc_holdout None
+2023-03-30 01:16:08,091 INFO    Thread-2  :14929 [wandb_config.py:__setitem__():149] config set num_epochs = 150 - <bound method Run._config_callback of <wandb.sdk.wandb_run.Run object at 0x7f45207dd410>>
+2023-03-30 01:16:08,091 INFO    Thread-2  :14929 [wandb_run.py:_config_callback():1152] config_cb num_epochs 150 None
+2023-03-30 01:16:08,092 INFO    Thread-2  :14929 [wandb_config.py:__setitem__():149] config set train_examples = 2500 - <bound method Run._config_callback of <wandb.sdk.wandb_run.Run object at 0x7f45207dd410>>
+2023-03-30 01:16:08,092 INFO    Thread-2  :14929 [wandb_run.py:_config_callback():1152] config_cb train_examples 2500 None
+2023-03-30 01:16:08,092 INFO    Thread-2  :14929 [wandb_config.py:__setitem__():149] config set val_examples_ho = 500 - <bound method Run._config_callback of <wandb.sdk.wandb_run.Run object at 0x7f45207dd410>>
+2023-03-30 01:16:08,092 INFO    Thread-2  :14929 [wandb_run.py:_config_callback():1152] config_cb val_examples_ho 500 None
+2023-03-30 01:16:08,093 INFO    Thread-2  :14929 [wandb_config.py:__setitem__():149] config set batch_size = 4 - <bound method Run._config_callback of <wandb.sdk.wandb_run.Run object at 0x7f45207dd410>>
+2023-03-30 01:16:08,093 INFO    Thread-2  :14929 [wandb_run.py:_config_callback():1152] config_cb batch_size 4 None
+2023-03-30 01:16:08,093 INFO    Thread-2  :14929 [wandb_config.py:__setitem__():149] config set warmup_frac = 0.005 - <bound method Run._config_callback of <wandb.sdk.wandb_run.Run object at 0x7f45207dd410>>
+2023-03-30 01:16:08,093 INFO    Thread-2  :14929 [wandb_run.py:_config_callback():1152] config_cb warmup_frac 0.005 None
+2023-03-30 01:16:08,093 INFO    Thread-2  :14929 [wandb_config.py:__setitem__():149] config set patience = 50 - <bound method Run._config_callback of <wandb.sdk.wandb_run.Run object at 0x7f45207dd410>>
+2023-03-30 01:16:08,093 INFO    Thread-2  :14929 [wandb_run.py:_config_callback():1152] config_cb patience 50 None
+2023-03-30 01:16:08,094 INFO    Thread-2  :14929 [wandb_config.py:__setitem__():149] config set min_delta = 5e-06 - <bound method Run._config_callback of <wandb.sdk.wandb_run.Run object at 0x7f45207dd410>>
+2023-03-30 01:16:08,094 INFO    Thread-2  :14929 [wandb_run.py:_config_callback():1152] config_cb min_delta 5e-06 None
+2023-03-30 01:16:08,094 INFO    Thread-2  :14929 [wandb_config.py:__setitem__():149] config set model_save_dir = gs://picard-testing-176520/genformer_atac_pretrain/models - <bound method Run._config_callback of <wandb.sdk.wandb_run.Run object at 0x7f45207dd410>>
+2023-03-30 01:16:08,094 INFO    Thread-2  :14929 [wandb_run.py:_config_callback():1152] config_cb model_save_dir gs://picard-testing-176520/genformer_atac_pretrain/models None
+2023-03-30 01:16:08,095 INFO    Thread-2  :14929 [wandb_config.py:__setitem__():149] config set model_save_basename = aformer_baseline - <bound method Run._config_callback of <wandb.sdk.wandb_run.Run object at 0x7f45207dd410>>
+2023-03-30 01:16:08,095 INFO    Thread-2  :14929 [wandb_run.py:_config_callback():1152] config_cb model_save_basename aformer_baseline None
+2023-03-30 01:16:08,095 INFO    Thread-2  :14929 [wandb_config.py:__setitem__():149] config set max_shift = 10 - <bound method Run._config_callback of <wandb.sdk.wandb_run.Run object at 0x7f45207dd410>>
+2023-03-30 01:16:08,095 INFO    Thread-2  :14929 [wandb_run.py:_config_callback():1152] config_cb max_shift 10 None
+2023-03-30 01:16:08,095 INFO    Thread-2  :14929 [wandb_config.py:__setitem__():149] config set inits_type = enformer_conv - <bound method Run._config_callback of <wandb.sdk.wandb_run.Run object at 0x7f45207dd410>>
+2023-03-30 01:16:08,095 INFO    Thread-2  :14929 [wandb_run.py:_config_callback():1152] config_cb inits_type enformer_conv None
+2023-03-30 01:16:08,096 INFO    Thread-2  :14929 [wandb_config.py:__setitem__():149] config set crop_size = 320 - <bound method Run._config_callback of <wandb.sdk.wandb_run.Run object at 0x7f45207dd410>>
+2023-03-30 01:16:08,096 INFO    Thread-2  :14929 [wandb_run.py:_config_callback():1152] config_cb crop_size 320 None
+2023-03-30 01:16:08,099 INFO    Thread-2  :14929 [wandb_run.py:_config_callback():1152] config_cb None None {'train_steps': 78}
+2023-03-30 01:16:08,099 INFO    Thread-2  :14929 [wandb_run.py:_config_callback():1152] config_cb None None {'val_steps_ho': 15}
+2023-03-30 01:16:08,099 INFO    Thread-2  :14929 [wandb_run.py:_config_callback():1152] config_cb None None {'total_steps': 78}
+2023-03-30 01:17:58,746 INFO    Thread-2  :14929 [wandb_run.py:_config_callback():1152] config_cb None None {}
+2023-03-30 01:25:53,242 WARNING MsgRouterThr:14929 [router.py:message_loop():76] message_loop has been closed
