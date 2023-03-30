@@ -337,8 +337,7 @@ def return_train_val_functions(model,
                                bce_loss_scale):
     
     poisson_loss_func = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
-    bce_loss_func = tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.NONE,
-                                                       from_logits=True)
+    bce_loss_func = tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
 
     optimizer1,optimizer2=optimizers_in
 
@@ -597,9 +596,9 @@ def deserialize_tr(serialized_example,
     mask_indices_temp = tf.where(peaks_crop[:,0] > 0)[:,0]
     ridx = tf.concat([tf.random.shuffle(mask_indices_temp),
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
-    mask_indices=[[ridx[0]-3+crop_size],[ridx[0]-2+crop_size],[ridx[0]-1+crop_size],
-                  [ridx[0]+crop_size],[ridx[0]+1+crop_size],[ridx[0]+2+crop_size],
-                  [ridx[0]+3+crop_size],[ridx[0]+4+crop_size]]
+    mask_indices=[[ridx[0]-4+crop_size],[ridx[0]-3+crop_size],[ridx[0]-2+crop_size],
+                  [ridx[0]+1+crop_size],[ridx[0]+crop_size],[ridx[0]+1+crop_size],
+                  [ridx[0]+2+crop_size],[ridx[0]+3+crop_size]]
                   
     st=tf.SparseTensor(
         indices=mask_indices,
@@ -644,10 +643,6 @@ def deserialize_tr(serialized_example,
     full_comb_mask = tf.expand_dims(tf.reshape(tf.tile(full_comb_mask, [1,tiling_req]),[-1]),axis=1)
     
     masked_atac = atac * full_comb_mask
-    masked_atac = masked_atac + tf.math.abs(g.normal(atac.shape,
-                                               mean=0.0,
-                                               stddev=1.0e-05,
-                                               dtype=tf.float32)) ### add some gaussian noise
 
     random_shuffled_tokens= tf.random.shuffle(masked_atac) ## random shuffle the tokens
     masked_atac = masked_atac + (1.0-full_comb_mask)*random_shuffled_tokens
@@ -656,6 +651,11 @@ def deserialize_tr(serialized_example,
     ## force network to solely use sequence features
     if full_atac_mask_int == 0:
         masked_atac = random_shuffled_tokens
+        
+    masked_atac = masked_atac + tf.math.abs(g.normal(atac.shape,
+                                               mean=0.0,
+                                               stddev=1.0e-05,
+                                               dtype=tf.float32)) ### add some gaussian noise
         
     if log_atac: 
         masked_atac = tf.math.log1p(masked_atac)
@@ -773,9 +773,9 @@ def deserialize_val(serialized_example,
     mask_indices_temp = tf.where(peaks_crop[:,0] > 0)[:,0]
     ridx = tf.concat([tf.random.shuffle(mask_indices_temp),
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
-    mask_indices=[[ridx[0]-3+crop_size],[ridx[0]-2+crop_size],[ridx[0]-1+crop_size],
-                  [ridx[0]+crop_size],[ridx[0]+1+crop_size],[ridx[0]+2+crop_size],
-                  [ridx[0]+3+crop_size],[ridx[0]+4+crop_size]]
+    mask_indices=[[ridx[0]-4+crop_size],[ridx[0]-3+crop_size],[ridx[0]-2+crop_size],
+                  [ridx[0]+1+crop_size],[ridx[0]+crop_size],[ridx[0]+1+crop_size],
+                  [ridx[0]+2+crop_size],[ridx[0]+3+crop_size]]
     
     st=tf.SparseTensor(
         indices=mask_indices,
