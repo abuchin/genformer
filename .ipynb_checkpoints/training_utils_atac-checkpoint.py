@@ -431,11 +431,11 @@ def return_train_val_functions(model,
             metric_dict["train_loss"].update_state(loss)
         
         for _ in tf.range(train_steps):
-            #human,mouse=next(iterator)
+            human,mouse=next(iterator)
             strategy.run(train_step,
-                         args=(next(iterator),))
-            #strategy.run(train_step,
-            #             args=(mouse,))
+                         args=(human,))
+            strategy.run(train_step,
+                         args=(mouse,))
             
             
     def dist_val_step(iterator):
@@ -929,7 +929,7 @@ def return_dataset(gcs_path,
 
 
 def return_distributed_iterators(gcs_path,
-                                 #gcs_path_mm,
+                                 gcs_path_mm,
                                  gcs_path_ho,
                                  global_batch_size,
                                  input_length,
@@ -968,7 +968,7 @@ def return_distributed_iterators(gcs_path,
                                    use_atac,
                                    use_seq,
                              g)
-    """
+    
     tr_data_mm = return_dataset(gcs_path_mm,
                              "train",
                              global_batch_size,
@@ -988,7 +988,7 @@ def return_distributed_iterators(gcs_path,
                                    use_atac,
                                    use_seq,
                              g)
-    """
+    
 
     val_data = return_dataset(gcs_path,
                               "valid",
@@ -1031,9 +1031,9 @@ def return_distributed_iterators(gcs_path,
                               g)
 
 
-    #tr_data_zip = tf.data.Dataset.zip((tr_data, tr_data_mm)).prefetch(2)
+    tr_data_zip = tf.data.Dataset.zip((tr_data, tr_data_mm)).prefetch(2)
     
-    train_dist = strategy.experimental_distribute_dataset(tr_data)
+    train_dist = strategy.experimental_distribute_dataset(tr_data_zip)
     val_dist= strategy.experimental_distribute_dataset(val_data)
     val_dist_ho=strategy.experimental_distribute_dataset(val_data_ho)
 
@@ -1132,9 +1132,9 @@ def parse_args(parser):
     parser.add_argument('--gcs_path',
                         dest='gcs_path',
                         help= 'google bucket containing preprocessed data')
-    #parser.add_argument('--gcs_path_mm',
-    #                    dest='gcs_path_mm',
-    #                    help= 'google bucket containing preprocessed data')
+    parser.add_argument('--gcs_path_mm',
+                        dest='gcs_path_mm',
+                        help= 'google bucket containing preprocessed data')
     parser.add_argument('--gcs_path_holdout',
                         dest='gcs_path_holdout',
                         help= 'google bucket containing preprocessed data')
