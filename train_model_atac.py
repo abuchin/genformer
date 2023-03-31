@@ -271,10 +271,13 @@ def main():
             wandb.config.update({"total_steps": num_train // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
             
-
+            
+            gcs_paths = [wandb.config.gcs_path]
+            if wandb.config.gcs_path_mm is not None:
+                gcs_paths.append(wandb.config.gcs_path_mm)
+            
             data_train,data_val,data_val_ho = \
-                    training_utils.return_distributed_iterators(wandb.config.gcs_path,
-                                                                wandb.config.gcs_path_mm,
+                    training_utils.return_distributed_iterators(gcs_paths,
                                                                 wandb.config.gcs_path_holdout,
                                                                 GLOBAL_BATCH_SIZE,
                                                                 wandb.config.input_length,
@@ -372,11 +375,13 @@ def main():
             if wandb.config.optimizer == 'adamw':
                 optimizer1 = tfa.optimizers.AdamW(learning_rate=scheduler1,
                                                   weight_decay=scheduler1_wd,
-                                                  epsilon=wandb.config.epsilon)
+                                                  epsilon=wandb.config.epsilon,
+                                                  exclude_from_weight_decay=['gamma', 'beta'])
 
                 optimizer2 = tfa.optimizers.AdamW(learning_rate=scheduler2,
                                                   weight_decay=scheduler2_wd,
-                                                  epsilon=wandb.config.epsilon)
+                                                  epsilon=wandb.config.epsilon,
+                                                  exclude_from_weight_decay=['gamma', 'beta'])
             elif wandb.config.optimizer == 'adabelief':
                 optimizer1 = tfa.optimizers.AdaBelief(
                     learning_rate= scheduler1,

@@ -430,11 +430,11 @@ def return_train_val_functions(model,
             metric_dict["train_loss"].update_state(loss)
         
         for _ in tf.range(train_steps):
-            human,mouse=next(iterator)
+            #human,mouse=next(iterator)
             strategy.run(train_step,
-                         args=(human,))
-            strategy.run(train_step,
-                         args=(mouse,))
+                         args=(next(iterator),))
+            #strategy.run(train_step,
+            #             args=(mouse,))
             
             
     def dist_val_step(iterator):
@@ -659,6 +659,9 @@ def deserialize_tr(serialized_example,
         
     if log_atac: 
         masked_atac = tf.math.log1p(masked_atac)
+        
+    diff = tf.math.sqrt(tf.nn.relu(masked_atac - 100.0 * tf.ones(masked_atac.shape)))
+    masked_atac = tf.clip_by_value(masked_atac, clip_value_min=0.0, clip_value_max=100.0) + diff
     
     ### here set up the sequence masking
     if ((seq_mask_int == 0) and (full_atac_mask_int != 0)):
@@ -691,9 +694,8 @@ def deserialize_tr(serialized_example,
         
         
     atac_out = tf.reduce_sum(tf.reshape(atac_target, [-1,tiling_req]),axis=1,keepdims=True)
-    #diff = tf.math.sqrt(tf.nn.relu(atac_out - 64.0 * tf.ones(atac_out.shape)))
-    #atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=64.0) + diff
-    atac_out = tf.cast(tf.cast(atac_out,dtype=tf.float16),dtype=tf.float32) ### round to be consistent with Enformer
+    diff = tf.math.sqrt(tf.nn.relu(atac_out - 2500.0 * tf.ones(atac_out.shape)))
+    atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=2500.0) + diff
     atac_out = tf.slice(atac_out,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
@@ -814,14 +816,16 @@ def deserialize_val(serialized_example,
     ## first, invert the mask
     random_shuffled_tokens= tf.random.shuffle(atac)
     masked_atac = masked_atac + (1.0-full_comb_mask)*random_shuffled_tokens
-
+    
     if log_atac: 
         masked_atac = tf.math.log1p(masked_atac)
         
+    diff = tf.math.sqrt(tf.nn.relu(masked_atac - 100.0 * tf.ones(masked_atac.shape)))
+    masked_atac = tf.clip_by_value(masked_atac, clip_value_min=0.0, clip_value_max=100.0) + diff
+        
     atac_out = tf.reduce_sum(tf.reshape(atac_target, [-1,tiling_req]),axis=1,keepdims=True)
-    #diff = tf.math.sqrt(tf.nn.relu(atac_out - 64.0 * tf.ones(atac_out.shape)))
-    #atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=64.0) + diff
-    atac_out = tf.cast(tf.cast(atac_out,dtype=tf.float16),dtype=tf.float32) ### round to be consistent with Enformer
+    diff = tf.math.sqrt(tf.nn.relu(atac_out - 2500.0 * tf.ones(atac_out.shape)))
+    atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=2500.0) + diff
     atac_out = tf.slice(atac_out,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
@@ -851,7 +855,7 @@ def deserialize_val(serialized_example,
                                       [output_length-crop_size*2,1])}
 
 
-def return_dataset(gcs_path,
+def return_dataset(gcs_paths,
                    split,
                    batch,
                    input_length,
@@ -875,20 +879,28 @@ def return_dataset(gcs_path,
     """
     wc = "*.tfr"
     #print(split)
+    print(split)
+    print(gcs_paths)
     
-    list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
-                                                split,
-                                                wc)))
-
-    random.shuffle(list_files)
-    files = tf.data.Dataset.list_files(list_files)
     
-    dataset = tf.data.TFRecordDataset(files,
-                                      compression_type='ZLIB',
-                                      num_parallel_reads=num_parallel)
-    dataset = dataset.with_options(options)
     #print(list_files)
     if split == 'train':
+        dataset_list = []
+        for gcs_path in gcs_paths:
+            list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
+                                                        split,
+                                                        wc)))
+            random.shuffle(list_files)
+            files = tf.data.Dataset.list_files(list_files)
+
+            dataset = tf.data.TFRecordDataset(files,
+                                              compression_type='ZLIB',
+                                              num_parallel_reads=num_parallel)
+            dataset = dataset.with_options(options)
+            dataset_list.append(dataset)
+            
+        dataset = tf.data.Dataset.sample_from_datasets(dataset_list)
+        
         dataset = dataset.map(lambda record: deserialize_tr(record,
                                                             input_length,
                                                             max_shift,
@@ -905,10 +917,21 @@ def return_dataset(gcs_path,
                                                             g),
                               deterministic=False,
                               num_parallel_calls=num_parallel)
-        return dataset.repeat(num_epoch).batch(batch,drop_remainder=True)
+        return dataset.repeat(num_epoch).batch(batch,drop_remainder=True).prefetch(tf.data.AUTOTUNE)
     
         
     else:
+        list_files = (tf.io.gfile.glob(os.path.join(gcs_paths[0],
+                                                    split,
+                                                    wc)))
+
+        random.shuffle(list_files)
+        files = tf.data.Dataset.list_files(list_files)
+
+        dataset = tf.data.TFRecordDataset(files,
+                                          compression_type='ZLIB',
+                                          num_parallel_reads=num_parallel)
+        dataset = dataset.with_options(options)
         dataset = dataset.map(lambda record: deserialize_val(record,
                                                             input_length,
                                                             max_shift,
@@ -926,11 +949,10 @@ def return_dataset(gcs_path,
                       deterministic=False,
                       num_parallel_calls=num_parallel)
 
-        return dataset.batch(batch,drop_remainder=True).prefetch(1).repeat(num_epoch)
+        return dataset.batch(batch,drop_remainder=True).prefetch(tf.data.AUTOTUNE).repeat(num_epoch)
 
 
-def return_distributed_iterators(gcs_path,
-                                 gcs_path_mm,
+def return_distributed_iterators(gcs_paths,
                                  gcs_path_ho,
                                  global_batch_size,
                                  input_length,
@@ -950,7 +972,7 @@ def return_distributed_iterators(gcs_path,
                                    use_seq,
                                  g):
 
-    tr_data = return_dataset(gcs_path,
+    tr_data = return_dataset(gcs_paths,
                              "train",
                              global_batch_size,
                              input_length,
@@ -970,28 +992,7 @@ def return_distributed_iterators(gcs_path,
                                    use_seq,
                              g)
     
-    tr_data_mm = return_dataset(gcs_path_mm,
-                             "train",
-                             global_batch_size,
-                             input_length,
-                             output_length_ATAC,
-                             output_length,
-                             crop_size,
-                             output_res,
-                             max_shift,
-                             options,
-                             num_parallel_calls,
-                             num_epoch,
-                             #seq_mask_dropout,
-                             atac_mask_dropout,
-                             random_mask_size,
-                             log_atac,
-                                   use_atac,
-                                   use_seq,
-                             g)
-    
-
-    val_data = return_dataset(gcs_path,
+    val_data = return_dataset([gcs_paths[0]],
                               "valid",
                               global_batch_size,
                               input_length,
@@ -1011,7 +1012,7 @@ def return_distributed_iterators(gcs_path,
                                    use_seq,
                               g)
     
-    val_data_ho = return_dataset(gcs_path_ho,
+    val_data_ho = return_dataset([gcs_path_ho],
                               "valid",
                               global_batch_size,
                               input_length,
@@ -1032,9 +1033,7 @@ def return_distributed_iterators(gcs_path,
                               g)
 
 
-    tr_data_zip = tf.data.Dataset.zip((tr_data, tr_data_mm)).prefetch(2)
-    
-    train_dist = strategy.experimental_distribute_dataset(tr_data_zip)
+    train_dist = strategy.experimental_distribute_dataset(tr_data)
     val_dist= strategy.experimental_distribute_dataset(val_data)
     val_dist_ho=strategy.experimental_distribute_dataset(val_data_ho)
 
@@ -1134,7 +1133,7 @@ def parse_args(parser):
                         dest='gcs_path',
                         help= 'google bucket containing preprocessed data')
     parser.add_argument('--gcs_path_mm',
-                        dest='gcs_path_mm',
+                        dest=None,
                         help= 'google bucket containing preprocessed data')
     parser.add_argument('--gcs_path_holdout',
                         dest='gcs_path_holdout',

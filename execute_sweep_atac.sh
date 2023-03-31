@@ -17,7 +17,7 @@ python3 train_model_atac.py \
             --max_shift=10 \
             --batch_size=4 \
             --num_epochs=150 \
-            --train_examples=500000 \
+            --train_examples=50000 \
             --val_examples_ho=24343 \
             --BN_momentum=0.90 \
             --warmup_frac=0.005 \
@@ -25,12 +25,12 @@ python3 train_model_atac.py \
             --output_res=128 \
             --min_delta=0.000005 \
             --model_save_dir="gs://picard-testing-176520/genformer_atac_pretrain/models" \
-            --model_save_basename="aformer_baseline" \
+            --model_save_basename="aformer_all_genomes" \
             --lr_base1="2.0e-04" \
             --lr_base2="2.0e-04" \
             --decay_frac="0.40" \
             --gradient_clip="5.0" \
-            --epsilon=1.0e-14 \
+            --epsilon=1.0e-8 \
             --num_transformer_layers="6" \
             --dropout_rate="0.25" \
             --pointwise_dropout_rate="0.15" \
@@ -46,7 +46,7 @@ python3 train_model_atac.py \
             --multitask_checkpoint_path="gs://picard-testing-176520/sonnet_weights/sonnet_weights" \
             --filter_list_seq="512,640,768,896,1024,1152" \
             --inits_type="enformer_conv" \
-            --optimizer="adabelief" \
+            --optimizer="adamw" \
             --stable_variant="False" \
             --atac_mask_dropout=0.15 \
             --log_atac="True" \
