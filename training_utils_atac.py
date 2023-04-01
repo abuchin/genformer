@@ -538,8 +538,7 @@ def deserialize_tr(serialized_example,
         'sequence': tf.io.FixedLenFeature([], tf.string),
         'atac': tf.io.FixedLenFeature([], tf.string),
         'tss_tokens': tf.io.FixedLenFeature([], tf.string),
-        'peaks': tf.io.FixedLenFeature([], tf.string),
-        'cell_specific_conv_arr': tf.io.FixedLenFeature([], tf.string)
+        'peaks': tf.io.FixedLenFeature([], tf.string)
     }
     '''
     generate random numbers for data augmentation
@@ -746,8 +745,7 @@ def deserialize_val(serialized_example,
         'sequence': tf.io.FixedLenFeature([], tf.string),
         'atac': tf.io.FixedLenFeature([], tf.string),
         'tss_tokens': tf.io.FixedLenFeature([], tf.string),
-        'peaks': tf.io.FixedLenFeature([], tf.string),
-        'cell_specific_conv_arr': tf.io.FixedLenFeature([], tf.string)
+        'peaks': tf.io.FixedLenFeature([], tf.string)
     }
     ### stochastic sequence shift and gaussian noise
 
