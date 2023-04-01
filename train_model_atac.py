@@ -208,6 +208,7 @@ def main():
             wandb.config.tpu=args.tpu_name
             wandb.config.gcs_path=args.gcs_path
             wandb.config.gcs_path_mm=args.gcs_path_mm
+            wandb.config.gcs_path_rm=args.gcs_path_rm
             wandb.config.gcs_path_holdout=args.gcs_path_holdout
             wandb.config.num_epochs=args.num_epochs
             wandb.config.train_examples=args.train_examples
@@ -275,6 +276,8 @@ def main():
             gcs_paths = [wandb.config.gcs_path]
             if wandb.config.gcs_path_mm is not None:
                 gcs_paths.append(wandb.config.gcs_path_mm)
+            if wandb.config.gcs_path_rm is not None:
+                gcs_paths.append(wandb.config.gcs_path_rm)
             
             data_train,data_val,data_val_ho = \
                     training_utils.return_distributed_iterators(gcs_paths,

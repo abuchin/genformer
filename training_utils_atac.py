@@ -1135,6 +1135,9 @@ def parse_args(parser):
     parser.add_argument('--gcs_path_mm',
                         dest=None,
                         help= 'google bucket containing preprocessed data')
+    parser.add_argument('--gcs_path_rm',
+                        dest=None,
+                        help= 'google bucket containing preprocessed data')
     parser.add_argument('--gcs_path_holdout',
                         dest='gcs_path_holdout',
                         help= 'google bucket containing preprocessed data')
