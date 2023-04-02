@@ -7,7 +7,7 @@ python3 train_model_atac.py \
             --wandb_user="njaved" \
             --wandb_sweep_name="atac_pretraining" \
             --gcs_project="picard-testing-176520" \
-            --gcs_path="gs://picard-testing-176520/genformer_atac_pretrain/262k/genformer_atac_pretrain_globalacc_conv_rpgc" \
+            --gcs_path="gs://picard-testing-176520/genformer_atac_pretrain/262k/genformer_atac_pretrain_globalacc_conv_rpgc_human" \
             --gcs_path_mm="gs://picard-testing-176520/genformer_atac_pretrain/262k/genformer_atac_pretrain_globalacc_conv_rpgc_mouse" \
             --gcs_path_rm="gs://picard-testing-176520/genformer_atac_pretrain/262k/genformer_atac_pretrain_globalacc_conv_rpgc_rhesus" \
             --gcs_path_holdout="gs://picard-testing-176520/genformer_atac_pretrain/262k/genformer_atac_pretrain_globalacc_conv_rpgc_holdout" \
