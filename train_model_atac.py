@@ -272,12 +272,21 @@ def main():
             wandb.config.update({"total_steps": num_train // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
             
-            
+            wandb.config.training_type = 'hg'
+            output_heads = ["human"]
             gcs_paths = [wandb.config.gcs_path]
             if wandb.config.gcs_path_mm is not None:
                 gcs_paths.append(wandb.config.gcs_path_mm)
+                wandb.config.update({"training_type" : 'hg_mm'},
+                                    allow_val_change=True)
+                output_heads.append("mouse")
             if wandb.config.gcs_path_rm is not None:
                 gcs_paths.append(wandb.config.gcs_path_rm)
+                wandb.config.update({"training_type" : 'hg_mm_rm'},
+                                    allow_val_change=True)
+                output_heads.append("rhesus")
+            wandb.config.output_heads = output_heads
+                
             
             data_train,data_val,data_val_ho = \
                     training_utils.return_distributed_iterators(gcs_paths,
@@ -343,7 +352,8 @@ def main():
                                     freeze_conv_layers=wandb.config.freeze_conv_layers,
                                     filter_list_seq=wandb.config.filter_list_seq,
                                     filter_list_atac=wandb.config.filter_list_atac,
-                                    learnable_PE=wandb.config.learnable_PE)
+                                    learnable_PE=wandb.config.learnable_PE,
+                                    output_heads=wandb.config.output_heads)
                                     #global_acc_size=wandb.config.global_acc_size)
             
 
@@ -406,7 +416,7 @@ def main():
             
             metric_dict = {}
 
-            train_step, val_step, \
+            train_step_all,train_step_hg_mm,train_step, val_step, \
                 build_step, metric_dict = training_utils.return_train_val_functions(model,
                                                                                 wandb.config.train_steps,
                                                                                 #wandb.config.val_steps,
@@ -440,14 +450,29 @@ def main():
                 
                 print('starting epoch_', str(epoch_i))
                 start = time.time()
-                train_step(data_train)
+                if wandb.config.training_type == 'hg': 
+                    train_step(data_train)
+                elif wandb.config.training_type == 'hg_mm':
+                    train_step_hg_mm(data_train)
+                    wandb.log({'mouse_train_loss': metric_dict['train_loss_mm'].result().numpy()},
+                              step=epoch_i)
+                    print('train_loss_mm: ' + str(metric_dict['train_loss_mm'].result().numpy()))
+                else:
+                    train_step_all(data_train)
+                    wandb.log({'mouse_train_loss': metric_dict['train_loss_mm'].result().numpy(),
+                               'rhesus_train_loss': metric_dict['train_loss_rm'].result().numpy()},
+                              step=epoch_i)
+                    print('train_loss_mm: ' + str(metric_dict['train_loss_mm'].result().numpy()))
+                    print('train_loss_rm: ' + str(metric_dict['train_loss_rm'].result().numpy()))
+                    
+                print('train_loss: ' + str(metric_dict['train_loss'].result().numpy()))
+                wandb.log({'human_train_loss': metric_dict['train_loss'].result().numpy()},
+                          step=epoch_i)
+                    
                 end = time.time()
                 duration = (end - start) / 60.
                 
                 print('completed epoch ' + str(epoch_i))
-                print('train_loss: ' + str(metric_dict['train_loss'].result().numpy()))
-                wandb.log({'human_train_loss': metric_dict['train_loss'].result().numpy()},
-                          step=epoch_i)
                 print('training duration(mins): ' + str(duration))
                 
                 start = time.time()

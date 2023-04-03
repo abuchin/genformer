@@ -343,6 +343,10 @@ def return_train_val_functions(model,
 
     metric_dict["train_loss"] = tf.keras.metrics.Mean("train_loss",
                                                  dtype=tf.float32)
+    metric_dict["train_loss_mm"] = tf.keras.metrics.Mean("train_loss_mm",
+                                                 dtype=tf.float32)
+    metric_dict["train_loss_rm"] = tf.keras.metrics.Mean("train_loss_rm",
+                                                 dtype=tf.float32)
     metric_dict["val_loss"] = tf.keras.metrics.Mean("val_loss",
                                                   dtype=tf.float32)
     
@@ -362,9 +366,9 @@ def return_train_val_functions(model,
     metric_dict['ATAC_TP'] = tf.keras.metrics.Sum()
     metric_dict['ATAC_T'] = tf.keras.metrics.Sum()
 
-    def dist_train_step(iterator):    
+    def dist_train_step_all(iterator):    
         @tf.function(jit_compile=True)
-        def train_step(inputs):
+        def train_step_hg(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
             target=tf.cast(inputs['target'],dtype=tf.float32)
@@ -380,17 +384,11 @@ def return_train_val_functions(model,
                             model.stem_pool.trainable_variables + \
                             model.conv_tower.trainable_variables
                 
-                performer_vars =  model.stem_conv_atac.trainable_variables + \
-                                    model.stem_res_conv_atac.trainable_variables + \
-                                        model.stem_pool_atac.trainable_variables + \
-                                        model.conv_tower_atac.trainable_variables + \
-                                        model.pos_embedding_learned.trainable_variables + \
-                                        model.performer.trainable_variables + \
-                                        model.final_pointwise_conv.trainable_variables + \
-                                        model.final_dense_profile.trainable_variables + \
-                                        model.peaks_pool.trainable_variables + \
+                performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
+                                        model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
+                                        model.pos_embedding_learned.trainable_variables + model.performer.trainable_variables + \
+                                        model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables + \
                                         model.final_dense_peaks.trainable_variables
-                                        #model.global_acc_block.trainable_variables + \
 
                 vars_all = conv_vars + performer_vars
                 for var in vars_all:
@@ -398,24 +396,325 @@ def return_train_val_functions(model,
                     
                 output_profile,output_peaks = model(input_tuple,
                                        training=True)
-                output_profile = tf.cast(output_profile,dtype=tf.float32) # ensure cast to float32
-                output_peaks = tf.cast(output_peaks,dtype=tf.float32)
+                output_profile = tf.cast(output_profile['human'],dtype=tf.float32) # ensure cast to float32
+                output_peaks = tf.cast(output_peaks['human'],dtype=tf.float32)
                 
                 mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
 
                 target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
                 output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
                 
-                poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac,
-                                                                output_atac))  * (1. / global_batch_size) * (1.0-bce_loss_scale)
-                
+                poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac, output_atac))  * (1. / global_batch_size) * (1.0-bce_loss_scale)
                 
                 mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
                 target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
                 output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
                 
-                bce_loss = tf.reduce_mean(bce_loss_func(target_peaks,
-                                                        output_peaks)) * (1./ global_batch_size) * bce_loss_scale
+                bce_loss = tf.reduce_mean(bce_loss_func(target_peaks, output_peaks)) * (1./ global_batch_size) * bce_loss_scale
+
+                loss = poisson_loss + bce_loss
+
+            gradients = tape.gradient(loss, vars_all)
+            gradients, _ = tf.clip_by_global_norm(gradients, 
+                                                  gradient_clip)
+            
+            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], 
+                                           conv_vars))
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
+                                           performer_vars))
+            metric_dict["train_loss"].update_state(loss)
+            
+        @tf.function(jit_compile=True)
+        def train_step_mm(inputs):
+            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
+            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
+            target=tf.cast(inputs['target'],dtype=tf.float32)
+            mask=tf.cast(inputs['mask'],dtype=tf.int32)
+            mask_gathered=tf.cast(inputs['mask_gathered'],dtype=tf.int32)
+            peaks=tf.cast(inputs['peaks'],dtype=tf.int32)
+
+            input_tuple = sequence, atac#, global_acc
+
+            with tf.GradientTape(watch_accessed_variables=False) as tape:
+                conv_vars = model.stem_conv.trainable_variables + \
+                            model.stem_res_conv.trainable_variables + \
+                            model.stem_pool.trainable_variables + \
+                            model.conv_tower.trainable_variables
+                
+                performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
+                                        model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
+                                        model.pos_embedding_learned.trainable_variables + model.performer.trainable_variables + \
+                                        model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables + \
+                                        model.final_dense_peaks.trainable_variables
+
+                vars_all = conv_vars + performer_vars
+                for var in vars_all:
+                    tape.watch(var)
+                    
+                output_profile,output_peaks = model(input_tuple,
+                                       training=True)
+                output_profile = tf.cast(output_profile['mouse'],dtype=tf.float32) # ensure cast to float32
+                output_peaks = tf.cast(output_peaks['mouse'],dtype=tf.float32)
+                
+                mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
+
+                target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
+                output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
+                
+                poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac, output_atac))  * (1. / global_batch_size) * (1.0-bce_loss_scale)
+                
+                mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
+                target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
+                output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
+                
+                bce_loss = tf.reduce_mean(bce_loss_func(target_peaks, output_peaks)) * (1./ global_batch_size) * bce_loss_scale
+
+                loss = poisson_loss + bce_loss
+
+            gradients = tape.gradient(loss, vars_all)
+            gradients, _ = tf.clip_by_global_norm(gradients, 
+                                                  gradient_clip)
+            
+            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], 
+                                           conv_vars))
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
+                                           performer_vars))
+            metric_dict["train_loss_mm"].update_state(loss)
+            
+        @tf.function(jit_compile=True)
+        def train_step_rm(inputs):
+            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
+            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
+            target=tf.cast(inputs['target'],dtype=tf.float32)
+            mask=tf.cast(inputs['mask'],dtype=tf.int32)
+            mask_gathered=tf.cast(inputs['mask_gathered'],dtype=tf.int32)
+            peaks=tf.cast(inputs['peaks'],dtype=tf.int32)
+
+            input_tuple = sequence, atac#, global_acc
+
+            with tf.GradientTape(watch_accessed_variables=False) as tape:
+                conv_vars = model.stem_conv.trainable_variables + \
+                            model.stem_res_conv.trainable_variables + \
+                            model.stem_pool.trainable_variables + \
+                            model.conv_tower.trainable_variables
+                
+                performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
+                                        model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
+                                        model.pos_embedding_learned.trainable_variables + model.performer.trainable_variables + \
+                                        model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables + \
+                                        model.final_dense_peaks.trainable_variables
+
+                vars_all = conv_vars + performer_vars
+                for var in vars_all:
+                    tape.watch(var)
+                    
+                output_profile,output_peaks = model(input_tuple,
+                                       training=True)
+                output_profile = tf.cast(output_profile['rhesus'],dtype=tf.float32) # ensure cast to float32
+                output_peaks = tf.cast(output_peaks['rhesus'],dtype=tf.float32)
+                
+                mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
+
+                target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
+                output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
+                
+                poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac, output_atac))  * (1. / global_batch_size) * (1.0-bce_loss_scale)
+                
+                mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
+                target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
+                output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
+                
+                bce_loss = tf.reduce_mean(bce_loss_func(target_peaks, output_peaks)) * (1./ global_batch_size) * bce_loss_scale
+
+                loss = poisson_loss + bce_loss
+
+            gradients = tape.gradient(loss, vars_all)
+            gradients, _ = tf.clip_by_global_norm(gradients, 
+                                                  gradient_clip)
+            
+            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], 
+                                           conv_vars))
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
+                                           performer_vars))
+            metric_dict["train_loss_rm"].update_state(loss)
+        
+        for _ in tf.range(train_steps):
+            human,mouse,rhesus=next(iterator)
+            strategy.run(train_step_hg,
+                         args=(human,))
+            strategy.run(train_step_mm,
+                         args=(mouse,))
+            strategy.run(train_step_rm,
+                         args=(rhesus,))
+            
+            
+    def dist_train_step_hg_mm(iterator):    
+        @tf.function(jit_compile=True)
+        def train_step_hg(inputs):
+            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
+            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
+            target=tf.cast(inputs['target'],dtype=tf.float32)
+            mask=tf.cast(inputs['mask'],dtype=tf.int32)
+            mask_gathered=tf.cast(inputs['mask_gathered'],dtype=tf.int32)
+            peaks=tf.cast(inputs['peaks'],dtype=tf.int32)
+
+            input_tuple = sequence, atac#, global_acc
+
+            with tf.GradientTape(watch_accessed_variables=False) as tape:
+                conv_vars = model.stem_conv.trainable_variables + \
+                            model.stem_res_conv.trainable_variables + \
+                            model.stem_pool.trainable_variables + \
+                            model.conv_tower.trainable_variables
+                
+                performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
+                                        model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
+                                        model.pos_embedding_learned.trainable_variables + model.performer.trainable_variables + \
+                                        model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables + \
+                                        model.final_dense_peaks.trainable_variables
+
+                vars_all = conv_vars + performer_vars
+                for var in vars_all:
+                    tape.watch(var)
+                    
+                output_profile,output_peaks = model(input_tuple,
+                                       training=True)
+                output_profile = tf.cast(output_profile['human'],dtype=tf.float32) # ensure cast to float32
+                output_peaks = tf.cast(output_peaks['human'],dtype=tf.float32)
+                
+                mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
+
+                target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
+                output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
+                
+                poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac, output_atac))  * (1. / global_batch_size) * (1.0-bce_loss_scale)
+                
+                mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
+                target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
+                output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
+                
+                bce_loss = tf.reduce_mean(bce_loss_func(target_peaks, output_peaks)) * (1./ global_batch_size) * bce_loss_scale
+
+                loss = poisson_loss + bce_loss
+
+            gradients = tape.gradient(loss, vars_all)
+            gradients, _ = tf.clip_by_global_norm(gradients, 
+                                                  gradient_clip)
+            
+            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], 
+                                           conv_vars))
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
+                                           performer_vars))
+            metric_dict["train_loss"].update_state(loss)
+            
+        @tf.function(jit_compile=True)
+        def train_step_mm(inputs):
+            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
+            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
+            target=tf.cast(inputs['target'],dtype=tf.float32)
+            mask=tf.cast(inputs['mask'],dtype=tf.int32)
+            mask_gathered=tf.cast(inputs['mask_gathered'],dtype=tf.int32)
+            peaks=tf.cast(inputs['peaks'],dtype=tf.int32)
+
+            input_tuple = sequence, atac#, global_acc
+
+            with tf.GradientTape(watch_accessed_variables=False) as tape:
+                conv_vars = model.stem_conv.trainable_variables + \
+                            model.stem_res_conv.trainable_variables + \
+                            model.stem_pool.trainable_variables + \
+                            model.conv_tower.trainable_variables
+                
+                performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
+                                        model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
+                                        model.pos_embedding_learned.trainable_variables + model.performer.trainable_variables + \
+                                        model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables + \
+                                        model.final_dense_peaks.trainable_variables
+
+                vars_all = conv_vars + performer_vars
+                for var in vars_all:
+                    tape.watch(var)
+                    
+                output_profile,output_peaks = model(input_tuple,
+                                       training=True)
+                output_profile = tf.cast(output_profile['mouse'],dtype=tf.float32) # ensure cast to float32
+                output_peaks = tf.cast(output_peaks['mouse'],dtype=tf.float32)
+                
+                mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
+
+                target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
+                output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
+                
+                poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac, output_atac))  * (1. / global_batch_size) * (1.0-bce_loss_scale)
+                
+                mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
+                target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
+                output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
+                
+                bce_loss = tf.reduce_mean(bce_loss_func(target_peaks, output_peaks)) * (1./ global_batch_size) * bce_loss_scale
+
+                loss = poisson_loss + bce_loss
+
+            gradients = tape.gradient(loss, vars_all)
+            gradients, _ = tf.clip_by_global_norm(gradients, 
+                                                  gradient_clip)
+            
+            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], 
+                                           conv_vars))
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
+                                           performer_vars))
+            metric_dict["train_loss_mm"].update_state(loss)
+
+        for _ in tf.range(train_steps):
+            human,mouse=next(iterator)
+            strategy.run(train_step_hg,
+                         args=(human,))
+            strategy.run(train_step_mm,
+                         args=(mouse,))
+            
+    def dist_train_step(iterator):    
+        @tf.function(jit_compile=True)
+        def train_step_hg(inputs):
+            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
+            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
+            target=tf.cast(inputs['target'],dtype=tf.float32)
+            mask=tf.cast(inputs['mask'],dtype=tf.int32)
+            mask_gathered=tf.cast(inputs['mask_gathered'],dtype=tf.int32)
+            peaks=tf.cast(inputs['peaks'],dtype=tf.int32)
+
+            input_tuple = sequence, atac#, global_acc
+
+            with tf.GradientTape(watch_accessed_variables=False) as tape:
+                conv_vars = model.stem_conv.trainable_variables + \
+                            model.stem_res_conv.trainable_variables + \
+                            model.stem_pool.trainable_variables + \
+                            model.conv_tower.trainable_variables
+                
+                performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
+                                        model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
+                                        model.pos_embedding_learned.trainable_variables + model.performer.trainable_variables + \
+                                        model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables + \
+                                        model.final_dense_peaks.trainable_variables
+
+                vars_all = conv_vars + performer_vars
+                for var in vars_all:
+                    tape.watch(var)
+                    
+                output_profile,output_peaks = model(input_tuple,
+                                       training=True)
+                output_profile = tf.cast(output_profile['human'],dtype=tf.float32) # ensure cast to float32
+                output_peaks = tf.cast(output_peaks['human'],dtype=tf.float32)
+                
+                mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
+
+                target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
+                output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
+                
+                poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac, output_atac))  * (1. / global_batch_size) * (1.0-bce_loss_scale)
+                
+                mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
+                target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
+                output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
+                
+                bce_loss = tf.reduce_mean(bce_loss_func(target_peaks, output_peaks)) * (1./ global_batch_size) * bce_loss_scale
 
                 loss = poisson_loss + bce_loss
 
@@ -430,11 +729,9 @@ def return_train_val_functions(model,
             metric_dict["train_loss"].update_state(loss)
         
         for _ in tf.range(train_steps):
-            #human,mouse=next(iterator)
-            strategy.run(train_step,
-                         args=(next(iterator),))
-            #strategy.run(train_step,
-            #             args=(mouse,))
+            human=next(iterator)
+            strategy.run(train_step_hg,
+                         args=(human[0],))
             
             
     def dist_val_step(iterator):
@@ -451,8 +748,8 @@ def return_train_val_functions(model,
 
             output_profile,output_peaks = model(input_tuple,
                                                 training=False)
-            output_profile = tf.cast(output_profile,dtype=tf.float32) # ensure cast to float32
-            output_peaks = tf.cast(output_peaks,dtype=tf.float32)
+            output_profile = tf.cast(output_profile['human'],dtype=tf.float32) # ensure cast to float32
+            output_peaks = tf.cast(output_peaks['human'],dtype=tf.float32)
             
             mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
             
@@ -516,7 +813,7 @@ def return_train_val_functions(model,
             strategy.run(val_step, args=(next(iterator),))
     
 
-    return dist_train_step,dist_val_step, build_step, metric_dict
+    return dist_train_step_all,dist_train_step_hg_mm,dist_train_step,dist_val_step, build_step, metric_dict
 
 
 def deserialize_tr(serialized_example,
@@ -550,7 +847,7 @@ def deserialize_tr(serialized_example,
     '''
     rev_comp = tf.math.round(g.uniform([], 0, 1))
     seq_mask_int = g.uniform([], 0, 5,dtype=tf.int32)
-    full_atac_mask_int = g.uniform([], 0, 5,dtype=tf.int32)
+    full_atac_mask_int = g.uniform([], 0, 6,dtype=tf.int32)
     stupid_random_seed = g.uniform([], 0, 1000000,dtype=tf.int32)
     
     '''
@@ -669,11 +966,11 @@ def deserialize_tr(serialized_example,
         seq_mask = tf.expand_dims(tf.reshape(tf.tile(seq_mask, [1,tiling_req_seq]),[-1]),axis=1)
         masked_seq = sequence * seq_mask + tf.random.shuffle(sequence)*(1.0-seq_mask)
         ## this adds random bases in place of the stretches of 0
-    elif ((seq_mask_int == 1) and (full_atac_mask_int != 0)):
-        seq_mask = 1.0 - full_comb_mask_full_store
-        tiling_req_seq = input_length // output_length
-        seq_mask = tf.expand_dims(tf.reshape(tf.tile(seq_mask, [1,tiling_req_seq]),[-1]),axis=1)
-        masked_seq = tf.random.shuffle(sequence) * seq_mask + sequence*(1.0-seq_mask)
+    #elif (seq_mask_int == 1):
+    #    seq_mask = 1.0 - full_comb_mask_full_store
+    #    tiling_req_seq = input_length // output_length
+    #    seq_mask = tf.expand_dims(tf.reshape(tf.tile(seq_mask, [1,tiling_req_seq]),[-1]),axis=1)
+    #    masked_seq = tf.random.shuffle(sequence) * seq_mask + sequence*(1.0-seq_mask)
     else:
         seq_mask = 1.0 - full_comb_mask_full_store
         tiling_req_seq = input_length // output_length
@@ -876,10 +1173,7 @@ def return_dataset(gcs_paths,
     return a tf dataset object for given gcs path
     """
     wc = "*.tfr"
-    #print(split)
-    print(split)
-    print(gcs_paths)
-    
+
     
     #print(list_files)
     if split == 'train':
@@ -895,27 +1189,30 @@ def return_dataset(gcs_paths,
                                               compression_type='ZLIB',
                                               num_parallel_reads=num_parallel)
             dataset = dataset.with_options(options)
-            dataset_list.append(dataset)
+            #dataset_list.append(dataset)
             
-        dataset = tf.data.Dataset.sample_from_datasets(dataset_list)
+        #dataset = tf.data.Dataset.sample_from_datasets(dataset_list)
         
-        dataset = dataset.map(lambda record: deserialize_tr(record,
-                                                            input_length,
-                                                            max_shift,
-                                                            output_length_ATAC,
-                                                            output_length,
-                                                            crop_size,
-                                                            output_res,
-                                                            #seq_mask_dropout,
-                                                            atac_mask_dropout,
-                                                            random_mask_size,
-                                                            log_atac,
-                                                           use_atac,
-                                                           use_seq,
-                                                            g),
-                              deterministic=False,
-                              num_parallel_calls=num_parallel)
-        return dataset.repeat(num_epoch).batch(batch,drop_remainder=True).prefetch(tf.data.AUTOTUNE)
+            dataset = dataset.map(lambda record: deserialize_tr(record,
+                                                                input_length,
+                                                                max_shift,
+                                                                output_length_ATAC,
+                                                                output_length,
+                                                                crop_size,
+                                                                output_res,
+                                                                #seq_mask_dropout,
+                                                                atac_mask_dropout,
+                                                                random_mask_size,
+                                                                log_atac,
+                                                               use_atac,
+                                                               use_seq,
+                                                                g),
+                                  deterministic=False,
+                                  num_parallel_calls=num_parallel)
+        
+            dataset=dataset.repeat(num_epoch).batch(batch,drop_remainder=True)
+            dataset_list.append(dataset)
+        return tf.data.Dataset.zip(tuple(dataset_list)).prefetch(tf.data.AUTOTUNE)
     
         
     else:

@@ -42,6 +42,7 @@ class aformer(tf.keras.Model):
                  inits_type='enformer_conv',
                  filter_list_seq=[768, 896, 1024, 1152, 1280, 1536],
                  filter_list_atac=[32, 64],
+                 output_heads=["human"],
                  #global_acc_size=64,
                  freeze_conv_layers=False,
                  learnable_PE = False,
@@ -84,6 +85,7 @@ class aformer(tf.keras.Model):
         self.learnable_PE=learnable_PE
         #self.global_acc_size=global_acc_size
         self.BN_momentum=BN_momentum
+        self.output_heads=output_heads
         
         ## ensure load_init matches actual init inputs...
         if inits is None:
@@ -322,7 +324,7 @@ class aformer(tf.keras.Model):
                                              target_length=self.final_output_length,
                                              name='target_input')
         
-        self.final_pointwise_conv = enf_conv_block(filters=self.filter_list_seq[-1] // 6,
+        self.final_pointwise_conv = enf_conv_block(filters=self.filter_list_seq[-1] // 4,
                                                    beta_init=self.inits['final_point_BN_b'] if self.load_init_atac else None,
                                                    gamma_init=self.inits['final_point_BN_g'] if self.load_init_atac else None,
                                                    mean_init=self.inits['final_point_BN_m'] if self.load_init_atac else None,
@@ -338,22 +340,27 @@ class aformer(tf.keras.Model):
         #                                      name = 'final_pointwise')
         
         
-        self.final_dense_profile = kl.Dense(1,
+        self.final_dense_profile = {head: kl.Dense(1,
                                     activation='softplus',
                                     kernel_initializer='lecun_normal',
                                     bias_initializer='lecun_normal',
-                                    use_bias=True)
+                                    use_bias=True) for head in self.output_heads}
         
-        self.peaks_pool = SoftmaxPooling1D(per_channel=True,
-                                          w_init_scale=2.0,
-                                          pool_size=2,
-                                          name ='peaks_pool')
+        #self.peaks_pool = SoftmaxPooling1D(per_channel=True,
+        #                                  w_init_scale=2.0,
+        #                                  pool_size=2,
+        #                                  name ='peaks_pool')
         
-        self.final_dense_peaks = kl.Dense(1,
-                                    activation='sigmoid',
-                                    kernel_initializer='lecun_normal',
-                                    bias_initializer='lecun_normal',
-                                    use_bias=True)
+        self.final_dense_peaks = {head: tf.keras.Sequential([SoftmaxPooling1D(per_channel=True,
+                                                          w_init_scale=2.0,
+                                                          pool_size=2,
+                                                          name ='peaks_pool'),
+                                                       kl.Dense(1,
+                                                        activation='sigmoid',
+                                                        kernel_initializer='lecun_normal',
+                                                        bias_initializer='lecun_normal',
+                                                        use_bias=True)],
+                                                     name=f'final_peaks_{head}') for head in self.output_heads}
 
 
         self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
@@ -422,12 +429,16 @@ class aformer(tf.keras.Model):
                         training=training)
         out = self.gelu(out)
 
-        out_profile = self.final_dense_profile(out,
-                               training=training)
+        out_profile = {head: module(out,
+                                    training=training)
+                       for head, module in self.final_dense_profile.items()}
+        
+        
 
-        out_peaks = self.peaks_pool(out)
-        out_peaks = self.final_dense_peaks(out_peaks,
-                                           training=training)
+        #out_peaks = self.peaks_pool(out)
+        out_peaks = {head: module(out,
+                                  training=training)
+                     for head, module in self.final_dense_peaks.items()}
 
         return out_profile,out_peaks
     
