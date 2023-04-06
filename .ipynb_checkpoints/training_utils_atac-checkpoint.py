@@ -1004,15 +1004,17 @@ def deserialize_val(serialized_example,
                      [crop_size,0],
                      [output_length-2*crop_size,-1])
     
-    """
+    
     center = (output_length-2*crop_size)//2
     ### here set up masking of one of the peaks
     mask_indices_temp = tf.where(peaks_crop[:,0] > 0)[:,0]
     ridx = tf.concat([tf.random.shuffle(mask_indices_temp),
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
-    mask_indices=[[ridx[0]-4+crop_size],[ridx[0]-3+crop_size],[ridx[0]-2+crop_size],
+    mask_indices=[[ridx[0]-6+crop_size],[ridx[0]-5+crop_size],
+                  [ridx[0]-4+crop_size],[ridx[0]-3+crop_size],[ridx[0]-2+crop_size],
                   [ridx[0]-1+crop_size],[ridx[0]+crop_size],[ridx[0]+1+crop_size],
-                  [ridx[0]+2+crop_size],[ridx[0]+3+crop_size]]
+                  [ridx[0]+2+crop_size],[ridx[0]+3+crop_size],
+                  [ridx[0]+4+crop_size],[ridx[0]+5+crop_size]]
     
     st=tf.SparseTensor(
         indices=mask_indices,
@@ -1022,7 +1024,7 @@ def deserialize_val(serialized_example,
     dense_peak_mask_store = dense_peak_mask
     dense_peak_mask=1.0-dense_peak_mask
     dense_peak_mask = tf.expand_dims(dense_peak_mask,axis=1)
-    """
+    
     atac_target = atac ## store the target
 
     ### here set up the ATAC masking
@@ -1039,7 +1041,7 @@ def deserialize_val(serialized_example,
     atac_mask = tf.expand_dims(atac_mask,axis=1)
     atac_mask_store = 1.0 - atac_mask
     full_atac_mask = tf.concat([edge_append,atac_mask,edge_append],axis=0)
-    full_comb_mask = full_atac_mask#tf.math.floor((dense_peak_mask + full_atac_mask)/2)
+    full_comb_mask = tf.math.floor((dense_peak_mask + full_atac_mask)/2)
     full_comb_mask_store = 1.0 - full_comb_mask
     full_comb_mask_store = full_comb_mask_store[crop_size:-crop_size,:]
     tiling_req = output_length_ATAC // output_length
