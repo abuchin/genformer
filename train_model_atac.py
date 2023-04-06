@@ -395,12 +395,16 @@ def main():
                 optimizer1 = tfa.optimizers.AdamW(learning_rate=scheduler1,
                                                   weight_decay=scheduler1_wd,
                                                   epsilon=wandb.config.epsilon,
-                                                  exclude_from_weight_decay=['gamma', 'beta'])
+                                                  exclude_from_weight_decay=['layer_norm', 
+                                                                             'bias',
+                                                                             'batch_norm'])
 
                 optimizer2 = tfa.optimizers.AdamW(learning_rate=scheduler2,
                                                   weight_decay=scheduler2_wd,
                                                   epsilon=wandb.config.epsilon,
-                                                  exclude_from_weight_decay=['gamma', 'beta'])
+                                                  exclude_from_weight_decay=['layer_norm', 
+                                                                             'bias',
+                                                                             'batch_norm'])
             elif wandb.config.optimizer == 'adabelief':
                 optimizer1 = tfa.optimizers.AdaBelief(
                     learning_rate= scheduler1,
