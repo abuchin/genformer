@@ -18,7 +18,7 @@ python3 train_model_atac.py \
             --final_output_length=1536 \
             --max_shift=10 \
             --batch_size=4 \
-            --num_epochs=20 \
+            --num_epochs=50 \
             --train_examples=150000 \
             --val_examples_ho=19917 \
             --BN_momentum=0.90 \
@@ -33,7 +33,7 @@ python3 train_model_atac.py \
             --decay_frac="0.75" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-8 \
-            --num_transformer_layers="8" \
+            --num_transformer_layers="6" \
             --dropout_rate="0.25" \
             --pointwise_dropout_rate="0.05" \
             --num_heads="8" \
@@ -50,7 +50,7 @@ python3 train_model_atac.py \
             --stable_variant="False" \
             --atac_mask_dropout=0.25 \
             --log_atac="True" \
-            --learnable_PE="False" \
+            --learnable_PE="True" \
             --sonnet_weights_bool="True" \
             --random_mask_size="1536" \
             --bce_loss_scale=0.95 \
