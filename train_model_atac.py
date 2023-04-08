@@ -334,6 +334,7 @@ def main():
             elif wandb.config.inits_type == 'enformer_performer_full':
                 wandb.config.update({"load_init": False},
                                     allow_val_change=True)
+                inits=None
             else:
                 raise ValueError('inits type not found')
                 
@@ -465,7 +466,7 @@ def main():
                     build_step(data_val_ho)
                     if wandb.config.inits_type == 'enformer_performer_full':
                         model.load_weights(args.multitask_checkpoint_path + "/saved_model")
-                    print('built and loaded model')
+                        print('built and loaded model')
                     total_params = 0
                     for k in model.trainable_variables:
                         var = k.values[0]
