@@ -22,7 +22,7 @@ python3 train_model_atac.py \
             --train_examples=150000 \
             --val_examples_ho=19917 \
             --BN_momentum=0.90 \
-            --warmup_frac=0.01 \
+            --warmup_frac=0.05 \
             --patience=20 \
             --output_res=128 \
             --min_delta=0.0000005 \

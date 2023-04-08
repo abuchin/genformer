@@ -317,7 +317,7 @@ def main():
 
             
             loading_checkpoint_bool=False
-
+            inits=None
             print('created dataset iterators')
             #if (wandb.config.load_init and os.path.isdir(args.multitask_checkpoint_path)):
             if wandb.config.load_init:
@@ -338,7 +338,7 @@ def main():
                     wandb.config.update({"load_init": False},
                                         allow_val_change=True)
                     loading_checkpoint_bool=True
-                    inits=None
+                    
                 else:
                     raise ValueError('inits type not found')
                 
