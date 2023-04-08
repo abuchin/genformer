@@ -315,28 +315,32 @@ def main():
                                                                 wandb.config.use_seq,
                                                                 g)
 
+            
+            loading_checkpoint_bool=False
 
             print('created dataset iterators')
             #if (wandb.config.load_init and os.path.isdir(args.multitask_checkpoint_path)):
-            if wandb.config.inits_type == 'enformer_performer':
-                print('loaded enformer performer weights')
-                inits=training_utils.get_initializers_enformer_performer(args.multitask_checkpoint_path,
-                                                                         wandb.config.num_transformer_layers,
-                                                                         wandb.config.stable_variant,
-                                                                         wandb.config.learnable_PE)
-            elif wandb.config.inits_type == 'enformer_conv':
-                print('loaded enformer conv weights')
-                inits=training_utils.get_initializers_enformer_conv(args.multitask_checkpoint_path,
-                                                                    wandb.config.sonnet_weights_bool,
-                                                                    len(wandb.config.filter_list_seq))
-                wandb.config.update({"filter_list_seq": [768, 896, 1024, 1152, 1280, 1536]},
-                                    allow_val_change=True)
-            elif wandb.config.inits_type == 'enformer_performer_full':
-                wandb.config.update({"load_init": False},
-                                    allow_val_change=True)
-                inits=None
-            else:
-                raise ValueError('inits type not found')
+            if wandb.config.load_init:
+                if wandb.config.inits_type == 'enformer_performer':
+                    print('loaded enformer performer weights')
+                    inits=training_utils.get_initializers_enformer_performer(args.multitask_checkpoint_path,
+                                                                             wandb.config.num_transformer_layers,
+                                                                             wandb.config.stable_variant,
+                                                                             wandb.config.learnable_PE)
+                elif wandb.config.inits_type == 'enformer_conv':
+                    print('loaded enformer conv weights')
+                    inits=training_utils.get_initializers_enformer_conv(args.multitask_checkpoint_path,
+                                                                        wandb.config.sonnet_weights_bool,
+                                                                        len(wandb.config.filter_list_seq))
+                    wandb.config.update({"filter_list_seq": [768, 896, 1024, 1152, 1280, 1536]},
+                                        allow_val_change=True)
+                elif wandb.config.inits_type == 'enformer_performer_full':
+                    wandb.config.update({"load_init": False},
+                                        allow_val_change=True)
+                    loading_checkpoint_bool=True
+                    inits=None
+                else:
+                    raise ValueError('inits type not found')
                 
             print(wandb.config)
             model = aformer.aformer(kernel_transformation=wandb.config.kernel_transformation,
@@ -464,7 +468,7 @@ def main():
                 if epoch_i == 1:
                     print('building model')
                     build_step(data_val_ho)
-                    if wandb.config.inits_type == 'enformer_performer_full':
+                    if ((wandb.config.inits_type == 'enformer_performer_full') and (loading_checkpoint_bool==True)):
                         model.load_weights(args.multitask_checkpoint_path + "/saved_model")
                         print('built and loaded model')
                     total_params = 0
