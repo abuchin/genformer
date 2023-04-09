@@ -169,7 +169,8 @@ def get_initializers_enformer_conv(checkpoint_path,
 
 def get_initializers_enformer_performer(checkpoint_path,
                                         num_transformer_layers,
-                                        stable_variant):
+                                        stable_variant,
+                                        learnable_PE):
     
     inside_checkpoint=tf.train.list_variables(tf.train.latest_checkpoint(checkpoint_path))
     reader = tf.train.load_checkpoint(checkpoint_path)
@@ -318,10 +319,9 @@ def get_initializers_enformer_performer(checkpoint_path,
 
         initializers_dict.update(out_dict)
         
-        
+    if learnable_PE:
         out_dict = {'pos_embedding_learned': inits.Constant(reader.get_tensor('pos_embedding_learned/embeddings/.ATTRIBUTES/VARIABLE_VALUE'))}
         initializers_dict.update(out_dict)      
-                    
                     
     return initializers_dict
 
@@ -1085,8 +1085,6 @@ def deserialize_val_TSS(serialized_example,
             'cell_type': cell_type,
             'target': tf.ensure_shape(target,
                                       [output_length-crop_size*2,2])}
-
-
                     
 def return_dataset(gcs_path,
                    split,
