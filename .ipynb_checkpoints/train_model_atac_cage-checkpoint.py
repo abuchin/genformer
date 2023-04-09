@@ -98,9 +98,6 @@ def main():
                 'lr_base2': {
                     'values':[float(x) for x in args.lr_base2.split(',')]
                 },
-                'lr_base3': {
-                    'values':[float(x) for x in args.lr_base3.split(',')]
-                },
                 'gradient_clip': {
                     'values': [float(x) for x in args.gradient_clip.split(',')]
                 },
@@ -140,14 +137,14 @@ def main():
                 'BN_momentum': {
                     'values': [args.BN_momentum]
                 },
-                'wd_1_frac': {
-                    'values': [args.wd_1_frac]
+                'wd_1': {
+                    'values': [args.wd_1]
                 },
-                'wd_2_frac': {
-                    'values': [args.wd_2_frac]
+                'wd_2': {
+                    'values': [args.wd_2]
                 },
-                'wd_3_frac': {
-                    'values': [args.wd_3_frac]
+                'use_seq': {
+                    'values':[parse_bool_str(x) for x in args.use_seq.split(',')]
                 },
                 'atac_mask_dropout': {
                     'values': [args.atac_mask_dropout]
@@ -166,6 +163,12 @@ def main():
                 },
                 'learnable_PE': {
                     'values':[parse_bool_str(x) for x in args.learnable_PE.split(',')]
+                },
+                'use_atac': {
+                    'values':[parse_bool_str(x) for x in args.use_atac.split(',')]
+                },
+                'use_seq': {
+                    'values':[parse_bool_str(x) for x in args.use_seq.split(',')]
                 },
                 'sonnet_weights_bool': {
                     'values':[parse_bool_str(x) for x in args.sonnet_weights_bool.split(',')]
@@ -296,6 +299,8 @@ def main():
                                                                 wandb.config.atac_mask_dropout,
                                                                 wandb.config.random_mask_size,
                                                                 wandb.config.log_atac,
+                                                                wandb.config.use_atac,
+                                                                wandb.config.use_seq,
                                                                 g)
 
             print('created dataset iterators')
@@ -304,7 +309,8 @@ def main():
                 print('loaded enformer performer weights')
                 inits=training_utils.get_initializers_enformer_performer(args.multitask_checkpoint_path,
                                                                          wandb.config.num_transformer_layers,
-                                                                         wandb.config.stable_variant)
+                                                                         wandb.config.stable_variant,
+                                                                         wandb.config.learnable_PE)
             elif wandb.config.inits_type == 'enformer_conv':
                 print('loaded enformer conv weights')
                 inits=training_utils.get_initializers_enformer_conv(args.multitask_checkpoint_path,
@@ -357,9 +363,9 @@ def main():
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
                                          decay_schedule_fn=scheduler1)
             scheduler1_wd= tf.keras.optimizers.schedules.CosineDecay(
-                initial_learning_rate=wandb.config.wd_1_frac*wandb.config.lr_base1,
+                initial_learning_rate=wandb.config.wd_1,
                 decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
-            scheduler1_wd=optimizers.WarmUp(initial_learning_rate=wandb.config.wd_1_frac* wandb.config.lr_base1,
+            scheduler1_wd=optimizers.WarmUp(initial_learning_rate=wandb.config.wd_1,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
                                          decay_schedule_fn=scheduler1_wd)
             ###############
@@ -370,24 +376,12 @@ def main():
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
                                          decay_schedule_fn=scheduler2)
             scheduler2_wd= tf.keras.optimizers.schedules.CosineDecay(
-                initial_learning_rate=wandb.config.wd_2_frac*wandb.config.lr_base2,
+                initial_learning_rate=wandb.config.wd_2,
                 decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
-            scheduler2_wd=optimizers.WarmUp(initial_learning_rate=wandb.config.wd_2_frac* wandb.config.lr_base2,
+            scheduler2_wd=optimizers.WarmUp(initial_learning_rate=wandb.config.wd_2,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
                                          decay_schedule_fn=scheduler2_wd)
-            ###############
-            scheduler3= tf.keras.optimizers.schedules.CosineDecay(
-                initial_learning_rate=wandb.config.lr_base3,
-                decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
-            scheduler3=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base3,
-                                         warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
-                                         decay_schedule_fn=scheduler3)
-            scheduler3_wd= tf.keras.optimizers.schedules.CosineDecay(
-                initial_learning_rate=wandb.config.wd_3_frac*wandb.config.lr_base3,
-                decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
-            scheduler3_wd=optimizers.WarmUp(initial_learning_rate=wandb.config.wd_3_frac* wandb.config.lr_base3,
-                                         warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
-                                         decay_schedule_fn=scheduler3_wd)
+
 
             if wandb.config.optimizer == 'adamw':
                 optimizer1 = tfa.optimizers.AdamW(learning_rate=scheduler1,
@@ -396,9 +390,6 @@ def main():
 
                 optimizer2 = tfa.optimizers.AdamW(learning_rate=scheduler2,
                                                   weight_decay=scheduler2_wd,
-                                                  epsilon=wandb.config.epsilon)
-                optimizer3 = tfa.optimizers.AdamW(learning_rate=scheduler3,
-                                                  weight_decay=scheduler3_wd,
                                                   epsilon=wandb.config.epsilon)
             elif wandb.config.optimizer == 'adabelief':
                 optimizer1 = tfa.optimizers.AdaBelief(
@@ -413,12 +404,12 @@ def main():
                     weight_decay= scheduler2_wd,
                     rectify=wandb.config.rectify
                 )
-                optimizer3 = tfa.optimizers.AdaBelief(
-                    learning_rate= scheduler3, 
-                    epsilon= wandb.config.epsilon,
-                    weight_decay= scheduler3_wd,
-                    rectify=wandb.config.rectify
-                )
+            elif wandb.config.optimizer == 'adam':
+                optimizer1 = tf.keras.optimizers.Adam(learning_rate=scheduler1,
+                                                      epsilon=wandb.config.epsilon)
+
+                optimizer2 = tf.keras.optimizers.Adam(learning_rate=scheduler2,
+                                                      epsilon=wandb.config.epsilon)
             else:
                 raise ValueError('optimizer not found')
 
@@ -553,7 +544,7 @@ def main():
 
                     val_pearson_TSS = metric_dict['corr_stats'].result()['pearsonR'].numpy()
                     val_R2_TSS = metric_dict['corr_stats'].result()['R2'].numpy()
-                    
+
                     y_trues = metric_dict['corr_stats'].result()['y_trues'].numpy()
                     y_preds = metric_dict['corr_stats'].result()['y_preds'].numpy()
                     cell_types = metric_dict['corr_stats'].result()['cell_types'].numpy()
@@ -581,11 +572,11 @@ def main():
                                'cross_cell_dist': fig_cell_spec,
                                'cross_gene_dist': fig_gene_spec},
                               step=epoch_i)
-                    
-                        
+
+
                     val_pearson_TSS_ho= metric_dict['corr_stats_ho'].result()['pearsonR'].numpy()
                     val_R2_TSS_ho = metric_dict['corr_stats_ho'].result()['R2'].numpy()
-                    
+
                     y_trues = metric_dict['corr_stats_ho'].result()['y_trues'].numpy()
                     y_preds = metric_dict['corr_stats_ho'].result()['y_preds'].numpy()
                     cell_types = metric_dict['corr_stats_ho'].result()['cell_types'].numpy()

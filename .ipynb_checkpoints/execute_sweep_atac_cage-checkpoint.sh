@@ -18,13 +18,13 @@ python3 train_model_atac_cage.py \
             --max_shift=10 \
             --batch_size=4 \
             --num_epochs=150 \
-            --train_examples=500000 \
+            --train_examples=150000 \
             --val_examples=59751  \
             --val_examples_ho=11065  \
             --val_examples_TSS=57618 \
             --val_examples_TSS_ho=4775 \
             --BN_momentum=0.90 \
-            --warmup_frac=0.005 \
+            --warmup_frac=0.01 \
             --patience=50 \
             --output_res=128 \
             --min_delta=0.000005 \

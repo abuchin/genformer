@@ -346,7 +346,6 @@ class aformer(tf.keras.Model):
                                     bias_initializer='lecun_normal',
                                     use_bias=True)
 
-
         self.peaks_pool = SoftmaxPooling1D(per_channel=True,
                                           w_init_scale=2.0,
                                           pool_size=2,
