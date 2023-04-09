@@ -905,7 +905,6 @@ def deserialize_val(serialized_example,
                    output_length,
                    crop_size,
                    output_res,
-                   #seq_mask_dropout,
                    atac_mask_dropout,
                    mask_size,
                    log_atac,
@@ -956,6 +955,7 @@ def deserialize_val(serialized_example,
     diff = tf.math.sqrt(tf.nn.relu(masked_atac - 100.0 * tf.ones(masked_atac.shape)))
     masked_atac = tf.clip_by_value(masked_atac, clip_value_min=0.0, clip_value_max=100.0) + diff
         
+    tiling_req = output_length_ATAC // output_length ### how much do we need to tile the atac signal to desired length
     atac_out = tf.reduce_sum(tf.reshape(atac_target, [-1,tiling_req]),axis=1,keepdims=True)
     diff = tf.math.sqrt(tf.nn.relu(atac_out - 2500.0 * tf.ones(atac_out.shape)))
     atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=2500.0) + diff
