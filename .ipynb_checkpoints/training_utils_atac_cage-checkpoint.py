@@ -1102,6 +1102,8 @@ def return_dataset(gcs_path,
                    atac_mask_dropout,
                    mask_size,
                    log_atac,
+                   use_atac,
+                   use_seq,
                    g):
     """
     return a tf dataset object for given gcs path
@@ -1133,6 +1135,8 @@ def return_dataset(gcs_path,
                                                             atac_mask_dropout,
                                                             mask_size,
                                                             log_atac,
+                                                             use_atac,
+                                                             use_seq,
                                                             g),
                               deterministic=False,
                               num_parallel_calls=num_parallel)
@@ -1148,7 +1152,10 @@ def return_dataset(gcs_path,
                                                                    output_length,
                                                                    crop_size,
                                                                    output_res,
-                                                                   log_atac),
+                                                                   log_atac,
+                                                                     use_atac,
+                                                                     use_seq,
+                                                                    g),
                                   deterministic=False,
                                   num_parallel_calls=num_parallel)
 
@@ -1163,6 +1170,8 @@ def return_dataset(gcs_path,
                                                             atac_mask_dropout,
                                                                  mask_size,
                                                             log_atac,
+                                                             use_atac,
+                                                             use_seq,
                                                                 g),
                                   deterministic=False,
                                   num_parallel_calls=num_parallel)
@@ -1188,6 +1197,8 @@ def return_distributed_iterators(gcs_path,
                                  atac_mask_dropout,
                                  mask_size,
                                  log_atac,
+                                 use_atac,
+                                 use_seq,
                                  g):
 
     """ 
@@ -1211,6 +1222,8 @@ def return_distributed_iterators(gcs_path,
                              atac_mask_dropout,
                              mask_size,
                              log_atac,
+                             use_atac,
+                             use_seq,
                              g)
     
 
@@ -1230,6 +1243,8 @@ def return_distributed_iterators(gcs_path,
                              atac_mask_dropout,
                              mask_size,
                              log_atac,
+                             use_atac,
+                             use_seq,
                              g)
     
     val_data_ho = return_dataset(gcs_path_ho,
@@ -1248,6 +1263,8 @@ def return_distributed_iterators(gcs_path,
                              atac_mask_dropout,
                              mask_size,
                              log_atac,
+                             use_atac,
+                             use_seq,
                              g)
     
     val_data_TSS = return_dataset(gcs_path_TSS,
@@ -1266,6 +1283,8 @@ def return_distributed_iterators(gcs_path,
                              0.0,
                              mask_size,
                              log_atac,
+                             use_atac,
+                             use_seq,
                              g)
     
     
@@ -1285,6 +1304,8 @@ def return_distributed_iterators(gcs_path,
                              0.0,
                              mask_size,
                              log_atac,
+                             use_atac,
+                             use_seq,
                              g)
 
     train_dist = strategy.experimental_distribute_dataset(tr_data)
