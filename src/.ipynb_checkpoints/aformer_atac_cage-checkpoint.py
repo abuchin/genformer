@@ -322,7 +322,7 @@ class aformer(tf.keras.Model):
                                              target_length=self.final_output_length,
                                              name='target_input')
         
-        self.final_pointwise_conv = enf_conv_block(filters=self.filter_list_seq[-1] // 6,
+        self.final_pointwise_conv = enf_conv_block(filters=self.filter_list_seq[-1] // 4,
                                                    beta_init=self.inits['final_point_BN_b'] if self.load_init_atac else None,
                                                    gamma_init=self.inits['final_point_BN_g'] if self.load_init_atac else None,
                                                    mean_init=self.inits['final_point_BN_m'] if self.load_init_atac else None,
@@ -345,7 +345,6 @@ class aformer(tf.keras.Model):
                                     kernel_initializer='lecun_normal',
                                     bias_initializer='lecun_normal',
                                     use_bias=True)
-
 
         self.peaks_pool = SoftmaxPooling1D(per_channel=True,
                                           w_init_scale=2.0,

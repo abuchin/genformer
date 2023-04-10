@@ -321,7 +321,7 @@ def main():
             else:
                 raise ValueError('inits type not found')
                 
-
+            print(wandb.config)
             #else:
             #    inits=None
             #    print('WARNING: supplied checkpoint directory does not exist')
@@ -414,7 +414,7 @@ def main():
                 raise ValueError('optimizer not found')
 
 
-            optimizers_in = optimizer1,optimizer2,optimizer3
+            optimizers_in = optimizer1,optimizer2
             
             metric_dict = {}
 
@@ -453,6 +453,8 @@ def main():
                     print('built model')
                     total_params = 0
                     for k in model.trainable_variables:
+                        #print(k)
+                        #print(tf.size(k))
                         var = k.values[0]
                         total_params += tf.size(var)
                     print('total params: ' + str(total_params)) 
@@ -468,6 +470,8 @@ def main():
                 wandb.log({'human_train_loss': metric_dict['train_loss'].result().numpy()},
                           step=epoch_i)
                 print('training duration(mins): ' + str(duration))
+                print('train_loss_cage: ' + str(metric_dict['train_loss_cage'].result().numpy()))
+                print('train_loss_atac: ' + str(metric_dict['train_loss_atac'].result().numpy()))
                 
                 start = time.time()
                 
@@ -552,7 +556,7 @@ def main():
 
                     print('making plots')
                     figures,corrs_overall= training_utils.make_plots(y_trues,y_preds,
-                                                                     cell_types,gene_map, 1000)
+                                                                     cell_types,gene_map, 100)
 
 
                     fig_cell_spec, fig_gene_spec, fig_overall=figures 
@@ -584,7 +588,7 @@ def main():
 
                     print('making plots')
                     figures,corrs_overall= training_utils.make_plots(y_trues,y_preds,
-                                                                     cell_types,gene_map, 1000)
+                                                                     cell_types,gene_map, 100)
 
                     fig_cell_spec, fig_gene_spec, fig_overall=figures 
 

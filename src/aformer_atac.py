@@ -522,10 +522,16 @@ class aformer(tf.keras.Model):
                         training=training)
         out = self.gelu(out)
 
-        out_profile = self.final_dense_profile(out,
-                               training=training)
-        out_peaks = self.final_dense_peaks(out,
-                               training=training)
+        out_profile = {head: module(out,
+                                    training=training)
+                       for head, module in self.final_dense_profile.items()}
+        
+        
+
+        #out_peaks = self.peaks_pool(out)
+        out_peaks = {head: module(out,
+                                  training=training)
+                     for head, module in self.final_dense_peaks.items()}
 
         return out_profile, out_peaks, final_point, att_matrices
     

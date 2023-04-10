@@ -95,9 +95,6 @@ def main():
                 'lr_base1': {
                     'values':[float(x) for x in args.lr_base1.split(',')]
                 },
-                'lr_base2': {
-                    'values':[float(x) for x in args.lr_base2.split(',')]
-                },
                 'gradient_clip': {
                     'values': [float(x) for x in args.gradient_clip.split(',')]
                 },
@@ -134,12 +131,6 @@ def main():
                 'BN_momentum': {
                     'values': [args.BN_momentum]
                 },
-                'wd_1': {
-                    'values': [args.wd_1]
-                },
-                'wd_2': {
-                    'values': [args.wd_2]
-                },
                 'atac_mask_dropout': {
                     'values': [args.atac_mask_dropout]
                 },
@@ -152,9 +143,6 @@ def main():
                 'stable_variant': {
                     'values':[parse_bool_str(x) for x in args.stable_variant.split(',')]
                 },
-                #'use_global_acc': {
-                #    'values':[parse_bool_str(x) for x in args.use_global_acc.split(',')]
-                #},
                 'log_atac': {
                     'values':[parse_bool_str(x) for x in args.log_atac.split(',')]
                 },
@@ -167,9 +155,6 @@ def main():
                 'use_seq': {
                     'values':[parse_bool_str(x) for x in args.use_seq.split(',')]
                 },
-                #'global_acc_size': {
-                #    'values': [int(x) for x in args.global_acc_size.split(',')]
-                #},
                 'sonnet_weights_bool': {
                     'values':[parse_bool_str(x) for x in args.sonnet_weights_bool.split(',')]
                 },
@@ -247,13 +232,10 @@ def main():
             wandb.config.output_heads = output_heads
             
             
-            run_name = '_'.join(["genformer_atac",
-                                 str(wandb.config.training_type),
+            run_name = '_'.join([str(wandb.config.training_type),
                                  str(int(wandb.config.input_length) / 1000)[:4].rstrip('.') + 'k',
                                  'load-' + str(wandb.config.load_init),
-                                 'frz-' + str(wandb.config.freeze_conv_layers),
-                                 'LR1-' + str(wandb.config.lr_base1),
-                                 'LR2-' + str(wandb.config.lr_base2),
+                                 'LR-' + str(wandb.config.lr_base),
                                  'T-' + str(wandb.config.num_transformer_layers),
                                  'D-' + str(wandb.config.dropout_rate)])
             
@@ -381,66 +363,22 @@ def main():
             scheduler1=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base1,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
                                          decay_schedule_fn=scheduler1)
-            scheduler1_wd= tf.keras.optimizers.schedules.CosineDecay(
-                initial_learning_rate=wandb.config.wd_1,
-                decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
-            scheduler1_wd=optimizers.WarmUp(initial_learning_rate=wandb.config.wd_1,
-                                         warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
-                                         decay_schedule_fn=scheduler1_wd)
-            scheduler2= tf.keras.optimizers.schedules.CosineDecay(
-                initial_learning_rate=wandb.config.lr_base2,
-                decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
-            scheduler2=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base2,
-                                         warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
-                                         decay_schedule_fn=scheduler2)
-            scheduler2_wd= tf.keras.optimizers.schedules.CosineDecay(
-                initial_learning_rate=wandb.config.wd_2,
-                decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
-            scheduler2_wd=optimizers.WarmUp(initial_learning_rate=wandb.config.wd_2,
-                                         warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
-                                         decay_schedule_fn=scheduler2_wd)
 
-            if wandb.config.optimizer == 'adamw':
-                optimizer1 = tfa.optimizers.AdamW(learning_rate=scheduler1,
-                                                  weight_decay=scheduler1_wd,
-                                                  epsilon=wandb.config.epsilon,
-                                                  exclude_from_weight_decay=['layer_norm', 
-                                                                             'bias',
-                                                                             'embeddings',
-                                                                             'batch_norm'])
-
-                optimizer2 = tfa.optimizers.AdamW(learning_rate=scheduler2,
-                                                  weight_decay=scheduler2_wd,
-                                                  epsilon=wandb.config.epsilon,
-                                                  exclude_from_weight_decay=['layer_norm', 
-                                                                             'bias',
-                                                                             'embeddings',
-                                                                             'batch_norm'])
-            elif wandb.config.optimizer == 'adam':
-                optimizer1 = tf.keras.optimizers.Adam(learning_rate=scheduler1,
-                                                      epsilon=wandb.config.epsilon)
-
-                optimizer2 = tf.keras.optimizers.Adam(learning_rate=scheduler2,
+            if wandb.config.optimizer == 'adam':
+                optimizer = tf.keras.optimizers.Adam(learning_rate=scheduler1,
                                                       epsilon=wandb.config.epsilon)
             elif wandb.config.optimizer == 'adabelief':
-                optimizer1 = tfa.optimizers.AdaBelief(
+                optimizer = tfa.optimizers.AdaBelief(
                     learning_rate= scheduler1,
                     epsilon= wandb.config.epsilon,
-                    weight_decay=scheduler1_wd,
                     rectify=wandb.config.rectify
                 )
-                optimizer2 = tfa.optimizers.AdaBelief(
-                    learning_rate= scheduler2, 
-                    epsilon= wandb.config.epsilon,
-                    weight_decay= scheduler2_wd,
-                    rectify=wandb.config.rectify
-                )
+            elif wandb.config.optimizer == 'lamb':
+                optimizer = tfa.optimizers.LAMB(learning_rate=scheduler1,
+                                                epsilon=wandb.config.epsilon)
             else:
                 raise ValueError('optimizer not found')
 
-
-            optimizers_in = optimizer1,optimizer2
-            
             metric_dict = {}
 
             train_step_all, train_step, val_step, \
@@ -448,7 +386,7 @@ def main():
                                                                                 wandb.config.train_steps,
                                                                                 #wandb.config.val_steps,
                                                                                 wandb.config.val_steps_ho,
-                                                                                optimizers_in,
+                                                                                optimizer,
                                                                                 strategy,
                                                                                 metric_dict,
                                                                                 GLOBAL_BATCH_SIZE,

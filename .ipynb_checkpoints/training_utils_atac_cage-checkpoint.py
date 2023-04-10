@@ -343,12 +343,16 @@ def return_train_val_functions(model,
     bce_loss_func = tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.NONE,
                                                        from_logits=True)
 
-    optimizer1,optimizer2,optimizer3=optimizers_in
+    optimizer1,optimizer2=optimizers_in
     
     metric_dict["corr_stats"] = metrics.correlation_stats_gene_centered(name='corr_stats')
     metric_dict["corr_stats_ho"] = metrics.correlation_stats_gene_centered(name='corr_stats_ho')
     
     metric_dict["train_loss"] = tf.keras.metrics.Mean("train_loss",
+                                                 dtype=tf.float32)
+    metric_dict["train_loss_cage"] = tf.keras.metrics.Mean("train_loss_cage",
+                                                 dtype=tf.float32)
+    metric_dict["train_loss_atac"] = tf.keras.metrics.Mean("train_loss_atac",
                                                  dtype=tf.float32)
     metric_dict["val_loss"] = tf.keras.metrics.Mean("val_loss",
                                                   dtype=tf.float32)
@@ -449,10 +453,12 @@ def return_train_val_functions(model,
                                                   gradient_clip)
             
             optimizer1.apply_gradients(zip(gradients[:len(trunk_vars)], 
-                                           conv_vars))
+                                           trunk_vars))
             optimizer2.apply_gradients(zip(gradients[len(trunk_vars):], 
-                                           dense_vars))
+                                           heads_vars))
             metric_dict["train_loss"].update_state(loss)
+            metric_dict["train_loss_cage"].update_state(cage_loss)
+            metric_dict["train_loss_atac"].update_state(atac_loss)
         
         for _ in tf.range(train_steps):
             strategy.run(train_step,
@@ -905,6 +911,7 @@ def deserialize_val(serialized_example,
                    output_length,
                    crop_size,
                    output_res,
+                   #seq_mask_dropout,
                    atac_mask_dropout,
                    mask_size,
                    log_atac,
@@ -947,7 +954,42 @@ def deserialize_val(serialized_example,
 
     atac_target = atac ## store the target ATAC 
 
-    masked_atac = atac 
+    ### here set up the ATAC masking
+    num_mask_bins = mask_size // output_res ## calculate the number of adjacent bins that will be masked in each region
+
+    out_length_cropped = output_length-2*crop_size
+    if out_length_cropped % num_mask_bins != 0:
+        raise ValueError('ensure that masking region size divided by output res is a factor of the cropped output length')
+    edge_append = tf.ones((crop_size,1),dtype=tf.float32) ## since we only mask over the center 896, base calcs on the cropped size
+    atac_mask = tf.ones(out_length_cropped // num_mask_bins,dtype=tf.float32)
+
+    ### now calculate ATAC dropout regions
+    ### 
+    atac_mask=tf.nn.experimental.stateless_dropout(atac_mask,
+                                              rate=(atac_mask_dropout),
+                                              seed=[0,stupid_random_seed-5]) / (1. / (1.0-(atac_mask_dropout))) 
+    atac_mask = tf.expand_dims(atac_mask,axis=1)
+    atac_mask = tf.tile(atac_mask, [1,num_mask_bins])
+    atac_mask = tf.reshape(atac_mask, [-1])
+    atac_mask = tf.expand_dims(atac_mask,axis=1)
+    atac_mask_store = 1.0 - atac_mask ### store the actual masked regions after inverting the mask
+    
+    full_atac_mask = tf.concat([edge_append,atac_mask,edge_append],axis=0)
+    full_comb_mask = full_atac_mask#tf.math.floor((dense_peak_mask + full_atac_mask)/2)
+    full_comb_mask_store = 1.0 - full_comb_mask
+    
+    full_comb_mask_full_store = full_comb_mask_store
+    full_comb_mask_store = full_comb_mask_store[crop_size:-crop_size,:] # store the cropped mask
+    tiling_req = output_length_ATAC // output_length ### how much do we need to tile the atac signal to desired length
+    full_comb_mask = tf.expand_dims(tf.reshape(tf.tile(full_comb_mask, [1,tiling_req]),[-1]),axis=1)
+    
+    masked_atac = atac * full_comb_mask
+
+    random_shuffled_tokens=  tf.random.experimental.stateless_shuffle(masked_atac, 
+                                                                      seed=[1, stupid_random_seed])#tf.random.shuffle(masked_atac,
+                             #                  seed=stupid_random_seed+2) ## random shuffle the tokens
+    masked_atac = masked_atac + (1.0-full_comb_mask)*random_shuffled_tokens
+    
 
     if log_atac: 
         masked_atac = tf.math.log1p(masked_atac)
@@ -956,6 +998,7 @@ def deserialize_val(serialized_example,
     masked_atac = tf.clip_by_value(masked_atac, clip_value_min=0.0, clip_value_max=100.0) + diff
         
     tiling_req = output_length_ATAC // output_length ### how much do we need to tile the atac signal to desired length
+    
     atac_out = tf.reduce_sum(tf.reshape(atac_target, [-1,tiling_req]),axis=1,keepdims=True)
     diff = tf.math.sqrt(tf.nn.relu(atac_out - 2500.0 * tf.ones(atac_out.shape)))
     atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=2500.0) + diff

@@ -392,18 +392,6 @@ class aformer(tf.keras.Model):
         atac_x = self.stem_pool_atac(atac_x,training=training)
         atac_x = self.conv_tower_atac(atac_x,training=training)
         
-        """
-        global_acc = self.global_acc_block(global_acc,
-                                           training=training)
-        global_acc = self.dropout(global_acc,
-                        training=training)
-        global_acc = self.gelu(global_acc)
-        global_acc = tf.tile(global_acc, 
-                               [1,self.output_length,1])
-
-        transformer_input = tf.concat([x,atac_x,global_acc],
-                                      axis=2)
-        """
         transformer_input = tf.concat([x,atac_x],
                                       axis=2)
         
@@ -534,10 +522,16 @@ class aformer(tf.keras.Model):
                         training=training)
         out = self.gelu(out)
 
-        out_profile = self.final_dense_profile(out,
-                               training=training)
-        out_peaks = self.final_dense_peaks(out,
-                               training=training)
+        out_profile = {head: module(out,
+                                    training=training)
+                       for head, module in self.final_dense_profile.items()}
+        
+        
+
+        #out_peaks = self.peaks_pool(out)
+        out_peaks = {head: module(out,
+                                  training=training)
+                     for head, module in self.final_dense_peaks.items()}
 
         return out_profile, out_peaks, final_point, att_matrices
     
