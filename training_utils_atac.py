@@ -618,7 +618,7 @@ def return_train_val_functions(model,
 
                 loss = poisson_loss + bce_loss
 
-            gradients = tape.gradient(loss, vars_all)
+            gradients = tape.gradient(loss, model.trainable_variables)
             gradients, _ = tf.clip_by_global_norm(gradients, 
                                                   gradient_clip)
             
@@ -658,7 +658,7 @@ def return_train_val_functions(model,
 
                 loss = poisson_loss + bce_loss
 
-            gradients = tape.gradient(loss, vars_all)
+            gradients = tape.gradient(loss, model.trainable_variables)
             gradients, _ = tf.clip_by_global_norm(gradients, 
                                                   gradient_clip)
             
@@ -698,7 +698,7 @@ def return_train_val_functions(model,
 
                 loss = poisson_loss + bce_loss
 
-            gradients = tape.gradient(loss, vars_all)
+            gradients = tape.gradient(loss, model.trainable_variables)
             gradients, _ = tf.clip_by_global_norm(gradients, 
                                                   gradient_clip)
             
@@ -751,7 +751,7 @@ def return_train_val_functions(model,
 
                 loss = poisson_loss + bce_loss
 
-            gradients = tape.gradient(loss, vars_all)
+            gradients = tape.gradient(loss, model.trainable_variables)
             gradients, _ = tf.clip_by_global_norm(gradients, 
                                                   gradient_clip)
             
