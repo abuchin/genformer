@@ -372,7 +372,7 @@ def main():
                                                       epsilon=wandb.config.epsilon)
 
             elif wandb.config.optimizer == 'adamw':
-                optimizer = tf.keras.optimizers.AdamW(learning_rate=scheduler1,
+                optimizer = tfa.optimizers.AdamW(learning_rate=scheduler1,
                                                      weight_decay=wandb.config.wd_1,
                                                      epsilon=wandb.config.epsilon,
                                                       exclude_from_weight_decay=['layer_norm', 
