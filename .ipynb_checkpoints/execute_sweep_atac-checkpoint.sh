@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model_atac.py \
-            --tpu_name="node-3" \
-            --tpu_zone="us-central1-a" \
+            --tpu_name="pod" \
+            --tpu_zone="us-east1-d" \
             --wandb_project="atac_pretraining" \
             --wandb_user="njaved" \
             --wandb_sweep_name="atac_pretraining" \
@@ -20,7 +20,7 @@ python3 train_model_atac.py \
             --batch_size=4 \
             --num_epochs=50 \
             --train_examples=100000 \
-            --val_examples_ho=19917 \
+            --val_examples_ho=22130 \
             --BN_momentum=0.90 \
             --warmup_frac=0.05 \
             --patience=50 \

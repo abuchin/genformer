@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 python3 train_model_atac_cage.py \
-            --tpu_name="node-3" \
+            --tpu_name="node-5" \
             --tpu_zone="us-central1-a" \
             --wandb_project="paired_rampage_atac" \
             --wandb_user="njaved" \
