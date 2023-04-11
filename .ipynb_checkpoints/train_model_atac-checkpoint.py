@@ -95,6 +95,9 @@ def main():
                 'lr_base1': {
                     'values':[float(x) for x in args.lr_base1.split(',')]
                 },
+                'wd_1': {
+                    'values':[float(x) for x in args.wd_1.split(',')]
+                },
                 'gradient_clip': {
                     'values': [float(x) for x in args.gradient_clip.split(',')]
                 },
@@ -367,6 +370,15 @@ def main():
             if wandb.config.optimizer == 'adam':
                 optimizer = tf.keras.optimizers.Adam(learning_rate=scheduler1,
                                                       epsilon=wandb.config.epsilon)
+
+            elif wandb.config.optimizer == 'adamw':
+                optimizer = tf.keras.optimizers.AdamW(learning_rate=scheduler1,
+                                                     weight_decay=wandb.config.wd_1,
+                                                     epsilon=wandb.config.epsilon,
+                                                      exclude_from_weight_decay=['layer_norm', 
+                                                                                 'bias',
+                                                                                 'embeddings',
+                                                                                 'batch_norm'])
             elif wandb.config.optimizer == 'adabelief':
                 optimizer = tfa.optimizers.AdaBelief(
                     learning_rate= scheduler1,

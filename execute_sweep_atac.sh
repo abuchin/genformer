@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 python3 train_model_atac.py \
-            --tpu_name="pod" \
+            --tpu_name="pod1" \
             --tpu_zone="us-east1-d" \
             --wandb_project="atac_pretraining" \
             --wandb_user="njaved" \
@@ -18,7 +18,7 @@ python3 train_model_atac.py \
             --final_output_length=1536 \
             --max_shift=10 \
             --batch_size=4 \
-            --num_epochs=50 \
+            --num_epochs=60 \
             --train_examples=100000 \
             --val_examples_ho=22130 \
             --BN_momentum=0.90 \
@@ -28,11 +28,12 @@ python3 train_model_atac.py \
             --min_delta=0.0000005 \
             --model_save_dir="gs://picard-testing-176520/genformer_atac_pretrain/models" \
             --model_save_basename="aformer" \
-            --lr_base1="1.0e-04" \
-            --decay_frac="0.25" \
+            --lr_base1="1.5e-04" \
+            --wd_1="0.001" \
+            --decay_frac="1.0" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-8 \
-            --num_transformer_layers="6" \
+            --num_transformer_layers="8" \
             --dropout_rate="0.30" \
             --pointwise_dropout_rate="0.15" \
             --num_heads="8" \
@@ -43,13 +44,13 @@ python3 train_model_atac.py \
             --load_init="False" \
             --rectify="True" \
             --filter_list_seq="384,512,640,768,896,1024" \
-            --filter_list_atac="32,64" \
+            --filter_list_atac="48,96" \
             --inits_type="enformer_performer_full" \
-            --optimizer="adam" \
+            --optimizer="adamw" \
             --stable_variant="False" \
             --atac_mask_dropout=0.20 \
             --log_atac="True" \
-            --learnable_PE="False" \
+            --learnable_PE="True" \
             --sonnet_weights_bool="True" \
             --random_mask_size="1536" \
             --bce_loss_scale=0.95 \

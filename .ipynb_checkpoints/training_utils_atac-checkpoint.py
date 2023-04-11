@@ -877,10 +877,9 @@ def deserialize_tr(serialized_example,
       stupid_random_seed: hacky workaround to previous issue with random atac masking
     '''
     rev_comp = tf.math.round(g.uniform([], 0, 1))
-    seq_mask_int = g.uniform([], 0, 5,dtype=tf.int32)
-    full_atac_mask_int = g.uniform([], 0, 6,dtype=tf.int32)
+    seq_mask_int = g.uniform([], 0, 10, dtype=tf.int32)
+    full_atac_mask_int = g.uniform([], 0, 10,dtype=tf.int32)
     stupid_random_seed = g.uniform([], 0, 10000000,dtype=tf.int32)
-    sampler = g.uniform
     '''
     set up random data augmentation for sequence
     '''
@@ -894,7 +893,6 @@ def deserialize_tr(serialized_example,
             seq_shift = k
         else:
             seq_shift=0
-    
     
     input_seq_length = input_length + max_shift
     
@@ -996,7 +994,7 @@ def deserialize_tr(serialized_example,
         tiling_req_seq = input_length // output_length
         seq_mask = tf.expand_dims(tf.reshape(tf.tile(seq_mask, [1,tiling_req_seq]),[-1]),axis=1)
         masked_seq = sequence * seq_mask + tf.random.experimental.stateless_shuffle(sequence,
-                                                                                    seed=[2,stupid_random_seed])*(1.0-seq_mask)
+                                                                                    seed=[stupid_random_seed+30,stupid_random_seed])*(1.0-seq_mask)
         ## this adds random bases in place of the stretches of 0
     #elif (seq_mask_int == 1):
     #    seq_mask = 1.0 - full_comb_mask_full_store
@@ -1037,7 +1035,7 @@ def deserialize_tr(serialized_example,
         masked_atac = random_shuffled_tokens
     if not use_seq:
         masked_seq = tf.random.experimental.stateless_shuffle(masked_seq,
-                                                              seed=[3,stupid_random_seed+3])
+                                                              seed=[stupid_random_seed+1,stupid_random_seed+3])
         
         
     return {'sequence': tf.ensure_shape(masked_seq,
@@ -1126,7 +1124,7 @@ def deserialize_val(serialized_example,
     atac_mask = tf.ones(out_length_cropped // num_mask_bins,dtype=tf.float32)
     atac_mask=tf.nn.experimental.stateless_dropout(atac_mask,
                                               rate=(atac_mask_dropout),
-                                              seed=[0,stupid_random_seed-1]) / (1. / (1.0-(atac_mask_dropout))) 
+                                              seed=[stupid_random_seed+16,stupid_random_seed+10]) / (1. / (1.0-(atac_mask_dropout))) 
     atac_mask = tf.expand_dims(atac_mask,axis=1)
     atac_mask = tf.tile(atac_mask, [1,num_mask_bins])
     atac_mask = tf.reshape(atac_mask, [-1])
@@ -1510,6 +1508,10 @@ def parse_args(parser):
                         dest='lr_base1',
                         default="1.0e-03",
                         help='lr_base1')
+    parser.add_argument('--wd_1',
+                        dest='wd_1',
+                        default="1.0e-03",
+                        help='wd_1')
     parser.add_argument('--decay_frac',
                         dest='decay_frac',
                         type=str,
