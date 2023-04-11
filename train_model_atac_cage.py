@@ -137,12 +137,6 @@ def main():
                 'BN_momentum': {
                     'values': [args.BN_momentum]
                 },
-                'wd_1': {
-                    'values': [args.wd_1]
-                },
-                'wd_2': {
-                    'values': [args.wd_2]
-                },
                 'use_seq': {
                     'values':[parse_bool_str(x) for x in args.use_seq.split(',')]
                 },
@@ -175,9 +169,6 @@ def main():
                 },
                 'random_mask_size': {
                     'values':[int(x) for x in args.random_mask_size.split(',')]
-                },
-                'bce_loss_scale': {
-                    'values':[args.bce_loss_scale]
                 }
             }
     }
@@ -362,12 +353,6 @@ def main():
             scheduler1=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base1,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
                                          decay_schedule_fn=scheduler1)
-            scheduler1_wd= tf.keras.optimizers.schedules.CosineDecay(
-                initial_learning_rate=wandb.config.wd_1,
-                decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
-            scheduler1_wd=optimizers.WarmUp(initial_learning_rate=wandb.config.wd_1,
-                                         warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
-                                         decay_schedule_fn=scheduler1_wd)
             ###############
             scheduler2= tf.keras.optimizers.schedules.CosineDecay(
                 initial_learning_rate=wandb.config.lr_base2,
@@ -375,33 +360,16 @@ def main():
             scheduler2=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base2,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
                                          decay_schedule_fn=scheduler2)
-            scheduler2_wd= tf.keras.optimizers.schedules.CosineDecay(
-                initial_learning_rate=wandb.config.wd_2,
-                decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
-            scheduler2_wd=optimizers.WarmUp(initial_learning_rate=wandb.config.wd_2,
-                                         warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
-                                         decay_schedule_fn=scheduler2_wd)
 
-
-            if wandb.config.optimizer == 'adamw':
-                optimizer1 = tfa.optimizers.AdamW(learning_rate=scheduler1,
-                                                  weight_decay=scheduler1_wd,
-                                                  epsilon=wandb.config.epsilon)
-
-                optimizer2 = tfa.optimizers.AdamW(learning_rate=scheduler2,
-                                                  weight_decay=scheduler2_wd,
-                                                  epsilon=wandb.config.epsilon)
-            elif wandb.config.optimizer == 'adabelief':
+            if wandb.config.optimizer == 'adabelief':
                 optimizer1 = tfa.optimizers.AdaBelief(
                     learning_rate= scheduler1,
                     epsilon= wandb.config.epsilon,
-                    weight_decay=scheduler1_wd,
                     rectify=wandb.config.rectify
                 )
                 optimizer2 = tfa.optimizers.AdaBelief(
                     learning_rate= scheduler2, 
                     epsilon= wandb.config.epsilon,
-                    weight_decay= scheduler2_wd,
                     rectify=wandb.config.rectify
                 )
             elif wandb.config.optimizer == 'adam':
@@ -432,8 +400,7 @@ def main():
                                                                                             metric_dict,
                                                                                             GLOBAL_BATCH_SIZE,
                                                                                             wandb.config.gradient_clip,
-                                                                                            wandb.config.cage_scale,
-                                                                                            wandb.config.bce_loss_scale)
+                                                                                            wandb.config.cage_scale)
 
 
                 
@@ -478,18 +445,17 @@ def main():
                 val_step(data_val)
                 val_loss = metric_dict['val_loss'].result().numpy()
                 val_loss_poisson = metric_dict['val_loss_poisson'].result().numpy()
-                val_loss_bce = metric_dict['val_loss_bce'].result().numpy()
                 val_loss_ATAC = metric_dict['val_loss_ATAC'].result().numpy()
                 val_loss_CAGE = metric_dict['val_loss_CAGE'].result().numpy()
                 print('val_loss: ' + str(val_loss))
                 print('val_loss_poisson: ' + str(val_loss_poisson))
-                print('val_loss_bce: ' + str(val_loss_bce))
+                #print('val_loss_bce: ' + str(val_loss_bce))
                 print('val_loss_ATAC: ' + str(val_loss_ATAC))
                 print('val_loss_CAGE: ' + str(val_loss_CAGE))
                 
                 wandb.log({'human_val_loss': metric_dict['val_loss'].result().numpy(),
                            'human_val_loss_poisson': metric_dict['val_loss_poisson'].result().numpy(),
-                           'human_val_loss_bce': metric_dict['val_loss_bce'].result().numpy(),
+                           #'human_val_loss_bce': metric_dict['val_loss_bce'].result().numpy(),
                            'human_val_loss_CAGE': metric_dict['val_loss_CAGE'].result().numpy(),
                            'human_val_loss_ATAC': metric_dict['val_loss_ATAC'].result().numpy()},
                            #'human_val_loss_poisson': metric_dict['val_loss_poisson'].result().numpy()},
@@ -502,11 +468,11 @@ def main():
                 cage_R2 = metric_dict['CAGE_R2'].result()['R2'].numpy()
                 atac_pearsons = metric_dict['ATAC_PearsonR'].result()['PearsonR'].numpy()
                 atac_R2 = metric_dict['ATAC_R2'].result()['R2'].numpy()
-                atac_roc = metric_dict['ATAC_ROC'].result().numpy()
-                atac_pr = metric_dict['ATAC_PR'].result().numpy()
+                #atac_roc = metric_dict['ATAC_ROC'].result().numpy()
+                #atac_pr = metric_dict['ATAC_PR'].result().numpy()
                 
-                atac_TP = metric_dict['ATAC_TP'].result().numpy()
-                atac_T = metric_dict['ATAC_T'].result().numpy()
+                #atac_TP = metric_dict['ATAC_TP'].result().numpy()
+                #atac_T = metric_dict['ATAC_T'].result().numpy()
                 
                 val_pearsons.append(cage_pearsons)
                 
@@ -514,9 +480,10 @@ def main():
                            'human_CAGE_R2': cage_R2,
                            'human_ATAC_pearsons': atac_pearsons,
                            'human_ATAC_R2': atac_R2,
-                           'human_ATAC_ROC': atac_roc,
-                           'human_ATAC_pos_rate': (atac_TP/atac_T),
-                           'human_ATAC_PR': atac_pr},step=epoch_i)
+                           #'human_ATAC_ROC': atac_roc,
+                           #'human_ATAC_pos_rate': (atac_TP/atac_T),
+                           #'human_ATAC_PR': atac_pr
+                          },step=epoch_i)
                 
                 
                 
@@ -526,22 +493,22 @@ def main():
                 cage_R2_ho = metric_dict['CAGE_R2_ho'].result()['R2'].numpy()
                 atac_pearsons_ho = metric_dict['ATAC_PearsonR_ho'].result()['PearsonR'].numpy()
                 atac_R2_ho = metric_dict['ATAC_R2_ho'].result()['R2'].numpy()
-                atac_roc_ho = metric_dict['ATAC_ROC_ho'].result().numpy()
-                atac_pr_ho = metric_dict['ATAC_PR_ho'].result().numpy()
+                #atac_roc_ho = metric_dict['ATAC_ROC_ho'].result().numpy()
+                #atac_pr_ho = metric_dict['ATAC_PR_ho'].result().numpy()
                 
-                atac_TP_ho = metric_dict['ATAC_TP_ho'].result().numpy()
-                atac_T_ho = metric_dict['ATAC_T_ho'].result().numpy()
+                #atac_TP_ho = metric_dict['ATAC_TP_ho'].result().numpy()
+                #atac_T_ho = metric_dict['ATAC_T_ho'].result().numpy()
                 
                 
                 wandb.log({'human_CAGE_pearsons_ho': cage_pearsons_ho,
                            'human_CAGE_R2_ho': cage_R2_ho,
                            'human_ATAC_pearsons_ho': atac_pearsons_ho,
                            'human_ATAC_R2_ho': atac_R2_ho,
-                           'human_ATAC_ROC_ho': atac_roc_ho,
-                           'human_ATAC_pos_rate_ho': (atac_TP_ho/atac_T_ho),
-                           'human_ATAC_PR_ho': atac_pr_ho},step=epoch_i)
+                           #'human_ATAC_ROC_ho': atac_roc_ho,
+                           #'human_ATAC_pos_rate_ho': (atac_TP_ho/atac_T_ho),
+                           #'human_ATAC_PR_ho': atac_pr_ho
+                          },step=epoch_i)
 
-                
                 if epoch_i % 2 == 0: 
                     val_step_TSS(data_val_TSS)
                     val_step_TSS_ho(data_val_TSS_ho)

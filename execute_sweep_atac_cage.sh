@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model_atac_cage.py \
-            --tpu_name="node-5" \
-            --tpu_zone="us-central1-a" \
+            --tpu_name="pod1" \
+            --tpu_zone="us-east1-d" \
             --wandb_project="paired_rampage_atac" \
             --wandb_user="njaved" \
             --wandb_sweep_name="paired_rampage_atac" \
@@ -17,14 +17,14 @@ python3 train_model_atac_cage.py \
             --final_output_length=1536 \
             --max_shift=10 \
             --batch_size=4 \
-            --num_epochs=50 \
-            --train_examples=4500 \
-            --val_examples=500  \
-            --val_examples_ho=500  \
-            --val_examples_TSS=500 \
-            --val_examples_TSS_ho=500 \
+            --num_epochs=60 \
+            --train_examples=150000 \
+            --val_examples=59751  \
+            --val_examples_ho=11065  \
+            --val_examples_TSS=57618 \
+            --val_examples_TSS_ho=4775 \
             --BN_momentum=0.90 \
-            --warmup_frac=0.001 \
+            --warmup_frac=0.05 \
             --patience=50 \
             --output_res=128 \
             --min_delta=0.000005 \
@@ -32,7 +32,7 @@ python3 train_model_atac_cage.py \
             --model_save_basename="aformer_baseline" \
             --lr_base1="5.0e-05" \
             --lr_base2="1.0e-04" \
-            --decay_frac="0.50" \
+            --decay_frac="0.25" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-8 \
             --num_transformer_layers="6" \
@@ -44,8 +44,6 @@ python3 train_model_atac_cage.py \
             --savefreq=1 \
             --freeze_conv_layers="False" \
             --load_init="True" \
-            --wd_1=0.0 \
-            --wd_2=0.0 \
             --rectify="True" \
             --multitask_checkpoint_path="gs://picard-testing-176520/genformer_atac_pretrain/models/aformer_genformer_atac_hg_262k_load-True_frz-False_LR1-0.0001_LR2-0.0001_T-6_D-0.25_2023-04-09_08:53:28/iteration_20" \
             --filter_list_seq="512,640,768,896,1024,1152" \
@@ -53,9 +51,8 @@ python3 train_model_atac_cage.py \
             --cage_scale="0.95" \
             --optimizer="adam" \
             --stable_variant="False" \
-            --atac_mask_dropout=0.05 \
+            --atac_mask_dropout=0.10 \
             --random_mask_size="1024" \
-            --bce_loss_scale="0.01" \
             --log_atac="True" \
             --learnable_PE="True" \
             --sonnet_weights_bool="False" 
