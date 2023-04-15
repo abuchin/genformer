@@ -1120,7 +1120,7 @@ def return_dataset(gcs_path,
                                                             g),
                               deterministic=False,
                               num_parallel_calls=num_parallel)
-        return dataset.repeat(num_epoch).batch(batch,drop_remainder=True).prefetch(1)
+        return dataset.repeat(num_epoch).batch(batch,drop_remainder=True).prefetch(tf.data.AUTOTUNE)
     
 
     else:
@@ -1156,7 +1156,7 @@ def return_dataset(gcs_path,
                                   deterministic=False,
                                   num_parallel_calls=num_parallel)
 
-        return dataset.batch(batch,drop_remainder=True).prefetch(1).repeat(num_epoch)
+        return dataset.batch(batch,drop_remainder=True).prefetch(tf.data.AUTOTUNE).repeat(num_epoch)
 
 
 def return_distributed_iterators(gcs_path,

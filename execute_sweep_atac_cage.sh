@@ -18,7 +18,7 @@ python3 train_model_atac_cage.py \
             --max_shift=10 \
             --batch_size=4 \
             --num_epochs=60 \
-            --train_examples=300000 \
+            --train_examples=500000 \
             --val_examples=64177  \
             --val_examples_ho=6639  \
             --val_examples_TSS=97208 \

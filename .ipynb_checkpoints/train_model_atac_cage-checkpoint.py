@@ -316,9 +316,6 @@ def main():
                 raise ValueError('inits type not found')
                 
             print(wandb.config)
-            #else:
-            #    inits=None
-            #    print('WARNING: supplied checkpoint directory does not exist')
 
             model = aformer.aformer(kernel_transformation=wandb.config.kernel_transformation,
                                     dropout_rate=wandb.config.dropout_rate,
@@ -369,7 +366,7 @@ def main():
                 decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
             scheduler3=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base3,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
-                                         decay_schedule_fn=scheduler2)
+                                         decay_schedule_fn=scheduler3)
 
             if wandb.config.optimizer == 'adabelief':
                 optimizer1 = tfa.optimizers.AdaBelief(
@@ -528,9 +525,9 @@ def main():
                     print('gene_specific_correlation: ' + str(gene_specific_corrs))
 
                     wandb.log({'gene_spec_mean_corrs': gene_specific_corrs,
-                               'cell_spec_mean_corrs': cell_specific_corrs,
-                               'gene_spec_mean_corrs_sp': gene_specific_corrs_sp,
-                               'cell_spec_mean_corrs_sp': cell_specific_corrs_sp},
+                               'cell_spec_mean_corrs': cell_specific_corrs},
+                               #'gene_spec_mean_corrs_sp': gene_specific_corrs_sp,
+                               #'cell_spec_mean_corrs_sp': cell_specific_corrs_sp},
                               step=epoch_i)
                     wandb.log({'hg_OVERALL_TSS_predictions': fig_overall,
                                'cross_cell_dist': fig_cell_spec,
@@ -558,9 +555,9 @@ def main():
                     print('gene_specific_correlation_ho: ' + str(gene_specific_corrs))
 
                     wandb.log({'gene_spec_mean_corrs_ho': gene_specific_corrs,
-                               'cell_spec_mean_corrs_ho': cell_specific_corrs,
-                               'gene_spec_mean_corrs_sp_ho': gene_specific_corrs_sp,
-                               'cell_spec_mean_corrs_sp_ho': cell_specific_corrs_sp},
+                               'cell_spec_mean_corrs_ho': cell_specific_corrs},
+                               #'gene_spec_mean_corrs_sp_ho': gene_specific_corrs_sp,
+                               #'cell_spec_mean_corrs_sp_ho': cell_specific_corrs_sp},
                               step=epoch_i)
                     wandb.log({'hg_OVERALL_TSS_predictions_ho': fig_overall,
                                'cross_cell_dist_ho': fig_cell_spec,
