@@ -356,10 +356,6 @@ def return_train_val_functions(model,
     metric_dict["val_loss"] = tf.keras.metrics.Mean("val_loss",
                                                   dtype=tf.float32)
     
-    #metric_dict["val_loss_bce"] = tf.keras.metrics.Mean("val_loss_bce",
-    #                                              dtype=tf.float32)
-    metric_dict["val_loss_poisson"] = tf.keras.metrics.Mean("val_loss_poisson",
-                                                  dtype=tf.float32)
     metric_dict["val_loss_CAGE"] = tf.keras.metrics.Mean("val_loss_CAGE",
                                                   dtype=tf.float32)
     metric_dict["val_loss_ATAC"] = tf.keras.metrics.Mean("val_loss_ATAC",
@@ -376,17 +372,6 @@ def return_train_val_functions(model,
 
     metric_dict['CAGE_PearsonR_ho'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
     metric_dict['CAGE_R2_ho'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
-
-    #metric_dict['ATAC_PR'] = tf.keras.metrics.AUC(curve='PR')
-    #metric_dict['ATAC_ROC'] = tf.keras.metrics.AUC(curve='ROC')
-    #metric_dict['ATAC_PR_ho'] = tf.keras.metrics.AUC(curve='PR')
-    #metric_dict['ATAC_ROC_ho'] = tf.keras.metrics.AUC(curve='ROC')
-
-    #metric_dict['ATAC_TP'] = tf.keras.metrics.Sum()
-    #metric_dict['ATAC_T'] = tf.keras.metrics.Sum()
-    
-    #metric_dict['ATAC_TP_ho'] = tf.keras.metrics.Sum()
-    #metric_dict['ATAC_T_ho'] = tf.keras.metrics.Sum()
 
     def dist_train_step(iterator):    
         @tf.function(jit_compile=True)
@@ -432,15 +417,8 @@ def return_train_val_functions(model,
                 target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
                 output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
                 
-                #mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
-                #target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
-                #output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
-
-                #bce_loss = tf.reduce_mean(bce_loss_func(target_peaks,
-                #                                        output_peaks)) * (1./ global_batch_size) * bce_loss_scale
-
                 poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac,
-                                                                output_atac)) * (1. / global_batch_size) #* (1.0-bce_loss_scale)
+                                                                output_atac)) * (1. / global_batch_size) 
 
                 atac_loss = (poisson_loss) * (1.0-cage_scale)
                 
@@ -492,13 +470,9 @@ def return_train_val_functions(model,
             
             mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
             target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
-            #output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
-
-            #bce_loss = tf.reduce_mean(bce_loss_func(target_peaks,
-            #                                        output_peaks)) * (1./ global_batch_size) * bce_loss_scale
 
             poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac,
-                                                            output_atac)) * (1. / global_batch_size)# * (1.0-bce_loss_scale)
+                                                            output_atac)) * (1. / global_batch_size)
 
             atac_loss = (poisson_loss) * (1.0-cage_scale)
 
@@ -516,19 +490,8 @@ def return_train_val_functions(model,
             metric_dict['ATAC_R2'].update_state(target_atac, 
                                                 output_atac)
             
-            """
-            metric_dict['ATAC_PR'].update_state(target_peaks,
-                                                output_peaks)
-            metric_dict['ATAC_ROC'].update_state(target_peaks,
-                                                 output_peaks)
-            
-            metric_dict['ATAC_TP'].update_state(target_peaks)
-            metric_dict['ATAC_T'].update_state((target_peaks + (1-target_peaks)))
-            """ 
 
             metric_dict["val_loss"].update_state(loss)
-            #metric_dict["val_loss_bce"].update_state(bce_loss)
-            metric_dict["val_loss_poisson"].update_state(poisson_loss)
             metric_dict["val_loss_CAGE"].update_state(cage_loss)
             metric_dict["val_loss_ATAC"].update_state(atac_loss)
 
@@ -561,13 +524,9 @@ def return_train_val_functions(model,
 
             mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
             target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
-            #output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
-
-            #bce_loss = tf.reduce_mean(bce_loss_func(target_peaks,
-            #                                        output_peaks)) * (1./ global_batch_size) * bce_loss_scale
 
             poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac,
-                                                            output_atac)) * (1. / global_batch_size) #* (1.0-bce_loss_scale)
+                                                            output_atac)) * (1. / global_batch_size) 
 
             atac_loss = (poisson_loss) * (1.0-cage_scale)
 
@@ -584,15 +543,6 @@ def return_train_val_functions(model,
             metric_dict['ATAC_R2_ho'].update_state(target_atac, 
                                                 output_atac)
             
-            """
-            metric_dict['ATAC_PR_ho'].update_state(target_peaks,
-                                                output_peaks)
-            metric_dict['ATAC_ROC_ho'].update_state(target_peaks,
-                                                 output_peaks)
-            
-            metric_dict['ATAC_TP_ho'].update_state(target_peaks)
-            metric_dict['ATAC_T_ho'].update_state((target_peaks + (1-target_peaks)))
-            """
         for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
             strategy.run(val_step,
                          args=(next(iterator),))
@@ -610,8 +560,7 @@ def return_train_val_functions(model,
                                    training=False)
 
             output_profile = tf.cast(output_profile,dtype=tf.float32)
-            #output_peaks = tf.cast(output_peaks,dtype=tf.float32)
-            
+
             tss_tokens = tf.cast(inputs['tss_tokens'],dtype=tf.float32)
             gene_token = inputs['gene_token']
             cell_type = inputs['cell_type']
@@ -1372,11 +1321,11 @@ def make_plots(y_trues,
     
     results_df['true_zscore']=results_df.groupby(['cell_type_encoding']).true.transform(lambda x : zscore(x))
     results_df['pred_zscore']=results_df.groupby(['cell_type_encoding']).pred.transform(lambda x : zscore(x))
+
     
     true_zscore=results_df[['true_zscore']].to_numpy()[:,0]
-
     pred_zscore=results_df[['pred_zscore']].to_numpy()[:,0]
-
+    
     try: 
         cell_specific_corrs=results_df.groupby('cell_type_encoding')[['true_zscore','pred_zscore']].corr(method='pearson').unstack().iloc[:,1].tolist()
         cell_specific_corrs_sp=results_df.groupby('cell_type_encoding')[['true_zscore','pred_zscore']].corr(method='spearman').unstack().iloc[:,1].tolist()
@@ -1398,7 +1347,11 @@ def make_plots(y_trues,
     fig_overall,ax_overall=plt.subplots(figsize=(6,6))
     
     ## scatter plot for 50k points max
-    idx = np.random.choice(np.arange(len(true_zscore)), num_points, replace=False)
+    try: 
+        idx = np.random.choice(np.arange(len(true_zscore)), num_points, replace=False)
+    except ValueError:
+        print('subsampling 10 points only. figure out why!')
+        idx = np.random.choice(np.arange(len(true_zscore)), 10, replace=False)
     
     data = np.vstack([true_zscore[idx],
                       pred_zscore[idx]])
@@ -1787,19 +1740,12 @@ def parse_args(parser):
                         type=str,
                         default="False",
                         help= 'sonnet_weights_bool')
-    
     parser.add_argument('--random_mask_size',
                         dest='random_mask_size',
                         type=str,
-                        default="1152",
+                        default="1024",
                         help= 'random_mask_size')
-    """
-    parser.add_argument('--bce_loss_scale',
-                        dest='bce_loss_scale',
-                        default=0.90,
-                        type=float,
-                        help= 'bce_loss_scale')
-    """
+
     
     args = parser.parse_args()
     return parser

@@ -21,8 +21,8 @@ python3 train_model_atac_cage.py \
             --train_examples=300000 \
             --val_examples=64177  \
             --val_examples_ho=6639  \
-            --val_examples_TSS=61886 \
-            --val_examples_TSS_ho=6402 \
+            --val_examples_TSS=97208 \
+            --val_examples_TSS_ho=10056 \
             --BN_momentum=0.90 \
             --warmup_frac=0.004 \
             --patience=50 \
@@ -30,7 +30,7 @@ python3 train_model_atac_cage.py \
             --min_delta=0.000005 \
             --model_save_dir="gs://picard-testing-176520/paired_rampage_atac/genformer/models" \
             --model_save_basename="aformer_baseline" \
-            --lr_base1="1.0e-05" \
+            --lr_base1="2.5e-05" \
             --lr_base2="5.0e-05" \
             --lr_base3="1.0e-04" \
             --decay_frac="0.25" \
