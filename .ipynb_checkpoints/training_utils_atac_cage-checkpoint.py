@@ -342,7 +342,7 @@ def return_train_val_functions(model,
     #bce_loss_func = tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.NONE,
     #                                                   from_logits=True)
 
-    optimizer1,optimizer2=optimizers_in
+    optimizer1,optimizer2,optimizer3=optimizers_in
     
     metric_dict["corr_stats"] = metrics.correlation_stats_gene_centered(name='corr_stats')
     metric_dict["corr_stats_ho"] = metrics.correlation_stats_gene_centered(name='corr_stats_ho')
@@ -455,7 +455,7 @@ def return_train_val_functions(model,
             optimizer1.apply_gradients(zip(gradients[:len(trunk_vars)], 
                                            trunk_vars))
             optimizer2.apply_gradients(zip(gradients[len(trunk_vars):len(trunk_vars+pointwise_vars)], 
-                                           trunk_vars))
+                                           pointwise_vars))
             optimizer3.apply_gradients(zip(gradients[len(trunk_vars+pointwise_vars):], 
                                            heads_vars))
             metric_dict["train_loss"].update_state(loss)
