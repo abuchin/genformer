@@ -419,7 +419,8 @@ def main():
                     print('building model')
                     build_step(data_val_ho)
                     if ((wandb.config.inits_type == 'enformer_performer_full') and (loading_checkpoint_bool==True)):
-                        model.load_weights(args.multitask_checkpoint_path + "/saved_model")
+                        model.load_weights(args.multitask_checkpoint_path + "/saved_model",
+                                           by_name=True)
                         print('built and loaded model')
                     total_params = 0
                     for k in model.trainable_variables:

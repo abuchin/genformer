@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model_atac.py \
-            --tpu_name="pod1" \
-            --tpu_zone="us-east1-d" \
+            --tpu_name="node-5" \
+            --tpu_zone="us-central1-a" \
             --wandb_project="atac_pretraining" \
             --wandb_user="njaved" \
             --wandb_sweep_name="atac_pretraining" \
@@ -40,11 +40,12 @@ python3 train_model_atac.py \
             --kernel_transformation="relu_kernel_transformation" \
             --savefreq=1 \
             --freeze_conv_layers="False" \
-            --load_init="False" \
+            --load_init="True" \
             --rectify="True" \
             --filter_list_seq="512,640,768,896,1024,1152" \
             --filter_list_atac="32,64" \
             --inits_type="enformer_performer_full" \
+            --multitask_checkpoint_path="gs://picard-testing-176520/genformer_atac_pretrain/models/aformer_hg_mm_rm_rat_262k_load-False_LR-0.01_T-7_D-0.3_2023-04-11_21:03:18/iteration_27" \
             --optimizer="adam" \
             --stable_variant="False" \
             --atac_mask_dropout=0.20 \

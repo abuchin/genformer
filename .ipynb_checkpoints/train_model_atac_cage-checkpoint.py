@@ -98,6 +98,9 @@ def main():
                 'lr_base2': {
                     'values':[float(x) for x in args.lr_base2.split(',')]
                 },
+                'lr_base3': {
+                    'values':[float(x) for x in args.lr_base2.split(',')]
+                },
                 'gradient_clip': {
                     'values': [float(x) for x in args.gradient_clip.split(',')]
                 },
@@ -221,10 +224,10 @@ def main():
             
             run_name = '_'.join(["GENFORMER",
                                  str(int(wandb.config.input_length) / 1000)[:4].rstrip('.') + 'k',
-                                 "glob_acc-False",
                                  'load-' + str(wandb.config.load_init),
                                  'LR1-' + str(wandb.config.lr_base1),
                                  'LR2-' + str(wandb.config.lr_base2),
+                                 'LR3-' + str(wandb.config.lr_base3),
                                  'T-' + str(wandb.config.num_transformer_layers),
                                  'D-' + str(wandb.config.dropout_rate)])
             
@@ -360,6 +363,13 @@ def main():
             scheduler2=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base2,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
                                          decay_schedule_fn=scheduler2)
+            ############
+            scheduler2= tf.keras.optimizers.schedules.CosineDecay(
+                initial_learning_rate=wandb.config.lr_base3,
+                decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
+            scheduler2=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base3,
+                                         warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
+                                         decay_schedule_fn=scheduler2)
 
             if wandb.config.optimizer == 'adabelief':
                 optimizer1 = tfa.optimizers.AdaBelief(
@@ -372,17 +382,23 @@ def main():
                     epsilon= wandb.config.epsilon,
                     rectify=wandb.config.rectify
                 )
+                optimizer3 = tfa.optimizers.AdaBelief(
+                    learning_rate= scheduler3, 
+                    epsilon= wandb.config.epsilon,
+                    rectify=wandb.config.rectify
+                )
             elif wandb.config.optimizer == 'adam':
                 optimizer1 = tf.keras.optimizers.Adam(learning_rate=scheduler1,
                                                       epsilon=wandb.config.epsilon)
-
                 optimizer2 = tf.keras.optimizers.Adam(learning_rate=scheduler2,
+                                                      epsilon=wandb.config.epsilon)
+                optimizer3 = tf.keras.optimizers.Adam(learning_rate=scheduler3,
                                                       epsilon=wandb.config.epsilon)
             else:
                 raise ValueError('optimizer not found')
 
 
-            optimizers_in = optimizer1,optimizer2
+            optimizers_in = optimizer1,optimizer2,optimizer3
             
             metric_dict = {}
 

@@ -410,13 +410,14 @@ def return_train_val_functions(model,
                                         model.stem_pool_atac.trainable_variables + \
                                         model.conv_tower_atac.trainable_variables + \
                                         model.pos_embedding_learned.trainable_variables + \
-                                        model.performer.trainable_variables + \
-                                        model.final_pointwise_conv.trainable_variables
+                                        model.performer.trainable_variables
+                
+                pointwise_vars = model.final_pointwise_conv.trainable_variables
                 
                 heads_vars = model.final_dense_profile.trainable_variables 
                 
                 
-                vars_all = trunk_vars + heads_vars
+                vars_all = trunk_vars + pointwise_vars + heads_vars
                 for var in vars_all:
                     tape.watch(var)
                     
@@ -453,7 +454,9 @@ def return_train_val_functions(model,
             
             optimizer1.apply_gradients(zip(gradients[:len(trunk_vars)], 
                                            trunk_vars))
-            optimizer2.apply_gradients(zip(gradients[len(trunk_vars):], 
+            optimizer2.apply_gradients(zip(gradients[len(trunk_vars):len(trunk_vars+pointwise_vars)], 
+                                           trunk_vars))
+            optimizer3.apply_gradients(zip(gradients[len(trunk_vars+pointwise_vars):], 
                                            heads_vars))
             metric_dict["train_loss"].update_state(loss)
             metric_dict["train_loss_cage"].update_state(cage_loss)
@@ -745,8 +748,6 @@ def deserialize_tr(serialized_example,
     ### stochastic sequence shift and gaussian noise
 
     rev_comp = tf.math.round(g.uniform([], 0, 1))
-    seq_mask_int = g.uniform([], 0, 10,dtype=tf.int32)
-    full_atac_mask_int = g.uniform([], 0, 12,dtype=tf.int32)
     stupid_random_seed = g.uniform([], 0, 10000000,dtype=tf.int32)
     shift = g.uniform(shape=(),
                       minval=0,
@@ -817,10 +818,6 @@ def deserialize_tr(serialized_example,
                              #                  seed=stupid_random_seed+2) ## random shuffle the tokens
     masked_atac = masked_atac + (1.0-full_comb_mask)*random_shuffled_tokens
     
-    ## at low probability, also random mask the entire ATAC signal and still ask for prediction
-    ## force network to solely use sequence features
-    if full_atac_mask_int == 0:
-        masked_atac = random_shuffled_tokens
         
     masked_atac = masked_atac + tf.math.abs(g.normal(atac.shape,
                                                mean=0.0,
@@ -833,25 +830,7 @@ def deserialize_tr(serialized_example,
     diff = tf.math.sqrt(tf.nn.relu(masked_atac - 100.0 * tf.ones(masked_atac.shape)))
     masked_atac = tf.clip_by_value(masked_atac, clip_value_min=0.0, clip_value_max=100.0) + diff
     
-    ### here set up the sequence masking
-    if ((seq_mask_int == 0) and (full_atac_mask_int != 0)):
-        seq_mask = 1.0 - full_comb_mask_full_store
-        tiling_req_seq = input_length // output_length
-        seq_mask = tf.expand_dims(tf.reshape(tf.tile(seq_mask, [1,tiling_req_seq]),[-1]),axis=1)
-        masked_seq = sequence * seq_mask + tf.random.experimental.stateless_shuffle(sequence,
-                                                                                    seed=[2,stupid_random_seed])*(1.0-seq_mask)
-        ## this adds random bases in place of the stretches of 0
-    #elif (seq_mask_int == 1):
-    #    seq_mask = 1.0 - full_comb_mask_full_store
-    #    tiling_req_seq = input_length // output_length
-    #    seq_mask = tf.expand_dims(tf.reshape(tf.tile(seq_mask, [1,tiling_req_seq]),[-1]),axis=1)
-    #    masked_seq = tf.random.shuffle(sequence) * seq_mask + sequence*(1.0-seq_mask)
-    else:
-        seq_mask = 1.0 - full_comb_mask_full_store
-        tiling_req_seq = input_length // output_length
-        seq_mask = tf.expand_dims(tf.reshape(tf.tile(seq_mask, [1,tiling_req_seq]),[-1]),axis=1)   
-        masked_seq = sequence
-        
+
         
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),
@@ -862,8 +841,8 @@ def deserialize_tr(serialized_example,
 
     
     if rev_comp == 1:
-        masked_seq = tf.gather(masked_seq, [3, 2, 1, 0], axis=-1)
-        masked_seq = tf.reverse(masked_seq, axis=[0])
+        sequence = tf.gather(sequence, [3, 2, 1, 0], axis=-1)
+        sequence = tf.reverse(sequence, axis=[0])
         atac_target = tf.reverse(atac_target,axis=[0])
         masked_atac = tf.reverse(masked_atac,axis=[0])
         peaks_crop=tf.reverse(peaks_crop,axis=[0])
@@ -892,7 +871,7 @@ def deserialize_tr(serialized_example,
                                                               seed=[3,stupid_random_seed+3])
     
 
-    return {'sequence': tf.ensure_shape(masked_seq,
+    return {'sequence': tf.ensure_shape(sequence,
                                         [input_length,4]),
             'atac': tf.ensure_shape(masked_atac,
                                     [output_length_ATAC,1]),
@@ -1622,6 +1601,10 @@ def parse_args(parser):
                         dest='lr_base2',
                         default="1.0e-03",
                         help='lr_base2')
+    parser.add_argument('--lr_base3',
+                        dest='lr_base3',
+                        default="1.0e-03",
+                        help='lr_base3')
     parser.add_argument('--decay_frac',
                         dest='decay_frac',
                         type=str,
