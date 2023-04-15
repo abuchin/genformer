@@ -30,8 +30,8 @@ python3 train_model_atac_cage.py \
             --min_delta=0.000005 \
             --model_save_dir="gs://picard-testing-176520/paired_rampage_atac/genformer/models" \
             --model_save_basename="aformer_baseline" \
-            --lr_base1="1.0e-06" \
-            --lr_base2="1.0e-05" \
+            --lr_base1="1.0e-05" \
+            --lr_base2="5.0e-05" \
             --lr_base3="1.0e-04" \
             --decay_frac="0.25" \
             --gradient_clip="5.0" \

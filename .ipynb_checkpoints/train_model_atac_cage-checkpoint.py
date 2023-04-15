@@ -99,7 +99,7 @@ def main():
                     'values':[float(x) for x in args.lr_base2.split(',')]
                 },
                 'lr_base3': {
-                    'values':[float(x) for x in args.lr_base2.split(',')]
+                    'values':[float(x) for x in args.lr_base3.split(',')]
                 },
                 'gradient_clip': {
                     'values': [float(x) for x in args.gradient_clip.split(',')]
@@ -539,7 +539,7 @@ def main():
 
                     print('making plots')
                     figures,corrs_overall= training_utils.make_plots(y_trues,y_preds,
-                                                                     cell_types,gene_map, 100)
+                                                                     cell_types,gene_map, 1500)
 
 
                     fig_cell_spec, fig_gene_spec, fig_overall=figures 
@@ -571,7 +571,7 @@ def main():
 
                     print('making plots')
                     figures,corrs_overall= training_utils.make_plots(y_trues,y_preds,
-                                                                     cell_types,gene_map, 100)
+                                                                     cell_types,gene_map, 1500)
 
                     fig_cell_spec, fig_gene_spec, fig_overall=figures 
 
