@@ -53,7 +53,7 @@ python3 train_model_atac_cage.py \
             --optimizer="adam" \
             --stable_variant="False" \
             --atac_mask_dropout=0.025 \
-            --random_mask_size="512" \
+            --random_mask_size="1024" \
             --log_atac="True" \
             --learnable_PE="True" \
             --sonnet_weights_bool="False" 
