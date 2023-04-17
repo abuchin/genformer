@@ -95,8 +95,14 @@ def main():
                 'lr_base1': {
                     'values':[float(x) for x in args.lr_base1.split(',')]
                 },
+                'lr_base2': {
+                    'values':[float(x) for x in args.lr_base2.split(',')]
+                },
                 'wd_1': {
                     'values':[float(x) for x in args.wd_1.split(',')]
+                },
+                'wd_2': {
+                    'values':[float(x) for x in args.wd_2.split(',')]
                 },
                 'gradient_clip': {
                     'values': [float(x) for x in args.gradient_clip.split(',')]
@@ -366,39 +372,58 @@ def main():
             scheduler1=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base1,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
                                          decay_schedule_fn=scheduler1)
+            scheduler2= tf.keras.optimizers.schedules.CosineDecay(
+                initial_learning_rate=wandb.config.lr_base2,
+                decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
+            scheduler2=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base2,
+                                         warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
+                                         decay_schedule_fn=scheduler2)
 
             if wandb.config.optimizer == 'adam':
-                optimizer = tf.keras.optimizers.Adam(learning_rate=scheduler1,
+                optimizer1 = tf.keras.optimizers.Adam(learning_rate=scheduler1,
+                                                      epsilon=wandb.config.epsilon)
+                optimizer2 = tf.keras.optimizers.Adam(learning_rate=scheduler2,
                                                       epsilon=wandb.config.epsilon)
 
             elif wandb.config.optimizer == 'adamw':
-                optimizer = tfa.optimizers.AdamW(learning_rate=scheduler1,
+                optimizer1 = tfa.optimizers.AdamW(learning_rate=scheduler1,
                                                      weight_decay=wandb.config.wd_1,
                                                      epsilon=wandb.config.epsilon,
                                                       exclude_from_weight_decay=['layer_norm', 
                                                                                  'bias',
                                                                                  'embeddings',
                                                                                  'batch_norm'])
+                optimizer2 = tfa.optimizers.AdamW(learning_rate=scheduler2,
+                                                     weight_decay=wandb.config.wd_2,
+                                                     epsilon=wandb.config.epsilon,
+                                                      exclude_from_weight_decay=['layer_norm', 
+                                                                                 'bias',
+                                                                                 'embeddings',
+                                                                                 'batch_norm'])
             elif wandb.config.optimizer == 'adabelief':
-                optimizer = tfa.optimizers.AdaBelief(
+                optimizer1 = tfa.optimizers.AdaBelief(
                     learning_rate= scheduler1,
                     epsilon= wandb.config.epsilon,
                     rectify=wandb.config.rectify
                 )
-            elif wandb.config.optimizer == 'lamb':
-                optimizer = tfa.optimizers.LAMB(learning_rate=scheduler1,
-                                                epsilon=wandb.config.epsilon)
+                optimizer2 = tfa.optimizers.AdaBelief(
+                    learning_rate= scheduler2,
+                    epsilon= wandb.config.epsilon,
+                    rectify=wandb.config.rectify
+                )
             else:
                 raise ValueError('optimizer not found')
 
             metric_dict = {}
+            
+            optimizers_in = optimizer1,optimizer2
 
             train_step_all, train_step, val_step, \
                 build_step, metric_dict = training_utils.return_train_val_functions(model,
                                                                                 wandb.config.train_steps,
                                                                                 #wandb.config.val_steps,
                                                                                 wandb.config.val_steps_ho,
-                                                                                optimizer,
+                                                                                optimizers_in,
                                                                                 strategy,
                                                                                 metric_dict,
                                                                                 GLOBAL_BATCH_SIZE,
@@ -419,8 +444,7 @@ def main():
                     print('building model')
                     build_step(data_val_ho)
                     if ((wandb.config.inits_type == 'enformer_performer_full') and (loading_checkpoint_bool==True)):
-                        model.load_weights(args.multitask_checkpoint_path + "/saved_model",
-                                           by_name=True)
+                        model.load_weights(args.multitask_checkpoint_path + "/saved_model")
                         print('built and loaded model')
                     total_params = 0
                     for k in model.trainable_variables:

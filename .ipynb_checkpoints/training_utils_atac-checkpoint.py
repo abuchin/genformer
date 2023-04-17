@@ -489,7 +489,7 @@ def get_initializers_enformer_performer_full(checkpoint_path,
 def return_train_val_functions(model,
                                train_steps,
                                val_steps_ho,
-                               optimizer,
+                               optimizers_in,
                                strategy,
                                metric_dict,
                                global_batch_size,
@@ -499,7 +499,7 @@ def return_train_val_functions(model,
     poisson_loss_func = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
     bce_loss_func = tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
 
-    #optimizer1,optimizer2=optimizers_in
+    optimizer1,optimizer2=optimizers_in
 
     metric_dict["train_loss"] = tf.keras.metrics.Mean("train_loss",
                                                  dtype=tf.float32)
@@ -541,20 +541,20 @@ def return_train_val_functions(model,
             input_tuple = sequence, atac#, global_acc
 
             with tf.GradientTape() as tape:
-                #conv_vars = model.stem_conv.trainable_variables + \
-                #            model.stem_res_conv.trainable_variables + \
-                #            model.stem_pool.trainable_variables + \
-                #            model.conv_tower.trainable_variables
+                conv_vars = model.stem_conv.trainable_variables + \
+                            model.stem_res_conv.trainable_variables + \
+                            model.stem_pool.trainable_variables + \
+                            model.conv_tower.trainable_variables
                 
-                #performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
-                #                        model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
-                #                        model.pos_embedding_learned.trainable_variables + model.performer.trainable_variables + \
-                #                        model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables + \
-                #                        model.final_dense_peaks.trainable_variables
+                performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
+                                        model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
+                                        model.pos_embedding_learned.trainable_variables + model.performer.trainable_variables + \
+                                        model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables + \
+                                        model.final_dense_peaks.trainable_variables
 
-                #vars_all = conv_vars + performer_vars
-                #for var in vars_all:
-                #    tape.watch(var)
+                vars_all = conv_vars + performer_vars
+                for var in vars_all:
+                    tape.watch(var)
                     
                 output_profile,output_peaks = model(input_tuple,
                                        training=True)
@@ -576,13 +576,14 @@ def return_train_val_functions(model,
 
                 loss = poisson_loss + bce_loss
 
-            gradients = tape.gradient(loss, model.trainable_variables)
+            gradients = tape.gradient(loss, vars_all)
             gradients, _ = tf.clip_by_global_norm(gradients, 
                                                   gradient_clip)
             
-            optimizer.apply_gradients(zip(gradients, model.trainable_variables))
-            #optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
-            #                               performer_vars))
+            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], 
+                                           conv_vars))
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
+                                           performer_vars))
             metric_dict["train_loss"].update_state(loss)
             
         @tf.function(jit_compile=True)
@@ -597,7 +598,21 @@ def return_train_val_functions(model,
             input_tuple = sequence, atac#, global_acc
 
             with tf.GradientTape() as tape:
+                conv_vars = model.stem_conv.trainable_variables + \
+                            model.stem_res_conv.trainable_variables + \
+                            model.stem_pool.trainable_variables + \
+                            model.conv_tower.trainable_variables
+                
+                performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
+                                        model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
+                                        model.pos_embedding_learned.trainable_variables + model.performer.trainable_variables + \
+                                        model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables + \
+                                        model.final_dense_peaks.trainable_variables
 
+                vars_all = conv_vars + performer_vars
+                for var in vars_all:
+                    tape.watch(var)
+                    
                 output_profile,output_peaks = model(input_tuple,
                                        training=True)
                 output_profile = tf.cast(output_profile['mouse'],dtype=tf.float32) # ensure cast to float32
@@ -618,11 +633,14 @@ def return_train_val_functions(model,
 
                 loss = poisson_loss + bce_loss
 
-            gradients = tape.gradient(loss, model.trainable_variables)
+            gradients = tape.gradient(loss, vars_all)
             gradients, _ = tf.clip_by_global_norm(gradients, 
                                                   gradient_clip)
             
-            optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], 
+                                           conv_vars))
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
+                                           performer_vars))
             metric_dict["train_loss_mm"].update_state(loss)
             
         @tf.function(jit_compile=True)
@@ -637,6 +655,20 @@ def return_train_val_functions(model,
             input_tuple = sequence, atac#, global_acc
 
             with tf.GradientTape() as tape:
+                conv_vars = model.stem_conv.trainable_variables + \
+                            model.stem_res_conv.trainable_variables + \
+                            model.stem_pool.trainable_variables + \
+                            model.conv_tower.trainable_variables
+                
+                performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
+                                        model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
+                                        model.pos_embedding_learned.trainable_variables + model.performer.trainable_variables + \
+                                        model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables + \
+                                        model.final_dense_peaks.trainable_variables
+
+                vars_all = conv_vars + performer_vars
+                for var in vars_all:
+                    tape.watch(var)
                     
                 output_profile,output_peaks = model(input_tuple,
                                        training=True)
@@ -658,11 +690,14 @@ def return_train_val_functions(model,
 
                 loss = poisson_loss + bce_loss
 
-            gradients = tape.gradient(loss, model.trainable_variables)
+            gradients = tape.gradient(loss, vars_all)
             gradients, _ = tf.clip_by_global_norm(gradients, 
                                                   gradient_clip)
             
-            optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], 
+                                           conv_vars))
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
+                                           performer_vars))
             metric_dict["train_loss_rm"].update_state(loss)
             
         @tf.function(jit_compile=True)
@@ -677,6 +712,20 @@ def return_train_val_functions(model,
             input_tuple = sequence, atac#, global_acc
 
             with tf.GradientTape() as tape:
+                conv_vars = model.stem_conv.trainable_variables + \
+                            model.stem_res_conv.trainable_variables + \
+                            model.stem_pool.trainable_variables + \
+                            model.conv_tower.trainable_variables
+                
+                performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
+                                        model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
+                                        model.pos_embedding_learned.trainable_variables + model.performer.trainable_variables + \
+                                        model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables + \
+                                        model.final_dense_peaks.trainable_variables
+
+                vars_all = conv_vars + performer_vars
+                for var in vars_all:
+                    tape.watch(var)
                     
                 output_profile,output_peaks = model(input_tuple,
                                        training=True)
@@ -698,11 +747,14 @@ def return_train_val_functions(model,
 
                 loss = poisson_loss + bce_loss
 
-            gradients = tape.gradient(loss, model.trainable_variables)
+            gradients = tape.gradient(loss, vars_all)
             gradients, _ = tf.clip_by_global_norm(gradients, 
                                                   gradient_clip)
             
-            optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], 
+                                           conv_vars))
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
+                                           performer_vars))
             metric_dict["train_loss_rat"].update_state(loss)
         
         for _ in tf.range(train_steps):
@@ -730,7 +782,21 @@ def return_train_val_functions(model,
             input_tuple = sequence, atac#, global_acc
 
             with tf.GradientTape() as tape:
+                conv_vars = model.stem_conv.trainable_variables + \
+                            model.stem_res_conv.trainable_variables + \
+                            model.stem_pool.trainable_variables + \
+                            model.conv_tower.trainable_variables
+                
+                performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
+                                        model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
+                                        model.pos_embedding_learned.trainable_variables + model.performer.trainable_variables + \
+                                        model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables + \
+                                        model.final_dense_peaks.trainable_variables
 
+                vars_all = conv_vars + performer_vars
+                for var in vars_all:
+                    tape.watch(var)
+                    
                 output_profile,output_peaks = model(input_tuple,
                                        training=True)
                 output_profile = tf.cast(output_profile['human'],dtype=tf.float32) # ensure cast to float32
@@ -751,11 +817,14 @@ def return_train_val_functions(model,
 
                 loss = poisson_loss + bce_loss
 
-            gradients = tape.gradient(loss, model.trainable_variables)
+            gradients = tape.gradient(loss, vars_all)
             gradients, _ = tf.clip_by_global_norm(gradients, 
                                                   gradient_clip)
             
-            optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], 
+                                           conv_vars))
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
+                                           performer_vars))
             
             metric_dict["train_loss"].update_state(loss)
         
@@ -1508,10 +1577,18 @@ def parse_args(parser):
                         dest='lr_base1',
                         default="1.0e-03",
                         help='lr_base1')
+    parser.add_argument('--lr_base2',
+                        dest='lr_base2',
+                        default="1.0e-03",
+                        help='lr_base2')
     parser.add_argument('--wd_1',
                         dest='wd_1',
                         default="1.0e-03",
                         help='wd_1')
+    parser.add_argument('--wd_2',
+                        dest='wd_2',
+                        default="1.0e-03",
+                        help='wd_2')
     parser.add_argument('--decay_frac',
                         dest='decay_frac',
                         type=str,
