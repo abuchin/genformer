@@ -988,7 +988,7 @@ def deserialize_tr(serialized_example,
     center = (output_length-2*crop_size)//2
     ### here set up masking of one of the peaks
     mask_indices_temp = tf.where(peaks_crop[:,0] > 0)[:,0]
-    ridx = tf.concat([tf.random.shuffle(mask_indices_temp),
+    ridx = tf.concat([tf.random.experimental.stateless_shuffle(mask_indices_temp,seed=[4+stupid_random_seed,5]),
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
     mask_indices=[[ridx[0]-4+crop_size],[ridx[0]-3+crop_size],[ridx[0]-2+crop_size],
                   [ridx[0]-1+crop_size],[ridx[0]+crop_size],[ridx[0]+1+crop_size],
