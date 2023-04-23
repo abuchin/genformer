@@ -513,7 +513,7 @@ def main():
                     val_step_ho_c_only(data_val_ho)
                 
                 cage_pearsons_ho = metric_dict['CAGE_PearsonR_ho'].result()['PearsonR'].numpy()
-                print('cage_pearsons_ho: ' + str(metric_dict['CAGE_PearsonR_ho'].result()['PearsonR'].numpy())
+                print('cage_pearsons_ho: ' + str(metric_dict['CAGE_PearsonR_ho'].result()['PearsonR'].numpy()))
                 cage_R2_ho = metric_dict['CAGE_R2_ho'].result()['R2'].numpy()
                 
                 
