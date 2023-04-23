@@ -432,9 +432,9 @@ def return_train_val_functions(model,
                                                   gradient_clip)
             
             optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], 
-                                           trunk_vars))
+                                           conv_vars))
             optimizer2.apply_gradients(zip(gradients[len(conv_vars):len(conv_vars+performer_vars)], 
-                                           pointwise_vars))
+                                           performer_vars))
             optimizer3.apply_gradients(zip(gradients[len(conv_vars+performer_vars):], 
                                            heads_vars))
             metric_dict["train_loss"].update_state(loss)
@@ -491,9 +491,9 @@ def return_train_val_functions(model,
                                                   gradient_clip)
             
             optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], 
-                                           trunk_vars))
+                                           conv_vars))
             optimizer2.apply_gradients(zip(gradients[len(conv_vars):len(conv_vars+performer_vars)], 
-                                           pointwise_vars))
+                                           performer_vars))
             optimizer3.apply_gradients(zip(gradients[len(conv_vars+performer_vars):], 
                                            heads_vars))
             metric_dict["train_loss"].update_state(loss)
