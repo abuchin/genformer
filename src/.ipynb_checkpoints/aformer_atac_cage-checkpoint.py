@@ -45,6 +45,7 @@ class aformer(tf.keras.Model):
                  #global_acc_size=64,
                  freeze_conv_layers=False,
                  learnable_PE = False,
+                 predict_atac=True,
                  name: str = 'aformer',
                  **kwargs):
         """ 'aformer' model based on Enformer for predicting RNA-seq from atac + sequence
@@ -84,6 +85,7 @@ class aformer(tf.keras.Model):
         self.learnable_PE=learnable_PE
         #self.global_acc_size=global_acc_size
         self.BN_momentum=BN_momentum
+        self.predict_atac=predict_atac
         
         ## ensure load_init matches actual init inputs...
         if inits is None:
@@ -335,11 +337,18 @@ class aformer(tf.keras.Model):
         
 
         
-        self.final_dense_profile = kl.Dense(2,
-                                    activation='softplus',
-                                    kernel_initializer='lecun_normal',
-                                    bias_initializer='lecun_normal',
-                                    use_bias=True)
+        if self.predict_atac:
+            self.final_dense_profile = kl.Dense(2,
+                                        activation='softplus',
+                                        kernel_initializer='lecun_normal',
+                                        bias_initializer='lecun_normal',
+                                        use_bias=True)
+        else:
+            self.final_dense_profile = kl.Dense(1,
+                                        activation='softplus',
+                                        kernel_initializer='lecun_normal',
+                                        bias_initializer='lecun_normal',
+                                        use_bias=True)
         #self.final_dense_peaks = kl.Dense(1,
         #                            activation=None,
         #                            kernel_initializer='lecun_normal',
