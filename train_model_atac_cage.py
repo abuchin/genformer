@@ -480,7 +480,7 @@ def main():
                            step=epoch_i)
                 
                 cage_pearsons = metric_dict['CAGE_PearsonR'].result()['PearsonR'].numpy()
-                print('cage_pearsons: ' + str(metric_dict['CAGE_PearsonR'].result()['PearsonR'].numpy())
+                print('cage_pearsons: ' + str(metric_dict['CAGE_PearsonR'].result()['PearsonR'].numpy()))
                 
                 cage_R2 = metric_dict['CAGE_R2'].result()['R2'].numpy()
                 
