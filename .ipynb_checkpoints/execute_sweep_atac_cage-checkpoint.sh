@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model_atac_cage.py \
-            --tpu_name="node-5" \
-            --tpu_zone="us-central1-a" \
+            --tpu_name="pod1" \
+            --tpu_zone="us-east1-d" \
             --wandb_project="paired_rampage_atac" \
             --wandb_user="njaved" \
             --wandb_sweep_name="paired_rampage_atac" \
@@ -17,7 +17,7 @@ python3 train_model_atac_cage.py \
             --final_output_length=1536 \
             --max_shift=10 \
             --batch_size=4 \
-            --num_epochs=25 \
+            --num_epochs=50 \
             --train_examples=150000 \
             --val_examples=64177  \
             --val_examples_ho=6639  \
