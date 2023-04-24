@@ -2053,7 +2053,7 @@ def parse_args(parser):
     parser.add_argument('--inits_type',
                         dest='inits_type',
                         type=str,
-                        default="enformer_conv",
+                        default="None",
                         help= 'inits_type')
     parser.add_argument('--optimizer',
                         dest='optimizer',

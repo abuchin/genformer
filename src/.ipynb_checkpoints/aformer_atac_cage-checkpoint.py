@@ -93,7 +93,7 @@ class aformer(tf.keras.Model):
         else:
             self.load_init=load_init
             
-        if self.inits_type not in ['enformer_performer','enformer_conv','enformer_performer_full']:
+        if self.inits_type not in ['enformer_performer','enformer_conv','enformer_performer_full', 'None']:
             raise ValueError('inits type not found')
             
         self.load_init_atac = False
