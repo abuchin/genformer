@@ -322,6 +322,9 @@ def main():
                 wandb.config.update({"load_init": False},
                                     allow_val_change=True)
                 loading_checkpoint_bool=True
+            elif wandb.config.inits_type == 'None':
+                wandb.config.update({"load_init": False},
+                                    allow_val_change=True)
             else:
                 raise ValueError('inits type not found')
                 
