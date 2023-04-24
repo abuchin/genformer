@@ -400,7 +400,7 @@ def return_train_val_functions(model,
                                         model.performer.trainable_variables + \
                                     model.final_pointwise_conv.trainable_variables
                 
-                heads_vars = model.final_dense_profile.trainable_variables 
+                heads_vars = model.final_dense_profile_FT.trainable_variables 
                 
                 
                 vars_all = conv_vars + performer_vars + heads_vars
@@ -470,7 +470,7 @@ def return_train_val_functions(model,
                                         model.performer.trainable_variables + \
                                     model.final_pointwise_conv.trainable_variables
                 
-                heads_vars = model.final_dense_profile.trainable_variables 
+                heads_vars = model.final_dense_profile_FT.trainable_variables 
                 
                 
                 vars_all = conv_vars + performer_vars + heads_vars
@@ -1091,8 +1091,6 @@ def deserialize_tr(serialized_example,
     if atac_predict: 
         return {'sequence': tf.ensure_shape(masked_seq,
                                             [input_length,4]),
-                'orig_sequence': tf.ensure_shape(sequence,
-                                            [input_length,4]),
                 'atac': tf.ensure_shape(masked_atac,
                                         [output_length_ATAC,1]),
                 'mask': tf.ensure_shape(full_comb_mask_store,
@@ -1107,8 +1105,6 @@ def deserialize_tr(serialized_example,
                                           [output_length-crop_size*2,2])}
     else:
         return {'sequence': tf.ensure_shape(masked_seq,
-                                            [input_length,4]),
-                'orig_sequence': tf.ensure_shape(sequence,
                                             [input_length,4]),
                 'atac': tf.ensure_shape(masked_atac,
                                         [output_length_ATAC,1]),

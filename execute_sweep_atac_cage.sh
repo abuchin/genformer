@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model_atac_cage.py \
-            --tpu_name="pod1" \
-            --tpu_zone="us-east1-d" \
+            --tpu_name="node-5" \
+            --tpu_zone="us-central1-a" \
             --wandb_project="paired_rampage_atac" \
             --wandb_user="njaved" \
             --wandb_sweep_name="paired_rampage_atac" \
@@ -48,7 +48,7 @@ python3 train_model_atac_cage.py \
             --rectify="True" \
             --multitask_checkpoint_path="gs://picard-testing-176520/genformer_atac_pretrain/models/aformer_hg_mm_rm_rat_262k_load-True_LR-0.01_T-6_D-0.3_2023-04-23_03:15:17/iteration_9" \
             --filter_list_seq="768,896,1024,1152,1280,1536" \
-            --inits_type="enformer_performer" \
+            --inits_type="enformer_performer_full" \
             --cage_scale="0.99" \
             --optimizer="adam" \
             --stable_variant="False" \

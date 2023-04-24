@@ -93,7 +93,7 @@ class aformer(tf.keras.Model):
         else:
             self.load_init=load_init
             
-        if self.inits_type not in ['enformer_performer','enformer_conv']:
+        if self.inits_type not in ['enformer_performer','enformer_conv','enformer_performer_full']:
             raise ValueError('inits type not found')
             
         self.load_init_atac = False
@@ -338,27 +338,17 @@ class aformer(tf.keras.Model):
 
         
         if self.predict_atac:
-            self.final_dense_profile = kl.Dense(2,
+            self.final_dense_profile_FT = kl.Dense(2,
                                         activation='softplus',
                                         kernel_initializer='lecun_normal',
                                         bias_initializer='lecun_normal',
                                         use_bias=True)
         else:
-            self.final_dense_profile = kl.Dense(1,
+            self.final_dense_profile_FT = kl.Dense(1,
                                         activation='softplus',
                                         kernel_initializer='lecun_normal',
                                         bias_initializer='lecun_normal',
                                         use_bias=True)
-        #self.final_dense_peaks = kl.Dense(1,
-        #                            activation=None,
-        #                            kernel_initializer='lecun_normal',
-        #                            bias_initializer='lecun_normal',
-        #                            use_bias=True)
-
-        #self.peaks_pool = SoftmaxPooling1D(per_channel=True,
-        #                                  w_init_scale=2.0,
-        #                                  pool_size=2,
-        #                                  name ='peaks_pool')
 
         self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
                                   **kwargs)
@@ -414,7 +404,7 @@ class aformer(tf.keras.Model):
                         training=training)
         out = self.gelu(out)
 
-        out_profile = self.final_dense_profile(out,
+        out_profile = self.final_dense_profile_FT(out,
                                training=training)
         
         #out_peaks = self.peaks_pool(out)
@@ -515,7 +505,7 @@ class aformer(tf.keras.Model):
                         training=training)
         out = self.gelu(out)
 
-        out_profile = self.final_dense_profile(out,
+        out_profile = self.final_dense_profile_FT(out,
                                training=training)
         
         #out_peaks = self.peaks_pool(out)
