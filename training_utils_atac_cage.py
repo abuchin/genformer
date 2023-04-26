@@ -339,8 +339,8 @@ def return_train_val_functions(model,
                                cage_scale,
                                atac_predict):
     
-    poisson_loss_func = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
-    #bce_loss_func = tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.NONE,
+    loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
+    #bce_loss_fn = tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.NONE,
     #                                                   from_logits=True)
 
     optimizer1,optimizer2,optimizer3=optimizers_in
@@ -387,26 +387,26 @@ def return_train_val_functions(model,
 
             input_tuple = sequence, atac
 
-            with tf.GradientTape(watch_accessed_variables=False) as tape:
+            with tf.GradientTape() as tape:
                 conv_vars = model.stem_conv.trainable_variables + \
                             model.stem_res_conv.trainable_variables + \
                             model.stem_pool.trainable_variables + \
-                            model.conv_tower.trainable_variables
-                performer_vars=model.stem_conv_atac.trainable_variables + \
-                                    model.stem_res_conv_atac.trainable_variables + \
+                            model.conv_tower.trainable_variables + \
+                            model.stem_conv_atac.trainable_variables + \
+                                model.stem_res_conv_atac.trainable_variables + \
                                         model.stem_pool_atac.trainable_variables + \
-                                        model.conv_tower_atac.trainable_variables + \
-                                        model.pos_embedding_learned.trainable_variables + \
-                                        model.performer.trainable_variables + \
-                                    model.final_pointwise_conv.trainable_variables
+                                            model.conv_tower_atac.trainable_variables
                 
+                performer_vars =model.pos_embedding_learned.trainable_variables + \
+                                            model.performer.trainable_variables + \
+                                                model.final_pointwise_conv.trainable_variables
+
                 heads_vars = model.final_dense_profile_FT.trainable_variables 
-                
-                
+
                 vars_all = conv_vars + performer_vars + heads_vars
                 for var in vars_all:
                     tape.watch(var)
-                    
+                
                 output_profile = model(input_tuple,
                                        training=True)
 
@@ -418,13 +418,11 @@ def return_train_val_functions(model,
                 target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
                 output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
                 
-                poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac,
-                                                                output_atac)) * (1. / global_batch_size) 
-
-                atac_loss = (poisson_loss) * (1.0-cage_scale)
+                atac_loss = tf.reduce_mean(loss_fn(target_atac,
+                                                   output_atac)) * (1. / global_batch_size) * (1.0-cage_scale)
                 
-                cage_loss = tf.reduce_mean(poisson_loss_func(target[:,:,1],
-                                                       output_profile[:,:,1])) * cage_scale * (1. / global_batch_size)
+                cage_loss = tf.reduce_mean(loss_fn(target[:,:,1],
+                                                           output_profile[:,:,1])) * cage_scale * (1. / global_batch_size)
                 loss = atac_loss + cage_loss
 
             gradients = tape.gradient(loss, vars_all)
@@ -457,22 +455,23 @@ def return_train_val_functions(model,
 
             input_tuple = sequence, atac
 
-            with tf.GradientTape(watch_accessed_variables=False) as tape:
+            with tf.GradientTape() as tape:
+                
                 conv_vars = model.stem_conv.trainable_variables + \
                             model.stem_res_conv.trainable_variables + \
                             model.stem_pool.trainable_variables + \
-                            model.conv_tower.trainable_variables
-                performer_vars=model.stem_conv_atac.trainable_variables + \
-                                    model.stem_res_conv_atac.trainable_variables + \
+                            model.conv_tower.trainable_variables + \
+                            model.stem_conv_atac.trainable_variables + \
+                                model.stem_res_conv_atac.trainable_variables + \
                                         model.stem_pool_atac.trainable_variables + \
-                                        model.conv_tower_atac.trainable_variables + \
-                                        model.pos_embedding_learned.trainable_variables + \
-                                        model.performer.trainable_variables + \
-                                        model.final_pointwise_conv.trainable_variables
+                                            model.conv_tower_atac.trainable_variables
                 
+                performer_vars = model.pos_embedding_learned.trainable_variables + \
+                                            model.performer.trainable_variables + \
+                                                model.final_pointwise_conv.trainable_variables
+
                 heads_vars = model.final_dense_profile_FT.trainable_variables 
-                
-                
+
                 vars_all = conv_vars + performer_vars + heads_vars
                 for var in vars_all:
                     tape.watch(var)
@@ -482,7 +481,7 @@ def return_train_val_functions(model,
 
                 output_profile = tf.cast(output_profile,dtype=tf.float32)
 
-                cage_loss = tf.reduce_mean(poisson_loss_func(target[:,:,:],
+                cage_loss = tf.reduce_mean(loss_fn(target[:,:,:],
                                                              output_profile[:,:,:])) * (1. / global_batch_size)
                 loss = cage_loss
 
@@ -517,7 +516,7 @@ def return_train_val_functions(model,
             input_tuple = sequence,atac
 
             output_profile = model(input_tuple,
-                                   training=False)
+                                   training=False) 
 
             output_profile = tf.cast(output_profile,dtype=tf.float32)
             #output_peaks = tf.cast(output_peaks,dtype=tf.float32)
@@ -530,12 +529,12 @@ def return_train_val_functions(model,
             mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
             target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
 
-            poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac,
+            poisson_loss = tf.reduce_mean(loss_fn(target_atac,
                                                             output_atac)) * (1. / global_batch_size)
 
             atac_loss = (poisson_loss) * (1.0-cage_scale)
 
-            cage_loss = tf.reduce_mean(poisson_loss_func(target[:,:,1],
+            cage_loss = tf.reduce_mean(loss_fn(target[:,:,1],
                                                output_profile[:,:,1])) * cage_scale * (1. / global_batch_size)
             loss = atac_loss + cage_loss
 
@@ -577,11 +576,10 @@ def return_train_val_functions(model,
             output_profile = tf.cast(output_profile,dtype=tf.float32)
             #output_peaks = tf.cast(output_peaks,dtype=tf.float32)
 
-            cage_loss = tf.reduce_mean(poisson_loss_func(target[:,:,:],
+            cage_loss = tf.reduce_mean(loss_fn(target[:,:,:],
                                                output_profile[:,:,:])) * (1. / global_batch_size)
             loss = cage_loss
 
-            
             metric_dict['CAGE_PearsonR'].update_state(target[:,:,:], 
                                                       output_profile[:,:,:])
             metric_dict['CAGE_R2'].update_state(target[:,:,:], 
@@ -608,7 +606,7 @@ def return_train_val_functions(model,
             input_tuple = sequence,atac
 
             output_profile = model(input_tuple,
-                                   training=False)
+                                   training=False) 
 
             output_profile = tf.cast(output_profile,dtype=tf.float32)
             #output_peaks = tf.cast(output_peaks,dtype=tf.float32)
@@ -621,12 +619,12 @@ def return_train_val_functions(model,
             mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
             target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
 
-            poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac,
+            poisson_loss = tf.reduce_mean(loss_fn(target_atac,
                                                             output_atac)) * (1. / global_batch_size) 
 
             atac_loss = (poisson_loss) * (1.0-cage_scale)
 
-            cage_loss = tf.reduce_mean(poisson_loss_func(target[:,:,1],
+            cage_loss = tf.reduce_mean(loss_fn(target[:,:,1],
                                                output_profile[:,:,1])) * cage_scale * (1. / global_batch_size)
             loss = atac_loss + cage_loss
 
@@ -661,7 +659,7 @@ def return_train_val_functions(model,
             output_profile = tf.cast(output_profile,dtype=tf.float32)
             #output_peaks = tf.cast(output_peaks,dtype=tf.float32)
 
-            cage_loss = tf.reduce_mean(poisson_loss_func(target[:,:,:],
+            cage_loss = tf.reduce_mean(loss_fn(target[:,:,:],
                                                output_profile[:,:,:])) * (1. / global_batch_size)
             loss = cage_loss
 
@@ -736,7 +734,7 @@ def return_train_val_functions(model,
             output_profile = model(input_tuple,
                                    training=False)
 
-            output_profile = tf.cast(output_profile,dtype=tf.float32)
+            output_profile = tf.cast(output_profile,dtype=tf.float32) 
 
             tss_tokens = tf.cast(inputs['tss_tokens'],dtype=tf.float32)
             gene_token = inputs['gene_token']
@@ -1047,12 +1045,12 @@ def deserialize_tr(serialized_example,
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
     diff = tf.math.sqrt(tf.nn.relu(cage - 850.0 * tf.ones(cage.shape)))
-    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=850.0) + diff
-    cage = tf.cast(tf.cast(cage,dtype=tf.float16),dtype=tf.float32) ### round to be consistent with Enformer
+    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=850.0) + diff + tf.math.abs(g.normal(cage.shape,
+                                                                                       mean=0.0,
+                                                                                       stddev=1.0e-04,
+                                                                                       dtype=tf.float32))
     
 
-
-    
     if rev_comp == 1:
         masked_seq = tf.gather(masked_seq, [3, 2, 1, 0], axis=-1)
         masked_seq = tf.reverse(masked_seq, axis=[0])
@@ -1232,8 +1230,10 @@ def deserialize_val(serialized_example,
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
     diff = tf.math.sqrt(tf.nn.relu(cage - 850.0 * tf.ones(cage.shape)))
-    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=850.0) + diff
-    cage = tf.cast(tf.cast(cage,dtype=tf.float16),dtype=tf.float32) ### round to be consistent with Enformer
+    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=850.0) + diff + tf.math.abs(g.normal(cage.shape,
+                                                                                       mean=0.0,
+                                                                                       stddev=1.0e-04,
+                                                                                       dtype=tf.float32))
 
     if atac_predict:
         target = tf.concat([atac_out,cage],axis=1)
@@ -1344,8 +1344,10 @@ def deserialize_val_TSS(serialized_example,
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
     diff = tf.math.sqrt(tf.nn.relu(cage - 850.0 * tf.ones(cage.shape)))
-    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=850.0) + diff
-    cage = tf.cast(tf.cast(cage,dtype=tf.float16),dtype=tf.float32) ### round to be consistent with Enformer
+    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=850.0) + diff + tf.math.abs(g.normal(cage.shape,
+                                                                                       mean=0.0,
+                                                                                       stddev=1.0e-04,
+                                                                                       dtype=tf.float32))
 
     if atac_predict:
         target = tf.concat([atac_out,cage],axis=1)
@@ -1412,23 +1414,24 @@ def return_dataset(gcs_path,
     """
     return a tf dataset object for given gcs path
     """
-    wc = "*.tfr"
+    
     #print(split)
     
-    list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
-                                                split,
-                                                wc)))
-    #print(list_files)
-    random.shuffle(list_files)
-    files = tf.data.Dataset.list_files(list_files)
-    
-    dataset = tf.data.TFRecordDataset(files,
-                                      compression_type='ZLIB',
-                                      num_parallel_reads=num_parallel)
-    dataset = dataset.with_options(options)
+
     #print(list_files)
     if split == 'train':
-        
+        wc = "*GM12878.tfr"
+        list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
+                                                    split,
+                                                    wc)))
+        #print(list_files)
+        random.shuffle(list_files)
+        files = tf.data.Dataset.list_files(list_files,shuffle=True,seed=4)
+
+        dataset = tf.data.TFRecordDataset(files,
+                                          compression_type='ZLIB',
+                                          num_parallel_reads=num_parallel)
+        dataset = dataset.with_options(options)
         dataset = dataset.map(lambda record: deserialize_tr(record,
                                                             input_length,
                                                             max_shift,
@@ -1445,10 +1448,22 @@ def return_dataset(gcs_path,
                                                             g),
                               deterministic=False,
                               num_parallel_calls=num_parallel)
-        return dataset.repeat(num_epoch).batch(batch,drop_remainder=True).prefetch(tf.data.AUTOTUNE)
+        return dataset.repeat(num_epoch).batch(batch).prefetch(tf.data.AUTOTUNE)
     
 
     else:
+        wc = "*.tfr"
+        list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
+                                                    split,
+                                                    wc)))
+        #print(list_files)
+        random.shuffle(list_files)
+        files = tf.data.Dataset.list_files(list_files,shuffle=True,seed=4)
+
+        dataset = tf.data.TFRecordDataset(files,
+                                          compression_type='ZLIB',
+                                          num_parallel_reads=num_parallel)
+        dataset = dataset.with_options(options)
         if tss_bool:
             dataset = dataset.map(lambda record: deserialize_val_TSS(record,
                                                                    input_length,
@@ -1995,6 +2010,11 @@ def parse_args(parser):
                         type=str,
                         default="False",
                         help= 'freeze_conv_layers')
+    parser.add_argument('--freeze_BN_layers',
+                        dest='freeze_BN_layers',
+                        type=str,
+                        default="False",
+                        help= 'freeze_BN_layers')
     parser.add_argument('--use_rot_emb',
                         dest='use_rot_emb',
                         type=str,

@@ -131,6 +131,9 @@ def main():
                 'freeze_conv_layers': {
                     'values':[parse_bool_str(x) for x in args.freeze_conv_layers.split(',')]
                 },
+                'freeze_BN_layers': {
+                    'values':[parse_bool_str(x) for x in args.freeze_BN_layers.split(',')]
+                },
                 'filter_list_seq': {
                     'values': [[int(x) for x in args.filter_list_seq.split(',')]]
                 },
@@ -265,13 +268,13 @@ def main():
             
             wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE)},
                                 allow_val_change=True)
-            wandb.config.update({"val_steps" : num_val // GLOBAL_BATCH_SIZE},
+            wandb.config.update({"val_steps" : num_val // GLOBAL_BATCH_SIZE+1},
                                 allow_val_change=True)
-            wandb.config.update({"val_steps_ho" : num_val_ho // GLOBAL_BATCH_SIZE},
+            wandb.config.update({"val_steps_ho" : num_val_ho // GLOBAL_BATCH_SIZE+1},
                                 allow_val_change=True)
-            wandb.config.update({"val_steps_TSS" : num_val_TSS // GLOBAL_BATCH_SIZE},
+            wandb.config.update({"val_steps_TSS" : num_val_TSS // GLOBAL_BATCH_SIZE+1},
                                 allow_val_change=True)
-            wandb.config.update({"val_steps_TSS_ho" : num_val_TSS_ho // GLOBAL_BATCH_SIZE},
+            wandb.config.update({"val_steps_TSS_ho" : num_val_TSS_ho // GLOBAL_BATCH_SIZE+1},
                                 allow_val_change=True)
             wandb.config.update({"total_steps": num_train // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
@@ -352,6 +355,7 @@ def main():
                                     load_init=wandb.config.load_init,
                                     stable_variant=wandb.config.stable_variant,
                                     freeze_conv_layers=wandb.config.freeze_conv_layers,
+                                    freeze_BN_layers=wandb.config.freeze_BN_layers,
                                     filter_list_seq=wandb.config.filter_list_seq,
                                     filter_list_atac=wandb.config.filter_list_atac,
                                     predict_atac=wandb.config.predict_atac,
@@ -405,6 +409,18 @@ def main():
                                                       epsilon=wandb.config.epsilon)
                 optimizer3 = tf.keras.optimizers.Adam(learning_rate=scheduler3,
                                                       epsilon=wandb.config.epsilon)
+                
+            elif wandb.config.optimizer == 'adamw':
+                optimizer1 = tfa.optimizers.AdamW(learning_rate=scheduler1,
+                                                  weight_decay=0.01,
+                                                  epsilon=wandb.config.epsilon)
+
+                optimizer2 = tfa.optimizers.AdamW(learning_rate=scheduler2,
+                                                  weight_decay=0.01,
+                                                  epsilon=wandb.config.epsilon)
+                optimizer3 = tfa.optimizers.AdamW(learning_rate=scheduler3,
+                                                  weight_decay=0.01,
+                                                  epsilon=wandb.config.epsilon)
             else:
                 raise ValueError('optimizer not found')
 
