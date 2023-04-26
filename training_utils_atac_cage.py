@@ -1420,7 +1420,7 @@ def return_dataset(gcs_path,
 
     #print(list_files)
     if split == 'train':
-        wc = "*GM12878.tfr"
+        wc = "*.tfr"
         list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
                                                     split,
                                                     wc)))

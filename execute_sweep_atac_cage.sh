@@ -2,7 +2,7 @@
 
 python3 train_model_atac_cage.py \
             --tpu_name="pod1" \
-            --tpu_zone="us-central1-a" \
+            --tpu_zone="us-east1-d" \
             --wandb_project="paired_rampage_atac" \
             --wandb_user="njaved" \
             --wandb_sweep_name="paired_rampage_atac" \
@@ -17,14 +17,14 @@ python3 train_model_atac_cage.py \
             --final_output_length=1536 \
             --max_shift=10 \
             --batch_size=4 \
-            --num_epochs=4 \
-            --train_examples=2048 \
-            --val_examples=64  \
-            --val_examples_ho=64  \
-            --val_examples_TSS=64 \
-            --val_examples_TSS_ho=64 \
+            --num_epochs=50 \
+            --train_examples=500000 \
+            --val_examples=64177  \
+            --val_examples_ho=6639  \
+            --val_examples_TSS=97208 \
+            --val_examples_TSS_ho=10056 \
             --BN_momentum=0.90 \
-            --warmup_frac=0.10 \
+            --warmup_frac=0.05 \
             --patience=50 \
             --output_res=128 \
             --min_delta=0.000005 \
@@ -32,7 +32,7 @@ python3 train_model_atac_cage.py \
             --model_save_basename="aformer_baseline" \
             --lr_base1="1.0e-08" \
             --lr_base2="1.0e-07" \
-            --lr_base3="1.0e-04" \
+            --lr_base3="1.0e-05" \
             --decay_frac="0.25" \
             --gradient_clip="0.2" \
             --epsilon=1.0e-8 \
@@ -58,6 +58,6 @@ python3 train_model_atac_cage.py \
             --log_atac="True" \
             --learnable_PE="True" \
             --sonnet_weights_bool="True" \
-            --predict_atac="tRUE"
+            --predict_atac="True"
                         
             
