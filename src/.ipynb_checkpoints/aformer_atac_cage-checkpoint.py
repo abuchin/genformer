@@ -346,7 +346,7 @@ class aformer(tf.keras.Model):
                                                          train=True,
                                                          train_BN=True,# if self.freeze_BN_layers else True,
                                                   **kwargs,
-                                                  name = 'final_pointwise')
+                                                  name = 'final_pointwise_conv')
         
 
         

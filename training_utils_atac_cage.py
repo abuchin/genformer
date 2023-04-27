@@ -398,9 +398,8 @@ def return_train_val_functions(model,
                                             model.conv_tower_atac.trainable_variables
                 
                 performer_vars =model.pos_embedding_learned.trainable_variables + \
-                                            model.performer.trainable_variables + \
+                                            model.performer.trainable_variables+ \
                                                 model.final_pointwise_conv.trainable_variables
-
                 heads_vars = model.final_dense_profile_FT.trainable_variables 
 
                 vars_all = conv_vars + performer_vars + heads_vars
@@ -466,10 +465,10 @@ def return_train_val_functions(model,
                                         model.stem_pool_atac.trainable_variables + \
                                             model.conv_tower_atac.trainable_variables
                 
-                performer_vars = model.pos_embedding_learned.trainable_variables + \
-                                            model.performer.trainable_variables + \
+                performer_vars =model.pos_embedding_learned.trainable_variables + \
+                                            model.performer.trainable_variables+ \
                                                 model.final_pointwise_conv.trainable_variables
-
+                
                 heads_vars = model.final_dense_profile_FT.trainable_variables 
 
                 vars_all = conv_vars + performer_vars + heads_vars
@@ -952,6 +951,9 @@ def deserialize_tr(serialized_example,
     atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
                                               out_type=tf.float32),
                            [output_length_ATAC,1])
+    
+    atac = tf.where(tf.math.is_nan(atac), 0., atac)
+    atac = tf.nn.relu(atac)
     peaks = tf.ensure_shape(tf.io.parse_tensor(data['peaks'],
                                               out_type=tf.int32),
                            [output_length])
@@ -971,8 +973,7 @@ def deserialize_tr(serialized_example,
     ### tss sequence dropout
     tss_tokens = tf.io.parse_tensor(data['tss_tokens'],
                                   out_type=tf.int32)
-    tss_tokens = tf.expand_dims(tss_tokens,axis=1)
-    tss_tokens = tss_tokens / tf.reduce_max(tss_tokens)
+    tss_tokens = tf.cast(tf.expand_dims(tss_tokens,axis=1),dtype=tf.float32)
     
     if ((seq_mask_int == 0)):
         tss_mask = tf.cast(1.0 - tss_tokens,dtype=tf.float32)
@@ -992,7 +993,7 @@ def deserialize_tr(serialized_example,
     ### 
     atac_mask=tf.nn.experimental.stateless_dropout(atac_mask,
                                               rate=(atac_mask_dropout),
-                                              seed=[0,stupid_random_seed-5]) / (1. / (1.0-(atac_mask_dropout))) 
+                                              seed=[1,stupid_random_seed-5]) / (1. / (1.0-(atac_mask_dropout))) 
     atac_mask = tf.expand_dims(atac_mask,axis=1)
     atac_mask = tf.tile(atac_mask, [1,num_mask_bins])
     atac_mask = tf.reshape(atac_mask, [-1])
@@ -1022,7 +1023,6 @@ def deserialize_tr(serialized_example,
                                                dtype=tf.float32)) ### add some gaussian noise
     
 
-    
     if ((seq_mask_int == 0)):
         seq_mask = 1.0 - full_comb_mask_full_store
         tiling_req_seq = input_length // output_length
@@ -1032,22 +1032,20 @@ def deserialize_tr(serialized_example,
     else:
         masked_seq = sequence
         
-        
     if log_atac: 
         masked_atac = tf.math.log1p(masked_atac)
         
-    diff = tf.math.sqrt(tf.nn.relu(masked_atac - 100.0 * tf.ones(masked_atac.shape)))
-    masked_atac = tf.clip_by_value(masked_atac, clip_value_min=0.0, clip_value_max=100.0) + diff
+    #diff = tf.math.sqrt(tf.nn.relu(masked_atac - 100.0 * tf.ones(masked_atac.shape)))
+    #masked_atac = tf.clip_by_value(masked_atac, clip_value_min=0.0, clip_value_max=100.0) + diff
     
 
-        
     cage = tf.ensure_shape(tf.io.parse_tensor(data['cage'],
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
     diff = tf.math.sqrt(tf.nn.relu(cage - 850.0 * tf.ones(cage.shape)))
     cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=850.0) + diff + tf.math.abs(g.normal(cage.shape,
                                                                                        mean=0.0,
-                                                                                       stddev=1.0e-04,
+                                                                                       stddev=1.0e-05,
                                                                                        dtype=tf.float32))
     
 
@@ -1062,6 +1060,7 @@ def deserialize_tr(serialized_example,
         full_comb_mask_store=tf.reverse(full_comb_mask_store,axis=[0])
         cage=tf.reverse(cage,axis=[0])
         tss_mask=tf.reverse(tss_mask,axis=[0])
+        atac=tf.reverse(atac,axis=[0])
         
     atac_out = tf.reduce_sum(tf.reshape(atac_target, [-1,tiling_req]),axis=1,keepdims=True)
     diff = tf.math.sqrt(tf.nn.relu(atac_out - 2500.0 * tf.ones(atac_out.shape)))
@@ -1093,6 +1092,10 @@ def deserialize_tr(serialized_example,
                                             [input_length,4]),
                 'atac': tf.ensure_shape(masked_atac,
                                         [output_length_ATAC,1]),
+                'atac_orig': tf.ensure_shape(atac,
+                                        [output_length_ATAC,1]),
+                'tss_tokens': tf.ensure_shape(tss_tokens,
+                                        [output_length-crop_size*2,1]),
                 'mask': tf.ensure_shape(full_comb_mask_store,
                                         [output_length-crop_size*2,1]),
                 'mask_gathered': tf.ensure_shape(mask_gathered,
@@ -1109,6 +1112,10 @@ def deserialize_tr(serialized_example,
                 'orig_sequence': tf.ensure_shape(sequence,
                                             [input_length,4]),
                 'atac': tf.ensure_shape(masked_atac,
+                                        [output_length_ATAC,1]),
+                'tss_tokens': tf.ensure_shape(tss_tokens,
+                                        [output_length-crop_size*2,1]),
+                'atac_orig': tf.ensure_shape(atac,
                                         [output_length_ATAC,1]),
                 'mask': tf.ensure_shape(full_comb_mask_store,
                                         [output_length-crop_size*2,1]),
@@ -1163,6 +1170,8 @@ def deserialize_val(serialized_example,
     atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
                                               out_type=tf.float32),
                            [output_length_ATAC,1])
+    atac = tf.where(tf.math.is_nan(atac), 0., atac)
+    atac = tf.nn.relu(atac)
     peaks = tf.ensure_shape(tf.io.parse_tensor(data['peaks'],
                                               out_type=tf.int32),
                            [output_length])
@@ -1320,8 +1329,7 @@ def deserialize_val_TSS(serialized_example,
     tss_tokens = tf.io.parse_tensor(data['tss_tokens'],
                                   out_type=tf.int32)
     tss_tokens = tf.expand_dims(tss_tokens,axis=1)
-    tss_tokens = tss_tokens / tf.reduce_max(tss_tokens)
-    
+
     atac_target = atac ## store the target
 
     masked_atac = atac
