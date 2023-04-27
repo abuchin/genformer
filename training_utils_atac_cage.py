@@ -1043,10 +1043,7 @@ def deserialize_tr(serialized_example,
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
     diff = tf.math.sqrt(tf.nn.relu(cage - 850.0 * tf.ones(cage.shape)))
-    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=850.0) + diff + tf.math.abs(g.normal(cage.shape,
-                                                                                       mean=0.0,
-                                                                                       stddev=1.0e-05,
-                                                                                       dtype=tf.float32))
+    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=850.0) + diff 
     
 
     if rev_comp == 1:
@@ -1092,10 +1089,9 @@ def deserialize_tr(serialized_example,
                                             [input_length,4]),
                 'atac': tf.ensure_shape(masked_atac,
                                         [output_length_ATAC,1]),
-                'atac_orig': tf.ensure_shape(atac,
-                                        [output_length_ATAC,1]),
                 'tss_tokens': tf.ensure_shape(tss_tokens,
                                         [output_length-crop_size*2,1]),
+                'seq_mask_int': seq_mask_int,
                 'mask': tf.ensure_shape(full_comb_mask_store,
                                         [output_length-crop_size*2,1]),
                 'mask_gathered': tf.ensure_shape(mask_gathered,
@@ -1109,16 +1105,15 @@ def deserialize_tr(serialized_example,
     else:
         return {'sequence': tf.ensure_shape(masked_seq,
                                             [input_length,4]),
-                'orig_sequence': tf.ensure_shape(sequence,
-                                            [input_length,4]),
                 'atac': tf.ensure_shape(masked_atac,
                                         [output_length_ATAC,1]),
+                'orig_sequence': tf.ensure_shape(sequence,
+                                            [input_length,4]),
                 'tss_tokens': tf.ensure_shape(tss_tokens,
                                         [output_length-crop_size*2,1]),
-                'atac_orig': tf.ensure_shape(atac,
-                                        [output_length_ATAC,1]),
                 'mask': tf.ensure_shape(full_comb_mask_store,
                                         [output_length-crop_size*2,1]),
+                'seq_mask_int': seq_mask_int,
                 'mask_gathered': tf.ensure_shape(mask_gathered,
                                         [(output_length-crop_size*2) // 2,1]),
                 'tss_mask': tf.ensure_shape(tss_mask,
@@ -1239,10 +1234,8 @@ def deserialize_val(serialized_example,
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
     diff = tf.math.sqrt(tf.nn.relu(cage - 850.0 * tf.ones(cage.shape)))
-    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=850.0) + diff + tf.math.abs(g.normal(cage.shape,
-                                                                                       mean=0.0,
-                                                                                       stddev=1.0e-04,
-                                                                                       dtype=tf.float32))
+    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=850.0) + diff
+    
 
     if atac_predict:
         target = tf.concat([atac_out,cage],axis=1)
@@ -1352,10 +1345,8 @@ def deserialize_val_TSS(serialized_example,
                                               out_type=tf.float32),
                            [output_length - 2*crop_size,1])
     diff = tf.math.sqrt(tf.nn.relu(cage - 850.0 * tf.ones(cage.shape)))
-    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=850.0) + diff + tf.math.abs(g.normal(cage.shape,
-                                                                                       mean=0.0,
-                                                                                       stddev=1.0e-04,
-                                                                                       dtype=tf.float32))
+    cage = tf.clip_by_value(cage, clip_value_min=0.0, clip_value_max=850.0) + diff
+    
 
     if atac_predict:
         target = tf.concat([atac_out,cage],axis=1)
