@@ -1085,13 +1085,10 @@ def deserialize_tr(serialized_example,
     if atac_predict: 
         return {'sequence': tf.ensure_shape(masked_seq,
                                             [input_length,4]),
-                'orig_sequence': tf.ensure_shape(sequence,
-                                            [input_length,4]),
                 'atac': tf.ensure_shape(masked_atac,
                                         [output_length_ATAC,1]),
                 'tss_tokens': tf.ensure_shape(tss_tokens,
                                         [output_length-crop_size*2,1]),
-                'seq_mask_int': seq_mask_int,
                 'mask': tf.ensure_shape(full_comb_mask_store,
                                         [output_length-crop_size*2,1]),
                 'mask_gathered': tf.ensure_shape(mask_gathered,
@@ -1107,13 +1104,10 @@ def deserialize_tr(serialized_example,
                                             [input_length,4]),
                 'atac': tf.ensure_shape(masked_atac,
                                         [output_length_ATAC,1]),
-                'orig_sequence': tf.ensure_shape(sequence,
-                                            [input_length,4]),
                 'tss_tokens': tf.ensure_shape(tss_tokens,
                                         [output_length-crop_size*2,1]),
                 'mask': tf.ensure_shape(full_comb_mask_store,
                                         [output_length-crop_size*2,1]),
-                'seq_mask_int': seq_mask_int,
                 'mask_gathered': tf.ensure_shape(mask_gathered,
                                         [(output_length-crop_size*2) // 2,1]),
                 'tss_mask': tf.ensure_shape(tss_mask,
@@ -1425,7 +1419,7 @@ def return_dataset(gcs_path,
                                                     wc)))
         #print(list_files)
         random.shuffle(list_files)
-        files = tf.data.Dataset.list_files(list_files,shuffle=True,seed=4)
+        files = tf.data.Dataset.list_files(list_files,shuffle=True,seed=5)
 
         dataset = tf.data.TFRecordDataset(files,
                                           compression_type='ZLIB',
@@ -1457,7 +1451,7 @@ def return_dataset(gcs_path,
                                                     wc)))
         #print(list_files)
         random.shuffle(list_files)
-        files = tf.data.Dataset.list_files(list_files,shuffle=True,seed=4)
+        files = tf.data.Dataset.list_files(list_files,shuffle=True,seed=6)
 
         dataset = tf.data.TFRecordDataset(files,
                                           compression_type='ZLIB',

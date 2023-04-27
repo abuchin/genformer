@@ -32,7 +32,7 @@ python3 train_model_atac_cage.py \
             --model_save_basename="aformer_baseline" \
             --lr_base1="1.0e-05" \
             --lr_base2="5.0e-05" \
-            --lr_base3="5.0e-04" \
+            --lr_base3="2.5e-04" \
             --decay_frac="0.25" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-8 \
