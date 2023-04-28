@@ -57,6 +57,7 @@ python3 train_model_atac_cage.py \
             --random_mask_size="512" \
             --log_atac="True" \
             --learnable_PE="True" \
+            --final_point_scale="4" \
             --sonnet_weights_bool="True" \
             --predict_atac="True"
                         
