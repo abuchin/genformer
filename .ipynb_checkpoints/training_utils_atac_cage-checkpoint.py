@@ -927,7 +927,7 @@ def deserialize_tr(serialized_example,
     ### stochastic sequence shift and gaussian noise
 
     rev_comp = tf.math.round(g.uniform([], 0, 1))
-    seq_mask_int = g.uniform([], 0, 8, dtype=tf.int32)
+    seq_mask_int = g.uniform([], 0, 30, dtype=tf.int32)
     stupid_random_seed = g.uniform([], 0, 10000000,dtype=tf.int32)
     shift = g.uniform(shape=(),
                       minval=0,
@@ -939,7 +939,6 @@ def deserialize_tr(serialized_example,
             seq_shift = k
         else:
             seq_shift=0
-    
     
     input_seq_length = input_length + max_shift
     

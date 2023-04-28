@@ -356,7 +356,7 @@ class aformer(tf.keras.Model):
             self.final_dense_profile_FT = kl.Dense(2,
                                         activation='softplus',
                                         kernel_initializer='lecun_normal',
-                                        bias_initializer='zeros',
+                                        bias_initializer='lecun_normal',
                                         use_bias=True) 
 
         else:
@@ -364,7 +364,7 @@ class aformer(tf.keras.Model):
             self.final_dense_profile_FT = kl.Dense(1,
                                         activation='softplus',
                                         kernel_initializer='lecun_normal',
-                                        bias_initializer='zeros',
+                                        bias_initializer='lecun_normal',
                                         use_bias=True)
 
         self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
