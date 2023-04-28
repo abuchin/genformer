@@ -176,6 +176,9 @@ def main():
                 'random_mask_size': {
                     'values':[int(x) for x in args.random_mask_size.split(',')]
                 },
+                'final_point_scale': {
+                    'values':[int(x) for x in args.final_point_scale.split(',')]
+                },
                 'predict_atac': {
                     'values':[parse_bool_str(x) for x in args.predict_atac.split(',')]
                 }
@@ -349,6 +352,7 @@ def main():
                                     use_rot_emb = True,
                                     use_mask_pos = False,
                                     normalize = True,
+                                    final_point_scale=wandb.config.final_point_scale,
                                     num_transformer_layers=wandb.config.num_transformer_layers,
                                     inits=inits,
                                     inits_type=wandb.config.inits_type,

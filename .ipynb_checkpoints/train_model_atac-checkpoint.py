@@ -170,6 +170,9 @@ def main():
                 'random_mask_size': {
                     'values':[int(x) for x in args.random_mask_size.split(',')]
                 },
+                'final_point_scale': {
+                    'values':[int(x) for x in args.final_point_scale.split(',')]
+                },
                 'bce_loss_scale': {
                     'values':[args.bce_loss_scale]
                 }
@@ -354,6 +357,7 @@ def main():
                                     inits=inits,
                                     inits_type=wandb.config.inits_type,
                                     load_init=wandb.config.load_init,
+                                    final_point_scale=wandb.config.final_point_scale,
                                     stable_variant=wandb.config.stable_variant,
                                     freeze_conv_layers=wandb.config.freeze_conv_layers,
                                     filter_list_seq=wandb.config.filter_list_seq,

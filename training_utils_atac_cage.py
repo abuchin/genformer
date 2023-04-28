@@ -2048,6 +2048,11 @@ def parse_args(parser):
                         type=float,
                         default=0.05,
                         help= 'atac_mask_dropout')
+    parser.add_argument('--final_point_scale',
+                        dest='final_point_scale',
+                        type=str,
+                        default="6",
+                        help= 'final_point_scale')
     parser.add_argument('--seq_mask_dropout',
                         dest='seq_mask_dropout',
                         type=float,

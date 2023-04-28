@@ -42,6 +42,7 @@ class aformer(tf.keras.Model):
                  inits_type='enformer_conv',
                  filter_list_seq=[768, 896, 1024, 1152, 1280, 1536],
                  filter_list_atac=[32, 64],
+                 final_point_scale=6,
                  output_heads=["human"],
                  #global_acc_size=64,
                  freeze_conv_layers=False,
@@ -86,6 +87,7 @@ class aformer(tf.keras.Model):
         #self.global_acc_size=global_acc_size
         self.BN_momentum=BN_momentum
         self.output_heads=output_heads
+        self.final_point_scale=final_point_scale
         
         ## ensure load_init matches actual init inputs...
         if inits is None:
@@ -324,7 +326,7 @@ class aformer(tf.keras.Model):
                                              target_length=self.final_output_length,
                                              name='target_input')
         
-        self.final_pointwise_conv = enf_conv_block(filters=self.filter_list_seq[-1] // 4,
+        self.final_pointwise_conv = enf_conv_block(filters=self.filter_list_seq[-1] // self.final_point_scale,
                                                    beta_init=self.inits['final_point_BN_b'] if self.load_init_atac else None,
                                                    gamma_init=self.inits['final_point_BN_g'] if self.load_init_atac else None,
                                                    mean_init=self.inits['final_point_BN_m'] if self.load_init_atac else None,
@@ -510,10 +512,10 @@ class aformer(tf.keras.Model):
         else:
             transformer_input_x=self.sin_pe(transformer_input)
 
-        out,att_matrices = self.performer(transformer_input_x,
+        out_att,att_matrices = self.performer(transformer_input_x,
                                                   training=training)
 
-        out = self.crop_final(out)
+        out = self.crop_final(out_att)
 
         final_point = self.final_pointwise_conv(out,
                                        training=training)
@@ -533,6 +535,6 @@ class aformer(tf.keras.Model):
                                   training=training)
                      for head, module in self.final_dense_peaks.items()}
 
-        return out_profile, out_peaks, final_point, att_matrices
+        return out_profile, out_peaks, final_point, out_att, att_matrices
     
 
