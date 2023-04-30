@@ -1279,7 +1279,7 @@ def return_dataset(gcs_paths,
                                                         split,
                                                         wc)))
             random.shuffle(list_files)
-            files = tf.data.Dataset.list_files(list_files)
+            files = tf.data.Dataset.list_files(list_files,seed=5,shuffle=True)
 
             dataset = tf.data.TFRecordDataset(files,
                                               compression_type='ZLIB',
@@ -1317,7 +1317,7 @@ def return_dataset(gcs_paths,
                                                     wc)))
 
         random.shuffle(list_files)
-        files = tf.data.Dataset.list_files(list_files)
+        files = tf.data.Dataset.list_files(list_files,seed=4,shuffle=True)
 
         dataset = tf.data.TFRecordDataset(files,
                                           compression_type='ZLIB',

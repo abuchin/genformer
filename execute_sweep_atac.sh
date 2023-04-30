@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model_atac.py \
-            --tpu_name="node-5" \
-            --tpu_zone="us-central1-a" \
+            --tpu_name="pod" \
+            --tpu_zone="us-east1-d" \
             --wandb_project="atac_pretraining" \
             --wandb_user="njaved" \
             --wandb_sweep_name="atac_pretraining" \
@@ -18,7 +18,7 @@ python3 train_model_atac.py \
             --final_output_length=1536 \
             --max_shift=10 \
             --batch_size=4 \
-            --num_epochs=50 \
+            --num_epochs=20 \
             --train_examples=100000 \
             --val_examples_ho=19917 \
             --BN_momentum=0.90 \
@@ -28,13 +28,13 @@ python3 train_model_atac.py \
             --min_delta=0.0000005 \
             --model_save_dir="gs://picard-testing-176520/genformer_atac_pretrain/models" \
             --model_save_basename="aformer" \
-            --lr_base1="5.0e-06" \
-            --lr_base2="2.5e-04" \
-            --decay_frac="0.50" \
+            --lr_base1="1.68e-04" \
+            --lr_base2="1.68e-04" \
+            --decay_frac="0.744" \
             --gradient_clip="5.0" \
-            --epsilon=1.0e-14 \
-            --num_transformer_layers="6" \
-            --dropout_rate="0.30" \
+            --epsilon=1.0e-8 \
+            --num_transformer_layers="10" \
+            --dropout_rate="0.10" \
             --pointwise_dropout_rate="0.10" \
             --num_heads="8" \
             --num_random_features="256" \
@@ -43,11 +43,11 @@ python3 train_model_atac.py \
             --freeze_conv_layers="False" \
             --load_init="True" \
             --rectify="True" \
-            --filter_list_seq="768,896,1024,1152,1280,1536" \
+            --filter_list_seq="512,640,768,896,1024,1152" \
             --filter_list_atac="32,64" \
-            --inits_type="enformer_conv" \
-            --multitask_checkpoint_path="gs://picard-testing-176520/sonnet_weights/sonnet_weights" \
-            --optimizer="adabelief" \
+            --inits_type="enformer_performer_full" \
+            --multitask_checkpoint_path="gs://picard-testing-176520/genformer_atac_pretrain/models/aformer_hg_mm_rm_rat_262k_load-True_LR-0.01_T-10_D-0.1_2023-04-29_23:45:03/iteration_5" \
+            --optimizer="adam" \
             --stable_variant="False" \
             --atac_mask_dropout=0.20 \
             --log_atac="True" \
