@@ -989,10 +989,12 @@ def deserialize_tr(serialized_example,
     atac_mask = tf.ones(out_length_cropped // num_mask_bins,dtype=tf.float32)
 
     ### now calculate ATAC dropout regions
-    ### 
-    atac_mask=tf.nn.experimental.stateless_dropout(atac_mask,
-                                              rate=(atac_mask_dropout),
-                                              seed=[1,stupid_random_seed-5]) / (1. / (1.0-(atac_mask_dropout))) 
+    ###
+    if atac_predict:
+        atac_mask=tf.nn.experimental.stateless_dropout(atac_mask,
+                                                  rate=(atac_mask_dropout),
+                                                  seed=[1,stupid_random_seed-5]) / (1. / (1.0-(atac_mask_dropout)))
+        
     atac_mask = tf.expand_dims(atac_mask,axis=1)
     atac_mask = tf.tile(atac_mask, [1,num_mask_bins])
     atac_mask = tf.reshape(atac_mask, [-1])
