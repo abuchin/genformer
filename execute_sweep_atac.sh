@@ -56,6 +56,7 @@ python3 train_model_atac.py \
             --random_mask_size="1024" \
             --bce_loss_scale=0.95 \
             --use_atac="True" \
+            --final_point_scale="4" \
             --use_seq="True"
                         
             
