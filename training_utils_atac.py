@@ -528,9 +528,9 @@ def return_train_val_functions(model,
     metric_dict['ATAC_TP'] = tf.keras.metrics.Sum()
     metric_dict['ATAC_T'] = tf.keras.metrics.Sum()
     
-    @tf.function(jit_compile=True)
+    #@tf.function(jit_compile=True)
     def dist_train_step_all(iterator):    
-        #@tf.function(jit_compile=True)
+        @tf.function(jit_compile=True)
         def train_step_hg(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
@@ -587,7 +587,7 @@ def return_train_val_functions(model,
                                            performer_vars))
             metric_dict["train_loss"].update_state(loss)
             
-        #@tf.function(jit_compile=True)
+        @tf.function(jit_compile=True)
         def train_step_mm(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
@@ -644,7 +644,7 @@ def return_train_val_functions(model,
                                            performer_vars))
             metric_dict["train_loss_mm"].update_state(loss)
             
-        #@tf.function(jit_compile=True)
+        @tf.function(jit_compile=True)
         def train_step_rm(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
@@ -701,7 +701,7 @@ def return_train_val_functions(model,
                                            performer_vars))
             metric_dict["train_loss_rm"].update_state(loss)
             
-        #@tf.function(jit_compile=True)
+        @tf.function(jit_compile=True)
         def train_step_rat(inputs):
             sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
             atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
