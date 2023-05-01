@@ -589,7 +589,7 @@ def make_plots(y_trues,
     except np.linalg.LinAlgError as err:
         gene_specific_corrs = [0.0] * len(np.unique(gene_map))
     
-    corrs_overall = np.nanmean(cell_specific_corrs), np.nanmean(gene_specific_corrs),
+    corrs_overall = np.nanmean(cell_specific_corrs), np.nanmean(gene_specific_corrs), \
                         np.nanmean(cell_specific_corrs_raw), np.nanmean(gene_specific_corrs_raw)
                         
         
