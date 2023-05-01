@@ -310,7 +310,9 @@ def main():
                 fig_cell_spec, fig_gene_spec, fig_overall=figures 
 
                 cell_spec_mean_corrs, \
-                    gene_spec_mean_corrs = corrs_overall
+                    gene_spec_mean_corrs,
+                        cell_spec_mean_corrs_raw, \
+                            gene_spec_mean_corrs_raw = corrs_overall
                 
                 
                 val_pearsons.append(cell_spec_mean_corrs)
@@ -318,7 +320,9 @@ def main():
                 print('hg_RNA_pearson: ' + str(cell_spec_mean_corrs))
 
                 wandb.log({'gene_spec_mean_corrs': gene_spec_mean_corrs,
-                           'cell_spec_mean_corrs': cell_spec_mean_corrs},
+                           'gene_spec_mean_corrs_raw': gene_spec_mean_corrs_raw,
+                           'cell_spec_mean_corrs': cell_spec_mean_corrs,
+                           'cell_spec_mean_corrs_raw': cell_spec_mean_corrs_raw},
                           step=epoch_i)
                 try:
                     wandb.log({'human_OVERALL_TSS_predictions': fig_overall,
