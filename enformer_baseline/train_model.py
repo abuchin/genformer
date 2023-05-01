@@ -310,7 +310,7 @@ def main():
                 fig_cell_spec, fig_gene_spec, fig_overall=figures 
 
                 cell_spec_mean_corrs, \
-                    gene_spec_mean_corrs,
+                    gene_spec_mean_corrs, \
                         cell_spec_mean_corrs_raw, \
                             gene_spec_mean_corrs_raw = corrs_overall
                 
