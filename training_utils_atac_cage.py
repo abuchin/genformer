@@ -1184,9 +1184,10 @@ def deserialize_val(serialized_example,
 
     ### now calculate ATAC dropout regions
     ### 
-    atac_mask=tf.nn.experimental.stateless_dropout(atac_mask,
-                                              rate=(atac_mask_dropout),
-                                              seed=[0,stupid_random_seed-5]) / (1. / (1.0-(atac_mask_dropout))) 
+    if atac_predict:
+        atac_mask=tf.nn.experimental.stateless_dropout(atac_mask,
+                                                  rate=(atac_mask_dropout),
+                                                  seed=[0,stupid_random_seed-5]) / (1. / (1.0-(atac_mask_dropout))) 
     atac_mask = tf.expand_dims(atac_mask,axis=1)
     atac_mask = tf.tile(atac_mask, [1,num_mask_bins])
     atac_mask = tf.reshape(atac_mask, [-1])
@@ -1420,7 +1421,7 @@ def return_dataset(gcs_path,
                                                     wc)))
         #print(list_files)
         random.shuffle(list_files)
-        files = tf.data.Dataset.list_files(list_files,shuffle=True,seed=5)
+        files = tf.data.Dataset.list_files(list_files,shuffle=True,seed=7)
 
         dataset = tf.data.TFRecordDataset(files,
                                           compression_type='ZLIB',

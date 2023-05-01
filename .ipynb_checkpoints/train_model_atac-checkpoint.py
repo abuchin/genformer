@@ -173,9 +173,12 @@ def main():
                 'final_point_scale': {
                     'values':[int(x) for x in args.final_point_scale.split(',')]
                 },
-                'bce_loss_scale': {
-                    'values':[args.bce_loss_scale]
+                'seed': {
+                    'values':[args.seed]
                 }
+                #'bce_loss_scale': {
+                #    'values':[args.bce_loss_scale]
+                #}
             }
     }
 
@@ -189,7 +192,7 @@ def main():
         mixed_precision.set_global_policy('mixed_bfloat16')
         #g = tf.random.Generator.from_non_deterministic_state()
         ## rest must be w/in strategy scope
-        g = tf.random.Generator.from_seed(42)
+        g = tf.random.Generator.from_seed(args.seed+10)
         with strategy.scope():
             config_defaults = {
                 "lr_base": 0.01 ### will be overwritten
@@ -307,6 +310,7 @@ def main():
                                                                 wandb.config.log_atac,
                                                                 wandb.config.use_atac,
                                                                 wandb.config.use_seq,
+                                                                wandb.config.seed,
                                                                 g)
 
             
@@ -431,8 +435,8 @@ def main():
                                                                                 strategy,
                                                                                 metric_dict,
                                                                                 GLOBAL_BATCH_SIZE,
-                                                                                wandb.config.gradient_clip,
-                                                                                    wandb.config.bce_loss_scale)
+                                                                                wandb.config.gradient_clip)
+                                                                                    #wandb.config.bce_loss_scale)
 
 
             global_step = 0
@@ -485,40 +489,41 @@ def main():
                 val_step(data_val_ho)
                 val_loss = metric_dict['val_loss'].result().numpy()
                 val_loss_poisson = metric_dict['val_loss_poisson'].result().numpy()
-                val_loss_bce = metric_dict['val_loss_bce'].result().numpy()
+               # val_loss_bce = metric_dict['val_loss_bce'].result().numpy()
                 print('val_loss: ' + str(val_loss))
                 print('val_loss_poisson: ' + str(val_loss_poisson))
-                print('val_loss_bce: ' + str(val_loss_bce))
+                #print('val_loss_bce: ' + str(val_loss_bce))
                 val_losses.append(val_loss)
                 
                 wandb.log({'human_val_loss': metric_dict['val_loss'].result().numpy(),
-                           'human_val_loss_poisson': metric_dict['val_loss_poisson'].result().numpy(),
-                           'human_val_loss_bce': metric_dict['val_loss_bce'].result().numpy()},
+                           'human_val_loss_poisson': metric_dict['val_loss_poisson'].result().numpy()},
+                           #'human_val_loss_bce': metric_dict['val_loss_bce'].result().numpy()},
                            #'human_val_loss_poisson': metric_dict['val_loss_poisson'].result().numpy()},
                            #'human_val_loss_bce': metric_dict['val_loss_bce'].result().numpy()},
                            step=epoch_i)
                 
                 atac_pearsons = metric_dict['ATAC_PearsonR'].result()['PearsonR'].numpy()
                 atac_R2 = metric_dict['ATAC_R2'].result()['R2'].numpy()
-                atac_roc = metric_dict['ATAC_ROC'].result().numpy()
-                atac_pr = metric_dict['ATAC_PR'].result().numpy()
+                #atac_roc = metric_dict['ATAC_ROC'].result().numpy()
+                #atac_pr = metric_dict['ATAC_PR'].result().numpy()
                 
-                atac_TP = metric_dict['ATAC_TP'].result().numpy()
-                atac_T = metric_dict['ATAC_T'].result().numpy()
+                #atac_TP = metric_dict['ATAC_TP'].result().numpy()
+                #atac_T = metric_dict['ATAC_T'].result().numpy()
                 
                 val_pearsons.append(atac_pearsons)
                 #atac_pr = metric_dict['ATAC_pr'].result().numpy()
                 print('human_ATAC_pearsons: ' + str(atac_pearsons))
                 print('human_ATAC_R2: ' + str(atac_R2))
-                print('human_ATAC_PR: ' + str(atac_pr))
-                print('human_ATAC_ROC: ' + str(atac_roc))
+                #print('human_ATAC_PR: ' + str(atac_pr))
+                #print('human_ATAC_ROC: ' + str(atac_roc))
                 
 
                 wandb.log({'human_ATAC_pearsons': atac_pearsons,
-                           'human_ATAC_R2': atac_R2,
-                           'human_ATAC_ROC': atac_roc,
-                           'human_ATAC_pos_rate': (atac_TP/atac_T),
-                           'human_ATAC_PR': atac_pr},step=epoch_i)
+                           'human_ATAC_R2': atac_R2},
+                           #'human_ATAC_ROC': atac_roc,
+                           #'human_ATAC_pos_rate': (atac_TP/atac_T),
+                           #'human_ATAC_PR': atac_pr},
+                          step=epoch_i)
                         
 
                 end = time.time()

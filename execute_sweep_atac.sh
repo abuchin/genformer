@@ -18,9 +18,9 @@ python3 train_model_atac.py \
             --final_output_length=1536 \
             --max_shift=10 \
             --batch_size=4 \
-            --num_epochs=20 \
-            --train_examples=100000 \
-            --val_examples_ho=19917 \
+            --num_epochs=50 \
+            --train_examples=2048 \
+            --val_examples_ho=1024 \
             --BN_momentum=0.90 \
             --warmup_frac=0.002 \
             --patience=50 \
@@ -28,9 +28,9 @@ python3 train_model_atac.py \
             --min_delta=0.0000005 \
             --model_save_dir="gs://picard-testing-176520/genformer_atac_pretrain/models" \
             --model_save_basename="aformer" \
-            --lr_base1="1.68e-04" \
-            --lr_base2="1.68e-04" \
-            --decay_frac="0.744" \
+            --lr_base1="2.5e-04" \
+            --lr_base2="2.5e-04" \
+            --decay_frac="0.50" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-8 \
             --num_transformer_layers="10" \
@@ -41,22 +41,20 @@ python3 train_model_atac.py \
             --kernel_transformation="relu_kernel_transformation" \
             --savefreq=1 \
             --freeze_conv_layers="False" \
-            --load_init="True" \
+            --load_init="False" \
             --rectify="True" \
             --filter_list_seq="512,640,768,896,1024,1152" \
             --filter_list_atac="32,64" \
-            --inits_type="enformer_performer_full" \
-            --multitask_checkpoint_path="gs://picard-testing-176520/genformer_atac_pretrain/models/aformer_hg_mm_rm_rat_262k_load-True_LR-0.01_T-10_D-0.1_2023-04-29_23:45:03/iteration_5" \
             --optimizer="adam" \
             --stable_variant="False" \
             --atac_mask_dropout=0.20 \
             --log_atac="True" \
             --learnable_PE="True" \
-            --sonnet_weights_bool="True" \
+            --sonnet_weights_bool="False" \
             --random_mask_size="1024" \
-            --bce_loss_scale=0.95 \
             --use_atac="True" \
             --final_point_scale="4" \
-            --use_seq="True"
+            --use_seq="True" \
+            --seed=42
                         
             
