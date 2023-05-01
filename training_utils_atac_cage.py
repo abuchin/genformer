@@ -1023,14 +1023,14 @@ def deserialize_tr(serialized_example,
                                                dtype=tf.float32)) ### add some gaussian noise
     
 
-    if ((seq_mask_int == 0)):
-        seq_mask = 1.0 - full_comb_mask_full_store
-        tiling_req_seq = input_length // output_length
-        seq_mask = tf.expand_dims(tf.reshape(tf.tile(seq_mask, [1,tiling_req_seq]),[-1]),axis=1)
-        masked_seq = sequence * seq_mask + tf.random.experimental.stateless_shuffle(sequence,
-                                                                                    seed=[stupid_random_seed+30,stupid_random_seed])*(1.0-seq_mask)
-    else:
-        masked_seq = sequence
+    #if ((seq_mask_int == 0)):
+    #    seq_mask = 1.0 - full_comb_mask_full_store
+    #    tiling_req_seq = input_length // output_length
+    #    seq_mask = tf.expand_dims(tf.reshape(tf.tile(seq_mask, [1,tiling_req_seq]),[-1]),axis=1)
+    #    masked_seq = sequence * seq_mask + tf.random.experimental.stateless_shuffle(sequence,
+    #                                                                                seed=[stupid_random_seed+30,stupid_random_seed])*(1.0-seq_mask)
+    #else:
+    masked_seq = sequence
         
     if log_atac: 
         masked_atac = tf.math.log1p(masked_atac)
