@@ -927,7 +927,7 @@ def deserialize_tr(serialized_example,
     ### stochastic sequence shift and gaussian noise
 
     rev_comp = tf.math.round(g.uniform([], 0, 1))
-    seq_mask_int = g.uniform([], 0, 30, dtype=tf.int32)
+    #seq_mask_int = g.uniform([], 0, 30, dtype=tf.int32)
     stupid_random_seed = g.uniform([], 0, 10000000,dtype=tf.int32)
     shift = g.uniform(shape=(),
                       minval=0,
@@ -968,17 +968,16 @@ def deserialize_tr(serialized_example,
         raise ValueError('ensure that masking region size divided by output res is a factor of the cropped output length')
     edge_append = tf.ones((crop_size,1),dtype=tf.float32) ## since we only mask over the center 896, base calcs on the cropped size
     
-
     ### tss sequence dropout
     tss_tokens = tf.io.parse_tensor(data['tss_tokens'],
                                   out_type=tf.int32)
     tss_tokens = tf.cast(tf.expand_dims(tss_tokens,axis=1),dtype=tf.float32)
     
-    if ((seq_mask_int == 0)):
-        tss_mask = tf.cast(1.0 - tss_tokens,dtype=tf.float32)
-        tss_mask = tf.concat([edge_append,tss_mask,edge_append],axis=0)
-    else:
-        tss_mask = tf.ones((output_length,1),dtype=tf.float32)
+    #if ((seq_mask_int == 0)):
+    #    tss_mask = tf.cast(1.0 - tss_tokens,dtype=tf.float32)
+    #    tss_mask = tf.concat([edge_append,tss_mask,edge_append],axis=0)
+    #else:
+    tss_mask = tf.ones((output_length,1),dtype=tf.float32)
     
     atac_target = atac ## store the target ATAC 
 
@@ -1672,20 +1671,20 @@ def make_plots(y_trues,
     
     try: 
         cell_specific_corrs=results_df.groupby('cell_type_encoding')[['true_zscore','pred_zscore']].corr(method='pearson').unstack().iloc[:,1].tolist()
-        cell_specific_corrs_sp=results_df.groupby('cell_type_encoding')[['true_zscore','pred_zscore']].corr(method='spearman').unstack().iloc[:,1].tolist()
+        cell_specific_corrs_raw=results_df.groupby('cell_type_encoding')[['true','pred']].corr(method='pearson').unstack().iloc[:,1].tolist()
     except np.linalg.LinAlgError as err:
         cell_specific_corrs = [0.0] * len(np.unique(cell_types))
 
     try: 
         gene_specific_corrs=results_df.groupby('gene_encoding')[['true_zscore','pred_zscore']].corr(method='pearson').unstack().iloc[:,1].tolist()
-        gene_specific_corrs_sp=results_df.groupby('gene_encoding')[['true_zscore','pred_zscore']].corr(method='spearman').unstack().iloc[:,1].tolist()
+        gene_specific_corrs_raw=results_df.groupby('gene_encoding')[['true','pred']].corr(method='pearson').unstack().iloc[:,1].tolist()
     except np.linalg.LinAlgError as err:
         gene_specific_corrs = [0.0] * len(np.unique(gene_map))
     
     corrs_overall = np.nanmean(cell_specific_corrs), \
                         np.nanmean(gene_specific_corrs), \
-                            np.nanmean(cell_specific_corrs_sp), \
-                                np.nanmean(gene_specific_corrs_sp)
+                            np.nanmean(cell_specific_corrs_raw), \
+                                np.nanmean(gene_specific_corrs_raw)
                         
         
     fig_overall,ax_overall=plt.subplots(figsize=(6,6))
