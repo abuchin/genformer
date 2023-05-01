@@ -158,9 +158,9 @@ def main():
 
             wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE)},
                                 allow_val_change=True)
-            wandb.config.update({"val_steps" : num_val // GLOBAL_BATCH_SIZE},
+            wandb.config.update({"val_steps" : num_val // GLOBAL_BATCH_SIZE + 1},
                                 allow_val_change=True)
-            wandb.config.update({"val_steps_TSS" : num_val_TSS // GLOBAL_BATCH_SIZE},
+            wandb.config.update({"val_steps_TSS" : num_val_TSS // GLOBAL_BATCH_SIZE + 1},
                                 allow_val_change=True)
             wandb.config.update({"total_steps": num_train // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)

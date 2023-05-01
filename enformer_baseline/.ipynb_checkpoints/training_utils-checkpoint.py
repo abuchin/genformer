@@ -458,6 +458,7 @@ def return_dataset(gcs_path,
                                                             g),
                               deterministic=False,
                               num_parallel_calls=num_parallel)
+        return dataset.repeat(num_epoch).batch(batch).prefetch(tf.data.AUTOTUNE)
         
     elif split == 'valid': 
         if not tss_bool:
@@ -477,7 +478,7 @@ def return_dataset(gcs_path,
                                   deterministic=False,
                                   num_parallel_calls=num_parallel)
 
-    return dataset.repeat(num_epoch).batch(batch,drop_remainder=True).prefetch(1)
+        return dataset.batch(batch,drop_remainder=True).prefetch(tf.data.AUTOTUNE).repeat(num_epoch)
 
 
 
