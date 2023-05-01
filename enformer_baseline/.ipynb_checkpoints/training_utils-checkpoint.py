@@ -298,13 +298,12 @@ def deserialize_tr(serialized_example,input_length,max_shift, out_length,num_tar
                       [896,-1])
     
     target_cage = target[:,:27]
-    #diff = tf.math.sqrt(tf.nn.relu(target_cage - 850.0 * tf.ones(target_cage.shape,dtype=tf.float16)))
-    #target_cage = tf.clip_by_value(target_cage, clip_value_min=0.0, clip_value_max=850.0) + diff
-    #target = target_cage
-
+    diff = tf.math.sqrt(tf.nn.relu(target_cage - 850.0 * tf.ones(target_cage.shape,dtype=tf.float16)))
+    target_cage = tf.clip_by_value(target_cage, clip_value_min=0.0, clip_value_max=850.0) + diff
+    target = target_cage
     target_atac = target[:,27:]
-    #diff = tf.math.sqrt(tf.nn.relu(target_atac - 64.0 * tf.ones(target_atac.shape,dtype=tf.float16)))
-    #target_atac = tf.clip_by_value(target_atac, clip_value_min=0.0, clip_value_max=64.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(target_atac - 2500.0 * tf.ones(target_atac.shape,dtype=tf.float16)))
+    target_atac = tf.clip_by_value(target_atac, clip_value_min=0.0, clip_value_max=2500.0) + diff
 
     target = tf.concat([target_cage,target_atac],
                        axis=1)
@@ -347,13 +346,12 @@ def deserialize_val(serialized_example,input_length,max_shift, out_length,num_ta
                       [896,-1])
     
     target_cage = target[:,:27]
-    #diff = tf.math.sqrt(tf.nn.relu(target_cage - 850.0 * tf.ones(target_cage.shape,dtype=tf.float16)))
-    #target_cage = tf.clip_by_value(target_cage, clip_value_min=0.0, clip_value_max=850.0) + diff
-    #target = target_cage
-    
+    diff = tf.math.sqrt(tf.nn.relu(target_cage - 850.0 * tf.ones(target_cage.shape,dtype=tf.float16)))
+    target_cage = tf.clip_by_value(target_cage, clip_value_min=0.0, clip_value_max=850.0) + diff
+    target = target_cage
     target_atac = target[:,27:]
-    #diff = tf.math.sqrt(tf.nn.relu(target_atac - 64.0 * tf.ones(target_atac.shape,dtype=tf.float16)))
-    #target_atac = tf.clip_by_value(target_atac, clip_value_min=0.0, clip_value_max=64.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(target_atac - 2500.0 * tf.ones(target_atac.shape,dtype=tf.float16)))
+    target_atac = tf.clip_by_value(target_atac, clip_value_min=0.0, clip_value_max=2500.0) + diff
 
     target = tf.concat([target_cage,target_atac],
                        axis=1)
@@ -391,12 +389,12 @@ def deserialize_val_TSS(serialized_example,input_length,max_shift, out_length,nu
                       [896,-1])
     
     target_cage = target[:,:27]
-    #diff = tf.math.sqrt(tf.nn.relu(target_cage - 850.0 * tf.ones(target_cage.shape,dtype=tf.float16)))
-    #target_cage = tf.clip_by_value(target_cage, clip_value_min=0.0, clip_value_max=850.0) + diff
-    #target = target_cage
+    diff = tf.math.sqrt(tf.nn.relu(target_cage - 850.0 * tf.ones(target_cage.shape,dtype=tf.float16)))
+    target_cage = tf.clip_by_value(target_cage, clip_value_min=0.0, clip_value_max=850.0) + diff
+    target = target_cage
     target_atac = target[:,27:]
-    #diff = tf.math.sqrt(tf.nn.relu(target_atac - 64.0 * tf.ones(target_atac.shape,dtype=tf.float16)))
-    #target_atac = tf.clip_by_value(target_atac, clip_value_min=0.0, clip_value_max=64.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(target_atac - 2500.0 * tf.ones(target_atac.shape,dtype=tf.float16)))
+    target_atac = tf.clip_by_value(target_atac, clip_value_min=0.0, clip_value_max=2500.0) + diff
     
     target = tf.concat([target_cage,target_atac],
                        axis=1)

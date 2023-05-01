@@ -937,7 +937,6 @@ def deserialize_tr(serialized_example,
       rev_comp: whether or not to reverse/complement sequence + signal
       seq_mask_int: whether we will randomly also mask the sequence underlying
                     masked ATAC regions
-      full_atac_mask_int: whether or not to randomize the ENTIRE atac profile
       stupid_random_seed: hacky workaround to previous issue with random atac masking
     '''
     rev_comp = tf.math.round(g.uniform([], 0, 1))
@@ -985,8 +984,9 @@ def deserialize_tr(serialized_example,
     mask_indices_temp = tf.where(peaks_crop[:,0] > 0)[:,0]
     ridx = tf.concat([tf.random.experimental.stateless_shuffle(mask_indices_temp,seed=[4+stupid_random_seed,5]),
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
-    mask_indices=[[ridx[0]-2+crop_size],
-                  [ridx[0]-1+crop_size],[ridx[0]+crop_size],[ridx[0]+1+crop_size]]
+    mask_indices=[[ridx[0]-3+crop_size],[ridx[0]-2+crop_size],
+                  [ridx[0]-1+crop_size],[ridx[0]+crop_size],[ridx[0]+1+crop_size],
+                  [ridx[0]+2+crop_size]]
                   
     st=tf.SparseTensor(
         indices=mask_indices,
@@ -1164,7 +1164,8 @@ def deserialize_val(serialized_example,
     mask_indices_temp = tf.where(peaks_crop[:,0] > 0)[:,0]
     ridx = tf.concat([tf.random.shuffle(mask_indices_temp),
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
-    mask_indices=[[ridx[0]-1+crop_size],[ridx[0]+crop_size],[ridx[0]+1+crop_size],
+    mask_indices=[[ridx[0]-3+crop_size],[ridx[0]-2+crop_size],
+                  [ridx[0]-1+crop_size],[ridx[0]+crop_size],[ridx[0]+1+crop_size],
                   [ridx[0]+2+crop_size]]
     
     st=tf.SparseTensor(
