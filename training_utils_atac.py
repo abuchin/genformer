@@ -493,11 +493,11 @@ def return_train_val_functions(model,
                                strategy,
                                metric_dict,
                                global_batch_size,
-                               gradient_clip):
-                               #bce_loss_scale):
+                               gradient_clip,
+                               bce_loss_scale):
     
     poisson_loss_func = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
-    #bce_loss_func = tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
+    bce_loss_func = tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
 
     optimizer1,optimizer2=optimizers_in
 
@@ -552,31 +552,32 @@ def return_train_val_functions(model,
                 performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
                                         model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
                                         model.pos_embedding_learned.trainable_variables + model.performer.trainable_variables + \
-                                        model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables
+                                        model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables + \
+                                        model.final_dense_peaks.trainable_variables
 
                 vars_all = conv_vars + performer_vars
                 for var in vars_all:
                     tape.watch(var)
                     
-                output_profile = model(input_tuple,
+                output_profile,output_peaks = model(input_tuple,
                                        training=True)
                 output_profile = tf.cast(output_profile['human'],dtype=tf.float32) # ensure cast to float32
-                #output_peaks = tf.cast(output_peaks['human'],dtype=tf.float32)
+                output_peaks = tf.cast(output_peaks['human'],dtype=tf.float32)
                 
                 mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
 
                 target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
                 output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
                 
-                poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac, output_atac))  * (1. / global_batch_size) #* (1.0-bce_loss_scale)
+                poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac, output_atac))  * (1. / global_batch_size) * (1.0-bce_loss_scale)
                 
-                """
+                
                 mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
                 target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
                 output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
                 
                 bce_loss = tf.reduce_mean(bce_loss_func(target_peaks, output_peaks)) * (1./ global_batch_size) * bce_loss_scale
-                 """
+                
                 loss = poisson_loss# + bce_loss
 
             gradients = tape.gradient(loss, vars_all)
@@ -608,32 +609,33 @@ def return_train_val_functions(model,
                 performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
                                         model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
                                         model.pos_embedding_learned.trainable_variables + model.performer.trainable_variables + \
-                                        model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables 
+                                        model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables + \
+                                        model.final_dense_peaks.trainable_variables
 
                 vars_all = conv_vars + performer_vars
                 for var in vars_all:
                     tape.watch(var)
                     
-                output_profile = model(input_tuple,
+                output_profile,output_peaks = model(input_tuple,
                                        training=True)
                 output_profile = tf.cast(output_profile['mouse'],dtype=tf.float32) # ensure cast to float32
-                #output_peaks = tf.cast(output_peaks['mouse'],dtype=tf.float32)
+                output_peaks = tf.cast(output_peaks['mouse'],dtype=tf.float32)
                 
                 mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
 
                 target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
                 output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
                 
-                poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac, output_atac))  * (1. / global_batch_size) #* (1.0-bce_loss_scale)
+                poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac, output_atac))  * (1. / global_batch_size) * (1.0-bce_loss_scale)
                 
-                """
+                
                 mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
                 target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
                 output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
                 
                 bce_loss = tf.reduce_mean(bce_loss_func(target_peaks, output_peaks)) * (1./ global_batch_size) * bce_loss_scale
-                """
-                loss = poisson_loss #+ bce_loss
+            
+                loss = poisson_loss + bce_loss
 
             gradients = tape.gradient(loss, vars_all)
             gradients, _ = tf.clip_by_global_norm(gradients, 
@@ -664,31 +666,32 @@ def return_train_val_functions(model,
                 performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
                                         model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
                                         model.pos_embedding_learned.trainable_variables + model.performer.trainable_variables + \
-                                        model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables 
+                                        model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables + \
+                                        model.final_dense_peaks.trainable_variables
 
                 vars_all = conv_vars + performer_vars
                 for var in vars_all:
                     tape.watch(var)
                     
-                output_profile = model(input_tuple,
-                                       training=True)
+                output_profile,output_peaks = model(input_tuple,
+                                                    training=True)
                 output_profile = tf.cast(output_profile['rhesus'],dtype=tf.float32) # ensure cast to float32
-                #output_peaks = tf.cast(output_peaks['rhesus'],dtype=tf.float32)
+                output_peaks = tf.cast(output_peaks['rhesus'],dtype=tf.float32)
                 
                 mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
 
                 target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
                 output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
                 
-                poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac, output_atac))  * (1. / global_batch_size) #* (1.0-bce_loss_scale)
-                """
+                poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac, output_atac))  * (1. / global_batch_size) * (1.0-bce_loss_scale)
+                
                 mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
                 target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
                 output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
                 
                 bce_loss = tf.reduce_mean(bce_loss_func(target_peaks, output_peaks)) * (1./ global_batch_size) * bce_loss_scale
-                """
-                loss = poisson_loss #+ bce_loss
+                
+                loss = poisson_loss + bce_loss
 
             gradients = tape.gradient(loss, vars_all)
             gradients, _ = tf.clip_by_global_norm(gradients, 
@@ -719,31 +722,32 @@ def return_train_val_functions(model,
                 performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
                                         model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
                                         model.pos_embedding_learned.trainable_variables + model.performer.trainable_variables + \
-                                        model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables
+                                        model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables + \
+                                        model.final_dense_peaks.trainable_variables
 
                 vars_all = conv_vars + performer_vars
                 for var in vars_all:
                     tape.watch(var)
                     
-                output_profile = model(input_tuple,
+                output_profile,output_peaks = model(input_tuple,
                                        training=True)
                 output_profile = tf.cast(output_profile['rat'],dtype=tf.float32) # ensure cast to float32
-                #output_peaks = tf.cast(output_peaks['rat'],dtype=tf.float32)
+                output_peaks = tf.cast(output_peaks['rat'],dtype=tf.float32)
                 
                 mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
 
                 target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
                 output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
                 
-                poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac, output_atac))  * (1. / global_batch_size) #* (1.0-bce_loss_scale)
-                """
+                poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac, output_atac))  * (1. / global_batch_size) * (1.0-bce_loss_scale)
+                
                 mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
                 target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
                 output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
                 
                 bce_loss = tf.reduce_mean(bce_loss_func(target_peaks, output_peaks)) * (1./ global_batch_size) * bce_loss_scale
-                """
-                loss = poisson_loss #+ bce_loss
+                
+                loss = poisson_loss + bce_loss
 
             gradients = tape.gradient(loss, vars_all)
             gradients, _ = tf.clip_by_global_norm(gradients, 
@@ -790,31 +794,32 @@ def return_train_val_functions(model,
                 performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
                                         model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
                                         model.pos_embedding_learned.trainable_variables + model.performer.trainable_variables + \
-                                        model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables 
+                                        model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables + \
+                                        model.final_dense_peaks.trainable_variables
 
                 vars_all = conv_vars + performer_vars
                 for var in vars_all:
                     tape.watch(var)
                     
-                output_profile = model(input_tuple,
+                output_profile,output_peaks = model(input_tuple,
                                        training=True)
                 output_profile = tf.cast(output_profile['human'],dtype=tf.float32) # ensure cast to float32
-                #output_peaks = tf.cast(output_peaks['human'],dtype=tf.float32)
+                output_peaks = tf.cast(output_peaks['human'],dtype=tf.float32)
                 
                 mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
 
                 target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
                 output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
                 
-                poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac, output_atac))  * (1. / global_batch_size) #* (1.0-bce_loss_scale)
-                """
+                poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac, output_atac))  * (1. / global_batch_size) * (1.0-bce_loss_scale)
+                
                 mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
                 target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
                 output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
                 
                 bce_loss = tf.reduce_mean(bce_loss_func(target_peaks, output_peaks)) * (1./ global_batch_size) * bce_loss_scale
-                """
-                loss = poisson_loss #+ bce_loss
+                
+                loss = poisson_loss + bce_loss
 
             gradients = tape.gradient(loss, vars_all)
             gradients, _ = tf.clip_by_global_norm(gradients, 
@@ -845,34 +850,34 @@ def return_train_val_functions(model,
             
             input_tuple = sequence,atac#,global_acc
 
-            output_profile = model(input_tuple,
+            output_profile,output_peaks = model(input_tuple,
                                                 training=False)
             output_profile = tf.cast(output_profile['human'],dtype=tf.float32) # ensure cast to float32
-            #output_peaks = tf.cast(output_peaks['human'],dtype=tf.float32)
+            output_peaks = tf.cast(output_peaks['human'],dtype=tf.float32)
             
             mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
             
             target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
             output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
             
-            """
+            
             mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
             target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
             output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
 
             bce_loss = tf.reduce_mean(bce_loss_func(target_peaks,
                                                     output_peaks)) * (1./ global_batch_size) * bce_loss_scale
-            """
+            
             poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac,
-                                                            output_atac)) * (1. / global_batch_size) #* (1.0-bce_loss_scale)
+                                                            output_atac)) * (1. / global_batch_size) * (1.0-bce_loss_scale)
 
-            loss = poisson_loss #+ bce_loss
+            loss = poisson_loss + bce_loss
 
             metric_dict['ATAC_PearsonR'].update_state(target_atac, 
                                                       output_atac)
             metric_dict['ATAC_R2'].update_state(target_atac, 
                                                 output_atac)
-            """
+            
             metric_dict['ATAC_PR'].update_state(target_peaks,
                                                 output_peaks)
             metric_dict['ATAC_ROC'].update_state(target_peaks,
@@ -880,10 +885,10 @@ def return_train_val_functions(model,
             
             metric_dict['ATAC_TP'].update_state(target_peaks)
             metric_dict['ATAC_T'].update_state((target_peaks + (1-target_peaks)))   
-            """
+            
             metric_dict["val_loss"].update_state(loss)
             metric_dict["val_loss_poisson"].update_state(poisson_loss)
-            #metric_dict["val_loss_bce"].update_state(bce_loss)
+            metric_dict["val_loss_bce"].update_state(bce_loss)
             
         
         for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
@@ -1631,13 +1636,13 @@ def parse_args(parser):
                         default=1.0e-16,
                         type=float,
                         help= 'epsilon')
-    """
+    
     parser.add_argument('--bce_loss_scale',
                         dest='bce_loss_scale',
                         default=0.90,
                         type=float,
                         help= 'bce_loss_scale')
-    """
+    
     parser.add_argument('--gradient_clip',
                         dest='gradient_clip',
                         type=str,
