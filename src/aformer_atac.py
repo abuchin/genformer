@@ -427,11 +427,11 @@ class aformer(tf.keras.Model):
         
         
 
-        out_peaks = self.peaks_pool(out)
+        #out_peaks = self.peaks_pool(out)
         
-        out_peaks = {head: module(out,
-                                  training=training)
-                     for head, module in self.final_dense_peaks.items()}
+        #out_peaks = {head: module(out,
+        #                          training=training)
+        #             for head, module in self.final_dense_peaks.items()}
         
         return out_profile
     
