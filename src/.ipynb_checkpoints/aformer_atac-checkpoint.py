@@ -348,6 +348,7 @@ class aformer(tf.keras.Model):
                                     bias_initializer='lecun_normal',
                                     use_bias=True) for head in self.output_heads}
         
+        """
         self.peaks_pool = SoftmaxPooling1D(per_channel=True,
                                           w_init_scale=2.0,
                                           pool_size=2,
@@ -364,7 +365,7 @@ class aformer(tf.keras.Model):
                                                         bias_initializer='lecun_normal',
                                                         use_bias=True)],
                                                      name=f'final_peaks_{head}') for head in self.output_heads}
-        
+        """
 
         self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
                                   **kwargs)
@@ -432,7 +433,7 @@ class aformer(tf.keras.Model):
                                   training=training)
                      for head, module in self.final_dense_peaks.items()}
         
-        return out_profile,out_peaks
+        return out_profile
     
 
     def get_config(self):
@@ -531,13 +532,13 @@ class aformer(tf.keras.Model):
                        for head, module in self.final_dense_profile.items()}
         
         
-
+        """
         out_peaks = self.peaks_pool(out)
         
         out_peaks = {head: module(out,
                                   training=training)
                      for head, module in self.final_dense_peaks.items()}
-        
-        return out_profile,out_peaks, final_point, out_att, att_matrices
+        """
+        return out_profile, final_point, out_att, att_matrices
     
 
