@@ -12,13 +12,13 @@ python3 train_model_atac.py \
             --gcs_path_rm="gs://picard-testing-176520/genformer_atac_pretrain/262k/genformer_atac_pretrain_globalacc_conv_rpgc_rhesus" \
             --gcs_path_rat="gs://picard-testing-176520/genformer_atac_pretrain/262k/genformer_atac_pretrain_globalacc_conv_rpgc_rat" \
             --gcs_path_holdout="gs://picard-testing-176520/genformer_atac_pretrain/262k/genformer_atac_pretrain_globalacc_conv_rpgc_val_holdout" \
-            --input_length=262144 \
-            --output_length=2048 \
-            --output_length_ATAC=65536 \
-            --final_output_length=1536 \
+            --input_length=196608 \
+            --output_length=1536 \
+            --output_length_ATAC=49152 \
+            --final_output_length=896 \
             --max_shift=10 \
             --batch_size=4 \
-            --num_epochs=50 \
+            --num_epochs=25 \
             --train_examples=100000 \
             --val_examples_ho=19917 \
             --BN_momentum=0.90 \
@@ -28,12 +28,12 @@ python3 train_model_atac.py \
             --min_delta=0.0000005 \
             --model_save_dir="gs://picard-testing-176520/genformer_atac_pretrain/models" \
             --model_save_basename="aformer" \
-            --lr_base1="2.0e-04" \
-            --lr_base2="2.0e-04" \
-            --decay_frac="1.0" \
+            --lr_base1="2.5e-04" \
+            --lr_base2="2.5e-04" \
+            --decay_frac="0.4" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-8 \
-            --num_transformer_layers="8" \
+            --num_transformer_layers="9" \
             --dropout_rate="0.05" \
             --pointwise_dropout_rate="0.10" \
             --num_heads="8" \
@@ -47,14 +47,14 @@ python3 train_model_atac.py \
             --filter_list_atac="32,64" \
             --optimizer="adam" \
             --stable_variant="False" \
-            --atac_mask_dropout=0.50 \
+            --atac_mask_dropout=0.30 \
             --log_atac="True" \
-            --learnable_PE="False" \
+            --learnable_PE="True" \
             --sonnet_weights_bool="False" \
             --random_mask_size="512" \
             --use_atac="True" \
             --final_point_scale="6" \
             --use_seq="True" \
-            --seed=30
+            --seed=24
                         
             
