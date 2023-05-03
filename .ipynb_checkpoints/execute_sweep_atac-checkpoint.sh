@@ -18,11 +18,11 @@ python3 train_model_atac.py \
             --final_output_length=896 \
             --max_shift=10 \
             --batch_size=4 \
-            --num_epochs=25 \
+            --num_epochs=30 \
             --train_examples=100000 \
             --val_examples_ho=19917 \
             --BN_momentum=0.90 \
-            --warmup_frac=0.04 \
+            --warmup_frac=0.025 \
             --patience=50 \
             --output_res=128 \
             --min_delta=0.0000005 \
@@ -30,7 +30,7 @@ python3 train_model_atac.py \
             --model_save_basename="aformer" \
             --lr_base1="2.0e-04" \
             --lr_base2="2.0e-04" \
-            --decay_frac="0.75" \
+            --decay_frac="0.50" \
             --gradient_clip="1.0" \
             --epsilon=1.0e-8 \
             --num_transformer_layers="8" \
