@@ -1419,7 +1419,6 @@ def return_dataset(gcs_path,
                                                     split,
                                                     wc)))
         #print(list_files)
-        random.shuffle(list_files)
         files = tf.data.Dataset.list_files(list_files,shuffle=True,seed=7)
 
         dataset = tf.data.TFRecordDataset(files,
@@ -1442,7 +1441,8 @@ def return_dataset(gcs_path,
                                                             g),
                               deterministic=False,
                               num_parallel_calls=num_parallel)
-        return dataset.repeat(num_epoch).batch(batch).prefetch(tf.data.AUTOTUNE)
+        
+        return dataset.repeat(num_epoch).shuffle(buffer_size=128, reshuffle_each_iteration=True).batch(batch).prefetch(1)
     
 
     else:
@@ -1450,8 +1450,6 @@ def return_dataset(gcs_path,
         list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
                                                     split,
                                                     wc)))
-        #print(list_files)
-        random.shuffle(list_files)
         files = tf.data.Dataset.list_files(list_files,shuffle=True,seed=6)
 
         dataset = tf.data.TFRecordDataset(files,
@@ -1492,7 +1490,7 @@ def return_dataset(gcs_path,
                                   deterministic=False,
                                   num_parallel_calls=num_parallel)
 
-        return dataset.batch(batch,drop_remainder=True).prefetch(tf.data.AUTOTUNE).repeat(num_epoch)
+        return dataset.repeat(num_epoch).batch(batch).prefetch(1)
 
 
 def return_distributed_iterators(gcs_path,
@@ -1643,7 +1641,7 @@ def return_distributed_iterators(gcs_path,
     val_data_TSS_ho_it = iter(val_dist_TSS_ho)
 
 
-    return tr_data_it,val_data_it,val_data_ho_it, val_data_TSS_it,val_data_TSS_ho_it
+    return tr_data_it,val_data_it,val_data_ho_it,val_data_TSS_it,val_data_TSS_ho_it
 
 
 def make_plots(y_trues,
@@ -1656,7 +1654,7 @@ def make_plots(y_trues,
     results_df['pred'] = y_preds
     results_df['gene_encoding'] =gene_map
     results_df['cell_type_encoding'] = cell_types
-    
+
     results_df=results_df.groupby(['gene_encoding', 'cell_type_encoding']).agg({'true': 'sum', 'pred': 'sum'})
     results_df['true'] = np.log2(1.0+results_df['true'])
     results_df['pred'] = np.log2(1.0+results_df['pred'])
@@ -1668,6 +1666,8 @@ def make_plots(y_trues,
     true_zscore=results_df[['true_zscore']].to_numpy()[:,0]
     pred_zscore=results_df[['pred_zscore']].to_numpy()[:,0]
     
+    print('overall correlation')
+    print(results_df['true_zscore'].corr(results_df['pred_zscore']))
     
     try: 
         cell_specific_corrs=results_df.groupby('cell_type_encoding')[['true_zscore','pred_zscore']].corr(method='pearson').unstack().iloc[:,1].tolist()
@@ -1855,7 +1855,7 @@ def parse_args(parser):
                         dest='gcs_path_TSS_holdout',
                         help= 'google bucket containing preprocessed data')
     parser.add_argument('--num_parallel', dest = 'num_parallel',
-                        type=int, default=tf.data.AUTOTUNE,
+                        type=int, default=multiprocessing.cpu_count(),
                         help='thread count for tensorflow record loading')
     parser.add_argument('--batch_size', dest = 'batch_size',
                         default=1,

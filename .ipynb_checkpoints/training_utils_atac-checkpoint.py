@@ -941,7 +941,7 @@ def deserialize_tr(serialized_example,
       stupid_random_seed: hacky workaround to previous issue with random atac masking
     '''
     rev_comp = tf.math.round(g.uniform([], 0, 1))
-    seq_mask_int = g.uniform([], 0, 40, dtype=tf.int32)
+    seq_mask_int = g.uniform([], 0, 20, dtype=tf.int32)
     #full_atac_mask_int = g.uniform([], 0, 10,dtype=tf.int32)
     stupid_random_seed = g.uniform([], 0, 10000000,dtype=tf.int32)
     '''
@@ -980,14 +980,18 @@ def deserialize_tr(serialized_example,
     of the input sequence window
     '''
     
+    atac_target = atac ## store the target ATAC 
+
+    ### here set up the ATAC masking
+    num_mask_bins = mask_size // output_res ## calculate the number of adjacent bins that will be masked in each region
+    
+    
     center = (output_length-2*crop_size)//2
     ### here set up masking of one of the peaks
     mask_indices_temp = tf.where(peaks_crop[:,0] > 0)[:,0]
     ridx = tf.concat([tf.random.experimental.stateless_shuffle(mask_indices_temp,seed=[4+stupid_random_seed,5]),
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
-    mask_indices=[[ridx[0]-4+crop_size], [ridx[0]-3+crop_size],[ridx[0]-2+crop_size],
-                  [ridx[0]-1+crop_size],[ridx[0]+crop_size],[ridx[0]+1+crop_size],
-                  [ridx[0]+2+crop_size],[ridx[0]+3+crop_size]]
+    mask_indices = [[ridx[0]+x+crop_size] for x in range(-num_mask_bins//2,num_mask_bins//2)]
                   
     st=tf.SparseTensor(
         indices=mask_indices,
@@ -998,10 +1002,6 @@ def deserialize_tr(serialized_example,
     dense_peak_mask=1.0-dense_peak_mask ### masking regions here are set to 1. so invert the mask to actually use
     dense_peak_mask = tf.expand_dims(dense_peak_mask,axis=1)
     
-    atac_target = atac ## store the target ATAC 
-
-    ### here set up the ATAC masking
-    num_mask_bins = mask_size // output_res ## calculate the number of adjacent bins that will be masked in each region
 
     out_length_cropped = output_length-2*crop_size
     if out_length_cropped % num_mask_bins != 0:
@@ -1059,12 +1059,6 @@ def deserialize_tr(serialized_example,
         seq_mask = tf.expand_dims(tf.reshape(tf.tile(seq_mask, [1,tiling_req_seq]),[-1]),axis=1)
         masked_seq = sequence * seq_mask + tf.random.experimental.stateless_shuffle(sequence,
                                                                                     seed=[stupid_random_seed+30,stupid_random_seed])*(1.0-seq_mask)
-        ## this adds random bases in place of the stretches of 0
-    #elif (seq_mask_int == 1):
-    #    seq_mask = 1.0 - full_comb_mask_full_store
-    #    tiling_req_seq = input_length // output_length
-    #    seq_mask = tf.expand_dims(tf.reshape(tf.tile(seq_mask, [1,tiling_req_seq]),[-1]),axis=1)
-    #    masked_seq = tf.random.shuffle(sequence) * seq_mask + sequence*(1.0-seq_mask)
     else:
         seq_mask = 1.0 - full_comb_mask_full_store
         tiling_req_seq = input_length // output_length
@@ -1160,28 +1154,28 @@ def deserialize_val(serialized_example,
                      [output_length-2*crop_size,-1])
     
     
+    atac_target = atac ## store the target
+
+    ### here set up the ATAC masking
+    num_mask_bins = mask_size // output_res
+    
     center = (output_length-2*crop_size)//2
     ### here set up masking of one of the peaks
     mask_indices_temp = tf.where(peaks_crop[:,0] > 0)[:,0]
-    ridx = tf.concat([tf.random.shuffle(mask_indices_temp),
+    ridx = tf.concat([tf.random.experimental.stateless_shuffle(mask_indices_temp,seed=[4+stupid_random_seed,5]),
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
-    mask_indices=[[ridx[0]-4+crop_size], [ridx[0]-3+crop_size],[ridx[0]-2+crop_size],
-                  [ridx[0]-1+crop_size],[ridx[0]+crop_size],[ridx[0]+1+crop_size],
-                  [ridx[0]+2+crop_size],[ridx[0]+3+crop_size]]
-    
+    mask_indices = [[ridx[0]+x+crop_size] for x in range(-num_mask_bins//2,num_mask_bins//2)]
+                  
     st=tf.SparseTensor(
         indices=mask_indices,
         values=[1.0]*len(mask_indices),
         dense_shape=[output_length])
     dense_peak_mask=tf.sparse.to_dense(st)
     dense_peak_mask_store = dense_peak_mask
-    dense_peak_mask=1.0-dense_peak_mask
+    dense_peak_mask=1.0-dense_peak_mask ### masking regions here are set to 1. so invert the mask to actually use
     dense_peak_mask = tf.expand_dims(dense_peak_mask,axis=1)
     
-    atac_target = atac ## store the target
-
-    ### here set up the ATAC masking
-    num_mask_bins = mask_size // output_res
+    
     out_length_cropped = output_length-2*crop_size
     edge_append = tf.ones((crop_size,1),dtype=tf.float32)
     atac_mask = tf.ones(out_length_cropped // num_mask_bins,dtype=tf.float32)
@@ -1279,7 +1273,7 @@ def return_dataset(gcs_paths,
             list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
                                                         split,
                                                         wc)))
-            random.shuffle(list_files)
+            #random.shuffle(list_files)
             files = tf.data.Dataset.list_files(list_files,seed=seed,shuffle=True)
 
             dataset = tf.data.TFRecordDataset(files,
@@ -1309,7 +1303,7 @@ def return_dataset(gcs_paths,
         
             dataset=dataset.repeat(num_epoch).batch(batch,drop_remainder=True)
             dataset_list.append(dataset)
-        return tf.data.Dataset.zip(tuple(dataset_list)).prefetch(tf.data.AUTOTUNE)
+        return tf.data.Dataset.zip(tuple(dataset_list)).prefetch(1)
     
         
     else:
@@ -1317,7 +1311,7 @@ def return_dataset(gcs_paths,
                                                     split,
                                                     wc)))
 
-        random.shuffle(list_files)
+        #random.shuffle(list_files)
         files = tf.data.Dataset.list_files(list_files,seed=seed+1,shuffle=True)
 
         dataset = tf.data.TFRecordDataset(files,
@@ -1341,7 +1335,7 @@ def return_dataset(gcs_paths,
                       deterministic=False,
                       num_parallel_calls=num_parallel)
 
-        return dataset.batch(batch,drop_remainder=True).prefetch(tf.data.AUTOTUNE).repeat(num_epoch)
+        return dataset.repeat(num_epoch).batch(batch).prefetch(1)
 
 
 def return_distributed_iterators(gcs_paths,
@@ -1542,7 +1536,7 @@ def parse_args(parser):
                         dest='gcs_path_holdout',
                         help= 'google bucket containing preprocessed data')
     parser.add_argument('--num_parallel', dest = 'num_parallel',
-                        type=int, default=tf.data.AUTOTUNE,
+                        type=int, default=multiprocessing.cpu_count(),
                         help='thread count for tensorflow record loading')
     parser.add_argument('--batch_size', dest = 'batch_size',
                         default=1,

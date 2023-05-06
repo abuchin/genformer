@@ -1,0 +1,41 @@
+
+WARNING:absl:options.experimental_threading is deprecated. Use options.threading instead.
+only train output heads
+starting epoch_ 1
+building model...
+loading enformer weights...
+total params: tf.Tensor(230011446, shape=(), dtype=int32)
+completed epoch 1
+human_train_loss: 0.10558515
+training duration(mins): 3.2164876580238344
+human_val_loss: 0.14594641
+computing TSS quant metrics
+[ 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23
+ 24 25 26]
+(27,)
+[    0     1    12 ... 19976 19979 20009]
+(1613,)
+returned TSS centered correlations and figures
+hg_RNA_pearson: 0.446317146657796
+/opt/conda/lib/python3.7/site-packages/plotly/matplotlylib/mplexporter/exporter.py:289: MatplotlibDeprecationWarning:
+The get_offset_position function was deprecated in Matplotlib 3.3 and will be removed two minor releases later.
+completed epoch 1 validation
+validation duration(mins): 5.570293867588044
+starting epoch_ 2
+completed epoch 2
+human_train_loss: -0.24705085
+training duration(mins): 1.5628422458966573
+human_val_loss: 0.03744209
+computing TSS quant metrics
+[ 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23
+ 24 25 26]
+(27,)
+[    0     1     2 ... 19976 19979 20009]
+(1611,)
+returned TSS centered correlations and figures
+hg_RNA_pearson: 0.4498095505076418
+/opt/conda/lib/python3.7/site-packages/plotly/matplotlylib/mplexporter/exporter.py:289: MatplotlibDeprecationWarning:
+The get_offset_position function was deprecated in Matplotlib 3.3 and will be removed two minor releases later.
+completed epoch 2 validation
+validation duration(mins): 5.542247517903646
+[34m[1mwandb[39m[22m: Ctrl + C detected. Stopping sweep.

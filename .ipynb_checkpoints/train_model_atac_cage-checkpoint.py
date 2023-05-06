@@ -463,6 +463,7 @@ def main():
             best_epoch = 0
             
             for epoch_i in range(1, wandb.config.num_epochs+1):
+                
                 if epoch_i == 1:
                     print('building model')
                     build_step(data_val)
@@ -577,10 +578,14 @@ def main():
                     y_preds = metric_dict['corr_stats'].result()['y_preds'].numpy()
                     cell_types = metric_dict['corr_stats'].result()['cell_types'].numpy()
                     gene_map = metric_dict['corr_stats'].result()['gene_map'].numpy()
-
+                    
+                    print(np.unique(gene_map).shape)
+                    print(np.unique(cell_types).shape)
+                    
+                    #print(gene_map)
                     print('making plots')
                     figures,corrs_overall= training_utils.make_plots(y_trues,y_preds,
-                                                                     cell_types,gene_map, 500)
+                                                                     cell_types,gene_map, 5000)
 
 
                     fig_cell_spec, fig_gene_spec, fig_overall=figures 
@@ -610,8 +615,11 @@ def main():
                     cell_types = metric_dict['corr_stats_ho'].result()['cell_types'].numpy()
                     gene_map = metric_dict['corr_stats_ho'].result()['gene_map'].numpy()
                     
+                    print(np.unique(gene_map).shape)
+                    print(np.unique(cell_types).shape)
+
                     figures,corrs_overall= training_utils.make_plots(y_trues,y_preds,
-                                                                     cell_types,gene_map, 500)
+                                                                     cell_types,gene_map, 5000)
 
                     fig_cell_spec, fig_gene_spec, fig_overall=figures 
 

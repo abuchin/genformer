@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
 python3 train_model_atac_cage.py \
-            --tpu_name="pod" \
-            --tpu_zone="us-east1-d" \
+            --tpu_name="node-6" \
+            --tpu_zone="us-central1-a" \
             --wandb_project="paired_rampage_atac" \
             --wandb_user="njaved" \
             --wandb_sweep_name="paired_rampage_atac" \
@@ -11,9 +11,9 @@ python3 train_model_atac_cage.py \
             --gcs_path_holdout="gs://picard-testing-176520/paired_rampage_atac/262k/genformer_atac_rampage_globalacc_conv_rpgc_5prime_holdout" \
             --gcs_path_TSS="gs://picard-testing-176520/paired_rampage_atac/262k/genformer_atac_rampage_globalacc_conv_rpgc_TSS_5prime" \
             --gcs_path_TSS_holdout="gs://picard-testing-176520/paired_rampage_atac/262k/genformer_atac_rampage_globalacc_conv_rpgc_TSS_5prime_holdout" \
-            --input_length=196608262144 \
+            --input_length=262144 \
             --output_length=2048 \
-            --output_length_ATAC=49152 \
+            --output_length_ATAC=65536 \
             --final_output_length=896 \
             --max_shift=10 \
             --batch_size=4 \
@@ -59,6 +59,6 @@ python3 train_model_atac_cage.py \
             --learnable_PE="True" \
             --final_point_scale="4" \
             --sonnet_weights_bool="True" \
-            --predict_atac="False"
+            --predict_atac="True"
                         
             

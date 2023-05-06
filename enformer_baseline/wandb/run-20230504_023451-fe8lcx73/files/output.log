@@ -1,0 +1,10 @@
+
+WARNING:absl:options.experimental_threading is deprecated. Use options.threading instead.
+only train output heads
+starting epoch_ 1
+building model...
+loading enformer weights...
+total params: tf.Tensor(230011446, shape=(), dtype=int32)
+completed epoch 1
+human_train_loss: 0.0941983
+training duration(mins): 3.1116632143656413

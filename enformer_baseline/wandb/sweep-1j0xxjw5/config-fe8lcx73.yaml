@@ -1,0 +1,14 @@
+wandb_version: 1
+
+epsilon:
+  value: 1.0e-08
+freeze_trunk:
+  value: true
+gradient_clip:
+  value: 0.2
+lr_base1:
+  value: 5.0e-06
+lr_base2:
+  value: 0.0005
+use_enformer_weights:
+  value: true

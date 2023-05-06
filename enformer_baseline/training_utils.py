@@ -562,6 +562,11 @@ def make_plots(y_trues,
     results_df['cell_type_encoding'] = cell_types
     results_df['gene_encoding'] = gene_map
     
+    print(np.unique(cell_types))
+    print(np.unique(cell_types).shape)
+    print(np.unique(gene_map))
+    print(np.unique(gene_map).shape)
+    
     results_df=results_df.groupby(['gene_encoding', 'cell_type_encoding']).agg({'true': 'sum', 'pred': 'sum'})
     results_df['true'] = np.log2(1.0+results_df['true'])
     results_df['pred'] = np.log2(1.0+results_df['pred'])
