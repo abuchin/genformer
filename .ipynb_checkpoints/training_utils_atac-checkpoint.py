@@ -1306,9 +1306,9 @@ def return_dataset(gcs_paths,
                                   deterministic=False,
                                   num_parallel_calls=num_parallel)
         
-            dataset=dataset.repeat(num_epoch).shuffle(buffer_size=2048,reshuffle_each_iteration=True).batch(batch,drop_remainder=True)
+            dataset=dataset.repeat(num_epoch).shuffle(buffer_size=2048,reshuffle_each_iteration=True).batch(batch)
             dataset_list.append(dataset)
-        return tf.data.Dataset.zip(tuple(dataset_list)).prefetch(1)
+        return tf.data.Dataset.zip(tuple(dataset_list)).prefetch(tf.data.AUTOTUNE)
     
         
     else:
@@ -1340,7 +1340,7 @@ def return_dataset(gcs_paths,
                       deterministic=False,
                       num_parallel_calls=num_parallel)
 
-        return dataset.repeat(num_epoch).batch(batch).prefetch(1)
+        return dataset.repeat(num_epoch).batch(batch).prefetch(tf.data.AUTOTUNE)
 
 
 def return_distributed_iterators(gcs_paths,

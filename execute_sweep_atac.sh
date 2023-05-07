@@ -22,7 +22,7 @@ python3 train_model_atac.py \
             --train_examples=100000 \
             --val_examples_ho=19917 \
             --BN_momentum=0.90 \
-            --warmup_frac=0.025 \
+            --warmup_frac=0.01 \
             --patience=50 \
             --output_res=128 \
             --min_delta=0.0000005 \
@@ -34,7 +34,7 @@ python3 train_model_atac.py \
             --gradient_clip="5.0" \
             --epsilon=1.0e-8 \
             --num_transformer_layers="8" \
-            --dropout_rate="0.20" \
+            --dropout_rate="0.30" \
             --pointwise_dropout_rate="0.10" \
             --num_heads="8" \
             --num_random_features="256" \
@@ -47,11 +47,11 @@ python3 train_model_atac.py \
             --filter_list_atac="32,64" \
             --optimizer="adam" \
             --stable_variant="False" \
-            --atac_mask_dropout=0.10 \
+            --atac_mask_dropout=0.15 \
             --log_atac="True" \
             --learnable_PE="True" \
             --sonnet_weights_bool="False" \
-            --random_mask_size="512" \
+            --random_mask_size="896" \
             --use_atac="True" \
             --final_point_scale="6" \
             --use_seq="True" \
