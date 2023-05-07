@@ -1441,7 +1441,7 @@ def return_dataset(gcs_path,
                               deterministic=False,
                               num_parallel_calls=num_parallel)
         
-        return dataset.repeat(num_epoch).shuffle(buffer_size=2048, reshuffle_each_iteration=True).batch(batch).prefetch(1)
+        return dataset.repeat(num_epoch).batch(batch).prefetch(tf.data.AUTOTUNE)
     
 
     else:
@@ -1489,7 +1489,7 @@ def return_dataset(gcs_path,
                                   deterministic=False,
                                   num_parallel_calls=num_parallel)
 
-        return dataset.repeat(num_epoch).batch(batch).prefetch(1)
+        return dataset.repeat(num_epoch).batch(batch).prefetch(tf.data.AUTOTUNE)
 
 
 def return_distributed_iterators(gcs_path,
@@ -1664,9 +1664,6 @@ def make_plots(y_trues,
     
     true_zscore=results_df[['true_zscore']].to_numpy()[:,0]
     pred_zscore=results_df[['pred_zscore']].to_numpy()[:,0]
-    
-    print('overall correlation')
-    print(results_df['true_zscore'].corr(results_df['pred_zscore']))
     
     try: 
         cell_specific_corrs=results_df.groupby('cell_type_encoding')[['true_zscore','pred_zscore']].corr(method='pearson').unstack().iloc[:,1].tolist()
