@@ -252,7 +252,7 @@ def main():
 
             options = tf.data.Options()
             options.experimental_distribute.auto_shard_policy=\
-                tf.data.experimental.AutoShardPolicy.OFF
+                tf.data.experimental.AutoShardPolicy.FILE
             options.deterministic=False
             #options.experimental_threading.max_intra_op_parallelism=1
             mixed_precision.set_global_policy('mixed_bfloat16')
@@ -461,6 +461,27 @@ def main():
             patience_counter = 0
             stop_criteria = False
             best_epoch = 0
+            genes_list = []
+            total_sum = 0
+            for i in range(333):
+                try:
+                    test = next(data_val_TSS_ho)
+                except tensorflow.python.framework.errors_impl.OutOfRangeError:
+                    continue
+                for k in range(8):
+                    for j in range(4):
+                        try:
+                            #test = next(data_val_TSS_ho)
+                            if (j == 0 and k == 0 and i == 0):
+                                print(test['gene_token'])
+                            gene = test['gene_token'].values[k].numpy()[j]
+                            genes_list.append(gene)
+                            total_sum += 1
+
+            print(total_sum)
+            print(len(list(set(genes_list))))
+            print(list(set(genes_list)))
+            exit()
             
             for epoch_i in range(1, wandb.config.num_epochs+1):
                 

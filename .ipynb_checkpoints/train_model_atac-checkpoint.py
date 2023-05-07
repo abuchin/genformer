@@ -266,7 +266,7 @@ def main():
 
             options = tf.data.Options()
             options.experimental_distribute.auto_shard_policy=\
-                tf.data.experimental.AutoShardPolicy.OFF
+                tf.data.experimental.AutoShardPolicy.FILE
             options.deterministic=False
             #options.experimental_threading.max_intra_op_parallelism=1
             mixed_precision.set_global_policy('mixed_bfloat16')

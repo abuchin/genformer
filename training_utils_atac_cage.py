@@ -864,6 +864,8 @@ def return_train_val_functions(model,
             cell_type_reshape = tf.reshape(strategy.gather(cell_type_rep, axis=0), [-1])
             gene_map_reshape = tf.reshape(strategy.gather(gene_rep, axis=0), [-1])
             
+            print(gene_map_reshape)
+            
             ta_pred = ta_pred.write(_, pred_reshape)
             ta_true = ta_true.write(_, true_reshape)
             ta_celltype = ta_celltype.write(_, cell_type_reshape)
@@ -972,7 +974,7 @@ def deserialize_tr(serialized_example,
     tss_tokens = tf.io.parse_tensor(data['tss_tokens'],
                                   out_type=tf.int32)
     tss_tokens = tf.cast(tf.expand_dims(tss_tokens,axis=1),dtype=tf.float32)
-    
+
     #if ((seq_mask_int == 0)):
     #    tss_mask = tf.cast(1.0 - tss_tokens,dtype=tf.float32)
     #    tss_mask = tf.concat([edge_append,tss_mask,edge_append],axis=0)
