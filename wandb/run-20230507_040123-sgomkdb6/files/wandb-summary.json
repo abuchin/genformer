@@ -1,0 +1,1 @@
+{"mouse_train_loss": 0.062858447432518, "rhesus_train_loss": -0.00026537617668509483, "rat_train_loss": 0.014926992356777191, "_timestamp": 1683432705.4535906, "_runtime": 622.4222295284271, "human_train_loss": 0.05248803272843361, "_step": 1, "_wandb": {"runtime": 660}}

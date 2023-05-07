@@ -923,8 +923,7 @@ def deserialize_tr(serialized_example,
         'atac': tf.io.FixedLenFeature([], tf.string),
         'tss_tokens': tf.io.FixedLenFeature([], tf.string),
         'peaks': tf.io.FixedLenFeature([], tf.string),
-        'cage': tf.io.FixedLenFeature([], tf.string),
-        'cell_specific_conv_arr': tf.io.FixedLenFeature([], tf.string)
+        'cage': tf.io.FixedLenFeature([], tf.string)
     }
     ### stochastic sequence shift and gaussian noise
 
@@ -1143,8 +1142,7 @@ def deserialize_val(serialized_example,
         'atac': tf.io.FixedLenFeature([], tf.string),
         'tss_tokens': tf.io.FixedLenFeature([], tf.string),
         'peaks': tf.io.FixedLenFeature([], tf.string),
-        'cage': tf.io.FixedLenFeature([], tf.string),
-        'cell_specific_conv_arr': tf.io.FixedLenFeature([], tf.string)
+        'cage': tf.io.FixedLenFeature([], tf.string)
     }
     ### stochastic sequence shift and gaussian noise
 
@@ -1300,8 +1298,7 @@ def deserialize_val_TSS(serialized_example,
         'tss_tokens': tf.io.FixedLenFeature([], tf.string),
         'cage': tf.io.FixedLenFeature([], tf.string),
         'processed_gene_token': tf.io.FixedLenFeature([], tf.string),
-        'cell_type': tf.io.FixedLenFeature([], tf.string),
-        'cell_specific_conv_arr': tf.io.FixedLenFeature([], tf.string)
+        'cell_type': tf.io.FixedLenFeature([], tf.string)
     }
     ### stochastic sequence shift and gaussian noise
     stupid_random_seed = g.uniform([], 0, 10000000,dtype=tf.int32)
@@ -1444,7 +1441,7 @@ def return_dataset(gcs_path,
                               deterministic=False,
                               num_parallel_calls=num_parallel)
         
-        return dataset.repeat(num_epoch).shuffle(buffer_size=128, reshuffle_each_iteration=True).batch(batch).prefetch(1)
+        return dataset.repeat(num_epoch).shuffle(buffer_size=2048, reshuffle_each_iteration=True).batch(batch).prefetch(1)
     
 
     else:

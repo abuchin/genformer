@@ -1,0 +1,244 @@
+2023-05-07 04:37:32,390 INFO    StreamThr :12697 [internal.py:wandb_internal():93] W&B internal server running at pid: 12697, started at: 2023-05-07 04:37:32.389428
+2023-05-07 04:37:32,393 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: status
+2023-05-07 04:37:32,395 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: status
+2023-05-07 04:37:32,402 DEBUG   SenderThread:12697 [sender.py:send():302] send: header
+2023-05-07 04:37:32,402 INFO    WriterThread:12697 [datastore.py:open_for_write():75] open: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/run-vb85ortt.wandb
+2023-05-07 04:37:32,430 DEBUG   SenderThread:12697 [sender.py:send():302] send: run
+2023-05-07 04:37:32,596 INFO    SenderThread:12697 [dir_watcher.py:__init__():216] watching files in: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files
+2023-05-07 04:37:32,597 INFO    SenderThread:12697 [sender.py:_start_run_threads():916] run started: vb85ortt with start time 1683434252.389045
+2023-05-07 04:37:32,597 DEBUG   SenderThread:12697 [sender.py:send():302] send: summary
+2023-05-07 04:37:32,597 INFO    SenderThread:12697 [sender.py:_save_file():1156] saving file wandb-summary.json with policy end
+2023-05-07 04:37:32,599 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: check_version
+2023-05-07 04:37:32,600 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: check_version
+2023-05-07 04:37:32,726 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: run_start
+2023-05-07 04:37:33,601 INFO    Thread-12 :12697 [dir_watcher.py:_on_file_created():275] file/dir created: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/wandb-summary.json
+2023-05-07 04:37:35,155 DEBUG   HandlerThread:12697 [meta.py:__init__():35] meta init
+2023-05-07 04:37:35,155 DEBUG   HandlerThread:12697 [meta.py:__init__():50] meta init done
+2023-05-07 04:37:35,155 DEBUG   HandlerThread:12697 [meta.py:probe():216] probe
+2023-05-07 04:37:35,157 DEBUG   HandlerThread:12697 [meta.py:_setup_git():206] setup git
+2023-05-07 04:37:35,187 DEBUG   HandlerThread:12697 [meta.py:_setup_git():213] setup git done
+2023-05-07 04:37:35,187 DEBUG   HandlerThread:12697 [meta.py:_save_pip():54] save pip
+2023-05-07 04:37:35,188 DEBUG   HandlerThread:12697 [meta.py:_save_pip():68] save pip done
+2023-05-07 04:37:35,188 DEBUG   HandlerThread:12697 [meta.py:_save_conda():75] save conda
+2023-05-07 04:37:35,602 INFO    Thread-12 :12697 [dir_watcher.py:_on_file_created():275] file/dir created: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/conda-environment.yaml
+2023-05-07 04:37:35,603 INFO    Thread-12 :12697 [dir_watcher.py:_on_file_created():275] file/dir created: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/requirements.txt
+2023-05-07 04:37:48,983 DEBUG   HandlerThread:12697 [meta.py:_save_conda():85] save conda done
+2023-05-07 04:37:48,983 DEBUG   HandlerThread:12697 [meta.py:probe():254] probe done
+2023-05-07 04:37:48,988 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: stop_status
+2023-05-07 04:37:48,989 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: stop_status
+2023-05-07 04:37:49,035 DEBUG   SenderThread:12697 [sender.py:send():302] send: telemetry
+2023-05-07 04:37:49,036 DEBUG   SenderThread:12697 [sender.py:send():302] send: telemetry
+2023-05-07 04:37:49,036 DEBUG   SenderThread:12697 [sender.py:send():302] send: config
+2023-05-07 04:37:49,036 DEBUG   SenderThread:12697 [sender.py:send():302] send: config
+2023-05-07 04:37:49,036 DEBUG   SenderThread:12697 [sender.py:send():302] send: config
+2023-05-07 04:37:49,036 DEBUG   SenderThread:12697 [sender.py:send():302] send: config
+2023-05-07 04:37:49,036 DEBUG   SenderThread:12697 [sender.py:send():302] send: config
+2023-05-07 04:37:49,036 DEBUG   SenderThread:12697 [sender.py:send():302] send: config
+2023-05-07 04:37:49,037 DEBUG   SenderThread:12697 [sender.py:send():302] send: config
+2023-05-07 04:37:49,037 DEBUG   SenderThread:12697 [sender.py:send():302] send: config
+2023-05-07 04:37:49,037 DEBUG   SenderThread:12697 [sender.py:send():302] send: config
+2023-05-07 04:37:49,037 DEBUG   SenderThread:12697 [sender.py:send():302] send: config
+2023-05-07 04:37:49,037 DEBUG   SenderThread:12697 [sender.py:send():302] send: config
+2023-05-07 04:37:49,037 DEBUG   SenderThread:12697 [sender.py:send():302] send: config
+2023-05-07 04:37:49,038 DEBUG   SenderThread:12697 [sender.py:send():302] send: config
+2023-05-07 04:37:49,038 DEBUG   SenderThread:12697 [sender.py:send():302] send: config
+2023-05-07 04:37:49,038 DEBUG   SenderThread:12697 [sender.py:send():302] send: config
+2023-05-07 04:37:49,038 DEBUG   SenderThread:12697 [sender.py:send():302] send: config
+2023-05-07 04:37:49,039 DEBUG   SenderThread:12697 [sender.py:send():302] send: config
+2023-05-07 04:37:49,039 DEBUG   SenderThread:12697 [sender.py:send():302] send: config
+2023-05-07 04:37:49,039 DEBUG   SenderThread:12697 [sender.py:send():302] send: config
+2023-05-07 04:37:49,039 DEBUG   SenderThread:12697 [sender.py:send():302] send: config
+2023-05-07 04:37:49,039 DEBUG   SenderThread:12697 [sender.py:send():302] send: telemetry
+2023-05-07 04:37:49,039 DEBUG   SenderThread:12697 [sender.py:send():302] send: run
+2023-05-07 04:37:49,142 INFO    SenderThread:12697 [sender.py:send_run():797] updated run: vb85ortt
+2023-05-07 04:37:49,143 DEBUG   SenderThread:12697 [sender.py:send():302] send: config
+2023-05-07 04:37:49,143 DEBUG   SenderThread:12697 [sender.py:send():302] send: config
+2023-05-07 04:37:49,143 DEBUG   SenderThread:12697 [sender.py:send():302] send: config
+2023-05-07 04:37:49,144 DEBUG   SenderThread:12697 [sender.py:send():302] send: files
+2023-05-07 04:37:49,144 INFO    SenderThread:12697 [sender.py:_save_file():1156] saving file wandb-metadata.json with policy now
+2023-05-07 04:37:49,379 INFO    Thread-16 :12697 [upload_job.py:push():138] Uploaded file /tmp/tmp1xr52xi6wandb/2vax4y4b-wandb-metadata.json
+2023-05-07 04:37:49,608 INFO    Thread-12 :12697 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/config.yaml
+2023-05-07 04:37:49,609 INFO    Thread-12 :12697 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/conda-environment.yaml
+2023-05-07 04:37:49,609 INFO    Thread-12 :12697 [dir_watcher.py:_on_file_created():275] file/dir created: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/output.log
+2023-05-07 04:37:49,609 INFO    Thread-12 :12697 [dir_watcher.py:_on_file_created():275] file/dir created: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/wandb-metadata.json
+2023-05-07 04:37:51,609 INFO    Thread-12 :12697 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/output.log
+2023-05-07 04:37:55,611 INFO    Thread-12 :12697 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/output.log
+2023-05-07 04:37:57,695 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: stop_status
+2023-05-07 04:37:57,696 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: stop_status
+2023-05-07 04:38:01,614 INFO    Thread-12 :12697 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/output.log
+2023-05-07 04:38:02,614 INFO    Thread-12 :12697 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/config.yaml
+2023-05-07 04:38:03,240 DEBUG   SenderThread:12697 [sender.py:send():302] send: stats
+2023-05-07 04:38:12,740 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: stop_status
+2023-05-07 04:38:12,740 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: stop_status
+2023-05-07 04:38:15,619 INFO    Thread-12 :12697 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/output.log
+2023-05-07 04:38:27,801 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: stop_status
+2023-05-07 04:38:27,801 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: stop_status
+2023-05-07 04:38:33,312 DEBUG   SenderThread:12697 [sender.py:send():302] send: stats
+2023-05-07 04:38:33,626 INFO    Thread-12 :12697 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/output.log
+2023-05-07 04:38:42,838 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: stop_status
+2023-05-07 04:38:42,838 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: stop_status
+2023-05-07 04:38:57,876 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: stop_status
+2023-05-07 04:38:57,876 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: stop_status
+2023-05-07 04:39:03,390 DEBUG   SenderThread:12697 [sender.py:send():302] send: stats
+2023-05-07 04:39:08,641 INFO    Thread-12 :12697 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/output.log
+2023-05-07 04:39:12,919 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: stop_status
+2023-05-07 04:39:12,919 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: stop_status
+2023-05-07 04:39:22,647 INFO    Thread-12 :12697 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/output.log
+2023-05-07 04:39:27,973 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: stop_status
+2023-05-07 04:39:27,974 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: stop_status
+2023-05-07 04:39:33,466 DEBUG   SenderThread:12697 [sender.py:send():302] send: stats
+2023-05-07 04:39:38,653 INFO    Thread-12 :12697 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/output.log
+2023-05-07 04:39:43,017 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: stop_status
+2023-05-07 04:39:43,017 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: stop_status
+2023-05-07 04:39:58,054 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: stop_status
+2023-05-07 04:39:58,054 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: stop_status
+2023-05-07 04:40:03,544 DEBUG   SenderThread:12697 [sender.py:send():302] send: stats
+2023-05-07 04:40:13,123 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: stop_status
+2023-05-07 04:40:13,123 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: stop_status
+2023-05-07 04:40:28,173 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: stop_status
+2023-05-07 04:40:28,173 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: stop_status
+2023-05-07 04:40:33,623 DEBUG   SenderThread:12697 [sender.py:send():302] send: stats
+2023-05-07 04:40:43,221 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: stop_status
+2023-05-07 04:40:43,222 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: stop_status
+2023-05-07 04:40:58,258 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: stop_status
+2023-05-07 04:40:58,259 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: stop_status
+2023-05-07 04:41:03,703 DEBUG   SenderThread:12697 [sender.py:send():302] send: stats
+2023-05-07 04:41:08,278 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: partial_history
+2023-05-07 04:41:09,693 INFO    Thread-12 :12697 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/output.log
+2023-05-07 04:41:13,337 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: stop_status
+2023-05-07 04:41:13,337 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: stop_status
+2023-05-07 04:41:28,383 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: stop_status
+2023-05-07 04:41:28,383 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: stop_status
+2023-05-07 04:41:33,783 DEBUG   SenderThread:12697 [sender.py:send():302] send: stats
+2023-05-07 04:41:43,421 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: stop_status
+2023-05-07 04:41:43,422 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: stop_status
+2023-05-07 04:41:44,816 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: partial_history
+2023-05-07 04:41:45,377 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: partial_history
+2023-05-07 04:41:45,708 INFO    Thread-12 :12697 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/output.log
+2023-05-07 04:41:47,709 INFO    Thread-12 :12697 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/output.log
+2023-05-07 04:41:49,710 INFO    Thread-12 :12697 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/output.log
+2023-05-07 04:41:58,456 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: stop_status
+2023-05-07 04:41:58,457 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: stop_status
+2023-05-07 04:42:02,715 INFO    Thread-12 :12697 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/output.log
+2023-05-07 04:42:03,864 DEBUG   SenderThread:12697 [sender.py:send():302] send: stats
+2023-05-07 04:42:13,074 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: poll_exit
+2023-05-07 04:42:13,075 DEBUG   SenderThread:12697 [sender.py:send():302] send: exit
+2023-05-07 04:42:13,075 INFO    SenderThread:12697 [sender.py:send_exit():438] handling exit code: 0
+2023-05-07 04:42:13,076 INFO    SenderThread:12697 [sender.py:send_exit():440] handling runtime: 280
+2023-05-07 04:42:13,078 INFO    SenderThread:12697 [sender.py:_save_file():1156] saving file wandb-summary.json with policy end
+2023-05-07 04:42:13,078 INFO    SenderThread:12697 [sender.py:send_exit():446] send defer
+2023-05-07 04:42:13,079 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: poll_exit
+2023-05-07 04:42:13,080 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: defer
+2023-05-07 04:42:13,080 INFO    HandlerThread:12697 [handler.py:handle_request_defer():164] handle defer: 0
+2023-05-07 04:42:13,080 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: defer
+2023-05-07 04:42:13,081 INFO    SenderThread:12697 [sender.py:send_request_defer():455] handle sender defer: 0
+2023-05-07 04:42:13,081 INFO    SenderThread:12697 [sender.py:transition_state():459] send defer: 1
+2023-05-07 04:42:13,081 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: defer
+2023-05-07 04:42:13,081 INFO    HandlerThread:12697 [handler.py:handle_request_defer():164] handle defer: 1
+2023-05-07 04:42:13,089 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: defer
+2023-05-07 04:42:13,089 INFO    SenderThread:12697 [sender.py:send_request_defer():455] handle sender defer: 1
+2023-05-07 04:42:13,089 INFO    SenderThread:12697 [sender.py:transition_state():459] send defer: 2
+2023-05-07 04:42:13,089 DEBUG   SenderThread:12697 [sender.py:send():302] send: stats
+2023-05-07 04:42:13,090 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: defer
+2023-05-07 04:42:13,090 INFO    HandlerThread:12697 [handler.py:handle_request_defer():164] handle defer: 2
+2023-05-07 04:42:13,092 DEBUG   SenderThread:12697 [sender.py:send():302] send: history
+2023-05-07 04:42:13,092 DEBUG   SenderThread:12697 [sender.py:send():302] send: summary
+2023-05-07 04:42:13,093 INFO    SenderThread:12697 [sender.py:_save_file():1156] saving file wandb-summary.json with policy end
+2023-05-07 04:42:13,093 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: defer
+2023-05-07 04:42:13,093 INFO    SenderThread:12697 [sender.py:send_request_defer():455] handle sender defer: 2
+2023-05-07 04:42:13,093 INFO    SenderThread:12697 [sender.py:transition_state():459] send defer: 3
+2023-05-07 04:42:13,093 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: defer
+2023-05-07 04:42:13,094 INFO    HandlerThread:12697 [handler.py:handle_request_defer():164] handle defer: 3
+2023-05-07 04:42:13,094 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: defer
+2023-05-07 04:42:13,094 INFO    SenderThread:12697 [sender.py:send_request_defer():455] handle sender defer: 3
+2023-05-07 04:42:13,094 INFO    SenderThread:12697 [sender.py:transition_state():459] send defer: 4
+2023-05-07 04:42:13,094 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: defer
+2023-05-07 04:42:13,094 INFO    HandlerThread:12697 [handler.py:handle_request_defer():164] handle defer: 4
+2023-05-07 04:42:13,095 DEBUG   SenderThread:12697 [sender.py:send():302] send: summary
+2023-05-07 04:42:13,095 INFO    SenderThread:12697 [sender.py:_save_file():1156] saving file wandb-summary.json with policy end
+2023-05-07 04:42:13,096 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: defer
+2023-05-07 04:42:13,096 INFO    SenderThread:12697 [sender.py:send_request_defer():455] handle sender defer: 4
+2023-05-07 04:42:13,096 INFO    SenderThread:12697 [sender.py:transition_state():459] send defer: 5
+2023-05-07 04:42:13,096 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: defer
+2023-05-07 04:42:13,096 INFO    HandlerThread:12697 [handler.py:handle_request_defer():164] handle defer: 5
+2023-05-07 04:42:13,097 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: defer
+2023-05-07 04:42:13,097 INFO    SenderThread:12697 [sender.py:send_request_defer():455] handle sender defer: 5
+2023-05-07 04:42:13,097 INFO    SenderThread:12697 [sender.py:transition_state():459] send defer: 6
+2023-05-07 04:42:13,097 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: defer
+2023-05-07 04:42:13,097 INFO    HandlerThread:12697 [handler.py:handle_request_defer():164] handle defer: 6
+2023-05-07 04:42:13,097 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: defer
+2023-05-07 04:42:13,098 INFO    SenderThread:12697 [sender.py:send_request_defer():455] handle sender defer: 6
+2023-05-07 04:42:13,181 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: poll_exit
+2023-05-07 04:42:13,720 INFO    Thread-12 :12697 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/wandb-summary.json
+2023-05-07 04:42:13,911 INFO    SenderThread:12697 [sender.py:transition_state():459] send defer: 7
+2023-05-07 04:42:13,911 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: poll_exit
+2023-05-07 04:42:13,912 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: defer
+2023-05-07 04:42:13,912 INFO    HandlerThread:12697 [handler.py:handle_request_defer():164] handle defer: 7
+2023-05-07 04:42:13,913 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: defer
+2023-05-07 04:42:13,913 INFO    SenderThread:12697 [sender.py:send_request_defer():455] handle sender defer: 7
+2023-05-07 04:42:13,913 INFO    SenderThread:12697 [dir_watcher.py:finish():362] shutting down directory watcher
+2023-05-07 04:42:14,014 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: poll_exit
+2023-05-07 04:42:14,720 INFO    Thread-12 :12697 [dir_watcher.py:_on_file_modified():292] file/dir modified: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/output.log
+2023-05-07 04:42:14,721 INFO    SenderThread:12697 [dir_watcher.py:finish():392] scan: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files
+2023-05-07 04:42:14,721 INFO    SenderThread:12697 [dir_watcher.py:finish():406] scan save: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/wandb-summary.json wandb-summary.json
+2023-05-07 04:42:14,721 INFO    SenderThread:12697 [dir_watcher.py:finish():406] scan save: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/conda-environment.yaml conda-environment.yaml
+2023-05-07 04:42:14,722 INFO    SenderThread:12697 [dir_watcher.py:finish():406] scan save: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/wandb-metadata.json wandb-metadata.json
+2023-05-07 04:42:14,722 INFO    SenderThread:12697 [dir_watcher.py:finish():406] scan save: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/requirements.txt requirements.txt
+2023-05-07 04:42:14,722 INFO    SenderThread:12697 [dir_watcher.py:finish():406] scan save: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/config.yaml config.yaml
+2023-05-07 04:42:14,722 INFO    SenderThread:12697 [dir_watcher.py:finish():406] scan save: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/output.log output.log
+2023-05-07 04:42:14,726 INFO    SenderThread:12697 [sender.py:transition_state():459] send defer: 8
+2023-05-07 04:42:14,726 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: poll_exit
+2023-05-07 04:42:14,742 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: defer
+2023-05-07 04:42:14,742 INFO    HandlerThread:12697 [handler.py:handle_request_defer():164] handle defer: 8
+2023-05-07 04:42:14,743 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: defer
+2023-05-07 04:42:14,743 INFO    SenderThread:12697 [sender.py:send_request_defer():455] handle sender defer: 8
+2023-05-07 04:42:14,743 INFO    SenderThread:12697 [file_pusher.py:finish():171] shutting down file pusher
+2023-05-07 04:42:14,842 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: poll_exit
+2023-05-07 04:42:14,842 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: poll_exit
+2023-05-07 04:42:14,946 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: poll_exit
+2023-05-07 04:42:14,946 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: poll_exit
+2023-05-07 04:42:15,048 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: poll_exit
+2023-05-07 04:42:15,048 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: poll_exit
+2023-05-07 04:42:15,092 INFO    Thread-21 :12697 [upload_job.py:push():138] Uploaded file /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/output.log
+2023-05-07 04:42:15,096 INFO    Thread-19 :12697 [upload_job.py:push():138] Uploaded file /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/requirements.txt
+2023-05-07 04:42:15,098 INFO    Thread-20 :12697 [upload_job.py:push():138] Uploaded file /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/config.yaml
+2023-05-07 04:42:15,105 INFO    Thread-17 :12697 [upload_job.py:push():138] Uploaded file /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/wandb-summary.json
+2023-05-07 04:42:15,106 INFO    Thread-18 :12697 [upload_job.py:push():138] Uploaded file /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/files/conda-environment.yaml
+2023-05-07 04:42:15,150 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: poll_exit
+2023-05-07 04:42:15,150 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: poll_exit
+2023-05-07 04:42:15,252 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: poll_exit
+2023-05-07 04:42:15,252 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: poll_exit
+2023-05-07 04:42:15,308 INFO    Thread-11 :12697 [sender.py:transition_state():459] send defer: 9
+2023-05-07 04:42:15,308 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: defer
+2023-05-07 04:42:15,308 INFO    HandlerThread:12697 [handler.py:handle_request_defer():164] handle defer: 9
+2023-05-07 04:42:15,309 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: defer
+2023-05-07 04:42:15,309 INFO    SenderThread:12697 [sender.py:send_request_defer():455] handle sender defer: 9
+2023-05-07 04:42:15,354 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: poll_exit
+2023-05-07 04:42:15,484 INFO    SenderThread:12697 [sender.py:transition_state():459] send defer: 10
+2023-05-07 04:42:15,484 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: poll_exit
+2023-05-07 04:42:15,485 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: defer
+2023-05-07 04:42:15,485 INFO    HandlerThread:12697 [handler.py:handle_request_defer():164] handle defer: 10
+2023-05-07 04:42:15,485 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: defer
+2023-05-07 04:42:15,485 INFO    SenderThread:12697 [sender.py:send_request_defer():455] handle sender defer: 10
+2023-05-07 04:42:15,486 INFO    SenderThread:12697 [sender.py:transition_state():459] send defer: 11
+2023-05-07 04:42:15,486 DEBUG   SenderThread:12697 [sender.py:send():302] send: final
+2023-05-07 04:42:15,487 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: defer
+2023-05-07 04:42:15,487 INFO    HandlerThread:12697 [handler.py:handle_request_defer():164] handle defer: 11
+2023-05-07 04:42:15,487 DEBUG   SenderThread:12697 [sender.py:send():302] send: footer
+2023-05-07 04:42:15,488 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: defer
+2023-05-07 04:42:15,488 INFO    SenderThread:12697 [sender.py:send_request_defer():455] handle sender defer: 11
+2023-05-07 04:42:15,588 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: poll_exit
+2023-05-07 04:42:15,588 DEBUG   SenderThread:12697 [sender.py:send_request():316] send_request: poll_exit
+2023-05-07 04:42:15,588 INFO    SenderThread:12697 [file_pusher.py:join():176] waiting for file pusher
+2023-05-07 04:42:15,772 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: sampled_history
+2023-05-07 04:42:15,773 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: get_summary
+2023-05-07 04:42:15,774 INFO    MainThread:12697 [wandb_run.py:_footer_history_summary_info():3305] rendering history
+2023-05-07 04:42:15,774 INFO    MainThread:12697 [wandb_run.py:_footer_history_summary_info():3337] rendering summary
+2023-05-07 04:42:15,775 INFO    MainThread:12697 [wandb_run.py:_footer_sync_info():3261] logging synced files
+2023-05-07 04:42:15,775 DEBUG   HandlerThread:12697 [handler.py:handle_request():141] handle_request: shutdown
+2023-05-07 04:42:15,775 INFO    HandlerThread:12697 [handler.py:finish():810] shutting down handler
+2023-05-07 04:42:16,488 INFO    WriterThread:12697 [datastore.py:close():279] close: /home/jupyter/dev/aformer/wandb/run-20230507_043732-vb85ortt/run-vb85ortt.wandb
+2023-05-07 04:42:16,671 INFO    SenderThread:12697 [sender.py:finish():1312] shutting down sender
+2023-05-07 04:42:16,671 INFO    SenderThread:12697 [file_pusher.py:finish():171] shutting down file pusher
+2023-05-07 04:42:16,671 INFO    SenderThread:12697 [file_pusher.py:join():176] waiting for file pusher
+2023-05-07 04:42:16,780 INFO    MainThread:12697 [internal.py:handle_exit():80] Internal process exited
