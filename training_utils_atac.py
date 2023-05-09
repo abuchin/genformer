@@ -528,17 +528,13 @@ def return_train_val_functions(model,
     metric_dict['ATAC_TP'] = tf.keras.metrics.Sum()
     metric_dict['ATAC_T'] = tf.keras.metrics.Sum()
     
-    #@tf.function(jit_compile=True,reduce_retracing=True)
-    def dist_train_step_all(iterator):    
-        @tf.function(jit_compile=True,reduce_retracing=True)
+    
+    @tf.function(reduce_retracing=True)
+    def dist_train_step_human(iterator):    
         def train_step(inputs):
-            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
-            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            target=tf.cast(inputs['target'],dtype=tf.float32)
-            mask=tf.cast(inputs['mask'],dtype=tf.int32)
-            mask_gathered=tf.cast(inputs['mask_gathered'],dtype=tf.int32)
-            peaks=tf.cast(inputs['peaks'],dtype=tf.int32)
-
+            print('tracing human!')
+            sequence,atac,mask,mask_gathered,peaks,target=inputs
+            
             input_tuple = sequence, atac#, global_acc
 
             with tf.GradientTape() as tape:
@@ -551,11 +547,10 @@ def return_train_val_functions(model,
                                         model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
                                         model.pos_embedding_learned.trainable_variables + model.performer.trainable_variables + \
                                         model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables + \
-                                        model.peaks_pool.trainable_variables + model.final_dense_peaks.trainable_variables
+                                        model.final_dense_peaks.trainable_variables
 
                 vars_all = conv_vars + performer_vars
-                for var in vars_all:
-                    tape.watch(var)
+                
                     
                 output_profile,output_peaks = model(input_tuple,
                                        training=True)
@@ -587,16 +582,15 @@ def return_train_val_functions(model,
             optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
                                            performer_vars))
             metric_dict["train_loss"].update_state(loss)
+        strategy.run(train_step,
+                     args=(next(iterator),))
+        
+    @tf.function(reduce_retracing=True)
+    def dist_train_step_mouse(iterator):    
+        def train_step(inputs):
+            print('tracing mouse!')
+            sequence,atac,mask,mask_gathered,peaks,target=inputs
             
-        @tf.function(jit_compile=True,reduce_retracing=True)
-        def train_step_mm(inputs):
-            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
-            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            target=tf.cast(inputs['target'],dtype=tf.float32)
-            mask=tf.cast(inputs['mask'],dtype=tf.int32)
-            mask_gathered=tf.cast(inputs['mask_gathered'],dtype=tf.int32)
-            peaks=tf.cast(inputs['peaks'],dtype=tf.int32)
-
             input_tuple = sequence, atac#, global_acc
 
             with tf.GradientTape() as tape:
@@ -609,11 +603,10 @@ def return_train_val_functions(model,
                                         model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
                                         model.pos_embedding_learned.trainable_variables + model.performer.trainable_variables + \
                                         model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables + \
-                                        model.peaks_pool.trainable_variables + model.final_dense_peaks.trainable_variables
+                                        model.final_dense_peaks.trainable_variables
 
                 vars_all = conv_vars + performer_vars
-                for var in vars_all:
-                    tape.watch(var)
+                
                     
                 output_profile,output_peaks = model(input_tuple,
                                        training=True)
@@ -633,7 +626,7 @@ def return_train_val_functions(model,
                 output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
                 
                 bce_loss = tf.reduce_mean(bce_loss_func(target_peaks, output_peaks)) * (1./ global_batch_size) * bce_loss_scale
-            
+                
                 loss = poisson_loss + bce_loss
 
             gradients = tape.gradient(loss, vars_all)
@@ -645,16 +638,15 @@ def return_train_val_functions(model,
             optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
                                            performer_vars))
             metric_dict["train_loss_mm"].update_state(loss)
+        strategy.run(train_step,
+                     args=(next(iterator),))
+        
+    @tf.function(reduce_retracing=True)
+    def dist_train_step_rm(iterator):    
+        def train_step(inputs):
+            print('tracing rhesus!')
+            sequence,atac,mask,mask_gathered,peaks,target=inputs
             
-        @tf.function(jit_compile=True,reduce_retracing=True)
-        def train_step_rm(inputs):
-            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
-            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            target=tf.cast(inputs['target'],dtype=tf.float32)
-            mask=tf.cast(inputs['mask'],dtype=tf.int32)
-            mask_gathered=tf.cast(inputs['mask_gathered'],dtype=tf.int32)
-            peaks=tf.cast(inputs['peaks'],dtype=tf.int32)
-
             input_tuple = sequence, atac#, global_acc
 
             with tf.GradientTape() as tape:
@@ -667,14 +659,13 @@ def return_train_val_functions(model,
                                         model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
                                         model.pos_embedding_learned.trainable_variables + model.performer.trainable_variables + \
                                         model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables + \
-                                        model.peaks_pool.trainable_variables + model.final_dense_peaks.trainable_variables
+                                        model.final_dense_peaks.trainable_variables
 
                 vars_all = conv_vars + performer_vars
-                for var in vars_all:
-                    tape.watch(var)
+                
                     
                 output_profile,output_peaks = model(input_tuple,
-                                                    training=True)
+                                       training=True)
                 output_profile = tf.cast(output_profile['rhesus'],dtype=tf.float32) # ensure cast to float32
                 output_peaks = tf.cast(output_peaks['rhesus'],dtype=tf.float32)
                 
@@ -685,13 +676,14 @@ def return_train_val_functions(model,
                 
                 poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac, output_atac))  * (1. / global_batch_size) * (1.0-bce_loss_scale)
                 
+                
                 mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
                 target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
                 output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
                 
                 bce_loss = tf.reduce_mean(bce_loss_func(target_peaks, output_peaks)) * (1./ global_batch_size) * bce_loss_scale
                 
-                loss = poisson_loss #+ bce_loss
+                loss = poisson_loss + bce_loss
 
             gradients = tape.gradient(loss, vars_all)
             gradients, _ = tf.clip_by_global_norm(gradients, 
@@ -702,17 +694,16 @@ def return_train_val_functions(model,
             optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
                                            performer_vars))
             metric_dict["train_loss_rm"].update_state(loss)
+        strategy.run(train_step,
+                     args=(next(iterator),))
         
         
-        @tf.function(jit_compile=True,reduce_retracing=True)
-        def train_step_rat(inputs):
-            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
-            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            target=tf.cast(inputs['target'],dtype=tf.float32)
-            mask=tf.cast(inputs['mask'],dtype=tf.int32)
-            mask_gathered=tf.cast(inputs['mask_gathered'],dtype=tf.int32)
-            peaks=tf.cast(inputs['peaks'],dtype=tf.int32)
-
+    @tf.function(reduce_retracing=True)
+    def dist_train_step_rat(iterator):    
+        def train_step(inputs):
+            print('tracing rat!')
+            sequence,atac,mask,mask_gathered,peaks,target=inputs
+            
             input_tuple = sequence, atac#, global_acc
 
             with tf.GradientTape() as tape:
@@ -725,14 +716,13 @@ def return_train_val_functions(model,
                                         model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
                                         model.pos_embedding_learned.trainable_variables + model.performer.trainable_variables + \
                                         model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables + \
-                                        model.peaks_pool.trainable_variables + model.final_dense_peaks.trainable_variables
+                                        model.final_dense_peaks.trainable_variables
 
                 vars_all = conv_vars + performer_vars
-                for var in vars_all:
-                    tape.watch(var)
+                
                     
                 output_profile,output_peaks = model(input_tuple,
-                                               training=True)
+                                       training=True)
                 output_profile = tf.cast(output_profile['rat'],dtype=tf.float32) # ensure cast to float32
                 output_peaks = tf.cast(output_peaks['rat'],dtype=tf.float32)
                 
@@ -761,94 +751,15 @@ def return_train_val_functions(model,
             optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
                                            performer_vars))
             metric_dict["train_loss_rat"].update_state(loss)
-        
-        for _ in tf.range(train_steps):
-            human,mouse,rhesus,rat=next(iterator)
-            strategy.run(train_step,
-                         args=(human,))
-            strategy.run(train_step_mm,
-                         args=(mouse,))
-            strategy.run(train_step_rm,
-                         args=(rhesus,))
-            strategy.run(train_step_rat,
-                         args=(rat,))
+        strategy.run(train_step,
+                     args=(next(iterator),))
             
             
-            
-    def dist_train_step(iterator):    
-        @tf.function(jit_compile=True)
-        def train_step_hg(inputs):
-            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
-            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            target=tf.cast(inputs['target'],dtype=tf.float32)
-            mask=tf.cast(inputs['mask'],dtype=tf.int32)
-            mask_gathered=tf.cast(inputs['mask_gathered'],dtype=tf.int32)
-            peaks=tf.cast(inputs['peaks'],dtype=tf.int32)
 
-            input_tuple = sequence, atac#, global_acc
-
-            with tf.GradientTape() as tape:
-                conv_vars = model.stem_conv.trainable_variables + \
-                            model.stem_res_conv.trainable_variables + \
-                            model.stem_pool.trainable_variables + \
-                            model.conv_tower.trainable_variables
-                
-                performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
-                                        model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
-                                        model.pos_embedding_learned.trainable_variables + model.performer.trainable_variables + \
-                                        model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables + \
-                                        model.peaks_pool.trainable_variables + model.final_dense_peaks.trainable_variables
-
-                vars_all = conv_vars + performer_vars
-                for var in vars_all:
-                    tape.watch(var)
-                    
-                output_profile,output_peaks = model(input_tuple,
-                                       training=True)
-                output_profile = tf.cast(output_profile['human'],dtype=tf.float32) # ensure cast to float32
-                output_peaks = tf.cast(output_peaks['human'],dtype=tf.float32)
-                
-                mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
-
-                target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
-                output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
-                
-                poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac, output_atac))  * (1. / global_batch_size) * (1.0-bce_loss_scale)
-                
-                mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
-                target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
-                output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
-                
-                bce_loss = tf.reduce_mean(bce_loss_func(target_peaks, output_peaks)) * (1./ global_batch_size) * bce_loss_scale
-                
-                loss = poisson_loss + bce_loss
-
-            gradients = tape.gradient(loss, vars_all)
-            gradients, _ = tf.clip_by_global_norm(gradients, 
-                                                  gradient_clip)
-            
-            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)], 
-                                           conv_vars))
-            optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
-                                           performer_vars))
-            
-            metric_dict["train_loss"].update_state(loss)
-        
-        for _ in tf.range(train_steps):
-            #human=next(iterator)
-            strategy.run(train_step_hg,
-                         args=(next(iterator)[0],))
-            
-            
+    @tf.function(reduce_retracing=True)
     def dist_val_step(iterator):
-        @tf.function(jit_compile=True)
         def val_step(inputs):
-            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
-            target=tf.cast(inputs['target'],dtype=tf.float32)
-            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            mask=tf.cast(inputs['mask'],dtype=tf.int32)
-            mask_gathered=tf.cast(inputs['mask_gathered'],dtype=tf.int32)
-            peaks=tf.cast(inputs['peaks'],dtype=tf.int32)
+            sequence,atac,mask,mask_gathered,peaks,target=inputs
             
             input_tuple = sequence,atac#,global_acc
 
@@ -893,28 +804,26 @@ def return_train_val_functions(model,
             metric_dict["val_loss_bce"].update_state(bce_loss)
             
         
-        for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
-            strategy.run(val_step,
-                         args=(next(iterator),))
+        #for _ in tf.range(val_steps_ho): ## for loop within @tf.fuction for improved TPU performance
+        strategy.run(val_step,
+                     args=(next(iterator),))
             
             
     def build_step(iterator): #input_batch, model, optimizer, organism, gradient_clip):
-        @tf.function(jit_compile=True)
+        @tf.function(reduce_retracing=True)
         def val_step(inputs):
-            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
-            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            target=tf.cast(inputs['target'],dtype=tf.float32)
+            sequence,atac,mask,mask_gathered,peaks,target=inputs
             #global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)         
             input_tuple = sequence,atac#,global_acc
 
             output_profile,output_peaks = model(input_tuple,
                            training=False)
 
-        for _ in tf.range(1): ## for loop within @tf.fuction for improved TPU performance
-            strategy.run(val_step, args=(next(iterator),))
+        #for _ in tf.range(1): ## for loop within @tf.fuction for improved TPU performance
+        strategy.run(val_step, args=(next(iterator),))
     
 
-    return dist_train_step_all,dist_train_step,dist_val_step, build_step, metric_dict
+    return dist_train_step_human, dist_train_step_mouse, dist_train_step_rm, dist_train_step_rat,dist_val_step, build_step, metric_dict
 
 
 def deserialize_tr(serialized_example,
@@ -945,13 +854,9 @@ def deserialize_tr(serialized_example,
                     masked ATAC regions
       stupid_random_seed: hacky workaround to previous issue with random atac masking
     '''
-    rev_comp = tf.math.round(g.uniform([], 0, 1))
+    rev_comp = tf.math.round(g.uniform([], 0, 1)) #switch for random reverse complementation
     seq_mask_int = g.uniform([], 0, 25, dtype=tf.int32) ## sequence corruption rate
-    #full_atac_mask_int = g.uniform([], 0, 10,dtype=tf.int32)
-    stupid_random_seed = g.uniform([], 0, 10000000,dtype=tf.int32)
-    '''
-    set up random data augmentation for sequence
-    '''
+    stupid_random_seed = g.uniform([], 0, 10000000,dtype=tf.int32) # hacky work-around to ensure randomness in the stateless operations
     shift = g.uniform(shape=(),
                       minval=0,
                       maxval=max_shift,
@@ -962,10 +867,12 @@ def deserialize_tr(serialized_example,
             seq_shift = k
         else:
             seq_shift=0
+            
+    
     
     input_seq_length = input_length + max_shift
     
-    ## now parse out the actual data
+    ''' now parse out the actual data '''
     data = tf.io.parse_example(serialized_example, feature_map)
     sequence = one_hot(tf.strings.substr(data['sequence'],
                                  seq_shift,input_length))
@@ -981,10 +888,8 @@ def deserialize_tr(serialized_example,
                      [output_length-2*crop_size,-1])
     
     '''
-    here set up masking of one of the peaks. If there are no peaks, then mask the middle
-    of the input sequence window
+    here set up masking of one of the peaks. If there are no peaks, then mask the middle of the input sequence window
     '''
-    
     atac_target = atac ## store the target ATAC 
 
     ### here set up the ATAC masking
@@ -1014,8 +919,7 @@ def deserialize_tr(serialized_example,
     edge_append = tf.ones((crop_size,1),dtype=tf.float32) ## since we only mask over the center 896, base calcs on the cropped size
     atac_mask = tf.ones(out_length_cropped // num_mask_bins,dtype=tf.float32)
 
-    ### now calculate ATAC dropout regions
-    ### 
+    '''now compute the random atac seq dropout, which is done in addition to the randomly selected peak '''
     atac_mask=tf.nn.experimental.stateless_dropout(atac_mask,
                                               rate=(atac_mask_dropout),
                                               seed=[0,stupid_random_seed-5]) / (1. / (1.0-(atac_mask_dropout))) 
@@ -1037,15 +941,10 @@ def deserialize_tr(serialized_example,
     masked_atac = atac * full_comb_mask
 
     random_shuffled_tokens=  tf.random.experimental.stateless_shuffle(masked_atac, 
-                                                                      seed=[1, stupid_random_seed])#tf.random.shuffle(masked_atac,
-                             #                  seed=stupid_random_seed+2) ## random shuffle the tokens
+                                                                      seed=[1, stupid_random_seed])
     masked_atac = masked_atac + (1.0-full_comb_mask)*random_shuffled_tokens
     
-    ## at low probability, also random mask the entire ATAC signal and still ask for prediction
-    ## force network to solely use sequence features
-    #if full_atac_mask_int == 0:
-    #    masked_atac = random_shuffled_tokens
-        
+    '''add some random gaussian noise '''
     masked_atac = masked_atac + tf.math.abs(g.normal(atac.shape,
                                                mean=0.0,
                                                stddev=1.0e-06,
@@ -1057,7 +956,7 @@ def deserialize_tr(serialized_example,
     diff = tf.math.sqrt(tf.nn.relu(masked_atac - 100.0 * tf.ones(masked_atac.shape)))
     masked_atac = tf.clip_by_value(masked_atac, clip_value_min=0.0, clip_value_max=100.0) + diff
     
-    ### here set up the sequence masking
+    ''' here set up the random sequence masking '''
     if ((seq_mask_int == 0)):
         seq_mask = 1.0 - full_comb_mask_full_store
         tiling_req_seq = input_length // output_length
@@ -1070,7 +969,7 @@ def deserialize_tr(serialized_example,
         seq_mask = tf.expand_dims(tf.reshape(tf.tile(seq_mask, [1,tiling_req_seq]),[-1]),axis=1)   
         masked_seq = sequence
         
-        
+    ''' randomly reverse complement the sequence, and reverse targets + peaks + mask'''
     if rev_comp == 1:
         masked_seq = tf.gather(masked_seq, [3, 2, 1, 0], axis=-1)
         masked_seq = tf.reverse(masked_seq, axis=[0])
@@ -1093,7 +992,7 @@ def deserialize_tr(serialized_example,
     mask_gathered = tf.reduce_max(tf.reshape(full_comb_mask_store, [(output_length-2*crop_size) // 2, -1]),
                                    axis=1,keepdims=True)
     
-    
+    ''' in case we want to run ablation without these inputs'''
     if not use_atac:
         masked_atac = random_shuffled_tokens
     if not use_seq:
@@ -1101,19 +1000,16 @@ def deserialize_tr(serialized_example,
                                                               seed=[stupid_random_seed+1,stupid_random_seed+3])
         
         
-        
-    return {'sequence': tf.ensure_shape(masked_seq,
-                                        [input_length,4]),
-            'atac': tf.ensure_shape(masked_atac,
-                                    [output_length_ATAC,1]),
-            'mask': tf.ensure_shape(full_comb_mask_store,
-                                    [output_length-crop_size*2,1]),
-            'mask_gathered': tf.ensure_shape(mask_gathered,
-                                    [(output_length-crop_size*2) // 2,1]),
-            'peaks': tf.ensure_shape(peaks_gathered,
-                                      [(output_length-2*crop_size) // 2,1]),
-            'target': tf.ensure_shape(atac_out,
-                                      [output_length-crop_size*2,1])}
+
+    return tf.cast(tf.ensure_shape(sequence,[input_length,4]),dtype=tf.bfloat16), \
+                tf.cast(tf.ensure_shape(masked_atac, [output_length_ATAC,1]),dtype=tf.bfloat16), \
+                tf.cast(tf.ensure_shape(full_comb_mask_store, [output_length-crop_size*2,1]),dtype=tf.int32), \
+                tf.cast(tf.ensure_shape(mask_gathered, [(output_length-crop_size*2) // 2,1]),dtype=tf.int32), \
+                tf.cast(tf.ensure_shape(peaks_gathered, [(output_length-2*crop_size) // 2,1]),dtype=tf.int32), \
+                tf.cast(tf.ensure_shape(atac_out,[output_length-crop_size*2,1]),dtype=tf.float32)
+
+
+
 
 def deserialize_val(serialized_example,
                    input_length,
@@ -1122,7 +1018,6 @@ def deserialize_val(serialized_example,
                    output_length,
                    crop_size,
                    output_res,
-                   #seq_mask_dropout,
                    atac_mask_dropout,
                    mask_size,
                    log_atac,
@@ -1138,7 +1033,6 @@ def deserialize_val(serialized_example,
         'peaks': tf.io.FixedLenFeature([], tf.string)
     }
     ### stochastic sequence shift and gaussian noise
-
     seq_shift=5
     stupid_random_seed = g.uniform([], 0, 10000000,dtype=tf.int32)
     input_seq_length = input_length + max_shift
@@ -1230,22 +1124,16 @@ def deserialize_val(serialized_example,
     if not use_seq:
         sequence = tf.random.experimental.stateless_shuffle(sequence,
                                                             seed=[12,stupid_random_seed+12])
-    
-    return {'sequence': tf.ensure_shape(sequence,
-                                        [input_length,4]),
-            'atac': tf.ensure_shape(masked_atac,
-                                    [output_length_ATAC,1]),
-            'mask': tf.ensure_shape(full_comb_mask_store,
-                                    [output_length-crop_size*2,1]),
-            'mask_gathered': tf.ensure_shape(mask_gathered,
-                                    [(output_length-crop_size*2)//2,1]),
-            'peaks': tf.ensure_shape(peaks_gathered,
-                                      [(output_length-2*crop_size) // 2,1]),
-            'target': tf.ensure_shape(atac_out,
-                                      [output_length-crop_size*2,1])}
+        
+    return tf.cast(tf.ensure_shape(sequence,[input_length,4]),dtype=tf.bfloat16), \
+                tf.cast(tf.ensure_shape(masked_atac, [output_length_ATAC,1]),dtype=tf.bfloat16), \
+                tf.cast(tf.ensure_shape(full_comb_mask_store, [output_length-crop_size*2,1]),dtype=tf.int32), \
+                tf.cast(tf.ensure_shape(mask_gathered, [(output_length-crop_size*2) // 2,1]),dtype=tf.int32), \
+                tf.cast(tf.ensure_shape(peaks_gathered, [(output_length-2*crop_size) // 2,1]),dtype=tf.int32), \
+                tf.cast(tf.ensure_shape(atac_out,[output_length-crop_size*2,1]),dtype=tf.float32)
 
 
-def return_dataset(gcs_paths,
+def return_dataset(gcs_path,
                    split,
                    batch,
                    input_length,
@@ -1273,46 +1161,38 @@ def return_dataset(gcs_paths,
     
     #print(list_files)
     if split == 'train':
-        dataset_list = []
-        for gcs_path in gcs_paths:
-            list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
-                                                        split,
-                                                        wc)))
-            #random.shuffle(list_files)
-            files = tf.data.Dataset.list_files(list_files,seed=seed,shuffle=True)
+        list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
+                                                    split,
+                                                    wc)))
+        #random.shuffle(list_files)
+        files = tf.data.Dataset.list_files(list_files,seed=seed,shuffle=True)
 
-            dataset = tf.data.TFRecordDataset(files,
-                                              compression_type='ZLIB',
-                                              num_parallel_reads=num_parallel)
-            dataset = dataset.with_options(options)
-            #dataset_list.append(dataset)
-            
-        #dataset = tf.data.Dataset.sample_from_datasets(dataset_list)
-        
-            dataset = dataset.map(lambda record: deserialize_tr(record,
-                                                                input_length,
-                                                                max_shift,
-                                                                output_length_ATAC,
-                                                                output_length,
-                                                                crop_size,
-                                                                output_res,
-                                                                #seq_mask_dropout,
-                                                                atac_mask_dropout,
-                                                                random_mask_size,
-                                                                log_atac,
-                                                               use_atac,
-                                                               use_seq,
-                                                                g),
-                                  deterministic=False,
-                                  num_parallel_calls=num_parallel)
-        
-            dataset=dataset.repeat(num_epoch).shuffle(buffer_size=2048,reshuffle_each_iteration=True).batch(batch)
-            dataset_list.append(dataset)
-        return tf.data.Dataset.zip(tuple(dataset_list)).prefetch(tf.data.AUTOTUNE)
-    
-        
+        dataset = tf.data.TFRecordDataset(files,
+                                          compression_type='ZLIB',
+                                          num_parallel_reads=num_parallel)
+        dataset = dataset.with_options(options)
+
+        dataset = dataset.map(lambda record: deserialize_tr(record,
+                                                            input_length,
+                                                            max_shift,
+                                                            output_length_ATAC,
+                                                            output_length,
+                                                            crop_size,
+                                                            output_res,
+                                                            #seq_mask_dropout,
+                                                            atac_mask_dropout,
+                                                            random_mask_size,
+                                                            log_atac,
+                                                           use_atac,
+                                                           use_seq,
+                                                            g),
+                              deterministic=False,
+                              num_parallel_calls=num_parallel)
+
+        return dataset.repeat(num_epoch).batch(batch).prefetch(tf.data.AUTOTUNE)
+
     else:
-        list_files = (tf.io.gfile.glob(os.path.join(gcs_paths[0],
+        list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
                                                     split,
                                                     wc)))
 
@@ -1363,51 +1243,31 @@ def return_distributed_iterators(gcs_paths,
                                    use_seq,
                                  seed,
                                  g):
-
-    tr_data = return_dataset(gcs_paths,
-                             "train",
-                             global_batch_size,
-                             input_length,
-                             output_length_ATAC,
-                             output_length,
-                             crop_size,
-                             output_res,
-                             max_shift,
-                             options,
-                             num_parallel_calls,
-                             num_epoch,
-                             #seq_mask_dropout,
-                             atac_mask_dropout,
-                             random_mask_size,
-                             log_atac,
-                                   use_atac,
-                                   use_seq,
-                             seed,
-                             g)
     
-    """
-    val_data = return_dataset([gcs_paths[0]],
-                              "valid",
-                              global_batch_size,
-                              input_length,
-                              output_length_ATAC,
-                              output_length,
-                              crop_size,
-                              output_res,
-                              max_shift,
-                              options,
-                              num_parallel_calls,
-                              num_epoch,
-                              #seq_mask_dropout,
-                              atac_mask_dropout,
-                              random_mask_size,
-                              log_atac,
-                                   use_atac,
-                                   use_seq,
-                              g)
-    """
     
-    val_data_ho = return_dataset([gcs_path_ho],
+    for gcs_path in gcs_paths:
+        tr_data = return_dataset(gcs_path,
+                                 "train",
+                                 global_batch_size,
+                                 input_length,
+                                 output_length_ATAC,
+                                 output_length,
+                                 crop_size,
+                                 output_res,
+                                 max_shift,
+                                 options,
+                                 num_parallel_calls,
+                                 num_epoch,
+                                 #seq_mask_dropout,
+                                 atac_mask_dropout,
+                                 random_mask_size,
+                                 log_atac,
+                                       use_atac,
+                                       use_seq,
+                                 seed,
+                                 g)
+    
+    val_data_ho = return_dataset(gcs_path_ho,
                               "valid",
                               global_batch_size,
                               input_length,
@@ -1428,16 +1288,18 @@ def return_distributed_iterators(gcs_paths,
                                  seed,
                               g)
 
-
-    train_dist = strategy.experimental_distribute_dataset(tr_data)
-    #val_dist= strategy.experimental_distribute_dataset(val_data)
+    dist_list = []
+    for gcs_path in gcs_paths:
+        train_dist = strategy.experimental_distribute_dataset(tr_data)
+        tr_data_it = iter(train_dist)
+        dist_list.append(tr_data_it)
+        
+    human_it,mouse_it,rhesus_it,rat_it = dist_list[0],dist_list[1],dist_list[2],dist_list[3]
+        
     val_dist_ho=strategy.experimental_distribute_dataset(val_data_ho)
-
-    tr_data_it = iter(train_dist)
-    #val_data_it = iter(val_dist)
     val_data_ho_it = iter(val_dist_ho)
 
-    return tr_data_it,val_data_ho_it
+    return human_it,mouse_it,rhesus_it,rat_it,val_data_ho_it
 
 
 def early_stopping(current_val_loss,
@@ -1775,6 +1637,11 @@ def parse_args(parser):
                         type=int,
                         default=42,
                         help= 'seed')
+    parser.add_argument('--training_type',
+                        dest='training_type',
+                        type=str,
+                        default="hg",
+                        help= 'training_type')
     args = parser.parse_args()
     return parser
 

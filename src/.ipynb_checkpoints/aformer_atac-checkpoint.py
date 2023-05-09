@@ -349,12 +349,7 @@ class aformer(tf.keras.Model):
                                     use_bias=True) for head in self.output_heads}
         
         
-        self.peaks_pool = SoftmaxPooling1D(per_channel=True,
-                                          w_init_scale=2.0,
-                                          pool_size=2,
-                                          name ='peaks_pool')
-        
-        
+
         self.final_dense_peaks = {head: tf.keras.Sequential([SoftmaxPooling1D(per_channel=True,
                                                           w_init_scale=2.0,
                                                           pool_size=2,
@@ -375,6 +370,7 @@ class aformer(tf.keras.Model):
     def call(self, inputs, training:bool=True):
 
         sequence,atac = inputs
+        
 
         x = self.stem_conv(sequence,
                            training=training)
@@ -404,7 +400,7 @@ class aformer(tf.keras.Model):
             PE = self.pos_embedding_learned(input_pos_indices)
             PE = tf.expand_dims(PE,axis=0)
             PE = tf.tile(PE,
-                         [transformer_input.shape[0],1,1])
+                         [tf.shape(transformer_input)[0],1,1])
             transformer_input_x = transformer_input + PE
         else:
             transformer_input_x=self.sin_pe(transformer_input)

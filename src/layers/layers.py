@@ -167,47 +167,6 @@ class sync_batch_norm_fp32(kl.Layer):
         x = self.batch_norm(x,training=training)
         return tf.cast(x, dtype=tf.bfloat16)
 
-@tf.keras.utils.register_keras_serializable()
-class conv_mix_block(kl.Layer):
-    def __init__(self,
-                 num_channels_out: int,
-                 stride: int = 1,
-                 name: str = 'conv1d_block_dim_reduce',
-                 **kwargs):
-
-        super().__init__(name=name, **kwargs)
-        self.num_channels_out = num_channels_out
-        #self.dropout_rate = dropout_rate
-        self.batch_norm = syncbatchnorm(axis=-1,
-                                        center=True,
-                                        scale=True,
-                                        beta_initializer="zeros",
-                                        gamma_initializer="ones",
-                                        **kwargs)
-        self.gelu = tfa.layers.GELU()
-        self.conv = kl.Conv1D(filters = self.num_channels_out,
-                              kernel_size = 1,
-                              strides=1,
-                              padding='same',
-                              kernel_initializer=tf.keras.initializers.GlorotUniform())
-
-    def get_config(self):
-        config = {
-            "num_channels_out":self.num_channels_out
-        }
-        base_config = super().get_config()
-        return {**base_config, **config}
-    
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
-    
-    def call(self, inputs, training=None):
-        x = self.batch_norm(inputs, training=training) 
-        x = self.gelu(x)
-        x = self.conv(x)
-        return tf.cast(x,
-                       dtype=tf.bfloat16)
 
 @tf.keras.utils.register_keras_serializable()
 class FFN(kl.Layer):
@@ -690,9 +649,9 @@ class Performer_Encoder(kl.Layer):
         L = input_shape[1]
         
         if self.use_mask_pos:
-            self.relative_positional_bias = tf.constant(tf.random.uniform((self.num_heads, 
-                                                                           2 * self.rel_pos_bins - 1)))
-            
+            self.relative_positional_bias = tf.constant(tf.random.stateless_uniform(shape=(self.num_heads,
+                                                                                           2 * self.rel_pos_bins - 1),
+                                                                                    seed=[2,4]))            
         if self.use_rot_emb:
             self.pos_emb = FixedPositionalEmbedding(self.d_model, self.max_seq_length)
             self.layer_pos_emb = FixedPositionalEmbedding(self.dim, self.max_seq_length)       
@@ -857,8 +816,9 @@ class Performer_Encoder_stable(kl.Layer):
         L = input_shape[1]
         
         if self.use_mask_pos:
-            self.relative_positional_bias = tf.constant(tf.random.uniform((self.num_heads, 
-                                                                           2 * self.rel_pos_bins - 1)))
+            self.relative_positional_bias = tf.constant(tf.random.stateless_uniform(shape=(self.num_heads,
+                                                                                           2 * self.rel_pos_bins - 1),
+                                                                                    seed=[2,4]))     
             
         if self.use_rot_emb:
             self.pos_emb = FixedPositionalEmbedding(self.d_model, self.max_seq_length)

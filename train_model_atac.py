@@ -190,10 +190,11 @@ def main():
         ## tpu initialization
         strategy = training_utils.tf_tpu_initialize(args.tpu_name,args.tpu_zone)
         mixed_precision.set_global_policy('mixed_bfloat16')
-        #g = tf.random.Generator.from_non_deterministic_state()
+        g = tf.random.Generator.from_seed(42)
         ## rest must be w/in strategy scope
-        g = tf.random.Generator.from_seed(args.seed+10)
+        
         with strategy.scope():
+            
             config_defaults = {
                 "lr_base": 0.01 ### will be overwritten
             }
@@ -223,28 +224,21 @@ def main():
             wandb.config.model_save_basename=args.model_save_basename
             wandb.config.max_shift=args.max_shift
             wandb.config.inits_type=args.inits_type
+            wandb.config.training_type =args.training_type
             
             wandb.config.crop_size = (wandb.config.output_length - wandb.config.final_output_length) // 2
             
-            wandb.config.training_type = 'hg'
             output_heads = ["human"]
-            gcs_paths = [wandb.config.gcs_path]
-            if wandb.config.gcs_path_mm is not None:
-                gcs_paths.append(wandb.config.gcs_path_mm)
-                wandb.config.update({"training_type" : 'hg_mm'},
-                                    allow_val_change=True)
-                output_heads.append("mouse")
-            if wandb.config.gcs_path_rm is not None:
-                gcs_paths.append(wandb.config.gcs_path_rm)
-                wandb.config.update({"training_type" : 'hg_mm_rm'},
-                                    allow_val_change=True)
-                output_heads.append("rhesus")
-            if wandb.config.gcs_path_rat is not None:
-                gcs_paths.append(wandb.config.gcs_path_rat)
-                wandb.config.update({"training_type" : 'hg_mm_rm_rat'},
-                                    allow_val_change=True)
-                output_heads.append("rat")
+            if wandb.config.training_type == 'hg_mm_rm_rat':
+                output_heads = ["human", "mouse","rhesus","rat"]
             wandb.config.output_heads = output_heads
+            print(wandb.config.output_heads)
+            gcs_paths = [wandb.config.gcs_path,
+                         wandb.config.gcs_path_mm,
+                         wandb.config.gcs_path_rm,
+                         wandb.config.gcs_path_rat]
+                         
+            
             
             
             run_name = '_'.join([str(wandb.config.training_type),
@@ -270,6 +264,7 @@ def main():
             options.deterministic=False
             #options.experimental_threading.max_intra_op_parallelism=1
             mixed_precision.set_global_policy('mixed_bfloat16')
+            #tf.autograph.set_verbosity(5)
 
             
             NUM_REPLICAS = strategy.num_replicas_in_sync
@@ -291,7 +286,7 @@ def main():
                                 allow_val_change=True)
                 
             
-            data_train,data_val_ho = \
+            train_human,train_mouse,train_rm,train_rat,data_val_ho = \
                     training_utils.return_distributed_iterators(gcs_paths,
                                                                 wandb.config.gcs_path_holdout,
                                                                 GLOBAL_BATCH_SIZE,
@@ -426,7 +421,7 @@ def main():
             
             optimizers_in = optimizer1,optimizer2
 
-            train_step_all, train_step, val_step, \
+            human_step,mouse_step,rhesus_step,rat_step, val_step, \
                 build_step, metric_dict = training_utils.return_train_val_functions(model,
                                                                                 wandb.config.train_steps,
                                                                                 #wandb.config.val_steps,
@@ -462,10 +457,18 @@ def main():
                 
                 print('starting epoch_', str(epoch_i))
                 start = time.time()
-                if wandb.config.training_type == 'hg': 
-                    train_step(data_train)
+                if wandb.config.training_type == 'hg':
+                    print('iterating over human')
+                    for step in range(wandb.config.train_steps):
+                        human_step(train_human)
                 else:
-                    train_step_all(data_train)
+                    print('iterating over all organisms')
+                    for step in range(wandb.config.train_steps):
+                        human_step(train_human)
+                        mouse_step(train_mouse)
+                        rhesus_step(train_rm)
+                        rat_step(train_rat)
+                        
                     wandb.log({'mouse_train_loss': metric_dict['train_loss_mm'].result().numpy(),
                                'rhesus_train_loss': metric_dict['train_loss_rm'].result().numpy(),
                                'rat_train_loss': metric_dict['train_loss_rat'].result().numpy()},
@@ -485,8 +488,9 @@ def main():
                 print('training duration(mins): ' + str(duration))
                 
                 start = time.time()
-                
-                val_step(data_val_ho)
+                for k in range(wandb.config.val_steps_ho):
+                    val_step(data_val_ho)
+                    
                 val_loss = metric_dict['val_loss'].result().numpy()
                 val_loss_poisson = metric_dict['val_loss_poisson'].result().numpy()
                 val_loss_bce = metric_dict['val_loss_bce'].result().numpy()
