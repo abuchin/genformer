@@ -649,9 +649,8 @@ class Performer_Encoder(kl.Layer):
         L = input_shape[1]
         
         if self.use_mask_pos:
-            self.relative_positional_bias = tf.constant(tf.random.stateless_uniform(shape=(self.num_heads,
-                                                                                           2 * self.rel_pos_bins - 1),
-                                                                                    seed=[2,4]))            
+            self.relative_positional_bias = tf.constant(tf.random.uniform((self.num_heads, 
+                                                                           2 * self.rel_pos_bins - 1)))          
         if self.use_rot_emb:
             self.pos_emb = FixedPositionalEmbedding(self.d_model, self.max_seq_length)
             self.layer_pos_emb = FixedPositionalEmbedding(self.dim, self.max_seq_length)       
@@ -816,9 +815,8 @@ class Performer_Encoder_stable(kl.Layer):
         L = input_shape[1]
         
         if self.use_mask_pos:
-            self.relative_positional_bias = tf.constant(tf.random.stateless_uniform(shape=(self.num_heads,
-                                                                                           2 * self.rel_pos_bins - 1),
-                                                                                    seed=[2,4]))     
+            self.relative_positional_bias = tf.constant(tf.random.uniform((self.num_heads, 
+                                                                           2 * self.rel_pos_bins - 1)))   
             
         if self.use_rot_emb:
             self.pos_emb = FixedPositionalEmbedding(self.d_model, self.max_seq_length)
