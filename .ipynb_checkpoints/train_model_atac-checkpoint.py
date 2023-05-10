@@ -460,14 +460,14 @@ def main():
                 if wandb.config.training_type == 'hg':
                     print('iterating over human')
                     for step in range(wandb.config.train_steps):
-                        human_step(train_human)
+                        strategy.run(human_step, args=(next(train_human),))
                 else:
                     print('iterating over all organisms')
                     for step in range(wandb.config.train_steps):
-                        human_step(train_human)
-                        mouse_step(train_mouse)
-                        rhesus_step(train_rm)
-                        rat_step(train_rat)
+                        strategy.run(human_step, args = (next(train_human),))
+                        strategy.run(mouse_step,args = (next(train_mouse),))
+                        strategy.run(rhesus_step,args = (next(train_rm),))
+                        strategy.run(rat_step,args = (next(train_rat),))
                         
                     wandb.log({'mouse_train_loss': metric_dict['train_loss_mm'].result().numpy(),
                                'rhesus_train_loss': metric_dict['train_loss_rm'].result().numpy(),
@@ -489,7 +489,7 @@ def main():
                 
                 start = time.time()
                 for k in range(wandb.config.val_steps_ho):
-                    val_step(data_val_ho)
+                    strategy.run(val_step, args=(next(data_val_ho),))
                     
                 val_loss = metric_dict['val_loss'].result().numpy()
                 val_loss_poisson = metric_dict['val_loss_poisson'].result().numpy()

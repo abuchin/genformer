@@ -39,7 +39,7 @@ def create_projection_matrix(m, d, seed=0, scaling=0, struct_mode=False):
         if struct_mode:
             q = create_products_of_givens_rotations(d, seed)
         else:
-            unstructured_block = tf.random.normal((d, d), seed=current_seed,dtype=tf.float32)
+            unstructured_block = tf.random.stateless_normal(shape=(d, d), seed=[current_seed,2], dtype=tf.float32)
             q, _ = tf.linalg.qr(unstructured_block)
             q = tf.transpose(q)
         block_list.append(q)
@@ -49,7 +49,7 @@ def create_projection_matrix(m, d, seed=0, scaling=0, struct_mode=False):
         if struct_mode:
             q = create_products_of_givens_rotations(d, seed)
         else:
-            unstructured_block = tf.random.normal((d, d), seed=current_seed,dtype=tf.float32)
+            unstructured_block = tf.random.stateless_normal(shape=(d, d), seed=[current_seed,5], dtype=tf.float32)
             q, _ = tf.linalg.qr(unstructured_block)
             q = tf.transpose(q)
         block_list.append(q[0:remaining_rows])
@@ -57,8 +57,7 @@ def create_projection_matrix(m, d, seed=0, scaling=0, struct_mode=False):
     current_seed += 1
 
     if scaling == 0:
-        multiplier = tf.norm(tf.random.normal((m, d), 
-                                              seed=current_seed,dtype=tf.float32), 
+        multiplier = tf.norm(tf.random.stateless_normal(shape=(m, d), seed=[current_seed+3,6], dtype=tf.float32),
                              axis=1)
     elif scaling == 1:
         multiplier = tf.math.sqrt(tf.cast(d,dtype=tf.float32)) * tf.ones((m))
