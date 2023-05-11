@@ -230,7 +230,7 @@ def main():
             
             output_heads = ["human"]
             if wandb.config.training_type == 'hg_mm_rm':
-                output_heads = ["human", "mouse","rhesus"]
+                output_heads = ["human", "mouse", "rhesus"]
             wandb.config.output_heads = output_heads
             print(wandb.config.output_heads)
             gcs_paths = [wandb.config.gcs_path,

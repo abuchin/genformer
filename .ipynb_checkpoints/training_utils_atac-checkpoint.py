@@ -823,7 +823,7 @@ def return_train_val_functions(model,
         strategy.run(val_step, args=(next(iterator),))
     
 
-    return dist_train_step_human, dist_train_step_mouse, dist_train_step_rm,dist_val_step, build_step, metric_dict
+    return dist_train_step_human,dist_train_step_mouse,dist_train_step_rm,dist_val_step, build_step, metric_dict
 
 
 def deserialize_tr(serialized_example,
@@ -1294,7 +1294,7 @@ def return_distributed_iterators(gcs_paths,
         tr_data_it = iter(train_dist)
         dist_list.append(tr_data_it)
         
-    human_it,mouse_it,rhesus_it = dist_list[0],dist_list[1],dist_list[2],dist_list[3]
+    human_it,mouse_it,rhesus_it = dist_list[0],dist_list[1],dist_list[2]
         
     val_dist_ho=strategy.experimental_distribute_dataset(val_data_ho)
     val_data_ho_it = iter(val_dist_ho)
