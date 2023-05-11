@@ -18,8 +18,8 @@ python3 train_model_atac.py \
             --final_output_length=896 \
             --max_shift=10 \
             --batch_size=4 \
-            --num_epochs=50 \
-            --train_examples=50000 \
+            --num_epochs=25 \
+            --train_examples=40000 \
             --val_examples_ho=19917 \
             --BN_momentum=0.90 \
             --warmup_frac=0.01 \

@@ -210,6 +210,7 @@ def main():
             wandb.config.gcs_path=args.gcs_path
             wandb.config.gcs_path_mm=args.gcs_path_mm
             wandb.config.gcs_path_rm=args.gcs_path_rm
+            #wandb.config.gcs_path_rat=args.gcs_path_rat
             wandb.config.gcs_path_holdout=args.gcs_path_holdout
             wandb.config.num_epochs=args.num_epochs
             wandb.config.train_examples=args.train_examples
@@ -229,7 +230,7 @@ def main():
             
             output_heads = ["human"]
             if wandb.config.training_type == 'hg_mm_rm':
-                output_heads = ["human", "mouse","rhesus","rat"]
+                output_heads = ["human", "mouse","rhesus"]
             wandb.config.output_heads = output_heads
             print(wandb.config.output_heads)
             gcs_paths = [wandb.config.gcs_path,
@@ -469,6 +470,7 @@ def main():
                         
                     wandb.log({'mouse_train_loss': metric_dict['train_loss_mm'].result().numpy(),
                                'rhesus_train_loss': metric_dict['train_loss_rm'].result().numpy()},
+                               #'rat_train_loss': metric_dict['train_loss_rat'].result().numpy()},
                               step=epoch_i)
                     print('train_loss_mm: ' + str(metric_dict['train_loss_mm'].result().numpy()))
                     print('train_loss_rm: ' + str(metric_dict['train_loss_rm'].result().numpy()))
