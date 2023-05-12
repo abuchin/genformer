@@ -503,6 +503,10 @@ def return_train_val_functions(model,
 
     metric_dict["train_loss"] = tf.keras.metrics.Mean("train_loss",
                                                  dtype=tf.float32)
+    metric_dict["train_loss_bce"] = tf.keras.metrics.Mean("train_loss_bce",
+                                                 dtype=tf.float32)
+    metric_dict["train_loss_poisson"] = tf.keras.metrics.Mean("train_loss_poisson",
+                                                 dtype=tf.float32)
     metric_dict["train_loss_mm"] = tf.keras.metrics.Mean("train_loss_mm",
                                                  dtype=tf.float32)
     metric_dict["train_loss_rm"] = tf.keras.metrics.Mean("train_loss_rm",
@@ -515,6 +519,15 @@ def return_train_val_functions(model,
     metric_dict["val_loss_poisson"] = tf.keras.metrics.Mean("val_loss_poisson",
                                                   dtype=tf.float32)
     
+    
+    metric_dict['ATAC_PearsonR_tr'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
+    metric_dict['ATAC_R2_tr'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
+    
+    metric_dict['ATAC_PR_tr'] = tf.keras.metrics.AUC(curve='PR')
+    metric_dict['ATAC_ROC_tr'] = tf.keras.metrics.AUC(curve='ROC')
+    metric_dict['ATAC_TP_tr'] = tf.keras.metrics.Sum()
+    metric_dict['ATAC_T_tr'] = tf.keras.metrics.Sum()
+    
     metric_dict['ATAC_PearsonR'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
     metric_dict['ATAC_R2'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
     
@@ -525,6 +538,8 @@ def return_train_val_functions(model,
     
     metric_dict['ATAC_TP'] = tf.keras.metrics.Sum()
     metric_dict['ATAC_T'] = tf.keras.metrics.Sum()
+    
+
     
     
     @tf.function(reduce_retracing=True)
@@ -580,8 +595,22 @@ def return_train_val_functions(model,
         optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
                                        performer_vars))
         metric_dict["train_loss"].update_state(loss)
-        #strategy.run(train_step,
-        #             args=(next(iterator),))
+        metric_dict["train_loss_poisson"].update_state(poisson_loss)
+        metric_dict["train_loss_bce"].update_state(bce_loss)
+        
+        
+        metric_dict['ATAC_PearsonR_tr'].update_state(target_atac, 
+                                                  output_atac)
+        metric_dict['ATAC_R2_tr'].update_state(target_atac, 
+                                            output_atac)
+
+        metric_dict['ATAC_PR_tr'].update_state(target_peaks,
+                                            output_peaks)
+        metric_dict['ATAC_ROC_tr'].update_state(target_peaks,
+                                             output_peaks)
+
+        metric_dict['ATAC_TP_tr'].update_state(target_peaks)
+        metric_dict['ATAC_T_tr'].update_state((target_peaks + (1-target_peaks)))  
         
     @tf.function(reduce_retracing=True)
     def dist_train_step_mouse(inputs):    
@@ -856,7 +885,7 @@ def deserialize_tr(serialized_example,
     '''
     rev_comp = tf.math.round(g.uniform([], 0, 1)) #switch for random reverse complementation
     seq_mask_int = g.uniform([], 0, 25, dtype=tf.int32) ## sequence corruption rate
-    stupid_random_seed = g.uniform([], 0, 10000000,dtype=tf.int32) # hacky work-around to ensure randomness in the stateless operations
+    stupid_random_seed = g.uniform([], 0, 100000000,dtype=tf.int32) # hacky work-around to ensure randomness in the stateless operations
     shift = g.uniform(shape=(),
                       minval=0,
                       maxval=max_shift,
@@ -1034,7 +1063,7 @@ def deserialize_val(serialized_example,
     }
     ### stochastic sequence shift and gaussian noise
     seq_shift=5
-    stupid_random_seed = g.uniform([], 0, 10000000,dtype=tf.int32)
+    stupid_random_seed = g.uniform([], 0, 100000000,dtype=tf.int32)
     input_seq_length = input_length + max_shift
     
     ## now parse out the actual data

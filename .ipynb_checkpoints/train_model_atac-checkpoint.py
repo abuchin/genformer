@@ -190,7 +190,7 @@ def main():
         ## tpu initialization
         strategy = training_utils.tf_tpu_initialize(args.tpu_name,args.tpu_zone)
         mixed_precision.set_global_policy('mixed_bfloat16')
-        g = tf.random.Generator.from_seed(42)
+        g = tf.random.Generator.from_seed(wandb.config.seed)
         ## rest must be w/in strategy scope
         
         with strategy.scope():
@@ -479,6 +479,40 @@ def main():
                 print('train_loss: ' + str(metric_dict['train_loss'].result().numpy()))
                 wandb.log({'human_train_loss': metric_dict['train_loss'].result().numpy()},
                           step=epoch_i)
+                train_loss_poisson = metric_dict['train_loss_poisson'].result().numpy()
+                train_loss_bce = metric_dict['train_loss_bce'].result().numpy()
+                print('train_loss_poisson: ' + str(train_loss_poisson))
+                print('train_loss_bce: ' + str(train_loss_bce))
+                val_losses.append(val_loss)
+                
+                wandb.log({'human_train_loss_poisson': metric_dict['train_loss_poisson'].result().numpy(),
+                           'human_train_loss_bce': metric_dict['train_loss_bce'].result().numpy()},
+                           step=epoch_i)
+                
+                atac_pearsons_tr = metric_dict['ATAC_PearsonR_tr'].result()['PearsonR'].numpy()
+                atac_R2_tr = metric_dict['ATAC_R2_tr'].result()['R2'].numpy()
+                atac_roc_tr = metric_dict['ATAC_ROC_tr'].result().numpy()
+                atac_pr_tr = metric_dict['ATAC_PR_tr'].result().numpy()
+                atac_TP_tr = metric_dict['ATAC_TP_tr'].result().numpy()
+                atac_T_tr = metric_dict['ATAC_T_tr'].result().numpy()
+                
+                val_pearsons.append(atac_pearsons)
+                print('human_ATAC_pearsons_tr: ' + str(atac_pearsons_tr))
+                print('human_ATAC_R2_tr: ' + str(atac_R2_tr))
+                print('human_ATAC_PR_tr: ' + str(atac_pr_tr))
+                print('human_ATAC_ROC_tr: ' + str(atac_roc_tr))
+                
+                wandb.log({'human_ATAC_pearsons_tr': atac_pearsons_tr,
+                           'human_ATAC_R2_tr': atac_R2_tr,
+                           'human_ATAC_ROC_tr': atac_roc_tr,
+                           'human_ATAC_pos_rate_tr': (atac_TP_tr/atac_T_tr),
+                           'human_ATAC_PR_tr': atac_pr_tr},
+                          step=epoch_i)
+                
+                
+                
+                
+                
                     
                 end = time.time()
                 duration = (end - start) / 60.
@@ -507,7 +541,6 @@ def main():
                 atac_R2 = metric_dict['ATAC_R2'].result()['R2'].numpy()
                 atac_roc = metric_dict['ATAC_ROC'].result().numpy()
                 atac_pr = metric_dict['ATAC_PR'].result().numpy()
-                
                 atac_TP = metric_dict['ATAC_TP'].result().numpy()
                 atac_T = metric_dict['ATAC_T'].result().numpy()
                 
@@ -517,13 +550,13 @@ def main():
                 print('human_ATAC_PR: ' + str(atac_pr))
                 print('human_ATAC_ROC: ' + str(atac_roc))
                 
-
                 wandb.log({'human_ATAC_pearsons': atac_pearsons,
                            'human_ATAC_R2': atac_R2,
                            'human_ATAC_ROC': atac_roc,
                            'human_ATAC_pos_rate': (atac_TP/atac_T),
                            'human_ATAC_PR': atac_pr},
                           step=epoch_i)
+                
                         
 
                 end = time.time()
