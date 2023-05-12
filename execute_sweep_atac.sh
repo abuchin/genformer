@@ -19,8 +19,8 @@ python3 train_model_atac.py \
             --max_shift=10 \
             --batch_size=4 \
             --num_epochs=30 \
-            --train_examples=100 \
-            --val_examples_ho=50 \
+            --train_examples=100000 \
+            --val_examples_ho=19917 \
             --BN_momentum=0.90 \
             --warmup_frac=0.01 \
             --patience=50 \

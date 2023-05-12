@@ -522,7 +522,6 @@ def return_train_val_functions(model,
     
     metric_dict['ATAC_PearsonR_tr'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
     metric_dict['ATAC_R2_tr'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
-    
     metric_dict['ATAC_PR_tr'] = tf.keras.metrics.AUC(curve='PR')
     metric_dict['ATAC_ROC_tr'] = tf.keras.metrics.AUC(curve='ROC')
     metric_dict['ATAC_TP_tr'] = tf.keras.metrics.Sum()
@@ -530,12 +529,8 @@ def return_train_val_functions(model,
     
     metric_dict['ATAC_PearsonR'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
     metric_dict['ATAC_R2'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
-    
     metric_dict['ATAC_PR'] = tf.keras.metrics.AUC(curve='PR')
     metric_dict['ATAC_ROC'] = tf.keras.metrics.AUC(curve='ROC')
-    
-    metric_dict["corr_stats"] = metrics.correlation_stats_gene_centered(name='corr_stats')
-    
     metric_dict['ATAC_TP'] = tf.keras.metrics.Sum()
     metric_dict['ATAC_T'] = tf.keras.metrics.Sum()
     
