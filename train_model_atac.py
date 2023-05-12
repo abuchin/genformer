@@ -186,11 +186,9 @@ def main():
     def sweep_train(config_defaults=None):
         # Set default values
         # Specify the other hyperparameters to the configuration, if any
-
         ## tpu initialization
         strategy = training_utils.tf_tpu_initialize(args.tpu_name,args.tpu_zone)
         mixed_precision.set_global_policy('mixed_bfloat16')
-        g = tf.random.Generator.from_seed(wandb.config.seed)
         ## rest must be w/in strategy scope
         
         with strategy.scope():
@@ -237,7 +235,7 @@ def main():
                          wandb.config.gcs_path_mm,
                          wandb.config.gcs_path_rm]
                          
-            
+            g = tf.random.Generator.from_seed(wandb.config.seed)
             
             
             run_name = '_'.join([str(wandb.config.training_type),
