@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 python3 train_model_atac.py \
-            --tpu_name="pod" \
+            --tpu_name="pod1" \
             --tpu_zone="us-east1-d" \
             --wandb_project="atac_pretraining" \
             --wandb_user="njaved" \
@@ -18,8 +18,8 @@ python3 train_model_atac.py \
             --final_output_length=896 \
             --max_shift=10 \
             --batch_size=4 \
-            --num_epochs=25 \
-            --train_examples=40000 \
+            --num_epochs=30 \
+            --train_examples=100000 \
             --val_examples_ho=19917 \
             --BN_momentum=0.90 \
             --warmup_frac=0.01 \
@@ -31,7 +31,7 @@ python3 train_model_atac.py \
             --lr_base1="2.0e-04" \
             --lr_base2="2.0e-04" \
             --decay_frac="1.0" \
-            --gradient_clip="5.0" \
+            --gradient_clip="2.5" \
             --epsilon=1.0e-8 \
             --num_transformer_layers="1" \
             --dropout_rate="0.30" \
@@ -44,19 +44,18 @@ python3 train_model_atac.py \
             --load_init="False" \
             --rectify="True" \
             --filter_list_seq="512,640,768,896,1024,1152" \
-            --inits_type="enformer_conv" \
             --filter_list_atac="32,64" \
             --optimizer="adam" \
             --stable_variant="False" \
             --atac_mask_dropout=0.20 \
             --log_atac="True" \
             --learnable_PE="True" \
-            --sonnet_weights_bool="True" \
+            --sonnet_weights_bool="False" \
             --random_mask_size="1024" \
             --use_atac="True" \
             --final_point_scale="6" \
             --use_seq="True" \
             --bce_loss_scale="0.95" \
-            --seed=24
+            --seed=25
                         
             

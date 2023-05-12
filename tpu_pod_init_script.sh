@@ -20,8 +20,4 @@ export TPU_LOAD_LIBRARY=0
 
 sudo pip3 install numpy --upgrade
 
-
-gsutil cp gs://picard-testing-176520/sonnet_weights.tar.gz .
-tar -xzvf sonnet_weights.tar.gz
-
 wandb login
