@@ -210,7 +210,7 @@ def main():
             wandb.config.gcs_path=args.gcs_path
             wandb.config.gcs_path_mm=args.gcs_path_mm
             wandb.config.gcs_path_rm=args.gcs_path_rm
-            #wandb.config.gcs_path_rat=args.gcs_path_rat
+            wandb.config.gcs_path_rat=args.gcs_path_rat
             wandb.config.gcs_path_holdout=args.gcs_path_holdout
             wandb.config.num_epochs=args.num_epochs
             wandb.config.train_examples=args.train_examples
@@ -229,13 +229,14 @@ def main():
             wandb.config.crop_size = (wandb.config.output_length - wandb.config.final_output_length) // 2
             
             output_heads = ["human"]
-            if wandb.config.training_type == 'hg_mm_rm':
-                output_heads = ["human", "mouse", "rhesus"]
+            if wandb.config.training_type == 'hg_mm_rm_rat':
+                output_heads = ["human", "mouse", "rhesus","rat"]
             wandb.config.output_heads = output_heads
             print(wandb.config.output_heads)
             gcs_paths = [wandb.config.gcs_path,
                          wandb.config.gcs_path_mm,
-                         wandb.config.gcs_path_rm]
+                         wandb.config.gcs_path_rm,
+                         wandb.config.gcs_path_rat]
                          
             
             
@@ -285,7 +286,7 @@ def main():
                                 allow_val_change=True)
                 
             
-            train_human,train_mouse,train_rm,data_val_ho = \
+            train_human,train_mouse,train_rm,train_rat,data_val_ho = \
                     training_utils.return_distributed_iterators(gcs_paths,
                                                                 wandb.config.gcs_path_holdout,
                                                                 GLOBAL_BATCH_SIZE,
@@ -420,7 +421,7 @@ def main():
             
             optimizers_in = optimizer1,optimizer2
 
-            human_step,mouse_step,rhesus_step, val_step, \
+            human_step,mouse_step,rhesus_step,rat_step, val_step, \
                 build_step, metric_dict = training_utils.return_train_val_functions(model,
                                                                                 wandb.config.train_steps,
                                                                                 #wandb.config.val_steps,
@@ -466,15 +467,15 @@ def main():
                         strategy.run(human_step, args = (next(train_human),))
                         strategy.run(mouse_step,args = (next(train_mouse),))
                         strategy.run(rhesus_step,args = (next(train_rm),))
-                        #strategy.run(rat_step,args = (next(train_rat),))
+                        strategy.run(rat_step,args = (next(train_rat),))
                         
                     wandb.log({'mouse_train_loss': metric_dict['train_loss_mm'].result().numpy(),
-                               'rhesus_train_loss': metric_dict['train_loss_rm'].result().numpy()},
-                               #'rat_train_loss': metric_dict['train_loss_rat'].result().numpy()},
+                               'rhesus_train_loss': metric_dict['train_loss_rm'].result().numpy()
+                               'rat_train_loss': metric_dict['train_loss_rat'].result().numpy()},
                               step=epoch_i)
                     print('train_loss_mm: ' + str(metric_dict['train_loss_mm'].result().numpy()))
                     print('train_loss_rm: ' + str(metric_dict['train_loss_rm'].result().numpy()))
-                    #print('train_loss_rat: ' + str(metric_dict['train_loss_rat'].result().numpy()))
+                    print('train_loss_rat: ' + str(metric_dict['train_loss_rat'].result().numpy()))
                     
                 print('train_loss: ' + str(metric_dict['train_loss'].result().numpy()))
                 wandb.log({'human_train_loss': metric_dict['train_loss'].result().numpy()},

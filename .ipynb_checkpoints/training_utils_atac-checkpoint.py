@@ -511,6 +511,8 @@ def return_train_val_functions(model,
                                                  dtype=tf.float32)
     metric_dict["train_loss_rm"] = tf.keras.metrics.Mean("train_loss_rm",
                                                  dtype=tf.float32)
+    metric_dict["train_loss_rat"] = tf.keras.metrics.Mean("train_loss_rat",
+                                                 dtype=tf.float32)
     metric_dict["val_loss"] = tf.keras.metrics.Mean("val_loss",
                                                   dtype=tf.float32)
     
@@ -522,7 +524,6 @@ def return_train_val_functions(model,
     
     metric_dict['ATAC_PearsonR_tr'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
     metric_dict['ATAC_R2_tr'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
-    
     metric_dict['ATAC_PR_tr'] = tf.keras.metrics.AUC(curve='PR')
     metric_dict['ATAC_ROC_tr'] = tf.keras.metrics.AUC(curve='ROC')
     metric_dict['ATAC_TP_tr'] = tf.keras.metrics.Sum()
@@ -530,12 +531,8 @@ def return_train_val_functions(model,
     
     metric_dict['ATAC_PearsonR'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
     metric_dict['ATAC_R2'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
-    
     metric_dict['ATAC_PR'] = tf.keras.metrics.AUC(curve='PR')
     metric_dict['ATAC_ROC'] = tf.keras.metrics.AUC(curve='ROC')
-    
-    metric_dict["corr_stats"] = metrics.correlation_stats_gene_centered(name='corr_stats')
-    
     metric_dict['ATAC_TP'] = tf.keras.metrics.Sum()
     metric_dict['ATAC_T'] = tf.keras.metrics.Sum()
     
@@ -724,7 +721,7 @@ def return_train_val_functions(model,
     #strategy.run(train_step,
     #             args=(next(iterator),))
         
-    """
+    
     @tf.function(reduce_retracing=True)
     def dist_train_step_rat(inputs):    
     #def train_step(inputs):
@@ -778,7 +775,7 @@ def return_train_val_functions(model,
         optimizer2.apply_gradients(zip(gradients[len(conv_vars):], 
                                        performer_vars))
         metric_dict["train_loss_rat"].update_state(loss)
-    """
+    
     #strategy.run(train_step,
     #             args=(next(iterator),))
             
@@ -852,7 +849,7 @@ def return_train_val_functions(model,
         strategy.run(val_step, args=(next(iterator),))
     
 
-    return dist_train_step_human,dist_train_step_mouse,dist_train_step_rm,dist_val_step, build_step, metric_dict
+    return dist_train_step_human,dist_train_step_mouse,dist_train_step_rm,dist_train_step_rat,dist_val_step, build_step, metric_dict
 
 
 def deserialize_tr(serialized_example,
@@ -1323,12 +1320,12 @@ def return_distributed_iterators(gcs_paths,
         tr_data_it = iter(train_dist)
         dist_list.append(tr_data_it)
         
-    human_it,mouse_it,rhesus_it = dist_list[0],dist_list[1],dist_list[2]
+    human_it,mouse_it,rhesus_it,rat_it = dist_list[0],dist_list[1],dist_list[2],dist_list[3]
         
     val_dist_ho=strategy.experimental_distribute_dataset(val_data_ho)
     val_data_ho_it = iter(val_dist_ho)
 
-    return human_it,mouse_it,rhesus_it,val_data_ho_it
+    return human_it,mouse_it,rhesus_it,rat_it,val_data_ho_it
 
 
 def early_stopping(current_val_loss,
@@ -1423,6 +1420,9 @@ def parse_args(parser):
                         dest=None,
                         help= 'google bucket containing preprocessed data')
     parser.add_argument('--gcs_path_rm',
+                        dest=None,
+                        help= 'google bucket containing preprocessed data')
+    parser.add_argument('--gcs_path_rat',
                         dest=None,
                         help= 'google bucket containing preprocessed data')
     parser.add_argument('--gcs_path_holdout',
