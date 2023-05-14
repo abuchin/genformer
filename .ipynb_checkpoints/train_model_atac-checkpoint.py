@@ -470,7 +470,7 @@ def main():
                         strategy.run(rat_step,args = (next(train_rat),))
                         
                     wandb.log({'mouse_train_loss': metric_dict['train_loss_mm'].result().numpy(),
-                               'rhesus_train_loss': metric_dict['train_loss_rm'].result().numpy()
+                               'rhesus_train_loss': metric_dict['train_loss_rm'].result().numpy(),
                                'rat_train_loss': metric_dict['train_loss_rat'].result().numpy()},
                               step=epoch_i)
                     print('train_loss_mm: ' + str(metric_dict['train_loss_mm'].result().numpy()))
