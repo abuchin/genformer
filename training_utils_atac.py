@@ -864,6 +864,8 @@ def deserialize_tr(serialized_example,
                    log_atac,
                    use_atac,
                    use_seq,
+                     seq_corrupt_rate,
+                     atac_corrupt_rate,
                    g):
     """Deserialize bytes stored in TFRecordFile."""
     ## parse out feature map
@@ -881,7 +883,8 @@ def deserialize_tr(serialized_example,
       stupid_random_seed: hacky workaround to previous issue with random atac masking
     '''
     rev_comp = tf.math.round(g.uniform([], 0, 1)) #switch for random reverse complementation
-    seq_mask_int = g.uniform([], 0, 25, dtype=tf.int32) ## sequence corruption rate
+    seq_mask_int = g.uniform([], 0, seq_corrupt_rate, dtype=tf.int32) ## sequence corruption rate
+    atac_mask_int = g.uniform([], 0, atac_corrupt_rate, dtype=tf.int32) ## atac increased corruption rate
     stupid_random_seed = g.uniform([], 0, 100000000,dtype=tf.int32) # hacky work-around to ensure randomness in the stateless operations
     shift = g.uniform(shape=(),
                       minval=0,
@@ -946,6 +949,8 @@ def deserialize_tr(serialized_example,
     atac_mask = tf.ones(out_length_cropped // num_mask_bins,dtype=tf.float32)
 
     '''now compute the random atac seq dropout, which is done in addition to the randomly selected peak '''
+    if ((atac_mask_int == 0)):
+        atac_mask_dropout = 3 * atac_mask_dropout
     atac_mask=tf.nn.experimental.stateless_dropout(atac_mask,
                                               rate=(atac_mask_dropout),
                                               seed=[0,stupid_random_seed-5]) / (1. / (1.0-(atac_mask_dropout))) 
@@ -973,7 +978,7 @@ def deserialize_tr(serialized_example,
     '''add some random gaussian noise '''
     masked_atac = masked_atac + tf.math.abs(g.normal(atac.shape,
                                                mean=0.0,
-                                               stddev=1.0e-06,
+                                               stddev=1.0e-05,
                                                dtype=tf.float32)) ### add some gaussian noise
         
     if log_atac: 
@@ -983,7 +988,7 @@ def deserialize_tr(serialized_example,
     masked_atac = tf.clip_by_value(masked_atac, clip_value_min=0.0, clip_value_max=100.0) + diff
     
     ''' here set up the random sequence masking '''
-    if ((seq_mask_int == 0)):
+    if ((seq_mask_int == 0) and (atac_mask_int != 0)):
         seq_mask = 1.0 - full_comb_mask_full_store
         tiling_req_seq = input_length // output_length
         seq_mask = tf.expand_dims(tf.reshape(tf.tile(seq_mask, [1,tiling_req_seq]),[-1]),axis=1)
@@ -1178,6 +1183,8 @@ def return_dataset(gcs_path,
                    use_atac,
                    use_seq,
                    seed,
+                     seq_corrupt_rate,
+                     atac_corrupt_rate,
                    g):
     """
     return a tf dataset object for given gcs path
@@ -1211,6 +1218,8 @@ def return_dataset(gcs_path,
                                                             log_atac,
                                                            use_atac,
                                                            use_seq,
+                                                         seq_corrupt_rate,
+                                                         atac_corrupt_rate,
                                                             g),
                               deterministic=False,
                               num_parallel_calls=num_parallel)
@@ -1268,6 +1277,8 @@ def return_distributed_iterators(gcs_paths,
                                    use_atac,
                                    use_seq,
                                  seed,
+                                 seq_corrupt_rate,
+                                 atac_corrupt_rate,
                                  g):
     
     
@@ -1291,6 +1302,8 @@ def return_distributed_iterators(gcs_paths,
                                        use_atac,
                                        use_seq,
                                  seed,
+                                 seq_corrupt_rate,
+                                 atac_corrupt_rate,
                                  g)
     
     val_data_ho = return_dataset(gcs_path_ho,
@@ -1312,6 +1325,8 @@ def return_distributed_iterators(gcs_paths,
                                    use_atac,
                                    use_seq,
                                  seed,
+                                 seq_corrupt_rate,
+                                 atac_corrupt_rate,
                               g)
 
     dist_list = []
@@ -1668,6 +1683,16 @@ def parse_args(parser):
                         type=str,
                         default="hg",
                         help= 'training_type')
+    parser.add_argument('--seq_corrupt_rate',
+                        dest='seq_corrupt_rate',
+                        type=str,
+                        default="20",
+                        help= 'seq_corrupt_rate')
+    parser.add_argument('--atac_corrupt_rate',
+                        dest='atac_corrupt_rate',
+                        type=str,
+                        default="20",
+                        help= 'atac_corrupt_rate')
     args = parser.parse_args()
     return parser
 

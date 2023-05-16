@@ -178,6 +178,12 @@ def main():
                 },
                 'bce_loss_scale': {
                     'values':[args.bce_loss_scale]
+                },
+                'atac_corrupt_rate': {
+                    'values': [int(x) for x in args.atac_corrupt_rate.split(',')]
+                },
+                'seq_corrupt_rate': {
+                    'values': [int(x) for x in args.seq_corrupt_rate.split(',')]
                 }
             }
     }
@@ -306,6 +312,8 @@ def main():
                                                                 wandb.config.use_atac,
                                                                 wandb.config.use_seq,
                                                                 wandb.config.seed,
+                                                                wandb.config.seq_corrupt_rate,
+                                                                wandb.config.atac_corrupt_rate,
                                                                 g)
 
             
