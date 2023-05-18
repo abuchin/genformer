@@ -1080,7 +1080,9 @@ def deserialize_val(serialized_example,
                            [output_length])
     peaks_sum = tf.reduce_sum(peaks)
     
-    stupid_random_seed = peaks_sum#g.uniform([], 0, 100000000,dtype=tf.int32)
+    seq_seed = tf.reduce_sum(sequence[:,0])
+    
+    stupid_random_seed = peaks_sum + tf.cast(seq_seed,dtype=tf.int32)#g.uniform([], 0, 100000000,dtype=tf.int32)
     
     peaks = tf.expand_dims(peaks,axis=1)
     peaks_crop = tf.slice(peaks,
@@ -1237,8 +1239,7 @@ def return_dataset(gcs_path,
                                                     wc)))
 
         #random.shuffle(list_files)
-        files = tf.data.Dataset.list_files(list_files,seed=seed+1,shuffle=True)
-        tf_range = tf.range(len(list_files)+1)
+        files = tf.data.Dataset.list_files(list_files,shuffle=False)
         dataset = tf.data.TFRecordDataset(files,
                                           compression_type='ZLIB',
                                           num_parallel_reads=num_parallel)
@@ -1257,10 +1258,10 @@ def return_dataset(gcs_path,
                                                            use_atac,
                                                            use_seq,
                                                             g),
-                      deterministic=False,
+                      deterministic=True,
                       num_parallel_calls=num_parallel)
 
-        return dataset.take(batch*validation_steps).batch(batch).prefetch(tf.data.AUTOTUNE).repeat(num_epoch)
+        return dataset.take(batch*validation_steps).batch(batch).repeat(num_epoch).prefetch(tf.data.AUTOTUNE)
 
 
 def return_distributed_iterators(gcs_paths,
