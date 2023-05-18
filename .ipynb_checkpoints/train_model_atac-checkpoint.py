@@ -286,7 +286,7 @@ def main():
                                 allow_val_change=True)
             #wandb.config.update({"val_steps" : num_val // GLOBAL_BATCH_SIZE},
             #                    allow_val_change=True)
-            wandb.config.update({"val_steps_ho" : num_val_ho // GLOBAL_BATCH_SIZE + 1},
+            wandb.config.update({"val_steps_ho" : num_val_ho // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
             wandb.config.update({"total_steps": num_train // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
@@ -314,6 +314,7 @@ def main():
                                                                 wandb.config.seed,
                                                                 wandb.config.seq_corrupt_rate,
                                                                 wandb.config.atac_corrupt_rate,
+                                                                wandb.config.val_steps_ho,
                                                                 g)
 
             

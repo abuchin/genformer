@@ -1065,7 +1065,7 @@ def deserialize_val(serialized_example,
     }
     ### stochastic sequence shift and gaussian noise
     seq_shift=5
-    stupid_random_seed = g.uniform([], 0, 100000000,dtype=tf.int32)
+    
     input_seq_length = input_length + max_shift
     
     ## now parse out the actual data
@@ -1078,6 +1078,10 @@ def deserialize_val(serialized_example,
     peaks = tf.ensure_shape(tf.io.parse_tensor(data['peaks'],
                                               out_type=tf.int32),
                            [output_length])
+    peaks_sum = tf.reduce_sum(peaks)
+    
+    stupid_random_seed = peaks_sum#g.uniform([], 0, 100000000,dtype=tf.int32)
+    
     peaks = tf.expand_dims(peaks,axis=1)
     peaks_crop = tf.slice(peaks,
                      [crop_size,0],
@@ -1185,6 +1189,7 @@ def return_dataset(gcs_path,
                    seed,
                      seq_corrupt_rate,
                      atac_corrupt_rate,
+                   validation_steps,
                    g):
     """
     return a tf dataset object for given gcs path
@@ -1233,7 +1238,7 @@ def return_dataset(gcs_path,
 
         #random.shuffle(list_files)
         files = tf.data.Dataset.list_files(list_files,seed=seed+1,shuffle=True)
-
+        tf_range = tf.range(len(list_files)+1)
         dataset = tf.data.TFRecordDataset(files,
                                           compression_type='ZLIB',
                                           num_parallel_reads=num_parallel)
@@ -1255,7 +1260,7 @@ def return_dataset(gcs_path,
                       deterministic=False,
                       num_parallel_calls=num_parallel)
 
-        return dataset.repeat(num_epoch).batch(batch).prefetch(tf.data.AUTOTUNE)
+        return dataset.take(batch*validation_steps).batch(batch).prefetch(tf.data.AUTOTUNE).repeat(num_epoch)
 
 
 def return_distributed_iterators(gcs_paths,
@@ -1279,6 +1284,7 @@ def return_distributed_iterators(gcs_paths,
                                  seed,
                                  seq_corrupt_rate,
                                  atac_corrupt_rate,
+                                 validation_steps,
                                  g):
     
     
@@ -1304,6 +1310,7 @@ def return_distributed_iterators(gcs_paths,
                                  seed,
                                  seq_corrupt_rate,
                                  atac_corrupt_rate,
+                                 validation_steps,
                                  g)
     
     val_data_ho = return_dataset(gcs_path_ho,
@@ -1327,6 +1334,7 @@ def return_distributed_iterators(gcs_paths,
                                  seed,
                                  seq_corrupt_rate,
                                  atac_corrupt_rate,
+                                 validation_steps,
                               g)
 
     dist_list = []
