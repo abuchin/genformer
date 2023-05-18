@@ -20,7 +20,7 @@ python3 train_model_atac.py \
             --max_shift=10 \
             --batch_size=4 \
             --num_epochs=50 \
-            --train_examples=100000 \
+            --train_examples=10000 \
             --val_examples_ho=24343 \
             --BN_momentum=0.90 \
             --warmup_frac=0.005 \
@@ -52,13 +52,13 @@ python3 train_model_atac.py \
             --log_atac="True" \
             --learnable_PE="True" \
             --sonnet_weights_bool="False" \
-            --random_mask_size="1024" \
+            --random_mask_size="768" \
             --use_atac="True" \
-            --final_point_scale="6" \
+            --final_point_scale="4" \
             --use_seq="True" \
             --bce_loss_scale="0.95" \
             --seed=12 \
-            --seq_corrupt_rate="20" \
+            --seq_corrupt_rate="15" \
             --atac_corrupt_rate="20"
                         
             
