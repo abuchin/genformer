@@ -34,9 +34,9 @@ python3 train_model_atac.py \
             --decay_frac="0.50" \
             --gradient_clip="2.5" \
             --epsilon=1.0e-8 \
-            --num_transformer_layers="8" \
-            --dropout_rate="0.40" \
-            --pointwise_dropout_rate="0.15" \
+            --num_transformer_layers="7" \
+            --dropout_rate="0.20" \
+            --pointwise_dropout_rate="0.10" \
             --num_heads="8" \
             --num_random_features="256" \
             --kernel_transformation="relu_kernel_transformation" \
@@ -44,8 +44,8 @@ python3 train_model_atac.py \
             --freeze_conv_layers="False" \
             --load_init="False" \
             --rectify="True" \
-            --filter_list_seq="512,640,768,896,1024,1152" \
-            --filter_list_atac="32,64" \
+            --filter_list_seq="512,564,616,668,720,768" \
+            --filter_list_atac="64,128" \
             --optimizer="adam" \
             --stable_variant="False" \
             --atac_mask_dropout=0.15 \
@@ -57,6 +57,7 @@ python3 train_model_atac.py \
             --final_point_scale="4" \
             --use_seq="True" \
             --bce_loss_scale="0.95" \
+            --use_pooling="False" \
             --seed=12 \
             --seq_corrupt_rate="15" \
             --atac_corrupt_rate="20"

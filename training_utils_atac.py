@@ -1702,6 +1702,11 @@ def parse_args(parser):
                         type=str,
                         default="20",
                         help= 'atac_corrupt_rate')
+    parser.add_argument('--use_pooling',
+                        dest='use_pooling',
+                        type=str,
+                        default=False,
+                        help= 'use_pooling')
     args = parser.parse_args()
     return parser
 

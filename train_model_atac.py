@@ -184,6 +184,9 @@ def main():
                 },
                 'seq_corrupt_rate': {
                     'values': [int(x) for x in args.seq_corrupt_rate.split(',')]
+                },
+                'use_pooling': {
+                    'values': [str(x) for x in args.use_pooling.split(',')]
                 }
             }
     }
