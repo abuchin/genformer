@@ -11,7 +11,7 @@ python3 train_model_atac.py \
             --gcs_path_mm="gs://picard-testing-176520/genformer_atac_pretrain/262k/genformer_atac_pretrain_globalacc_conv_rpgc_mouse" \
             --gcs_path_rm="gs://picard-testing-176520/genformer_atac_pretrain/262k/genformer_atac_pretrain_globalacc_conv_rpgc_rhesus" \
             --gcs_path_rat="gs://picard-testing-176520/genformer_atac_pretrain/262k/genformer_atac_pretrain_globalacc_conv_rpgc_rat" \
-            --gcs_path_holdout="gs://picard-testing-176520/genformer_atac_pretrain/524/genformer_atac_pretrain_globalacc_conv_rpgc_val_holdout" \
+            --gcs_path_holdout="gs://picard-testing-176520/genformer_atac_pretrain/262k/genformer_atac_pretrain_globalacc_conv_rpgc_val_holdout" \
             --training_type="hg_mm_rm_rat" \
             --input_length=262144 \
             --output_length=2048 \
