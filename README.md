@@ -1,22 +1,23 @@
 # genformer dev repository
 
-**genformer** predicts rna-seq from atac-seq + sequence
+**genformer** learns representations of accessible sequence via "masked accessibility modeling" which can be used for downstream fine-tuning tasks
 
 ## dataset inputs
 See https://app.terra.bio/#workspaces/epigenomics/gro_nn for data processing workflows
-and input data. Current version takes in inputs of length 409600 basepairs and outputs a (50,) tensor,
-representing the RNA-seq signal at 4096 bp resolution. The RNA-seq signal is the log(1+TPM)
-of the gene(s) who's TSS overlies a given bin
+and input data. 
 
-## initial architecture
-Mainly follows Enformer architecture:
- * 6 convolutional layers
- * 2-4 transformer blocks w/ linear performer attention
- * cropping layer
- * final conv, averaging over channel dimension, gelu, final dense
+## main files
+For pre-training(masked atac prediction, _atac suffix files):
+ * execute_sweep_atac.sh - training bash script where you can define hyperparameters
+ * training_utils_atac.py - define train and validation steps, data loading and augmentation, masking, early stopping, model saving
+ * train_model_atac.py - define main training loop, argument parsing, wandb initialization code, TPU initialization code
+ * src/aformer_atac.py - main model file
+ * src/layers/layers.py - all custom layers
+ * src/layers/fast_attention_rpe_genformer1.py - linear attention code with rotary positional encodings
+
+Files for fine-tuning for RAMPAGE prediction follow a similar structure
 
 ## training
 
-Define hyper- and sweep parameters in train_model.py Use execute.sh
-to execute sweep on a v3-8 TPU and log results to an input wandb project.
+Define hyper- and sweep parameters in execute_sweep_atac.sh
 
