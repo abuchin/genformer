@@ -459,8 +459,9 @@ class aformer(tf.keras.Model):
 
         atac_x = self.stem_res_conv_atac(atac_x,
                                          training=training)
-        #if self.use_pooling:
-        atac_x = self.stem_pool_atac(atac_x,training=training)
+        if self.use_pooling:
+            atac_x = self.stem_pool_atac(atac_x,
+                                         training=training)
             
         atac_x = self.conv_tower_atac(atac_x,training=training)
         
