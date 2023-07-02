@@ -238,14 +238,17 @@ def main():
             wandb.config.crop_size = (wandb.config.output_length - wandb.config.final_output_length) // 2
             
             output_heads = ["human"]
+            gcs_paths = [wandb.config.gcs_path]
             if wandb.config.training_type == 'hg_mm_rm_rat':
                 output_heads = ["human", "mouse", "rhesus","rat"]
+                gcs_paths = [wandb.config.gcs_path,
+                             wandb.config.gcs_path_mm,
+                             wandb.config.gcs_path_rm,
+                             wandb.config.gcs_path_rat]
             wandb.config.output_heads = output_heads
             print(wandb.config.output_heads)
-            gcs_paths = [wandb.config.gcs_path,
-                         wandb.config.gcs_path_mm,
-                         wandb.config.gcs_path_rm,
-                         wandb.config.gcs_path_rat]
+            
+
                          
             
             
@@ -295,7 +298,7 @@ def main():
                                 allow_val_change=True)
                 
             
-            train_human,train_mouse,train_rm,train_rat,data_val_ho = \
+            out_iterators = \
                     training_utils.return_distributed_iterators(gcs_paths,
                                                                 wandb.config.gcs_path_holdout,
                                                                 GLOBAL_BATCH_SIZE,
@@ -319,6 +322,11 @@ def main():
                                                                 wandb.config.atac_corrupt_rate,
                                                                 wandb.config.val_steps_ho,
                                                                 g)
+            
+            if len(gcs_paths) == 1:
+                train_human, data_val_ho = out_iterators
+            else:
+                train_human,train_mouse,train_rm,train_rat,data_val_ho = out_iterators
 
             
             loading_checkpoint_bool=False

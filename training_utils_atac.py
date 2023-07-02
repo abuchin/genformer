@@ -1338,18 +1338,21 @@ def return_distributed_iterators(gcs_paths,
                                  validation_steps,
                               g)
 
+    val_dist_ho=strategy.experimental_distribute_dataset(val_data_ho)
+    val_data_ho_it = iter(val_dist_ho)
+    
     dist_list = []
     for gcs_path in gcs_paths:
         train_dist = strategy.experimental_distribute_dataset(tr_data)
         tr_data_it = iter(train_dist)
         dist_list.append(tr_data_it)
         
-    human_it,mouse_it,rhesus_it,rat_it = dist_list[0],dist_list[1],dist_list[2],dist_list[3]
-        
-    val_dist_ho=strategy.experimental_distribute_dataset(val_data_ho)
-    val_data_ho_it = iter(val_dist_ho)
-
-    return human_it,mouse_it,rhesus_it,rat_it,val_data_ho_it
+    if len(gcs_paths) == 1:
+        human_it = dist_list[0]
+        return human_it, val_data_ho_it
+    else:
+        human_it,mouse_it,rhesus_it,rat_it = dist_list[0],dist_list[1],dist_list[2],dist_list[3]
+        return human_it,mouse_it,rhesus_it,rat_it,val_data_ho_it
 
 
 def early_stopping(current_val_loss,
