@@ -2,7 +2,7 @@
 
 python3 train_model_atac_cage.py \
             --tpu_name="pod1" \
-            --tpu_zone="us-east1-a" \
+            --tpu_zone="us-east1-d" \
             --wandb_project="paired_rampage_atac" \
             --wandb_user="njaved" \
             --wandb_sweep_name="paired_rampage_atac" \
@@ -47,7 +47,7 @@ python3 train_model_atac_cage.py \
             --freeze_BN_layers="False" \
             --load_init="True" \
             --rectify="True" \
-            --multitask_checkpoint_path="gs://picard-testing-176520/genformer_atac_pretrain/models/aformer_hg_262k_load-True_LR-0.01_T-6_D-0.3_2023-04-26_00:40:44/iteration_84" \
+            --multitask_checkpoint_path="gs://picard-testing-176520/genformer_atac_pretrain/models/aformer_hg_262k_load-False_LR-0.01_T-7_D-0.2_2023-06-30_14:16:33/iteration_36" \
             --filter_list_seq="768,896,1024,1152,1280,1536" \
             --inits_type="enformer_performer_full" \
             --cage_scale="0.95" \

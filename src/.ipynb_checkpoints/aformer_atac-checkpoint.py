@@ -182,7 +182,7 @@ class aformer(tf.keras.Model):
                                                      kernel_size=125,
                                                      kernel_initializer=self.inits['stem_conv_atac_k'] if self.load_init_atac else 'lecun_normal',
                                                      bias_initializer=self.inits['stem_conv_atac_b'] if self.load_init_atac else 'zeros',
-                                                     strides=2,
+                                                     Strides=1 if self.use_pooling else 2,
                                                      dilation_rate=1,
                                                      padding='same')
 
