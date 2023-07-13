@@ -11,7 +11,7 @@ For pre-training(masked atac prediction, _atac suffix files):
  * execute_sweep_atac.sh - training bash script where you can define hyperparameters
  * training_utils_atac.py - define train and validation steps, data loading and augmentation, masking, early stopping, model saving
  * train_model_atac.py - define main training loop, argument parsing, wandb initialization code, TPU initialization code
- * src/aformer_atac.py - main model file
+ * src/models/aformer_atac.py - main model file
  * src/layers/layers.py - all custom layers
  * src/layers/fast_attention_rpe_genformer1.py - linear attention code with rotary positional encodings
 
