@@ -27,7 +27,7 @@ from tensorflow import strings as tfs
 from tensorflow.keras import mixed_precision
 
 ## custom modules
-import src.aformer_atac_cage as aformer
+import src.models.aformer_atac_cage as aformer
 import src.metrics as metrics
 import src.optimizers as optimizers
 import src.schedulers as schedulers

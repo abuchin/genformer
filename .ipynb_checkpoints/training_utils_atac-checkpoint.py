@@ -853,19 +853,19 @@ def return_train_val_functions(model,
 
 
 def deserialize_tr(serialized_example,
-                   input_length,
-                   max_shift,
-                   output_length_ATAC,
-                   output_length,
-                   crop_size,
-                   output_res,
-                   atac_mask_dropout,
-                   mask_size,
-                   log_atac,
-                   use_atac,
-                   use_seq,
-                     seq_corrupt_rate,
-                     atac_corrupt_rate,
+                   input_length = 196608,
+                   max_shift = 10,
+                   output_length_ATAC = 49152,
+                   output_length = 1536,
+                   crop_size = 320,
+                   output_res = 128,
+                   atac_mask_dropout = 0.15,
+                   mask_size = 896,
+                   log_atac = True,
+                   use_atac = True,
+                   use_seq = True,
+                     seq_corrupt_rate = 20,
+                     atac_corrupt_rate = 20,
                    g):
     """Deserialize bytes stored in TFRecordFile."""
     ## parse out feature map
@@ -880,12 +880,12 @@ def deserialize_tr(serialized_example,
       rev_comp: whether or not to reverse/complement sequence + signal
       seq_mask_int: whether we will randomly also mask the sequence underlying
                     masked ATAC regions
-      stupid_random_seed: hacky workaround to previous issue with random atac masking
+      randomish_seed: hacky workaround to previous issue with random atac masking
     '''
     rev_comp = tf.math.round(g.uniform([], 0, 1)) #switch for random reverse complementation
     seq_mask_int = g.uniform([], 0, seq_corrupt_rate, dtype=tf.int32) ## sequence corruption rate
     atac_mask_int = g.uniform([], 0, atac_corrupt_rate, dtype=tf.int32) ## atac increased corruption rate
-    stupid_random_seed = g.uniform([], 0, 100000000,dtype=tf.int32) # hacky work-around to ensure randomness in the stateless operations
+    randomish_seed = g.uniform([], 0, 100000000,dtype=tf.int32) # hacky work-around to ensure randomish stateless operations
     shift = g.uniform(shape=(),
                       minval=0,
                       maxval=max_shift,
@@ -896,9 +896,7 @@ def deserialize_tr(serialized_example,
             seq_shift = k
         else:
             seq_shift=0
-            
-    
-    
+
     input_seq_length = input_length + max_shift
     
     ''' now parse out the actual data '''
@@ -928,7 +926,7 @@ def deserialize_tr(serialized_example,
     center = (output_length-2*crop_size)//2
     ### here set up masking of one of the peaks
     mask_indices_temp = tf.where(peaks_crop[:,0] > 0)[:,0]
-    ridx = tf.concat([tf.random.experimental.stateless_shuffle(mask_indices_temp,seed=[4+stupid_random_seed,5]),
+    ridx = tf.concat([tf.random.experimental.stateless_shuffle(mask_indices_temp,seed=[4+randomish_seed,5]),
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
     mask_indices = [[ridx[0]+x+crop_size] for x in range(-num_mask_bins//2,num_mask_bins//2)]
                   
@@ -953,7 +951,7 @@ def deserialize_tr(serialized_example,
         atac_mask_dropout = 3 * atac_mask_dropout
     atac_mask=tf.nn.experimental.stateless_dropout(atac_mask,
                                               rate=(atac_mask_dropout),
-                                              seed=[0,stupid_random_seed-5]) / (1. / (1.0-(atac_mask_dropout))) 
+                                              seed=[0,randomish_seed-5]) / (1. / (1.0-(atac_mask_dropout))) 
     atac_mask = tf.expand_dims(atac_mask,axis=1)
     atac_mask = tf.tile(atac_mask, [1,num_mask_bins])
     atac_mask = tf.reshape(atac_mask, [-1])
@@ -972,7 +970,7 @@ def deserialize_tr(serialized_example,
     masked_atac = atac * full_comb_mask
 
     random_shuffled_tokens=  tf.random.experimental.stateless_shuffle(masked_atac, 
-                                                                      seed=[1, stupid_random_seed])
+                                                                      seed=[1, randomish_seed])
     masked_atac = masked_atac + (1.0-full_comb_mask)*random_shuffled_tokens
     
     '''add some random gaussian noise '''
@@ -993,7 +991,7 @@ def deserialize_tr(serialized_example,
         tiling_req_seq = input_length // output_length
         seq_mask = tf.expand_dims(tf.reshape(tf.tile(seq_mask, [1,tiling_req_seq]),[-1]),axis=1)
         masked_seq = sequence * seq_mask + tf.random.experimental.stateless_shuffle(sequence,
-                                                                                    seed=[stupid_random_seed+30,stupid_random_seed])*(1.0-seq_mask)
+                                                                                    seed=[randomish_seed+30,randomish_seed])*(1.0-seq_mask)
     else:
         seq_mask = 1.0 - full_comb_mask_full_store
         tiling_req_seq = input_length // output_length
@@ -1028,7 +1026,7 @@ def deserialize_tr(serialized_example,
         masked_atac = random_shuffled_tokens
     if not use_seq:
         masked_seq = tf.random.experimental.stateless_shuffle(masked_seq,
-                                                              seed=[stupid_random_seed+1,stupid_random_seed+3])
+                                                              seed=[randomish_seed+1,randomish_seed+3])
         
         
 
@@ -1082,7 +1080,7 @@ def deserialize_val(serialized_example,
     
     seq_seed = tf.reduce_sum(sequence[:,0])
     
-    stupid_random_seed = peaks_sum + tf.cast(seq_seed,dtype=tf.int32)#g.uniform([], 0, 100000000,dtype=tf.int32)
+    randomish_seed = peaks_sum + tf.cast(seq_seed,dtype=tf.int32)#g.uniform([], 0, 100000000,dtype=tf.int32)
     
     peaks = tf.expand_dims(peaks,axis=1)
     peaks_crop = tf.slice(peaks,
@@ -1098,7 +1096,7 @@ def deserialize_val(serialized_example,
     center = (output_length-2*crop_size)//2
     ### here set up masking of one of the peaks
     mask_indices_temp = tf.where(peaks_crop[:,0] > 0)[:,0]
-    ridx = tf.concat([tf.random.experimental.stateless_shuffle(mask_indices_temp,seed=[4+stupid_random_seed,5]),
+    ridx = tf.concat([tf.random.experimental.stateless_shuffle(mask_indices_temp,seed=[4+randomish_seed,5]),
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
     mask_indices = [[ridx[0]+x+crop_size] for x in range(-num_mask_bins//2,num_mask_bins//2)]
                   
@@ -1117,7 +1115,7 @@ def deserialize_val(serialized_example,
     atac_mask = tf.ones(out_length_cropped // num_mask_bins,dtype=tf.float32)
     atac_mask=tf.nn.experimental.stateless_dropout(atac_mask,
                                               rate=(atac_mask_dropout),
-                                              seed=[stupid_random_seed+16,stupid_random_seed+10]) / (1. / (1.0-(atac_mask_dropout))) 
+                                              seed=[randomish_seed+16,randomish_seed+10]) / (1. / (1.0-(atac_mask_dropout))) 
     atac_mask = tf.expand_dims(atac_mask,axis=1)
     atac_mask = tf.tile(atac_mask, [1,num_mask_bins])
     atac_mask = tf.reshape(atac_mask, [-1])
@@ -1133,7 +1131,7 @@ def deserialize_val(serialized_example,
     
     ### now that we have masked specific tokens by setting them to 0, we want to randomly add wrong tokens to these positions
     ## first, invert the mask
-    random_shuffled_tokens= tf.random.experimental.stateless_shuffle(atac,seed=[10,stupid_random_seed+10])
+    random_shuffled_tokens= tf.random.experimental.stateless_shuffle(atac,seed=[10,randomish_seed+10])
     masked_atac = masked_atac + (1.0-full_comb_mask)*random_shuffled_tokens
     
     if log_atac: 
@@ -1155,12 +1153,12 @@ def deserialize_val(serialized_example,
                                    axis=1,keepdims=True)
     
     random_shuffled_tokens= tf.random.experimental.stateless_shuffle(atac,
-                                                                     seed=[11,stupid_random_seed+11])
+                                                                     seed=[11,randomish_seed+11])
     if not use_atac:
         masked_atac = random_shuffled_tokens
     if not use_seq:
         sequence = tf.random.experimental.stateless_shuffle(sequence,
-                                                            seed=[12,stupid_random_seed+12])
+                                                            seed=[12,randomish_seed+12])
         
     return tf.cast(tf.ensure_shape(sequence,[input_length,4]),dtype=tf.bfloat16), \
                 tf.cast(tf.ensure_shape(masked_atac, [output_length_ATAC,1]),dtype=tf.bfloat16), \

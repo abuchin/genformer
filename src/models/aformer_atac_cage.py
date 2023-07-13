@@ -43,10 +43,11 @@ class aformer(tf.keras.Model):
                  filter_list_seq=[768, 896, 1024, 1152, 1280, 1536],
                  filter_list_atac=[32, 64],
                  final_point_scale=6,
-                 output_heads=["human"],
                  #global_acc_size=64,
                  freeze_conv_layers=False,
+                 freeze_BN_layers=True,
                  learnable_PE = False,
+                 predict_atac=True,
                  use_pooling = False,
                  name: str = 'aformer',
                  **kwargs):
@@ -87,9 +88,9 @@ class aformer(tf.keras.Model):
         self.learnable_PE=learnable_PE
         #self.global_acc_size=global_acc_size
         self.BN_momentum=BN_momentum
-        self.output_heads=output_heads
+        self.predict_atac=predict_atac
+        self.freeze_BN_layers=freeze_BN_layers
         self.final_point_scale=final_point_scale
-        self.use_pooling=use_pooling
         
         ## ensure load_init matches actual init inputs...
         if inits is None:
@@ -97,7 +98,7 @@ class aformer(tf.keras.Model):
         else:
             self.load_init=load_init
             
-        if self.inits_type not in ['enformer_performer','enformer_conv', "enformer_performer_full"]:
+        if self.inits_type not in ['enformer_performer','enformer_conv','enformer_performer_full', 'None']:
             raise ValueError('inits type not found')
             
         self.load_init_atac = False
@@ -162,7 +163,7 @@ class aformer(tf.keras.Model):
                                    kernel_size=15,
                                    kernel_initializer=self.inits['stem_conv_k'] if self.load_init else 'lecun_normal',
                                    bias_initializer=self.inits['stem_conv_b'] if self.load_init else 'zeros',
-                                   strides=1 if self.use_pooling else 2,
+                                   #strides=2,
                                    trainable=False if self.freeze_conv_layers else True,
                                    padding='same')
 
@@ -173,7 +174,8 @@ class aformer(tf.keras.Model):
                                                    var_init=self.inits['stem_res_conv_BN_v'] if self.load_init else None,
                                                    kernel_init=self.inits['stem_res_conv_k'] if self.load_init else None,
                                                    bias_init=self.inits['stem_res_conv_b'] if self.load_init else None,
-                                                   train=False if self.freeze_conv_layers else True,
+                                                     train=False if self.freeze_conv_layers else True,
+                                                     train_BN=False if self.freeze_BN_layers else True,
                                                    #strides=1,
                                                    name='pointwise_conv_block'))
         
@@ -196,26 +198,15 @@ class aformer(tf.keras.Model):
                                                          bias_init=self.inits['stem_res_conv_atac_b'] if self.load_init_atac else None,
                                                          name='pointwise_conv_block_atac'))
         self.stem_pool_atac = tf.keras.layers.MaxPool1D(pool_size=2)
-                                    #,SoftmaxPooling1D(per_channel=True,
-                                    #          w_init_scale=2.0,
-                                    #          pool_size=2,
-                                    #           k_init=self.inits['stem_pool_atac'] if self.load_init_atac else None,
-                                    #          train=False if self.freeze_conv_layers else True,
-                                    #          name ='stem_pool_atac')
 
 
         self.stem_pool = tf.keras.layers.MaxPool1D(pool_size=2)
-                                          #SoftmaxPooling1D(per_channel=True,
-                                          #w_init_scale=2.0,
-                                          #pool_size=2,
-                                          #k_init=self.inits['stem_pool'] if self.load_init else None,
-                                          #train=False if self.freeze_conv_layers else True,
-                                          #name ='stem_pool')
         
         self.pos_embedding_learned = tf.keras.layers.Embedding(self.output_length, 
                                                                self.hidden_size,
                                                                embeddings_initializer=self.inits['pos_embedding_learned'] if self.load_init_atac else None,
                                                                input_length=self.output_length)
+
 
         if self.use_pooling:
             self.conv_tower = tf.keras.Sequential([
@@ -243,11 +234,6 @@ class aformer(tf.keras.Model):
                                             #strides=2,
                                             name='pointwise_conv_block')),
                     tf.keras.layers.MaxPool1D(pool_size=2)
-                    #SoftmaxPooling1D(per_channel=True,
-                    #                 w_init_scale=2.0,
-                    #                 k_init=self.inits['pool_'+str(i)] if self.load_init else None,
-                    #                 train=False if self.freeze_conv_layers else True,
-                    #                 pool_size=2),
                     ],
                            name=f'conv_tower_block_{i}')
                 for i, num_filters in enumerate(self.filter_list_seq)], name='conv_tower')
@@ -307,10 +293,6 @@ class aformer(tf.keras.Model):
                                             train=False if self.freeze_conv_layers else True,
                                             name='pointwise_conv_block')),
                     tf.keras.layers.MaxPool1D(pool_size=4)
-                    #SoftmaxPooling1D(per_channel=True,
-                    #                 w_init_scale=2.0,
-                    #                 k_init=self.inits['pool_at_'+str(i)] if self.load_init_atac else None,
-                    #                 pool_size=4),
                     ],
                            name=f'conv_tower_block_atac_{i}')
                 for i, num_filters in enumerate(self.filter_list_atac)], name='conv_tower_atac')
@@ -342,7 +324,7 @@ class aformer(tf.keras.Model):
                     ],
                            name=f'conv_tower_block_atac_{i}')
                 for i, num_filters in enumerate(self.filter_list_atac)], name='conv_tower_atac')
-
+            
         
         self.sin_pe = abs_sin_PE(name='sin_pe',
                                   **kwargs)
@@ -402,34 +384,27 @@ class aformer(tf.keras.Model):
                                                    var_init=self.inits['final_point_BN_v'] if self.load_init_atac else None,
                                                    kernel_init=self.inits['final_point_k'] if self.load_init_atac else None,
                                                    bias_init=self.inits['final_point_b'] if self.load_init_atac else None,
-                                                   train=False if self.freeze_conv_layers else True,
+                                                         train=True,
+                                                         train_BN=True,# if self.freeze_BN_layers else True,
                                                   **kwargs,
-                                                  name = 'final_pointwise')
-        
-        #self.global_acc_block =enf_conv_block(filters=self.global_acc_size,
-        #                                      **kwargs,
-        #                                      name = 'final_pointwise')
-        
-        
-        self.final_dense_profile = {head: kl.Dense(1,
-                                    activation='softplus',
-                                    kernel_initializer='lecun_normal',
-                                    bias_initializer='lecun_normal',
-                                    use_bias=True) for head in self.output_heads}
-        
+                                                  name = 'final_pointwise_conv')
         
 
-        self.final_dense_peaks = {head: tf.keras.Sequential([SoftmaxPooling1D(per_channel=True,
-                                                          w_init_scale=2.0,
-                                                          pool_size=2,
-                                                          name ='peaks_pool'),
-                                                       kl.Dense(1,
-                                                        activation='sigmoid',
-                                                        kernel_initializer='lecun_normal',
-                                                        bias_initializer='lecun_normal',
-                                                        use_bias=True)],
-                                                     name=f'final_peaks_{head}') for head in self.output_heads}
         
+        if self.predict_atac:
+            self.final_dense_profile_FT = kl.Dense(2,
+                                        activation='softplus',
+                                        kernel_initializer='lecun_normal',
+                                        bias_initializer='lecun_normal',
+                                        use_bias=True) 
+
+        else:
+
+            self.final_dense_profile_FT = kl.Dense(1,
+                                        activation='softplus',
+                                        kernel_initializer='lecun_normal',
+                                        bias_initializer='lecun_normal',
+                                        use_bias=True)
 
         self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
                                   **kwargs)
@@ -439,7 +414,6 @@ class aformer(tf.keras.Model):
     def call(self, inputs, training:bool=True):
 
         sequence,atac = inputs
-        
 
         x = self.stem_conv(sequence,
                            training=training)
@@ -447,9 +421,8 @@ class aformer(tf.keras.Model):
         x = self.stem_res_conv(x,
                                training=training)
 
-        if self.use_pooling:
-            x = self.stem_pool(x,
-                               training=training)
+        x = self.stem_pool(x,
+                           training=training)
 
         x = self.conv_tower(x,
                             training=training)
@@ -459,10 +432,7 @@ class aformer(tf.keras.Model):
 
         atac_x = self.stem_res_conv_atac(atac_x,
                                          training=training)
-        if self.use_pooling:
-            atac_x = self.stem_pool_atac(atac_x,
-                                         training=training)
-            
+        atac_x = self.stem_pool_atac(atac_x,training=training)
         atac_x = self.conv_tower_atac(atac_x,training=training)
         
         transformer_input = tf.concat([x,atac_x],
@@ -473,7 +443,7 @@ class aformer(tf.keras.Model):
             PE = self.pos_embedding_learned(input_pos_indices)
             PE = tf.expand_dims(PE,axis=0)
             PE = tf.tile(PE,
-                         [tf.shape(transformer_input)[0],1,1])
+                         [transformer_input.shape[0],1,1])
             transformer_input_x = transformer_input + PE
         else:
             transformer_input_x=self.sin_pe(transformer_input)
@@ -490,19 +460,14 @@ class aformer(tf.keras.Model):
                         training=training)
         out = self.gelu(out)
 
-        out_profile = {head: module(out,
-                                    training=training)
-                       for head, module in self.final_dense_profile.items()}
+        out_profile = self.gelu(self.final_dense_profile_FT(out,
+                               training=training))
         
-        
-
         #out_peaks = self.peaks_pool(out)
-        
-        out_peaks = {head: module(out,
-                                  training=training)
-                     for head, module in self.final_dense_peaks.items()}
-        
-        return out_profile, out_peaks
+        #out_peaks = self.final_dense_peaks(out_peaks,
+        #                       training=training)
+
+        return out_profile#,out_peaks
     
 
     def get_config(self):
@@ -557,8 +522,9 @@ class aformer(tf.keras.Model):
         x = self.stem_res_conv(x,
                                training=training)
 
-        x = self.stem_pool(x,
-                           training=training)
+        if self.use_pooling:
+            x = self.stem_pool(x,
+                               training=training)
 
         x = self.conv_tower(x,
                             training=training)
@@ -568,7 +534,9 @@ class aformer(tf.keras.Model):
 
         atac_x = self.stem_res_conv_atac(atac_x,
                                          training=training)
-        atac_x = self.stem_pool_atac(atac_x,training=training)
+        if self.use_pooling:
+            atac_x = self.stem_pool_atac(atac_x,
+                                         training=training)
         atac_x = self.conv_tower_atac(atac_x,training=training)
         
         transformer_input = tf.concat([x,atac_x],
@@ -584,10 +552,10 @@ class aformer(tf.keras.Model):
         else:
             transformer_input_x=self.sin_pe(transformer_input)
 
-        out_att,att_matrices = self.performer(transformer_input_x,
+        out,att_matrices = self.performer(transformer_input_x,
                                                   training=training)
 
-        out = self.crop_final(out_att)
+        out = self.crop_final(out)
 
         final_point = self.final_pointwise_conv(out,
                                        training=training)
@@ -596,18 +564,13 @@ class aformer(tf.keras.Model):
                         training=training)
         out = self.gelu(out)
 
-        out_profile = {head: module(out,
-                                    training=training)
-                       for head, module in self.final_dense_profile.items()}
-        
-        
+        out_profile = self.final_dense_profile_FT(out,
+                               training=training)
         
         #out_peaks = self.peaks_pool(out)
-        
-        out_peaks = {head: module(out,
-                                  training=training)
-                     for head, module in self.final_dense_peaks.items()}
-        
-        return out_profile, out_peaks, final_point, out_att, att_matrices
+        #out_peaks = self.final_dense_peaks(out_peaks,
+        #                       training=training)
+
+        return out_profile,final_point, att_matrices
     
 

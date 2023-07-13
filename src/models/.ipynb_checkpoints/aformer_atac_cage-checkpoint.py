@@ -198,21 +198,9 @@ class aformer(tf.keras.Model):
                                                          bias_init=self.inits['stem_res_conv_atac_b'] if self.load_init_atac else None,
                                                          name='pointwise_conv_block_atac'))
         self.stem_pool_atac = tf.keras.layers.MaxPool1D(pool_size=2)
-                                    #,SoftmaxPooling1D(per_channel=True,
-                                    #          w_init_scale=2.0,
-                                    #          pool_size=2,
-                                    #           k_init=self.inits['stem_pool_atac'] if self.load_init_atac else None,
-                                    #          train=False if self.freeze_conv_layers else True,
-                                    #          name ='stem_pool_atac')
 
 
         self.stem_pool = tf.keras.layers.MaxPool1D(pool_size=2)
-                                          #SoftmaxPooling1D(per_channel=True,
-                                          #w_init_scale=2.0,
-                                          #pool_size=2,
-                                          #k_init=self.inits['stem_pool'] if self.load_init else None,
-                                          #train=False if self.freeze_conv_layers else True,
-                                          #name ='stem_pool')
         
         self.pos_embedding_learned = tf.keras.layers.Embedding(self.output_length, 
                                                                self.hidden_size,
@@ -246,11 +234,6 @@ class aformer(tf.keras.Model):
                                             #strides=2,
                                             name='pointwise_conv_block')),
                     tf.keras.layers.MaxPool1D(pool_size=2)
-                    #SoftmaxPooling1D(per_channel=True,
-                    #                 w_init_scale=2.0,
-                    #                 k_init=self.inits['pool_'+str(i)] if self.load_init else None,
-                    #                 train=False if self.freeze_conv_layers else True,
-                    #                 pool_size=2),
                     ],
                            name=f'conv_tower_block_{i}')
                 for i, num_filters in enumerate(self.filter_list_seq)], name='conv_tower')

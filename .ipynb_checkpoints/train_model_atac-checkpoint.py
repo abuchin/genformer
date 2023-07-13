@@ -27,7 +27,7 @@ from tensorflow import strings as tfs
 from tensorflow.keras import mixed_precision
 
 ## custom modules
-import src.aformer_atac as aformer
+import src.models.aformer_atac as aformer
 import src.metrics as metrics
 import src.optimizers as optimizers
 import src.schedulers as schedulers
@@ -383,7 +383,6 @@ def main():
                                     filter_list_atac=wandb.config.filter_list_atac,
                                     learnable_PE=wandb.config.learnable_PE,
                                     output_heads=wandb.config.output_heads)
-                                    #global_acc_size=wandb.config.global_acc_size)
             
 
             print('initialized model')
