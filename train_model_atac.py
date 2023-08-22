@@ -300,10 +300,7 @@ def main():
                                                                 wandb.config.val_steps_ho,
                                                                 g)
 
-            if len(gcs_paths) == 1:
-                train_human, data_val_ho = out_iterators
-            else:
-                train_human,train_mouse,train_rm,train_rat,data_val_ho = out_iterators
+            train_human, data_val_ho = out_iterators
 
             loading_checkpoint_bool=False
             inits=None
