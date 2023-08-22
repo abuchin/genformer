@@ -36,7 +36,7 @@ import src.utils as utils
 import training_utils_atac as training_utils
 import seaborn as sns
 from scipy.stats.stats import pearsonr
-from scipy.stats.stats import spearmanr  
+from scipy.stats.stats import spearmanr
 from scipy import stats
 
 def parse_bool_str(input_str):
@@ -44,22 +44,22 @@ def parse_bool_str(input_str):
         return False
     else:
         return True
-    
 
- ## reformat 
+
+ ## reformat
 # ===========================================================================#
 
 def main():
-    # ============== arg parse ==============================================# 
+    # ============== arg parse ==============================================#
     parser = argparse.ArgumentParser(
         description='process input for genformer training loop')
     parser = training_utils.parse_args(parser)
     args = parser.parse_args()
-    
-    #================ init ==================================================# 
-    
+
+    #================ init ==================================================#
+
     ### make sure gcloud auth set to picard-testing-176520
-        
+
     ### make sure TPU started
 
     # ============== define sweep options ==================== #
@@ -86,7 +86,7 @@ def main():
                 'output_res': {
                     'values': [args.output_res]
                 },
-                'dropout_rate': { 
+                'dropout_rate': {
                     'values': [float(x) for x in args.dropout_rate.split(',')]
                 },
                 'pointwise_dropout_rate': {
@@ -191,7 +191,7 @@ def main():
             }
     }
 
-    
+
     def sweep_train(config_defaults=None):
         # Set default values
         # Specify the other hyperparameters to the configuration, if any
@@ -201,29 +201,25 @@ def main():
         mixed_precision.set_global_policy('mixed_bfloat16')
         g = tf.random.Generator.from_seed(args.seed)
         ## rest must be w/in strategy scope
-        
+
         with strategy.scope():
-            
+
             config_defaults = {
                 "lr_base": 0.01 ### will be overwritten
             }
-            
-            
+
+
             ### log training parameters
-            wandb.init(config=config_defaults, 
-                       project= args.wandb_project, 
+            wandb.init(config=config_defaults,
+                       project= args.wandb_project,
                        entity=args.wandb_user)
             wandb.Table.MAX_ROWS = 2000000
             #wandb.init(mode="disabled")
             wandb.config.tpu=args.tpu_name
             wandb.config.gcs_path=args.gcs_path
-            wandb.config.gcs_path_mm=args.gcs_path_mm
-            wandb.config.gcs_path_rm=args.gcs_path_rm
-            wandb.config.gcs_path_rat=args.gcs_path_rat
             wandb.config.gcs_path_holdout=args.gcs_path_holdout
             wandb.config.num_epochs=args.num_epochs
             wandb.config.train_examples=args.train_examples
-            #wandb.config.val_examples=args.val_examples
             wandb.config.val_examples_ho=args.val_examples_ho
             wandb.config.batch_size=args.batch_size
             wandb.config.warmup_frac=args.warmup_frac
@@ -234,38 +230,24 @@ def main():
             wandb.config.max_shift=args.max_shift
             wandb.config.inits_type=args.inits_type
             wandb.config.training_type =args.training_type
-            
-            wandb.config.crop_size = (wandb.config.output_length - wandb.config.final_output_length) // 2
-            
-            output_heads = ["human"]
-            gcs_paths = [wandb.config.gcs_path]
-            if wandb.config.training_type == 'hg_mm_rm_rat':
-                output_heads = ["human", "mouse", "rhesus","rat"]
-                gcs_paths = [wandb.config.gcs_path,
-                             wandb.config.gcs_path_mm,
-                             wandb.config.gcs_path_rm,
-                             wandb.config.gcs_path_rat]
-            wandb.config.output_heads = output_heads
-            print(wandb.config.output_heads)
-            
 
-                         
-            
-            
-            
+            wandb.config.crop_size = (wandb.config.output_length - wandb.config.final_output_length) // 2
+
+            gcs_path = wandb.config.gcs_path
+
             run_name = '_'.join([str(wandb.config.training_type),
                                  str(int(wandb.config.input_length) / 1000)[:4].rstrip('.') + 'k',
                                  'load-' + str(wandb.config.load_init),
                                  'LR-' + str(wandb.config.lr_base),
                                  'T-' + str(wandb.config.num_transformer_layers),
                                  'D-' + str(wandb.config.dropout_rate)])
-            
+
             date_string = f'{datetime.now():%Y-%m-%d %H:%M:%S%z}'
             date_string = date_string.replace(' ','_')
             wandb.run.name = run_name + "_" + date_string
             base_name = wandb.config.model_save_basename + "_" + wandb.run.name
-            
-            
+
+
             '''
             TPU init options
             '''
@@ -278,28 +260,25 @@ def main():
             mixed_precision.set_global_policy('mixed_bfloat16')
             #tf.autograph.set_verbosity(5)
 
-            
+
             NUM_REPLICAS = strategy.num_replicas_in_sync
             BATCH_SIZE_PER_REPLICA=wandb.config.batch_size
             GLOBAL_BATCH_SIZE = BATCH_SIZE_PER_REPLICA*NUM_REPLICAS
             print('global batch size:', GLOBAL_BATCH_SIZE)
-            
+
             num_train=wandb.config.train_examples
-            #num_val=wandb.config.val_examples
             num_val_ho=wandb.config.val_examples_ho
-            
+
             wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE)},
                                 allow_val_change=True)
-            #wandb.config.update({"val_steps" : num_val // GLOBAL_BATCH_SIZE},
-            #                    allow_val_change=True)
             wandb.config.update({"val_steps_ho" : num_val_ho // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
             wandb.config.update({"total_steps": num_train // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
-                
-            
+
+
             out_iterators = \
-                    training_utils.return_distributed_iterators(gcs_paths,
+                    training_utils.return_distributed_iterators(wandb.config.gcs_path,
                                                                 wandb.config.gcs_path_holdout,
                                                                 GLOBAL_BATCH_SIZE,
                                                                 wandb.config.input_length,
@@ -322,17 +301,15 @@ def main():
                                                                 wandb.config.atac_corrupt_rate,
                                                                 wandb.config.val_steps_ho,
                                                                 g)
-            
+
             if len(gcs_paths) == 1:
                 train_human, data_val_ho = out_iterators
             else:
                 train_human,train_mouse,train_rm,train_rat,data_val_ho = out_iterators
 
-            
             loading_checkpoint_bool=False
             inits=None
             print('created dataset iterators')
-            #if (wandb.config.load_init and os.path.isdir(args.multitask_checkpoint_path)):
             if wandb.config.load_init:
                 if wandb.config.inits_type == 'enformer_performer':
                     print('loaded enformer performer weights')
@@ -351,10 +328,10 @@ def main():
                     wandb.config.update({"load_init": False},
                                         allow_val_change=True)
                     loading_checkpoint_bool=True
-                    
+
                 else:
                     raise ValueError('inits type not found')
-                
+
             print(wandb.config)
             model = aformer.aformer(kernel_transformation=wandb.config.kernel_transformation,
                                     dropout_rate=wandb.config.dropout_rate,
@@ -381,13 +358,12 @@ def main():
                                     freeze_conv_layers=wandb.config.freeze_conv_layers,
                                     filter_list_seq=wandb.config.filter_list_seq,
                                     filter_list_atac=wandb.config.filter_list_atac,
-                                    learnable_PE=wandb.config.learnable_PE,
-                                    output_heads=wandb.config.output_heads)
-            
+                                    learnable_PE=wandb.config.learnable_PE)
+
 
             print('initialized model')
-            
-            
+
+
             scheduler1= tf.keras.optimizers.schedules.CosineDecay(
                 initial_learning_rate=wandb.config.lr_base1,
                 decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
@@ -411,14 +387,14 @@ def main():
                 optimizer1 = tfa.optimizers.AdamW(learning_rate=scheduler1,
                                                      weight_decay=wandb.config.wd_1,
                                                      epsilon=wandb.config.epsilon,
-                                                      exclude_from_weight_decay=['layer_norm', 
+                                                      exclude_from_weight_decay=['layer_norm',
                                                                                  'bias',
                                                                                  'embeddings',
                                                                                  'batch_norm'])
                 optimizer2 = tfa.optimizers.AdamW(learning_rate=scheduler2,
                                                      weight_decay=wandb.config.wd_2,
                                                      epsilon=wandb.config.epsilon,
-                                                      exclude_from_weight_decay=['layer_norm', 
+                                                      exclude_from_weight_decay=['layer_norm',
                                                                                  'bias',
                                                                                  'embeddings',
                                                                                  'batch_norm'])
@@ -437,19 +413,18 @@ def main():
                 raise ValueError('optimizer not found')
 
             metric_dict = {}
-            
+
             optimizers_in = optimizer1,optimizer2
 
-            human_step,mouse_step,rhesus_step,rat_step, val_step, \
+            human_step, val_step, \
                 build_step, metric_dict = training_utils.return_train_val_functions(model,
-                                                                                wandb.config.train_steps,
-                                                                                #wandb.config.val_steps,
-                                                                                wandb.config.val_steps_ho,
-                                                                                optimizers_in,
-                                                                                strategy,
-                                                                                metric_dict,
-                                                                                GLOBAL_BATCH_SIZE,
-                                                                                wandb.config.gradient_clip,
+                                                                                    wandb.config.train_steps,
+                                                                                    wandb.config.val_steps_ho,
+                                                                                    optimizers_in,
+                                                                                    strategy,
+                                                                                    metric_dict,
+                                                                                    GLOBAL_BATCH_SIZE,
+                                                                                    wandb.config.gradient_clip,
                                                                                     wandb.config.bce_loss_scale)
 
 
@@ -460,7 +435,7 @@ def main():
             patience_counter = 0
             stop_criteria = False
             best_epoch = 0
-            
+
             for epoch_i in range(1, wandb.config.num_epochs+1):
                 if epoch_i == 1:
                     print('building model')
@@ -472,40 +447,24 @@ def main():
                     for k in model.trainable_variables:
                         var = k.values[0]
                         total_params += tf.size(var)
-                    print('total params: ' + str(total_params)) 
-                
+                    print('total params: ' + str(total_params))
+
                 print('starting epoch_', str(epoch_i))
                 start = time.time()
-                if wandb.config.training_type == 'hg':
-                    print('iterating over human')
-                    for step in range(wandb.config.train_steps):
-                        strategy.run(human_step, args=(next(train_human),))
-                else:
-                    print('iterating over all organisms')
-                    for step in range(wandb.config.train_steps):
-                        strategy.run(human_step, args = (next(train_human),))
-                        strategy.run(mouse_step,args = (next(train_mouse),))
-                        strategy.run(rhesus_step,args = (next(train_rm),))
-                        strategy.run(rat_step,args = (next(train_rat),))
-                        
-                    wandb.log({'mouse_train_loss': metric_dict['train_loss_mm'].result().numpy(),
-                               'rhesus_train_loss': metric_dict['train_loss_rm'].result().numpy(),
-                               'rat_train_loss': metric_dict['train_loss_rat'].result().numpy()},
-                              step=epoch_i)
-                    print('train_loss_mm: ' + str(metric_dict['train_loss_mm'].result().numpy()))
-                    print('train_loss_rm: ' + str(metric_dict['train_loss_rm'].result().numpy()))
-                    print('train_loss_rat: ' + str(metric_dict['train_loss_rat'].result().numpy()))
-                    
+
+                for step in range(wandb.config.train_steps):
+                    strategy.run(human_step, args=(next(train_human),))
+
                 print('train_loss: ' + str(metric_dict['train_loss'].result().numpy()))
                 wandb.log({'human_train_loss': metric_dict['train_loss'].result().numpy()},
                           step=epoch_i)
                 train_loss_poisson = metric_dict['train_loss_poisson'].result().numpy()
                 train_loss_bce = metric_dict['train_loss_bce'].result().numpy()
-                
+
                 wandb.log({'human_train_loss_poisson': metric_dict['train_loss_poisson'].result().numpy(),
                            'human_train_loss_bce': metric_dict['train_loss_bce'].result().numpy()},
                            step=epoch_i)
-                
+
                 atac_pearsons_tr = metric_dict['ATAC_PearsonR_tr'].result()['PearsonR'].numpy()
                 atac_R2_tr = metric_dict['ATAC_R2_tr'].result()['R2'].numpy()
                 atac_roc_tr = metric_dict['ATAC_ROC_tr'].result().numpy()
@@ -521,14 +480,14 @@ def main():
 
                 end = time.time()
                 duration = (end - start) / 60.
-                
+
                 print('completed epoch ' + str(epoch_i))
                 print('training duration(mins): ' + str(duration))
-                
+
                 start = time.time()
                 for k in range(wandb.config.val_steps_ho):
                     strategy.run(val_step, args=(next(data_val_ho),))
-                    
+
                 val_loss = metric_dict['val_loss'].result().numpy()
                 val_loss_poisson = metric_dict['val_loss_poisson'].result().numpy()
                 val_loss_bce = metric_dict['val_loss_bce'].result().numpy()
@@ -536,39 +495,39 @@ def main():
                 print('val_loss_poisson: ' + str(val_loss_poisson))
                 print('val_loss_bce: ' + str(val_loss_bce))
                 val_losses.append(val_loss)
-                
+
                 wandb.log({'human_val_loss': metric_dict['val_loss'].result().numpy(),
                            'human_val_loss_poisson': metric_dict['val_loss_poisson'].result().numpy(),
                            'human_val_loss_bce': metric_dict['val_loss_bce'].result().numpy()},
                            step=epoch_i)
-                
+
                 atac_pearsons = metric_dict['ATAC_PearsonR'].result()['PearsonR'].numpy()
                 atac_R2 = metric_dict['ATAC_R2'].result()['R2'].numpy()
                 atac_roc = metric_dict['ATAC_ROC'].result().numpy()
                 atac_pr = metric_dict['ATAC_PR'].result().numpy()
                 atac_TP = metric_dict['ATAC_TP'].result().numpy()
                 atac_T = metric_dict['ATAC_T'].result().numpy()
-                
+
                 val_pearsons.append(atac_pearsons)
                 print('human_ATAC_pearsons: ' + str(atac_pearsons))
                 print('human_ATAC_R2: ' + str(atac_R2))
                 print('human_ATAC_PR: ' + str(atac_pr))
                 print('human_ATAC_ROC: ' + str(atac_roc))
-                
+
                 wandb.log({'human_ATAC_pearsons': atac_pearsons,
                            'human_ATAC_R2': atac_R2,
                            'human_ATAC_ROC': atac_roc,
                            'human_ATAC_pos_rate': (atac_TP/atac_T),
                            'human_ATAC_PR': atac_pr},
                           step=epoch_i)
-                
-                        
+
+
                 end = time.time()
                 duration = (end - start) / 60.
                 print('completed epoch ' + str(epoch_i) + ' validation')
                 print('validation duration(mins): ' + str(duration))
 
-                
+
                 if (epoch_i > 2):
                     stop_criteria,patience_counter,best_epoch = \
                         training_utils.early_stopping(current_val_loss=val_losses[-1],
@@ -591,7 +550,7 @@ def main():
                 if stop_criteria:
                     print('early stopping at: epoch ' + str(epoch_i))
                     break
-                    
+
             print('saving model at: epoch ' + str(epoch_i))
             print('best model was at: epoch ' + str(best_epoch))
             model.save_weights(wandb.config.model_save_dir + "/" + wandb.config.model_save_basename + "_" + wandb.run.name + "/final/saved_model")
@@ -604,4 +563,3 @@ def main():
 ##########################################################################
 if __name__ == '__main__':
     main()
-        

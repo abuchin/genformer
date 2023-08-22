@@ -1,18 +1,14 @@
 #!/bin/bash -l
 
 python3 train_model_atac.py \
-            --tpu_name="pod" \
+            --tpu_name="node-1" \
             --tpu_zone="us-east1-d" \
             --wandb_project="atac_pretraining" \
             --wandb_user="njaved" \
             --wandb_sweep_name="atac_pretraining" \
             --gcs_project="picard-testing-176520" \
-            --gcs_path="gs://picard-testing-176520/genformer_atac_pretrain/196k/genformer_atac_pretrain_globalacc_conv_rpgc_human" \
-            --gcs_path_mm="gs://picard-testing-176520/genformer_atac_pretrain/196k/genformer_atac_pretrain_globalacc_conv_rpgc_mouse" \
-            --gcs_path_rm="gs://picard-testing-176520/genformer_atac_pretrain/196k/genformer_atac_pretrain_globalacc_conv_rpgc_rhesus" \
-            --gcs_path_rat="gs://picard-testing-176520/genformer_atac_pretrain/196k/genformer_atac_pretrain_globalacc_conv_rpgc_rat" \
-            --gcs_path_holdout="gs://picard-testing-176520/genformer_atac_pretrain/196k/genformer_atac_pretrain_globalacc_conv_rpgc_human" \
-            --training_type="hg" \
+            --gcs_path="gs://picard-testing-176520/genformer_atac_pretrain/196k/genformer_atac_pretrain_globalacc_conv_fpm_human" \
+            --gcs_path_holdout="gs://picard-testing-176520/genformer_atac_pretrain/196k/genformer_atac_pretrain_globalacc_conv_fpm_human_valid" \
             --input_length=196608 \
             --output_length=1536 \
             --output_length_ATAC=49152 \
@@ -20,8 +16,8 @@ python3 train_model_atac.py \
             --max_shift=10 \
             --batch_size=4 \
             --num_epochs=50 \
-            --train_examples=400000 \
-            --val_examples_ho=28769 \
+            --train_examples=500000 \
+            --val_examples_ho=15491 \
             --BN_momentum=0.90 \
             --warmup_frac=0.005 \
             --patience=50 \
@@ -61,5 +57,3 @@ python3 train_model_atac.py \
             --seed=12 \
             --seq_corrupt_rate="20" \
             --atac_corrupt_rate="20"
-                        
-            
