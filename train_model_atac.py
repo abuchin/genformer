@@ -229,14 +229,12 @@ def main():
             wandb.config.model_save_basename=args.model_save_basename
             wandb.config.max_shift=args.max_shift
             wandb.config.inits_type=args.inits_type
-            wandb.config.training_type =args.training_type
 
             wandb.config.crop_size = (wandb.config.output_length - wandb.config.final_output_length) // 2
 
             gcs_path = wandb.config.gcs_path
 
-            run_name = '_'.join([str(wandb.config.training_type),
-                                 str(int(wandb.config.input_length) / 1000)[:4].rstrip('.') + 'k',
+            run_name = '_'.join([str(int(wandb.config.input_length) / 1000)[:4].rstrip('.') + 'k',
                                  'load-' + str(wandb.config.load_init),
                                  'LR-' + str(wandb.config.lr_base),
                                  'T-' + str(wandb.config.num_transformer_layers),
