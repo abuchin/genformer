@@ -45,7 +45,7 @@ python3 train_model_atac.py \
             --optimizer="adam" \
             --stable_variant="False" \
             --atac_mask_dropout=0.15 \
-            --log_atac="True" \
+            --log_atac="False" \
             --learnable_PE="False" \
             --sonnet_weights_bool="False" \
             --random_mask_size="1024" \

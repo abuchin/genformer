@@ -24,7 +24,7 @@ class pt_init(tf.keras.initializers.Initializer):
 
 @tf.keras.utils.register_keras_serializable()
 class Residual(kl.Layer):
-    def __init__(self, 
+    def __init__(self,
                  layer :  kl.Layer,
                  name : str = 'residual',
                  **kwargs):
@@ -34,7 +34,7 @@ class Residual(kl.Layer):
         """
         super().__init__(**kwargs,name=name)
         self._layer=layer
-    
+
     def get_config(self):
         config = {
             "layer": self._layer
@@ -59,16 +59,16 @@ class crop(kl.Layer):
           name: Module name.
         """
         self._crop_frac = crop_frac
-    
+
     def get_config(self):
         config = {"crop_frac":self._crop_frac}
         base_config = super().get_config()
         return {**base_config, **config}
-    
+
     @classmethod
     def from_config(cls, config):
         return cls(**config)
-    
+
     def call(self, inputs):
         crop_size = inputs.shape[1] // self._crop_frac
         out = inputs[..., crop_size:-crop_size, :]
@@ -100,17 +100,17 @@ class layer_norm_fp32(kl.Layer):
         }
         base_config = super().get_config()
         return {**base_config, **config}
-    
+
     @classmethod
     def from_config(cls, config):
         return cls(**config)
-    
+
     def call(self, inputs, training=None):
         x = tf.cast(inputs,dtype=tf.float32)
         x = self.layer_norm(x)
         return tf.cast(x, dtype=tf.bfloat16)
 
-    
+
 @tf.keras.utils.register_keras_serializable()
 class sync_batch_norm_fp32(kl.Layer):
     def __init__(self,
@@ -134,7 +134,8 @@ class sync_batch_norm_fp32(kl.Layer):
         self.var_init=var_init
         self.train=train
         self.momentum=momentum
-        self.batch_norm = syncbatchnorm(axis=-1,
+        self.batch_norm = tf.keras.layers.BatchNormalization(axis=-1,
+                                            synchronized=True,
                                           center=True,
                                           scale=True,
                                           beta_initializer=self.beta_init if self.load_init else "zeros",
@@ -157,11 +158,11 @@ class sync_batch_norm_fp32(kl.Layer):
         }
         base_config = super().get_config()
         return {**base_config, **config}
-    
+
     @classmethod
     def from_config(cls, config):
         return cls(**config)
-    
+
     def call(self, inputs, training=None):
         x = tf.cast(inputs, dtype=tf.float32)
         x = self.batch_norm(x,training=training)
@@ -170,8 +171,8 @@ class sync_batch_norm_fp32(kl.Layer):
 
 @tf.keras.utils.register_keras_serializable()
 class FFN(kl.Layer):
-    def __init__(self, 
-                 num_channels: int, 
+    def __init__(self,
+                 num_channels: int,
                  dropout_rate: float,
                    FFN_LN_gamma_init=None,
                    FFN_LN_beta_init=None,
@@ -201,8 +202,8 @@ class FFN(kl.Layer):
         self.FFN_bias1_init=FFN_bias1_init
         self.FFN_kernel2_init=FFN_kernel2_init
         self.FFN_bias2_init=FFN_bias2_init
-        
-            
+
+
         self.FFN_layer_norm = layer_norm_fp32(epsilon=1e-05,
                                                   beta_initializer="zeros",
                                                   gamma_initializer="ones")
@@ -218,7 +219,7 @@ class FFN(kl.Layer):
                                          kernel_initializer=FFN_kernel2_init if self.load_init else 'lecun_normal',
                                          bias_initializer=FFN_bias2_init if self.load_init else 'lecun_normal',
                                          use_bias=True)
-    
+
     def get_config(self):
         config = {
             "ffn_channels":self.ffn_channels,
@@ -237,7 +238,7 @@ class FFN(kl.Layer):
     @classmethod
     def from_config(cls, config):
         return cls(**config)
-    
+
     def call(self, inputs, training=None):
         x = self.FFN_layer_norm(inputs)
         x = self.FFN_dense_wide(x)
@@ -296,7 +297,7 @@ class Performer(kl.Layer):
         self.hidden_size=hidden_size
         self.num_heads=num_heads
         self.dropout_rate=dropout_rate
-        self.kernel_transformation=kernel_transformation 
+        self.kernel_transformation=kernel_transformation
         self.numerical_stabilizer=numerical_stabilizer
         self.max_seq_length = max_seq_length
         self.nb_random_features=nb_random_features
@@ -313,11 +314,11 @@ class Performer(kl.Layer):
         self.FFN_bias1_init=FFN_bias1_init
         self.FFN_kernel2_init=FFN_kernel2_init
         self.FFN_bias2_init=FFN_bias2_init
-        
+
         self.layer_norm = layer_norm_fp32(epsilon=1e-05,
                                                   beta_initializer="zeros",
                                                   gamma_initializer="ones")
-        
+
 
         self.self_attention = fa_rpe.Attention(hidden_size=self.d_model,
                                                num_heads=self.num_heads,
@@ -345,8 +346,8 @@ class Performer(kl.Layer):
                        FFN_bias2_init=FFN_bias2_init,
                        load_init = self.load_init,
                        name='FFN',
-                       **kwargs)         
-    
+                       **kwargs)
+
     def get_config(self):
         config = {
             "hidden_size":self.hidden_size,
@@ -371,11 +372,11 @@ class Performer(kl.Layer):
         }
         base_config = super().get_config()
         return{**base_config, **config}
-    
+
     @classmethod
     def from_config(cls, config):
         return cls(**config)
-    
+
     def call(self, inputs, rpe=None, training=None, **kwargs):
         x = self.layer_norm(inputs)
         x, k_prime, q_prime = self.self_attention(tf.cast(x,dtype=tf.float32),
@@ -390,18 +391,18 @@ class Performer(kl.Layer):
         FFN_out = self.FFN(mha_output,training=training,**kwargs)
         #return self.layer_norm(FFN_out + mha_output), k_prime, q_prime
         return (FFN_out + mha_output), k_prime, q_prime
-    
+
     """
     @tf.function
     def return_attention(self,inputs,rpe,**kwargs):
          Method to return attention weights for saved model
-            Returns: q_prime, k_prime from fast attention which 
+            Returns: q_prime, k_prime from fast attention which
             can be used to compute full approximated att. matrix
-        
+
         x = self.layer_norm(inputs)
         return self.self_attention(x,x,rpe=rpe,**kwargs)
     """
-    
+
 @tf.keras.utils.register_keras_serializable()
 class Performer_stable(kl.Layer):
     def __init__(self,
@@ -448,7 +449,7 @@ class Performer_stable(kl.Layer):
         self.hidden_size=hidden_size
         self.num_heads=num_heads
         self.dropout_rate=dropout_rate
-        self.kernel_transformation=kernel_transformation 
+        self.kernel_transformation=kernel_transformation
         self.numerical_stabilizer=numerical_stabilizer
         self.max_seq_length = max_seq_length
         self.nb_random_features=nb_random_features
@@ -465,8 +466,8 @@ class Performer_stable(kl.Layer):
         self.FFN_bias1_init=FFN_bias1_init
         self.FFN_kernel2_init=FFN_kernel2_init
         self.FFN_bias2_init=FFN_bias2_init
-        
-        
+
+
         self.layer_norm = ScaleNorm(self.d_model ** 0.50)
         self.self_attention = fa_rpe.Attention(hidden_size=self.d_model,
                                                num_heads=self.num_heads,
@@ -494,8 +495,8 @@ class Performer_stable(kl.Layer):
                        FFN_bias2_init=FFN_bias2_init,
                        load_init = self.load_init,
                        name='FFN',
-                       **kwargs)         
-    
+                       **kwargs)
+
     def get_config(self):
         config = {
             "hidden_size":self.hidden_size,
@@ -521,11 +522,11 @@ class Performer_stable(kl.Layer):
         }
         base_config = super().get_config()
         return{**base_config, **config}
-    
+
     @classmethod
     def from_config(cls, config):
         return cls(**config)
-    
+
     def call(self, inputs, rpe=None, training=None, **kwargs):
         x = self.layer_norm(inputs)
         x, k_prime, q_prime = self.self_attention(tf.cast(x,dtype=tf.float32),
@@ -539,14 +540,14 @@ class Performer_stable(kl.Layer):
         ## ffn
         FFN_out = self.FFN(mha_output,training=training,**kwargs)
         return (FFN_out + mha_output), k_prime, q_prime
-    
+
     """
     @tf.function
     def return_attention(self,inputs,rpe,**kwargs):
          Method to return attention weights for saved model
-            Returns: q_prime, k_prime from fast attention which 
+            Returns: q_prime, k_prime from fast attention which
             can be used to compute full approximated att. matrix
-        
+
         x = self.layer_norm(inputs)
         return self.self_attention(x,x,rpe=rpe,**kwargs)
     """
@@ -574,8 +575,8 @@ class Performer_Encoder(kl.Layer):
                  kernel_transformation: str = 'relu_kernel_transformation',
                  name = 'performer_stack',
                  **kwargs):
-        
-        
+
+
         super().__init__(name=name, **kwargs)
         """Performer Encoder block
         Args:
@@ -610,8 +611,8 @@ class Performer_Encoder(kl.Layer):
         self.dropout_rate=dropout_rate
         self.load_init=load_init
         self.inits=inits
-        
-        self.layers = [Performer(d_model=self.d_model, 
+
+        self.layers = [Performer(d_model=self.d_model,
                                  normalize=self.normalize,
                                  hidden_size=self.hidden_size,
                                  num_heads=self.num_heads,
@@ -638,34 +639,34 @@ class Performer_Encoder(kl.Layer):
                                  FFN_kernel2_init= inits["FFN_narr_k" + str(i)] if self.load_init else None,
                                  FFN_bias2_init= inits["FFN_narr_b" + str(i)] if self.load_init else None,
                                  **kwargs) for i in range(self.num_layers)]
-        
+
         self.layer_norm = layer_norm_fp32(epsilon=1e-05,
                                                   beta_initializer=self.inits["performer_encoder_LN_b"] if self.load_init else "zeros",
                                                   gamma_initializer=self.inits["performer_encoder_LN_g"] if self.load_init else "ones")
-        
-        
+
+
     def build(self, input_shape):
         N = input_shape[0]
         L = input_shape[1]
-        
+
         if self.use_mask_pos:
-            self.relative_positional_bias = tf.constant(tf.random.uniform((self.num_heads, 
-                                                                           2 * self.rel_pos_bins - 1)))          
+            self.relative_positional_bias = tf.constant(tf.random.uniform((self.num_heads,
+                                                                           2 * self.rel_pos_bins - 1)))
         if self.use_rot_emb:
             self.pos_emb = FixedPositionalEmbedding(self.d_model, self.max_seq_length)
-            self.layer_pos_emb = FixedPositionalEmbedding(self.dim, self.max_seq_length)       
-        
+            self.layer_pos_emb = FixedPositionalEmbedding(self.dim, self.max_seq_length)
+
         if self.use_mask_pos:
             if L <= self.rel_pos_bins:
-                self.rpe = tf.concat((tf.expand_dims(self.relative_positional_bias[:,0], axis=1), 
+                self.rpe = tf.concat((tf.expand_dims(self.relative_positional_bias[:,0], axis=1),
                             self.relative_positional_bias[:,self.rel_pos_bins-L: self.rel_pos_bins+L-1]), axis=1)
             else:
-                self.rpe = tf.concat([tf.repeat(tf.expand_dims(self.relative_positional_bias[:,0], axis=1), repeats= L-self.rel_pos_bins+1, axis=1), 
+                self.rpe = tf.concat([tf.repeat(tf.expand_dims(self.relative_positional_bias[:,0], axis=1), repeats= L-self.rel_pos_bins+1, axis=1),
                         self.relative_positional_bias,
                         tf.repeat(tf.expand_dims(self.relative_positional_bias[:,-1], axis=1), repeats=L-self.rel_pos_bins, axis=1)], axis=1)
 
         super(Performer_Encoder,self).build(input_shape)
-    
+
     def get_config(self):
         config = {
             "hidden_size":self.hidden_size,
@@ -687,11 +688,11 @@ class Performer_Encoder(kl.Layer):
 
         base_config = super().get_config()
         return{**base_config, **config}
-    
+
     @classmethod
     def from_config(cls, config):
         return cls(**config)
-    
+
     def call(self, x, training=None, **kwargs):
         att_matrices={}
 
@@ -701,16 +702,16 @@ class Performer_Encoder(kl.Layer):
                 rpe = self.layer_pos_emb(x)
                 x,k_prime,q_prime = layer(x, rpe=rpe, training=training)
                 att_matrices['layer_' + str(idx)] = (k_prime,q_prime)
-                
+
             if self.use_mask_pos is True:
                 x,k_prime,q_prime = layer(x, rpe=self.rpe, training=training)
                 att_matrices['layer_' + str(idx)] = (k_prime,q_prime)
-                
+
         if self.norm:
             x = self.layer_norm(x)
-            
+
         return x,att_matrices
-    
+
 
 @tf.keras.utils.register_keras_serializable()
 class Performer_Encoder_stable(kl.Layer):
@@ -735,8 +736,8 @@ class Performer_Encoder_stable(kl.Layer):
                  kernel_transformation: str = 'relu_kernel_transformation',
                  name = 'performer_stack',
                  **kwargs):
-        
-        
+
+
         super().__init__(name=name, **kwargs)
         """Performer Encoder block
         Args:
@@ -771,8 +772,8 @@ class Performer_Encoder_stable(kl.Layer):
         self.dropout_rate=dropout_rate
         self.load_init=load_init
         self.inits=inits
-        
-        self.layers = [Performer_stable(d_model=self.d_model, 
+
+        self.layers = [Performer_stable(d_model=self.d_model,
                                  normalize=self.normalize,
                                  hidden_size=self.hidden_size,
                                  num_heads=self.num_heads,
@@ -797,7 +798,7 @@ class Performer_Encoder_stable(kl.Layer):
                                  FFN_kernel2_init= inits["FFN_narr_k" + str(i)] if self.load_init else None,
                                  FFN_bias2_init= inits["FFN_narr_b" + str(i)] if self.load_init else None,
                                  **kwargs) for i in range(self.num_layers)]
-        
+
         self.layer_norm = layer_norm_fp32(epsilon=1e-05,
                                                   beta_initializer=self.inits["performer_encoder_LN_b"] if self.load_init else "zeros",
                                                   gamma_initializer=self.inits["performer_encoder_LN_g"] if self.load_init else "ones")
@@ -807,32 +808,32 @@ class Performer_Encoder_stable(kl.Layer):
                           #                      epsilon=1e-05,
                           #                        beta_initializer=self.inits["performer_encoder_LN_b"] if self.load_init else "zeros",
                           #                        gamma_initializer=self.inits["performer_encoder_LN_g"] if self.load_init else "ones")
-        
-        
-        
+
+
+
     def build(self, input_shape):
         N = input_shape[0]
         L = input_shape[1]
-        
+
         if self.use_mask_pos:
-            self.relative_positional_bias = tf.constant(tf.random.uniform((self.num_heads, 
-                                                                           2 * self.rel_pos_bins - 1)))   
-            
+            self.relative_positional_bias = tf.constant(tf.random.uniform((self.num_heads,
+                                                                           2 * self.rel_pos_bins - 1)))
+
         if self.use_rot_emb:
             self.pos_emb = FixedPositionalEmbedding(self.d_model, self.max_seq_length)
-            self.layer_pos_emb = FixedPositionalEmbedding(self.dim, self.max_seq_length)       
-        
+            self.layer_pos_emb = FixedPositionalEmbedding(self.dim, self.max_seq_length)
+
         if self.use_mask_pos:
             if L <= self.rel_pos_bins:
-                self.rpe = tf.concat((tf.expand_dims(self.relative_positional_bias[:,0], axis=1), 
+                self.rpe = tf.concat((tf.expand_dims(self.relative_positional_bias[:,0], axis=1),
                             self.relative_positional_bias[:,self.rel_pos_bins-L: self.rel_pos_bins+L-1]), axis=1)
             else:
-                self.rpe = tf.concat([tf.repeat(tf.expand_dims(self.relative_positional_bias[:,0], axis=1), repeats= L-self.rel_pos_bins+1, axis=1), 
+                self.rpe = tf.concat([tf.repeat(tf.expand_dims(self.relative_positional_bias[:,0], axis=1), repeats= L-self.rel_pos_bins+1, axis=1),
                         self.relative_positional_bias,
                         tf.repeat(tf.expand_dims(self.relative_positional_bias[:,-1], axis=1), repeats=L-self.rel_pos_bins, axis=1)], axis=1)
 
         super(Performer_Encoder_stable,self).build(input_shape)
-    
+
     def get_config(self):
         config = {
             "hidden_size":self.hidden_size,
@@ -856,11 +857,11 @@ class Performer_Encoder_stable(kl.Layer):
 
         base_config = super().get_config()
         return{**base_config, **config}
-    
+
     @classmethod
     def from_config(cls, config):
         return cls(**config)
-    
+
     def call(self, x, training=None, **kwargs):
         att_matrices={}
 
@@ -870,27 +871,27 @@ class Performer_Encoder_stable(kl.Layer):
                 rpe = self.layer_pos_emb(x)
                 x,k_prime,q_prime = layer(x, rpe=rpe, training=training)
                 att_matrices['layer_' + str(idx)] = (k_prime,q_prime)
-                
+
             if self.use_mask_pos is True:
                 x,k_prime,q_prime = layer(x, rpe=self.rpe, training=training)
                 att_matrices['layer_' + str(idx)] = (k_prime,q_prime)
-                
+
         if self.norm:
             x = self.layer_norm(x)
-            
+
         return x,att_matrices
 
 @tf.keras.utils.register_keras_serializable()
 class abs_sin_PE(kl.Layer):
-    def __init__(self, 
-                 name: str='sinusoidal_pos_encoding', 
+    def __init__(self,
+                 name: str='sinusoidal_pos_encoding',
                  **kwargs):
         """basic absolute sinusoidal PE layer
         Args:
             positional_dropout_rate: dropout rate for positional embeddings
         """
         super().__init__(name=name,**kwargs)
-        
+
     def build(self, input_shape):
         self._pe = utils.sinusoidal(input_shape)
         super(abs_sin_PE,self).build(input_shape)
@@ -908,9 +909,9 @@ class abs_sin_PE(kl.Layer):
 
 @tf.keras.utils.register_keras_serializable()
 class rotary_PE(kl.Layer):
-    def __init__(self, 
-                 positional_dropout_rate: float, 
-                 name: str='sinusoidal_pos_encoding', 
+    def __init__(self,
+                 positional_dropout_rate: float,
+                 name: str='sinusoidal_pos_encoding',
                  **kwargs):
         """basic absolute sinusoidal PE layer
         Args:
@@ -919,7 +920,7 @@ class rotary_PE(kl.Layer):
         super().__init__(name=name,**kwargs)
         self._positional_dropout_rate = positional_dropout_rate
         self._dropout = kl.Dropout(rate=self._positional_dropout_rate,**kwargs)
-        
+
     def build(self, input_shape):
         self._pe = utils.sinusoidal(input_shape)
         super(abs_sin_PE,self).build(input_shape)
@@ -938,7 +939,7 @@ class rotary_PE(kl.Layer):
 
 @tf.keras.utils.register_keras_serializable()
 class SoftmaxPooling1D(kl.Layer):
-    def __init__(self, pool_size: int = 2, 
+    def __init__(self, pool_size: int = 2,
                  w_init_scale: float = 2.0,
                  k_init=None,
                  train=True,
@@ -961,7 +962,7 @@ class SoftmaxPooling1D(kl.Layer):
         self._logit_linear = None
         self.train=train
         self._k_init=k_init
-        
+
     def build(self, input_shape):
         num_features = input_shape[-1]
         if self._per_channel:
@@ -973,18 +974,18 @@ class SoftmaxPooling1D(kl.Layer):
                                       trainable=self.train,
                                       kernel_initializer=self._k_init if (self._k_init is not None) else tf.keras.initializers.Identity(gain=self._w_init_scale))
         super(SoftmaxPooling1D,self).build(input_shape)
-                                            
-    ### revisit 
+
+    ### revisit
     def call(self, inputs):
         _, length, num_features = inputs.shape
         #print(inputs.shape)
-        inputs = tf.reshape(inputs, (-1, length // self._pool_size, 
+        inputs = tf.reshape(inputs, (-1, length // self._pool_size,
                                      self._pool_size,  num_features))
-        out = tf.reduce_sum(inputs * tf.nn.softmax(self._logit_linear(inputs), 
-                                                   axis=-2), 
+        out = tf.reduce_sum(inputs * tf.nn.softmax(self._logit_linear(inputs),
+                                                   axis=-2),
                             axis=-2)
         return out
-    
+
     def get_config(self):
         config = super().get_config()
         config.update ({
@@ -1004,7 +1005,7 @@ class FixedPositionalEmbedding(tf.keras.layers.Layer):
         self.inv_freq = 1. / (10000 ** (tf.range(start=0, limit=self.dim, delta=2, dtype='float32') / self.dim))
         self.position = tf.range(start=0, limit=self.max_seq_len, delta=1, dtype='float32')
         self.sinusoid_inp = tf.einsum("i,j->ij", self.position, self.inv_freq)
-        self.emb = tf.concat((tf.math.sin(self.sinusoid_inp), 
+        self.emb = tf.concat((tf.math.sin(self.sinusoid_inp),
                               tf.math.cos(self.sinusoid_inp)), axis=-1)
 
     def call(self, x):
@@ -1021,7 +1022,7 @@ class TargetLengthCrop1D(kl.Layer):
         super().__init__(name=name)
         self._target_length = target_length
         self._uncropped_length = uncropped_length
-        
+
     def call(self, inputs):
         if self._target_length is None:
             return inputs
@@ -1034,21 +1035,19 @@ class TargetLengthCrop1D(kl.Layer):
             return inputs[..., trim:-trim, :]
 
 
-    
+
 @tf.keras.utils.register_keras_serializable()
 class ScaleNorm(kl.Layer):
     """ScaleNorm"""
-    def __init__(self, 
-                 scale, 
+    def __init__(self,
+                 scale,
                  eps=1e-5,
                  name: str = 'scalenorm'):
         super(ScaleNorm, self).__init__()
         self.scale = scale
         self.eps = eps
-        
+
 
     def call(self, x):
         norm = self.scale / tf.maximum(self.eps,tf.norm(x, axis=-1, keepdim=True))
         return x * norm
-    
-    

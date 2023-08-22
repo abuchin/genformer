@@ -554,8 +554,8 @@ def return_train_val_functions(model,
 
             output_profile,output_peaks = model(input_tuple,
                                    training=True)
-            output_profile = tf.cast(output_profile['human'],dtype=tf.float32) # ensure cast to float32
-            output_peaks = tf.cast(output_peaks['human'],dtype=tf.float32)
+            output_profile = tf.cast(output_profile,dtype=tf.float32) # ensure cast to float32
+            output_peaks = tf.cast(output_peaks,dtype=tf.float32)
 
             mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
 
@@ -609,8 +609,8 @@ def return_train_val_functions(model,
 
         output_profile,output_peaks = model(input_tuple,
                                             training=False)
-        output_profile = tf.cast(output_profile['human'],dtype=tf.float32) # ensure cast to float32
-        output_peaks = tf.cast(output_peaks['human'],dtype=tf.float32)
+        output_profile = tf.cast(output_profile,dtype=tf.float32) # ensure cast to float32
+        output_peaks = tf.cast(output_peaks,dtype=tf.float32)
 
         mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
 
@@ -905,7 +905,7 @@ def deserialize_val(serialized_example,
                                               out_type=tf.int32),
                            [output_length])
 
-    peaks_center = tf.reduce_sum(peaks)
+    peaks_sum = tf.reduce_sum(peaks_center)
     seq_seed = tf.reduce_sum(sequence[:,0])
     # set up a semi-random seem based on the number of
     # peaks and adenosines in the window
