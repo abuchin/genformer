@@ -666,6 +666,7 @@ def return_train_val_functions(model,
 
 
 def deserialize_tr(serialized_example,
+                    g,
                    input_length = 196608,
                    max_shift = 10,
                    output_length_ATAC = 49152,
@@ -678,8 +679,7 @@ def deserialize_tr(serialized_example,
                    use_atac = True,
                    use_seq = True,
                      seq_corrupt_rate = 20,
-                     atac_corrupt_rate = 20,
-                   g):
+                     atac_corrupt_rate = 20):
     """Deserialize bytes stored in TFRecordFile."""
     ## parse out feature map
     feature_map = {
@@ -865,7 +865,8 @@ def deserialize_tr(serialized_example,
 
 
 def deserialize_val(serialized_example,
-                   input_length = 196608,
+                   g,
+                    input_length = 196608,
                    max_shift = 10,
                    output_length_ATAC = 49152,
                    output_length = 1536,
@@ -875,8 +876,7 @@ def deserialize_val(serialized_example,
                    mask_size = 896,
                    log_atac = True,
                    use_atac = True,
-                   use_seq = True,
-                    g):
+                   use_seq = True):
     """Deserialize bytes stored in TFRecordFile."""
     ## parse out feature map
     feature_map = {
@@ -1049,6 +1049,7 @@ def return_dataset(gcs_path,
         dataset = dataset.with_options(options)
 
         dataset = dataset.map(lambda record: deserialize_tr(record,
+                                                            g,
                                                             input_length,
                                                             max_shift,
                                                             output_length_ATAC,
@@ -1062,8 +1063,7 @@ def return_dataset(gcs_path,
                                                            use_atac,
                                                            use_seq,
                                                          seq_corrupt_rate,
-                                                         atac_corrupt_rate,
-                                                            g),
+                                                         atac_corrupt_rate),
                               deterministic=False,
                               num_parallel_calls=num_parallel)
 
@@ -1081,6 +1081,7 @@ def return_dataset(gcs_path,
                                           num_parallel_reads=num_parallel)
         dataset = dataset.with_options(options)
         dataset = dataset.map(lambda record: deserialize_val(record,
+                                                            g,
                                                             input_length,
                                                             max_shift,
                                                             output_length_ATAC,
@@ -1092,8 +1093,7 @@ def return_dataset(gcs_path,
                                                             random_mask_size,
                                                             log_atac,
                                                            use_atac,
-                                                           use_seq,
-                                                            g),
+                                                           use_seq),
                       deterministic=True,
                       num_parallel_calls=num_parallel)
 
