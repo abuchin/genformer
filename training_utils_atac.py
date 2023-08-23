@@ -805,7 +805,7 @@ def deserialize_tr(serialized_example,
     '''add some random gaussian noise '''
     masked_atac = masked_atac + tf.math.abs(g.normal(atac.shape,
                                                mean=0.0,
-                                               stddev=1.0e-01,
+                                               stddev=1.0e-04,
                                                dtype=tf.float32)) ### add some gaussian noise
 
     if log_atac:
