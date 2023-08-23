@@ -805,14 +805,14 @@ def deserialize_tr(serialized_example,
     '''add some random gaussian noise '''
     masked_atac = masked_atac + tf.math.abs(g.normal(atac.shape,
                                                mean=0.0,
-                                               stddev=1.0e-05,
+                                               stddev=1.0e-01,
                                                dtype=tf.float32)) ### add some gaussian noise
 
     if log_atac:
         masked_atac = tf.math.log1p(masked_atac)
 
-    diff = tf.math.sqrt(tf.nn.relu(masked_atac - 100.0 * tf.ones(masked_atac.shape)))
-    masked_atac = tf.clip_by_value(masked_atac, clip_value_min=0.0, clip_value_max=100.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(masked_atac - 10000.0 * tf.ones(masked_atac.shape)))
+    masked_atac = tf.clip_by_value(masked_atac, clip_value_min=0.0, clip_value_max=10000.0) + diff
 
     ''' here set up the random sequence masking '''
     if ((seq_mask_int == 0) and (atac_mask_int != 0)):
@@ -838,8 +838,8 @@ def deserialize_tr(serialized_example,
 
 
     atac_out = tf.reduce_sum(tf.reshape(atac_target, [-1,tiling_req]),axis=1,keepdims=True)
-    diff = tf.math.sqrt(tf.nn.relu(atac_out - 2500.0 * tf.ones(atac_out.shape)))
-    atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=2500.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(atac_out - 50000.0 * tf.ones(atac_out.shape)))
+    atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=50000.0) + diff
     atac_out = tf.slice(atac_out,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
@@ -866,8 +866,6 @@ def deserialize_tr(serialized_example,
                 tf.cast(tf.ensure_shape(peaks_gathered, [(output_length-2*crop_size) // 4,1]),dtype=tf.int32), \
                 tf.cast(tf.ensure_shape(atac_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
                 tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.float32)
-
-
 
 
 def deserialize_val(serialized_example,
@@ -995,12 +993,12 @@ def deserialize_val(serialized_example,
     if log_atac:
         masked_atac = tf.math.log1p(masked_atac)
 
-    diff = tf.math.sqrt(tf.nn.relu(masked_atac - 100.0 * tf.ones(masked_atac.shape)))
-    masked_atac = tf.clip_by_value(masked_atac, clip_value_min=0.0, clip_value_max=100.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(masked_atac - 10000.0 * tf.ones(masked_atac.shape)))
+    masked_atac = tf.clip_by_value(masked_atac, clip_value_min=0.0, clip_value_max=10000.0) + diff
 
     atac_out = tf.reduce_sum(tf.reshape(atac_target, [-1,tiling_req]),axis=1,keepdims=True)
-    diff = tf.math.sqrt(tf.nn.relu(atac_out - 2500.0 * tf.ones(atac_out.shape)))
-    atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=2500.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(atac_out - 50000.0 * tf.ones(atac_out.shape)))
+    atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=50000.0) + diff
     atac_out = tf.slice(atac_out,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
