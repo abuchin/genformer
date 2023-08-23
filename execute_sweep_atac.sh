@@ -54,4 +54,5 @@ python3 train_model_atac.py \
             --use_pooling="False" \
             --seed=12 \
             --seq_corrupt_rate="20" \
-            --atac_corrupt_rate="20"
+            --atac_corrupt_rate="20" \
+            --use_tf_activity="True"

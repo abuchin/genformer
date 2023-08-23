@@ -235,7 +235,7 @@ def main():
                                  'load-' + str(wandb.config.load_init),
                                  'LR-' + str(wandb.config.lr_base),
                                  'T-' + str(wandb.config.num_transformer_layers),
-                                 'D-' + str(wandb.config.dropout_rate)])
+                                 'TF-' + str(wandb.config.use_tf_activity)])
 
             date_string = f'{datetime.now():%Y-%m-%d %H:%M:%S%z}'
             date_string = date_string.replace(' ','_')
