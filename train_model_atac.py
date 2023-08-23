@@ -149,9 +149,6 @@ def main():
                 'optimizer': {
                     'values':[args.optimizer]
                 },
-                'stable_variant': {
-                    'values':[parse_bool_str(x) for x in args.stable_variant.split(',')]
-                },
                 'log_atac': {
                     'values':[parse_bool_str(x) for x in args.log_atac.split(',')]
                 },
@@ -309,9 +306,7 @@ def main():
                 if wandb.config.inits_type == 'enformer_performer':
                     print('loaded enformer performer weights')
                     inits=training_utils.get_initializers_enformer_performer(args.multitask_checkpoint_path,
-                                                                             wandb.config.num_transformer_layers,
-                                                                             wandb.config.stable_variant,
-                                                                             wandb.config.learnable_PE)
+                                                                             wandb.config.num_transformer_layers)
                 elif wandb.config.inits_type == 'enformer_conv':
                     print('loaded enformer conv weights')
                     inits=training_utils.get_initializers_enformer_conv(args.multitask_checkpoint_path,
@@ -349,7 +344,6 @@ def main():
                                     inits_type=wandb.config.inits_type,
                                     load_init=wandb.config.load_init,
                                     final_point_scale=wandb.config.final_point_scale,
-                                    stable_variant=wandb.config.stable_variant,
                                     freeze_conv_layers=wandb.config.freeze_conv_layers,
                                     filter_list_seq=wandb.config.filter_list_seq,
                                     filter_list_atac=wandb.config.filter_list_atac,

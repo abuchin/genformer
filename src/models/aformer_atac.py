@@ -119,13 +119,13 @@ class aformer(tf.keras.Model):
                            var_init=None,
                            kernel_init=None,
                            bias_init=None,
-                           #strides=2,
                            train=True,
                            dilation_rate=1,
                            stride=1,
                            **kwargs):
+
             return tf.keras.Sequential([
-                self.batch_norm = tf.keras.layers.BatchNormalization(axis=-1,
+                tf.keras.layers.BatchNormalization(axis=-1,
                                                     synchronized=True,
                                                     center=True,
                                                     scale=True,
@@ -145,9 +145,7 @@ class aformer(tf.keras.Model):
                                      trainable=train,
                                      strides=stride,
                                      dilation_rate=dilation_rate,
-                                     padding=padding, **kwargs)
-            ], name=name)
-
+                                     padding=padding, **kwargs)], name=name)
 
         ### conv stack for sequence inputs
         self.stem_conv = tf.keras.layers.Conv1D(filters= int(self.filter_list_seq[0]),
@@ -329,7 +327,7 @@ class aformer(tf.keras.Model):
         self.tf_dropout=kl.Dropout(rate=self.tf_dropout_rate,
                                     **kwargs)
         self.tf_activity_fc = kl.Dense(self.hidden_size,
-                                        activation=None
+                                        activation=None,
                                         kernel_initializer='lecun_normal',
                                         bias_initializer='lecun_normal',
                                         use_bias=True)
