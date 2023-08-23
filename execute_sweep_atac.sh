@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 python3 train_model_atac.py \
-            --tpu_name="node-1" \
+            --tpu_name="node-2" \
             --tpu_zone="us-east1-d" \
             --wandb_project="atac_pretraining" \
             --wandb_user="njaved" \
@@ -16,10 +16,10 @@ python3 train_model_atac.py \
             --max_shift=10 \
             --batch_size=4 \
             --num_epochs=50 \
-            --train_examples=500000 \
+            --train_examples=1000000 \
             --val_examples_ho=15491 \
             --BN_momentum=0.90 \
-            --warmup_frac=0.005 \
+            --warmup_frac=0.0002 \
             --patience=50 \
             --output_res=128 \
             --min_delta=0.0000005 \
@@ -28,7 +28,7 @@ python3 train_model_atac.py \
             --lr_base1="2.0e-04" \
             --lr_base2="2.0e-04" \
             --decay_frac="0.50" \
-            --gradient_clip="2.5" \
+            --gradient_clip="5.0" \
             --epsilon=1.0e-8 \
             --num_transformer_layers="4" \
             --dropout_rate="0.20" \
@@ -50,7 +50,7 @@ python3 train_model_atac.py \
             --use_atac="True" \
             --final_point_scale="4" \
             --use_seq="True" \
-            --bce_loss_scale="0.99875" \
+            --bce_loss_scale="0.999" \
             --use_pooling="False" \
             --seed=12 \
             --seq_corrupt_rate="20" \
