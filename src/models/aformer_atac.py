@@ -29,7 +29,6 @@ class aformer(tf.keras.Model):
                  norm=True,
                  max_seq_length = 1536,
                  BN_momentum = 0.90,
-                 rel_pos_bins=1536,
                  use_rot_emb = True,
                  normalize = True,
                  seed = 3,
@@ -64,8 +63,7 @@ class aformer(tf.keras.Model):
         self.output_length=output_length
         self.final_output_length=final_output_length
         self.norm=norm
-        self.max_seq_length = max_seq_length
-        self.rel_pos_bins = rel_pos_bins
+        self.max_seq_length = max_seq_length + 1
         self.use_rot_emb = use_rot_emb
         self.normalize = normalize
         self.seed = seed
@@ -340,7 +338,6 @@ class aformer(tf.keras.Model):
                                                     hidden_size=self.hidden_size,
                                                     numerical_stabilizer=self.numerical_stabilizer,
                                                     dropout_rate=self.dropout_rate,
-                                                    rel_pos_bins=self.rel_pos_bins,
                                                     use_rot_emb=self.use_rot_emb,
                                                     kernel_transformation=self.kernel_transformation,
                                                     normalize=self.normalize,
@@ -466,7 +463,6 @@ class aformer(tf.keras.Model):
             "final_output_length":self.final_output_length,
             "norm":self.norm,
             "max_seq_length":self.max_seq_length,
-            "rel_pos_bins":self.rel_pos_bins,
             "use_rot_emb":self.use_rot_emb,
             "normalize":self.normalize,
             "seed":self.seed,

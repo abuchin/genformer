@@ -330,7 +330,6 @@ def main():
                                     numerical_stabilizer=0.0000001,
                                     nb_random_features=wandb.config.num_random_features,
                                     max_seq_length=wandb.config.output_length,
-                                    rel_pos_bins=wandb.config.output_length,
                                     norm=True,
                                     BN_momentum=wandb.config.BN_momentum,
                                     use_rot_emb = True,
