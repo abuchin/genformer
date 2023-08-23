@@ -541,7 +541,7 @@ def return_train_val_functions(model,
 
             performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
                                     model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
-                                    model.tf_activity_fc + \
+                                    model.tf_activity_fc.trainable_variables + \
                                     model.performer.trainable_variables + model.final_pointwise_conv.trainable_variables + \
                                     model.final_dense_profile.trainable_variables + model.final_dense_peaks.trainable_variables
 
