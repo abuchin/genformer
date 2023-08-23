@@ -370,6 +370,7 @@ class Attention(tf.keras.layers.Layer):
                  numerical_stabilizer=0.001,
                    causal=False,
                    nb_random_features=16,
+                   use_rot_emb = True,
                    eps = 1e-6,
                    normalize = True,
                    seed=42,
@@ -410,6 +411,7 @@ class Attention(tf.keras.layers.Layer):
         self.numerical_stabilizer = numerical_stabilizer
         self.causal = causal
         self.nb_random_features = nb_random_features
+        self.use_rot_emb = use_rot_emb
         self.eps = eps
         self.normalize = normalize
         self.seed = seed
@@ -473,6 +475,7 @@ class Attention(tf.keras.layers.Layer):
             "attention_dropout": self.attention_dropout,
             "numerical_stabilizer":self.numerical_stabilizer,
             "nb_random_features":self.nb_random_features,
+            "use_rot_emb":self.use_rot_emb,
             "causal":self.causal,
             'kernel_transformation':self.kernel_transformation,
             "eps":self.eps,
