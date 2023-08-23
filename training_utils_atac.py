@@ -862,8 +862,8 @@ def deserialize_tr(serialized_example,
     return tf.cast(tf.ensure_shape(sequence,[input_length,4]),dtype=tf.bfloat16), \
                 tf.cast(tf.ensure_shape(masked_atac, [output_length_ATAC,1]),dtype=tf.bfloat16), \
                 tf.cast(tf.ensure_shape(full_comb_mask_store, [output_length-crop_size*2,1]),dtype=tf.int32), \
-                tf.cast(tf.ensure_shape(mask_gathered, [(output_length-crop_size*2) // 2,1]),dtype=tf.int32), \
-                tf.cast(tf.ensure_shape(peaks_gathered, [(output_length-2*crop_size) // 2,1]),dtype=tf.int32), \
+                tf.cast(tf.ensure_shape(mask_gathered, [(output_length-crop_size*2) // 4,1]),dtype=tf.int32), \
+                tf.cast(tf.ensure_shape(peaks_gathered, [(output_length-2*crop_size) // 4,1]),dtype=tf.int32), \
                 tf.cast(tf.ensure_shape(atac_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
                 tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.float32)
 
@@ -1002,9 +1002,9 @@ def deserialize_val(serialized_example,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
 
-    peaks_gathered = tf.reduce_max(tf.reshape(peaks_crop, [(output_length-2*crop_size) // 2, -1]),
+    peaks_gathered = tf.reduce_max(tf.reshape(peaks_crop, [(output_length-2*crop_size) // 4, -1]),
                                    axis=1,keepdims=True)
-    mask_gathered = tf.reduce_max(tf.reshape(full_comb_mask_store, [(output_length-2*crop_size) // 2, -1]),
+    mask_gathered = tf.reduce_max(tf.reshape(full_comb_mask_store, [(output_length-2*crop_size) // 4, -1]),
                                    axis=1,keepdims=True)
 
     random_shuffled_tokens= tf.random.experimental.stateless_shuffle(atac,
@@ -1018,8 +1018,8 @@ def deserialize_val(serialized_example,
     return tf.cast(tf.ensure_shape(sequence,[input_length,4]),dtype=tf.bfloat16), \
                 tf.cast(tf.ensure_shape(masked_atac, [output_length_ATAC,1]),dtype=tf.bfloat16), \
                 tf.cast(tf.ensure_shape(full_comb_mask_store, [output_length-crop_size*2,1]),dtype=tf.int32), \
-                tf.cast(tf.ensure_shape(mask_gathered, [(output_length-crop_size*2) // 2,1]),dtype=tf.int32), \
-                tf.cast(tf.ensure_shape(peaks_gathered, [(output_length-2*crop_size) // 2,1]),dtype=tf.int32), \
+                tf.cast(tf.ensure_shape(mask_gathered, [(output_length-crop_size*2) // 4,1]),dtype=tf.int32), \
+                tf.cast(tf.ensure_shape(peaks_gathered, [(output_length-2*crop_size) // 4,1]),dtype=tf.int32), \
                 tf.cast(tf.ensure_shape(atac_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
                 tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.float32)
 
