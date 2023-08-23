@@ -730,7 +730,7 @@ def deserialize_tr(serialized_example,
         tf_activity = tf.zeros_like(tf_activity)
     tf_activity = tf_activity + tf.math.abs(g.normal(tf_activity.shape,
                                                mean=0.0,
-                                               stddev=0.25,
+                                               stddev=0.025,
                                                dtype=tf.float32))
 
     peaks = tf.expand_dims(peaks,axis=1)
@@ -921,7 +921,7 @@ def deserialize_val(serialized_example,
         tf_activity = tf.zeros_like(tf_activity)
     tf_activity = tf_activity + tf.math.abs(g.normal(tf_activity.shape,
                                                mean=0.0,
-                                               stddev=0.25,
+                                               stddev=0.025,
                                                dtype=tf.float32))
 
     peaks_sum = tf.reduce_sum(peaks_center)

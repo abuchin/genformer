@@ -393,10 +393,8 @@ class aformer(tf.keras.Model):
 
         x = self.stem_conv(sequence,
                            training=training)
-
         x = self.stem_res_conv(x,
                                training=training)
-
         if self.use_pooling:
             x = self.stem_pool(x,
                                training=training)
@@ -424,7 +422,7 @@ class aformer(tf.keras.Model):
         tf_activity = self.tf_activity_fc(tf_activity)
         transformer_input_x = tf.concat([transformer_input,tf_activity],
                                         axis=1)
-                                        
+
         out,att_matrices = self.performer(transformer_input_x,
                                                   training=training)
         out = out[:, :-1, :]
