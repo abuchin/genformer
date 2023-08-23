@@ -132,7 +132,7 @@ class aformer(tf.keras.Model):
                                                     beta_initializer=beta_init if self.load_init else "zeros",
                                                     gamma_initializer=gamma_init if self.load_init else "ones",
                                                      trainable=train,
-                                                     momentum=momentum,
+                                                     momentum=self.BN_momentum,
                                                      epsilon=epsilon,
                                                      moving_mean_initializer=mean_init if self.load_init else "zeros",
                                                      moving_variance_initializer=var_init if self.load_init else "ones",
