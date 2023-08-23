@@ -152,9 +152,6 @@ def main():
                 'log_atac': {
                     'values':[parse_bool_str(x) for x in args.log_atac.split(',')]
                 },
-                'learnable_PE': {
-                    'values':[parse_bool_str(x) for x in args.learnable_PE.split(',')]
-                },
                 'use_atac': {
                     'values':[parse_bool_str(x) for x in args.use_atac.split(',')]
                 },
