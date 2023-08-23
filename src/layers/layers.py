@@ -203,7 +203,6 @@ class Performer(kl.Layer):
                  numerical_stabilizer: float,
                  nb_random_features: int,
                  max_seq_length: int,
-                 rel_pos_bins=None,
                  kernel_transformation: str = 'relu_kernel_transformation',
                  use_rot_emb: bool = True,
                  LN_gamma_init = None,
@@ -242,7 +241,6 @@ class Performer(kl.Layer):
         self.numerical_stabilizer=numerical_stabilizer
         self.max_seq_length = max_seq_length
         self.nb_random_features=nb_random_features
-        self.rel_pos_bins = rel_pos_bins
         self.use_rot_emb=use_rot_emb
         self.d_model=d_model
         self.normalize=normalize
@@ -295,7 +293,6 @@ class Performer(kl.Layer):
             "nb_random_features":self.nb_random_features,
             "kernel_transformation":self.kernel_transformation,
             "max_seq_length":self.max_seq_length,
-            "rel_pos_bins":self.rel_pos_bins,
             "use_rot_emb":self.use_rot_emb,
             "d_model":self.d_model,
             "normalize":self.normalize,
@@ -342,7 +339,6 @@ class Performer_Encoder(kl.Layer):
                  hidden_size,
                  numerical_stabilizer,
                  dropout_rate = 0.40,
-                 rel_pos_bins=None,
                  use_rot_emb=True,
                  normalize=True,
                  norm=True,
@@ -378,7 +374,6 @@ class Performer_Encoder(kl.Layer):
         self.max_seq_length=max_seq_length
         self.nb_random_features=nb_random_features
         self.numerical_stabilizer=numerical_stabilizer
-        self.rel_pos_bins=rel_pos_bins#None#rel_pos_bins
         self.use_rot_emb=use_rot_emb
         self.normalize=normalize
         self.norm=norm
@@ -396,7 +391,6 @@ class Performer_Encoder(kl.Layer):
                                  numerical_stabilizer=self.numerical_stabilizer,
                                  nb_random_features=self.nb_random_features,
                                  max_seq_length=self.max_seq_length,
-                                 rel_pos_bins=self.rel_pos_bins,
                                  kernel_transformation=self.kernel_transformation,
                                  seed=self.seed,
                                  use_rot_emb=self.use_rot_emb,
@@ -441,7 +435,6 @@ class Performer_Encoder(kl.Layer):
             "dim":self.dim,
             "d_model":self.d_model,
             "max_seq_length":self.max_seq_length,
-            "rel_pos_bins":self.rel_pos_bins,
             "use_rot_emb":self.use_rot_emb,
             "normalize":self.normalize,
             "norm":self.norm,
