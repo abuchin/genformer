@@ -317,8 +317,8 @@ class aformer(tf.keras.Model):
                 for i, num_filters in enumerate(self.filter_list_atac)], name='conv_tower_atac')
 
 
-        self.sin_pe = abs_sin_PE(name='sin_pe',
-                                  **kwargs)
+        #self.sin_pe = abs_sin_PE(name='sin_pe',
+                                    #**kwargs)
 
 
         ###
@@ -428,9 +428,9 @@ class aformer(tf.keras.Model):
         ### tf activity
         tf_activity = self.tf_dropout(tf_activity,training=training)
         tf_activity = self.tf_activity_fc(tf_activity)
-        transformer_input = tf.concat([transformer_input,tf_activity],
+        transformer_input_x = tf.concat([transformer_input,tf_activity],
                                         axis=1)
-        transformer_input_x=self.sin_pe(transformer_input)
+        #transformer_input_x=self.sin_pe(transformer_input)
         out,att_matrices = self.performer(transformer_input_x,
                                                   training=training)
         out = out[:, :-1, :]
@@ -516,7 +516,7 @@ class aformer(tf.keras.Model):
                                       axis=2)
 
 
-        transformer_input_x=self.sin_pe(transformer_input)
+        #transformer_input_x=self.sin_pe(transformer_input)
 
         out_att,att_matrices = self.performer(transformer_input_x,
                                                   training=training)
