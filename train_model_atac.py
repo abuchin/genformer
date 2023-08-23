@@ -334,7 +334,6 @@ def main():
                                     norm=True,
                                     BN_momentum=wandb.config.BN_momentum,
                                     use_rot_emb = True,
-                                    use_mask_pos = False,
                                     normalize = True,
                                     num_transformer_layers=wandb.config.num_transformer_layers,
                                     inits=inits,
