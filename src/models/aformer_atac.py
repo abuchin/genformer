@@ -429,11 +429,11 @@ class aformer(tf.keras.Model):
         tf_activity = self.tf_dropout(tf_activity,training=training)
         tf_activity = self.tf_activity_fc(tf_activity)
         transformer_input = tf.concat([transformer_input,tf_activity],
-                                        axis=0)
+                                        axis=1)
         transformer_input_x=self.sin_pe(transformer_input)
         out,att_matrices = self.performer(transformer_input_x,
                                                   training=training)
-        out = out[:, :-1, :, :]
+        out = out[:, :-1, :]
 
         out = self.crop_final(out)
 
