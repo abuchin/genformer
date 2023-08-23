@@ -180,7 +180,10 @@ def main():
                     'values': [int(x) for x in args.seq_corrupt_rate.split(',')]
                 },
                 'use_pooling': {
-                    'values': [str(x) for x in args.use_pooling.split(',')]
+                    'values': [parse_bool_str(x) for x in args.use_pooling.split(',')]
+                },
+                'use_tf_activity': {
+                    'values': [parse_bool_str(x) for x in args.use_tf_activity.split(',')]
                 }
             }
     }
@@ -292,6 +295,7 @@ def main():
                                                                 wandb.config.seq_corrupt_rate,
                                                                 wandb.config.atac_corrupt_rate,
                                                                 wandb.config.val_steps_ho,
+                                                                wandb.config.use_tf_activity,
                                                                 g)
 
             train_human, data_val_ho = out_iterators

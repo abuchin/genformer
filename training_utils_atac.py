@@ -547,7 +547,6 @@ def return_train_val_functions(model,
 
             vars_all = conv_vars + performer_vars
 
-
             output_profile,output_peaks = model(input_tuple,
                                    training=True)
             output_profile = tf.cast(output_profile,dtype=tf.float32) # ensure cast to float32
@@ -559,7 +558,6 @@ def return_train_val_functions(model,
             output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
 
             poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac, output_atac))  * (1. / global_batch_size) * (1.0-bce_loss_scale)
-
 
             mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
             target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
@@ -663,6 +661,7 @@ def return_train_val_functions(model,
 
 def deserialize_tr(serialized_example,
                     g,
+                    use_tf_activity,
                    input_length = 196608,
                    max_shift = 10,
                    output_length_ATAC = 49152,
@@ -727,6 +726,8 @@ def deserialize_tr(serialized_example,
                                               out_type=tf.float32),
                            [1629])
     tf_activity = tf.expand_dims(tf_activity,axis=0)
+    if not use_tf_activity:
+        tf_activity = tf.zeros_like(tf_activity)
     tf_activity = tf_activity + tf.math.abs(g.normal(tf_activity.shape,
                                                mean=0.0,
                                                stddev=0.5,
@@ -872,6 +873,7 @@ def deserialize_tr(serialized_example,
 
 def deserialize_val(serialized_example,
                    g,
+                   use_tf_activity,
                     input_length = 196608,
                    max_shift = 10,
                    output_length_ATAC = 49152,
@@ -915,6 +917,8 @@ def deserialize_val(serialized_example,
                                               out_type=tf.float32),
                            [1629])
     tf_activity = tf.expand_dims(tf_activity,axis=0)
+    if not use_tf_activity:
+        tf_activity = tf.zeros_like(tf_activity)
     tf_activity = tf_activity + tf.math.abs(g.normal(tf_activity.shape,
                                                mean=0.0,
                                                stddev=0.5,
@@ -1046,6 +1050,7 @@ def return_dataset(gcs_path,
                      seq_corrupt_rate,
                      atac_corrupt_rate,
                    validation_steps,
+                   use_tf_activity,
                    g):
     """
     return a tf dataset object for given gcs path
@@ -1066,6 +1071,7 @@ def return_dataset(gcs_path,
 
         dataset = dataset.map(lambda record: deserialize_tr(record,
                                                             g,
+                                                            use_tf_activity,
                                                             input_length,
                                                             max_shift,
                                                             output_length_ATAC,
@@ -1098,6 +1104,7 @@ def return_dataset(gcs_path,
         dataset = dataset.with_options(options)
         dataset = dataset.map(lambda record: deserialize_val(record,
                                                             g,
+                                                            use_tf_activity,
                                                             input_length,
                                                             max_shift,
                                                             output_length_ATAC,
@@ -1138,6 +1145,7 @@ def return_distributed_iterators(gcs_path,
                                  seq_corrupt_rate,
                                  atac_corrupt_rate,
                                  validation_steps,
+                                 use_tf_activity,
                                  g):
 
 
@@ -1163,6 +1171,7 @@ def return_distributed_iterators(gcs_path,
                              seq_corrupt_rate,
                              atac_corrupt_rate,
                              validation_steps,
+                             use_tf_activity,
                              g)
 
     val_data_ho = return_dataset(gcs_path_ho,
@@ -1187,6 +1196,7 @@ def return_distributed_iterators(gcs_path,
                                  seq_corrupt_rate,
                                  atac_corrupt_rate,
                                  validation_steps,
+                                 use_tf_activity,
                               g)
 
     val_dist_ho=strategy.experimental_distribute_dataset(val_data_ho)
@@ -1532,8 +1542,13 @@ def parse_args(parser):
     parser.add_argument('--use_pooling',
                         dest='use_pooling',
                         type=str,
-                        default=False,
+                        default="False",
                         help= 'use_pooling')
+    parser.add_argument('--use_tf_activity',
+                        dest='use_tf_activity',
+                        type=str,
+                        default="False",
+                        help= 'use_tf_activity')
     args = parser.parse_args()
     return parser
 

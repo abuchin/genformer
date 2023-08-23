@@ -46,7 +46,7 @@ python3 train_model_atac.py \
             --atac_mask_dropout=0.15 \
             --log_atac="False" \
             --sonnet_weights_bool="False" \
-            --random_mask_size="1024" \
+            --random_mask_size="512" \
             --use_atac="True" \
             --final_point_scale="4" \
             --use_seq="True" \
