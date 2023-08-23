@@ -648,15 +648,6 @@ def return_train_val_functions(model,
 
             input_tuple = sequence,atac,tf_activity
 
-
-            print(sequence.shape)
-            print(atac.shape)
-            print(mask.shape)
-            print(mask_gathered.shape)
-            print(peaks.shape)
-            print(target.shape)
-            print(tf_activity.shape)
-
             output_profile,output_peaks = model(input_tuple,
                            training=False)
 

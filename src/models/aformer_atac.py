@@ -384,9 +384,6 @@ class aformer(tf.keras.Model):
     def call(self, inputs, training:bool=True):
 
         sequence,atac,tf_activity = inputs
-        print(sequence.shape)
-        print(atac.shape)
-        print(tf_activity.shape)
 
         x = self.stem_conv(sequence,
                            training=training)
@@ -419,12 +416,9 @@ class aformer(tf.keras.Model):
         tf_activity = self.tf_activity_fc(tf_activity)
         transformer_input_x = tf.concat([transformer_input,tf_activity],
                                         axis=1)
-        print(transformer_input_x.shape)
         out,att_matrices = self.performer(transformer_input_x,
                                           training=training)
-        print(out.shape)
         out = out[:, :-1, :]
-        print(out.shape)
         out = self.crop_final(out)
         out = self.final_pointwise_conv(out,
                                        training=training)
@@ -432,9 +426,8 @@ class aformer(tf.keras.Model):
                         training=training)
         out = self.gelu(out)
         out_profile = self.final_dense_profile(out, training=training)
-        print(out_profile.shape)
         out_peaks = self.final_dense_peaks(out, training=training)
-        print(out_peaks.shape)
+
         return out_profile, out_peaks
 
 
