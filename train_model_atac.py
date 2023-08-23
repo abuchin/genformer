@@ -393,17 +393,6 @@ def main():
                                                                                  'bias',
                                                                                  'embeddings',
                                                                                  'batch_norm'])
-            elif wandb.config.optimizer == 'adabelief':
-                optimizer1 = tfa.optimizers.AdaBelief(
-                    learning_rate= scheduler1,
-                    epsilon= wandb.config.epsilon,
-                    rectify=wandb.config.rectify
-                )
-                optimizer2 = tfa.optimizers.AdaBelief(
-                    learning_rate= scheduler2,
-                    epsilon= wandb.config.epsilon,
-                    rectify=wandb.config.rectify
-                )
             else:
                 raise ValueError('optimizer not found')
 

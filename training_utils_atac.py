@@ -168,9 +168,7 @@ def get_initializers_enformer_conv(checkpoint_path,
     return initializers_dict
 
 def get_initializers_enformer_performer(checkpoint_path,
-                                        num_transformer_layers,
-                                        stable_variant,
-                                        pos_embedding_learned):
+                                        num_transformer_layers):
 
     inside_checkpoint=tf.train.list_variables(tf.train.latest_checkpoint(checkpoint_path))
     reader = tf.train.load_checkpoint(checkpoint_path)
@@ -286,12 +284,12 @@ def get_initializers_enformer_performer(checkpoint_path,
     for i in range(num_transformer_layers):
         var_name_stem = 'performer/layers/' + str(i) + '/' #0/moving_mean/_counter/.ATTRIBUTES/VARIABLE_VALUE'
 
-        if not stable_variant:
-            LN_b=var_name_stem + 'layer_norm/layer_norm/beta/.ATTRIBUTES/VARIABLE_VALUE'
-            LN_g=var_name_stem + 'layer_norm/layer_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE'
-            out_dict = {'LN_b' + str(i): inits.Constant(reader.get_tensor(LN_b)),
-                        'LN_g' + str(i): inits.Constant(reader.get_tensor(LN_g))}
-            initializers_dict.update(out_dict)
+        #if not stable_variant:
+        LN_b=var_name_stem + 'layer_norm/layer_norm/beta/.ATTRIBUTES/VARIABLE_VALUE'
+        LN_g=var_name_stem + 'layer_norm/layer_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE'
+        out_dict = {'LN_b' + str(i): inits.Constant(reader.get_tensor(LN_b)),
+                    'LN_g' + str(i): inits.Constant(reader.get_tensor(LN_g))}
+        initializers_dict.update(out_dict)
 
         SA_k=var_name_stem + "self_attention/key_dense_layer/kernel/.ATTRIBUTES/VARIABLE_VALUE"
         SA_q=var_name_stem + "self_attention/query_dense_layer/kernel/.ATTRIBUTES/VARIABLE_VALUE"
@@ -319,17 +317,15 @@ def get_initializers_enformer_performer(checkpoint_path,
 
         initializers_dict.update(out_dict)
 
-    if pos_embedding_learned:
-        out_dict = {'pos_embedding_learned': inits.Constant(reader.get_tensor('pos_embedding_learned/embeddings/.ATTRIBUTES/VARIABLE_VALUE'))}
-        initializers_dict.update(out_dict)
+    #if pos_embedding_learned:
+    #    out_dict = {'pos_embedding_learned': inits.Constant(reader.get_tensor('pos_embedding_learned/embeddings/.ATTRIBUTES/VARIABLE_VALUE'))}
+    #    initializers_dict.update(out_dict)
 
 
     return initializers_dict
 
 def get_initializers_enformer_performer_full(checkpoint_path,
-                                            num_transformer_layers,
-                                            stable_variant,
-                                            pos_embedding_learned):
+                                            num_transformer_layers):
 
     inside_checkpoint=tf.train.list_variables(tf.train.latest_checkpoint(checkpoint_path))
     reader = tf.train.load_checkpoint(checkpoint_path)
@@ -445,12 +441,12 @@ def get_initializers_enformer_performer_full(checkpoint_path,
     for i in range(num_transformer_layers):
         var_name_stem = 'performer/layers/' + str(i) + '/' #0/moving_mean/_counter/.ATTRIBUTES/VARIABLE_VALUE'
 
-        if not stable_variant:
-            LN_b=var_name_stem + 'layer_norm/layer_norm/beta/.ATTRIBUTES/VARIABLE_VALUE'
-            LN_g=var_name_stem + 'layer_norm/layer_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE'
-            out_dict = {'LN_b' + str(i): inits.Constant(reader.get_tensor(LN_b)),
-                        'LN_g' + str(i): inits.Constant(reader.get_tensor(LN_g))}
-            initializers_dict.update(out_dict)
+        #if not stable_variant:
+        LN_b=var_name_stem + 'layer_norm/layer_norm/beta/.ATTRIBUTES/VARIABLE_VALUE'
+        LN_g=var_name_stem + 'layer_norm/layer_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE'
+        out_dict = {'LN_b' + str(i): inits.Constant(reader.get_tensor(LN_b)),
+                    'LN_g' + str(i): inits.Constant(reader.get_tensor(LN_g))}
+        initializers_dict.update(out_dict)
 
         SA_k=var_name_stem + "self_attention/key_dense_layer/kernel/.ATTRIBUTES/VARIABLE_VALUE"
         SA_q=var_name_stem + "self_attention/query_dense_layer/kernel/.ATTRIBUTES/VARIABLE_VALUE"
@@ -478,9 +474,9 @@ def get_initializers_enformer_performer_full(checkpoint_path,
 
         initializers_dict.update(out_dict)
 
-    if pos_embedding_learned:
-        out_dict = {'pos_embedding_learned': inits.Constant(reader.get_tensor('pos_embedding_learned/embeddings/.ATTRIBUTES/VARIABLE_VALUE'))}
-        initializers_dict.update(out_dict)
+    #if pos_embedding_learned:
+    #out_dict = {'pos_embedding_learned': inits.Constant(reader.get_tensor('pos_embedding_learned/embeddings/.ATTRIBUTES/VARIABLE_VALUE'))}
+    #initializers_dict.update(out_dict)
 
     return initializers_dict
 
@@ -533,9 +529,9 @@ def return_train_val_functions(model,
     def dist_train_step_human(inputs):
         #def train_step(inputs):
         print('tracing human!')
-        sequence,atac,mask,mask_gathered,peaks,target=inputs
+        sequence,atac,mask,mask_gathered,peaks,target,tf_activity =inputs
 
-        input_tuple = sequence, atac#, global_acc
+        input_tuple = sequence, atac, tf_activity#, global_acc
 
         with tf.GradientTape() as tape:
             conv_vars = model.stem_conv.trainable_variables + \
@@ -545,9 +541,9 @@ def return_train_val_functions(model,
 
             performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
                                     model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
-                                    model.pos_embedding_learned.trainable_variables + model.performer.trainable_variables + \
-                                    model.final_pointwise_conv.trainable_variables + model.final_dense_profile.trainable_variables + \
-                                    model.final_dense_peaks.trainable_variables
+                                    model.tf_activity_fc + \
+                                    model.performer.trainable_variables + model.final_pointwise_conv.trainable_variables + \
+                                    model.final_dense_profile.trainable_variables + model.final_dense_peaks.trainable_variables
 
             vars_all = conv_vars + performer_vars
 
@@ -603,9 +599,9 @@ def return_train_val_functions(model,
     def dist_val_step(inputs):
         #def val_step(inputs):
         print('tracing val step!')
-        sequence,atac,mask,mask_gathered,peaks,target=inputs
+        sequence,atac,mask,mask_gathered,peaks,target,tf_activity=inputs
 
-        input_tuple = sequence,atac#,global_acc
+        input_tuple = sequence,atac,tf_activity#,global_acc
 
         output_profile,output_peaks = model(input_tuple,
                                             training=False)
@@ -687,7 +683,8 @@ def deserialize_tr(serialized_example,
         'atac': tf.io.FixedLenFeature([], tf.string),
         'tss_tokens': tf.io.FixedLenFeature([], tf.string),
         'peaks': tf.io.FixedLenFeature([], tf.string),
-        'peaks_center': tf.io.FixedLenFeature([], tf.string)
+        'peaks_center': tf.io.FixedLenFeature([], tf.string),
+        'tf_activity': tf.io.FixedLenFeature([], tf.string)
     }
     '''
     generate random numbers for data augmentation
@@ -726,6 +723,14 @@ def deserialize_tr(serialized_example,
     peaks_center = tf.ensure_shape(tf.io.parse_tensor(data['peaks_center'],
                                               out_type=tf.int32),
                            [output_length])
+    tf_activity = tf.ensure_shape(tf.io.parse_tensor(data['tf_activity'],
+                                              out_type=tf.float32),
+                           [1629])
+    tf_activity = tf.expand_dims(tf_activity,axis=0)
+    tf_activity = tf_activity + tf.math.abs(g.normal(tf_activity.shape,
+                                               mean=0.0,
+                                               stddev=0.5,
+                                               dtype=tf.float32))
 
     peaks = tf.expand_dims(peaks,axis=1)
     peaks_crop = tf.slice(peaks,
@@ -840,9 +845,9 @@ def deserialize_tr(serialized_example,
                         [output_length-2*crop_size,-1])
 
 
-    peaks_gathered = tf.reduce_max(tf.reshape(peaks_crop, [(output_length-2*crop_size) // 2, -1]),
+    peaks_gathered = tf.reduce_max(tf.reshape(peaks_crop, [(output_length-2*crop_size) // 4, -1]),
                                    axis=1,keepdims=True)
-    mask_gathered = tf.reduce_max(tf.reshape(full_comb_mask_store, [(output_length-2*crop_size) // 2, -1]),
+    mask_gathered = tf.reduce_max(tf.reshape(full_comb_mask_store, [(output_length-2*crop_size) // 4, -1]),
                                    axis=1,keepdims=True)
 
     ''' in case we want to run ablation without these inputs'''
@@ -859,7 +864,8 @@ def deserialize_tr(serialized_example,
                 tf.cast(tf.ensure_shape(full_comb_mask_store, [output_length-crop_size*2,1]),dtype=tf.int32), \
                 tf.cast(tf.ensure_shape(mask_gathered, [(output_length-crop_size*2) // 2,1]),dtype=tf.int32), \
                 tf.cast(tf.ensure_shape(peaks_gathered, [(output_length-2*crop_size) // 2,1]),dtype=tf.int32), \
-                tf.cast(tf.ensure_shape(atac_out,[output_length-crop_size*2,1]),dtype=tf.float32)
+                tf.cast(tf.ensure_shape(atac_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
+                tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.float32)
 
 
 
@@ -884,7 +890,8 @@ def deserialize_val(serialized_example,
         'atac': tf.io.FixedLenFeature([], tf.string),
         'tss_tokens': tf.io.FixedLenFeature([], tf.string),
         'peaks': tf.io.FixedLenFeature([], tf.string),
-        'peaks_center': tf.io.FixedLenFeature([], tf.string)
+        'peaks_center': tf.io.FixedLenFeature([], tf.string),
+        'tf_activity': tf.io.FixedLenFeature([], tf.string)
     }
     ### stochastic sequence shift and gaussian noise
     seq_shift=5
@@ -904,6 +911,14 @@ def deserialize_val(serialized_example,
     peaks_center = tf.ensure_shape(tf.io.parse_tensor(data['peaks_center'],
                                               out_type=tf.int32),
                            [output_length])
+    tf_activity = tf.ensure_shape(tf.io.parse_tensor(data['tf_activity'],
+                                              out_type=tf.float32),
+                           [1629])
+    tf_activity = tf.expand_dims(tf_activity,axis=0)
+    tf_activity = tf_activity + tf.math.abs(g.normal(tf_activity.shape,
+                                               mean=0.0,
+                                               stddev=0.5,
+                                               dtype=tf.float32))
 
     peaks_sum = tf.reduce_sum(peaks_center)
     seq_seed = tf.reduce_sum(sequence[:,0])
@@ -1005,7 +1020,8 @@ def deserialize_val(serialized_example,
                 tf.cast(tf.ensure_shape(full_comb_mask_store, [output_length-crop_size*2,1]),dtype=tf.int32), \
                 tf.cast(tf.ensure_shape(mask_gathered, [(output_length-crop_size*2) // 2,1]),dtype=tf.int32), \
                 tf.cast(tf.ensure_shape(peaks_gathered, [(output_length-2*crop_size) // 2,1]),dtype=tf.int32), \
-                tf.cast(tf.ensure_shape(atac_out,[output_length-crop_size*2,1]),dtype=tf.float32)
+                tf.cast(tf.ensure_shape(atac_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
+                tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.float32)
 
 
 def return_dataset(gcs_path,
@@ -1322,11 +1338,11 @@ def parse_args(parser):
                         help='lr_base2')
     parser.add_argument('--wd_1',
                         dest='wd_1',
-                        default="1.0e-03",
+                        default="1.0e-02",
                         help='wd_1')
     parser.add_argument('--wd_2',
                         dest='wd_2',
-                        default="1.0e-03",
+                        default="1.0e-02",
                         help='wd_2')
     parser.add_argument('--decay_frac',
                         dest='decay_frac',
@@ -1427,11 +1443,6 @@ def parse_args(parser):
                         type=str,
                         default="True",
                         help= 'load_init')
-    parser.add_argument('--stable_variant',
-                        dest='stable_variant',
-                        type=str,
-                        default="False",
-                        help= 'stable_variant')
     parser.add_argument('--freeze_conv_layers',
                         dest='freeze_conv_layers',
                         type=str,
@@ -1442,11 +1453,6 @@ def parse_args(parser):
                         type=str,
                         default="True",
                         help= 'use_rot_emb')
-    parser.add_argument('--use_mask_pos',
-                        dest='use_mask_pos',
-                        type=str,
-                        default="False",
-                        help= 'use_mask_pos')
     parser.add_argument('--normalize',
                         dest='normalize',
                         type=str,
@@ -1482,11 +1488,7 @@ def parse_args(parser):
                         type=str,
                         default="adam",
                         help= 'optimizer')
-    parser.add_argument('--learnable_PE',
-                        dest='learnable_PE',
-                        type=str,
-                        default="False",
-                        help= 'learnable_PE')
+
     parser.add_argument('--log_atac',
                         dest='log_atac',
                         type=str,

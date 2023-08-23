@@ -33,7 +33,6 @@ class aformer(tf.keras.Model):
                  use_rot_emb = True,
                  use_mask_pos = False,
                  normalize = True,
-                 stable_variant=True,
                  seed = 3,
                  load_init=False,
                  inits=None,
@@ -42,8 +41,9 @@ class aformer(tf.keras.Model):
                  filter_list_atac=[32, 64],
                  final_point_scale=6,
                  freeze_conv_layers=False,
-                 learnable_PE = False,
                  use_pooling = False,
+                 num_tfs=1629,
+                 tf_dropout_rate=0.05,
                  name: str = 'aformer',
                  **kwargs):
         """ 'aformer' model based on Enformer for predicting RNA-seq from atac + sequence
@@ -77,11 +77,11 @@ class aformer(tf.keras.Model):
         self.freeze_conv_layers = freeze_conv_layers
         self.load_init=load_init
         self.inits_type=inits_type
-        self.stable_variant=stable_variant
-        self.learnable_PE=learnable_PE
         self.BN_momentum=BN_momentum
         self.final_point_scale=final_point_scale
         self.use_pooling=use_pooling
+        self.num_tfs=num_tfs
+        self.tf_dropout_rate=tf_dropout_rate
 
         ## ensure load_init matches actual init inputs...
         if inits is None:
@@ -107,7 +107,6 @@ class aformer(tf.keras.Model):
 
         self.dim = self.hidden_size  // self.num_heads
 
-
         def enf_conv_block(filters,
                            width=1,
                            w_init='lecun_normal',
@@ -126,15 +125,18 @@ class aformer(tf.keras.Model):
                            stride=1,
                            **kwargs):
             return tf.keras.Sequential([
-                sync_batch_norm_fp32(
-                              beta_init=beta_init if self.load_init else "zeros",
-                              gamma_init=gamma_init if self.load_init else "ones",
-                              train=train,
-                              momentum=self.BN_momentum,
-                              epsilon=1.0e-05,
-                              mean_init=mean_init if self.load_init else "zeros",
-                              var_init=var_init if self.load_init else "ones",
-                              **kwargs),
+                self.batch_norm = tf.keras.layers.BatchNormalization(axis=-1,
+                                                    synchronized=True,
+                                                    center=True,
+                                                    scale=True,
+                                                    beta_initializer=beta_init if self.load_init else "zeros",
+                                                    gamma_initializer=gamma_init if self.load_init else "ones",
+                                                     trainable=train,
+                                                     momentum=momentum,
+                                                     epsilon=epsilon,
+                                                     moving_mean_initializer=mean_init if self.load_init else "zeros",
+                                                     moving_variance_initializer=var_init if self.load_init else "ones",
+                                                     **kwargs),
                 tfa.layers.GELU(),
                 tf.keras.layers.Conv1D(filters,
                                      width,
@@ -201,12 +203,6 @@ class aformer(tf.keras.Model):
                                           #k_init=self.inits['stem_pool'] if self.load_init else None,
                                           #train=False if self.freeze_conv_layers else True,
                                           #name ='stem_pool')
-
-        self.pos_embedding_learned = tf.keras.layers.Embedding(self.output_length,
-                                                               self.hidden_size,
-                                                               embeddings_initializer=self.inits['pos_embedding_learned'] if self.load_init_atac else None,
-                                                               input_length=self.output_length)
-
         if self.use_pooling:
             self.conv_tower = tf.keras.Sequential([
                 tf.keras.Sequential([
@@ -328,48 +324,36 @@ class aformer(tf.keras.Model):
         self.sin_pe = abs_sin_PE(name='sin_pe',
                                   **kwargs)
 
-        if self.stable_variant:
-            self.performer = Performer_Encoder_stable(num_layers=self.num_transformer_layers,
-                                                        num_heads=self.num_heads,
-                                                        dim = self.dim,
-                                                        d_model=self.d_model,
-                                                        norm=self.norm,
-                                                        max_seq_length=self.max_seq_length,
-                                                        nb_random_features=self.nb_random_features,
-                                                        hidden_size=self.hidden_size,
-                                                        numerical_stabilizer=self.numerical_stabilizer,
-                                                        dropout_rate=self.dropout_rate,
-                                                        rel_pos_bins=self.rel_pos_bins,
-                                                        use_rot_emb=self.use_rot_emb,
-                                                        use_mask_pos=self.use_mask_pos,
-                                                        kernel_transformation=self.kernel_transformation,
-                                                        normalize=self.normalize,
-                                                        seed = self.seed,
-                                                        load_init= True if (self.load_init and self.inits_type  == 'enformer_performer') else False,
-                                                        inits=inits if self.inits_type  == 'enformer_performer' else None,
-                                                        name = 'shared_transformer',
-                                                        **kwargs)
-        else:
-            self.performer = Performer_Encoder(num_layers=self.num_transformer_layers,
-                                                        num_heads=self.num_heads,
-                                                        dim = self.dim,
-                                                        d_model=self.d_model,
-                                                        norm=self.norm,
-                                                        max_seq_length=self.max_seq_length,
-                                                        nb_random_features=self.nb_random_features,
-                                                        hidden_size=self.hidden_size,
-                                                        numerical_stabilizer=self.numerical_stabilizer,
-                                                        dropout_rate=self.dropout_rate,
-                                                        rel_pos_bins=self.rel_pos_bins,
-                                                        use_rot_emb=self.use_rot_emb,
-                                                        use_mask_pos=self.use_mask_pos,
-                                                        kernel_transformation=self.kernel_transformation,
-                                                        normalize=self.normalize,
-                                                        seed = self.seed,
-                                                        load_init= True if (self.load_init and self.inits_type  == 'enformer_performer') else False,
-                                                        inits=inits if self.inits_type  == 'enformer_performer' else None,
-                                                        name = 'shared_transformer',
-                                                        **kwargs)
+
+        ###
+        self.tf_dropout=kl.Dropout(rate=self.tf_dropout_rate,
+                                    **kwargs)
+        self.tf_activity_fc = kl.Dense(self.hidden_size,
+                                        activation=None
+                                        kernel_initializer='lecun_normal',
+                                        bias_initializer='lecun_normal',
+                                        use_bias=True)
+
+        self.performer = Performer_Encoder(num_layers=self.num_transformer_layers,
+                                                    num_heads=self.num_heads,
+                                                    dim = self.dim,
+                                                    d_model=self.d_model,
+                                                    norm=self.norm,
+                                                    max_seq_length=self.max_seq_length,
+                                                    nb_random_features=self.nb_random_features,
+                                                    hidden_size=self.hidden_size,
+                                                    numerical_stabilizer=self.numerical_stabilizer,
+                                                    dropout_rate=self.dropout_rate,
+                                                    rel_pos_bins=self.rel_pos_bins,
+                                                    use_rot_emb=self.use_rot_emb,
+                                                    use_mask_pos=self.use_mask_pos,
+                                                    kernel_transformation=self.kernel_transformation,
+                                                    normalize=self.normalize,
+                                                    seed = self.seed,
+                                                    load_init= True if (self.load_init and self.inits_type  == 'enformer_performer') else False,
+                                                    inits=inits if self.inits_type  == 'enformer_performer' else None,
+                                                    name = 'shared_transformer',
+                                                    **kwargs)
 
 
         self.crop_final = TargetLengthCrop1D(uncropped_length=self.output_length,
@@ -415,7 +399,7 @@ class aformer(tf.keras.Model):
 
     def call(self, inputs, training:bool=True):
 
-        sequence,atac = inputs
+        sequence,atac,tf_activity = inputs
 
 
         x = self.stem_conv(sequence,
@@ -442,21 +426,19 @@ class aformer(tf.keras.Model):
 
         atac_x = self.conv_tower_atac(atac_x,training=training)
 
+
         transformer_input = tf.concat([x,atac_x],
                                       axis=2)
 
-        if self.learnable_PE:
-            input_pos_indices = tf.range(self.output_length)
-            PE = self.pos_embedding_learned(input_pos_indices)
-            PE = tf.expand_dims(PE,axis=0)
-            PE = tf.tile(PE,
-                         [tf.shape(transformer_input)[0],1,1])
-            transformer_input_x = transformer_input + PE
-        else:
-            transformer_input_x=self.sin_pe(transformer_input)
-
+        ### tf activity
+        tf_activity = self.tf_dropout(tf_activity,training=training)
+        tf_activity = self.tf_activity_fc(tf_activity)
+        transformer_input = tf.concat([transformer_input,tf_activity],
+                                        axis=0)
+        transformer_input_x=self.sin_pe(transformer_input)
         out,att_matrices = self.performer(transformer_input_x,
                                                   training=training)
+        out = out[:, :-1, :, :]
 
         out = self.crop_final(out)
 
@@ -499,9 +481,7 @@ class aformer(tf.keras.Model):
             "filter_list_atac":self.filter_list_atac,
             "freeze_conv_layers":self.freeze_conv_layers,
             "load_init":self.load_init,
-            "inits_type":self.inits_type,
-            "stable_variant":self.stable_variant,
-            "learnable_PE":self.learnable_PE
+            "inits_type":self.inits_type
 
         }
 
@@ -516,7 +496,7 @@ class aformer(tf.keras.Model):
 
     def predict_on_batch(self, inputs, training:bool=False):
 
-        sequence,atac = inputs
+        sequence,atac,tf_activity = inputs
 
         x = self.stem_conv(sequence,
                            training=training)
@@ -541,15 +521,8 @@ class aformer(tf.keras.Model):
         transformer_input = tf.concat([x,atac_x],
                                       axis=2)
 
-        if self.learnable_PE:
-            input_pos_indices = tf.range(self.output_length)
-            PE = self.pos_embedding_learned(input_pos_indices)
-            PE = tf.expand_dims(PE,axis=0)
-            PE = tf.tile(PE,
-                         [transformer_input.shape[0],1,1])
-            transformer_input_x = transformer_input + PE
-        else:
-            transformer_input_x=self.sin_pe(transformer_input)
+
+        transformer_input_x=self.sin_pe(transformer_input)
 
         out_att,att_matrices = self.performer(transformer_input_x,
                                                   training=training)

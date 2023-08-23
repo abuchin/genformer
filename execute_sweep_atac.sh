@@ -41,9 +41,8 @@ python3 train_model_atac.py \
             --load_init="False" \
             --rectify="True" \
             --filter_list_seq="512,564,616,668,720,768" \
-            --filter_list_atac="64,128" \
-            --optimizer="adam" \
-            --stable_variant="False" \
+            --filter_list_atac="32,64" \
+            --optimizer="adamw" \
             --atac_mask_dropout=0.15 \
             --log_atac="False" \
             --learnable_PE="False" \

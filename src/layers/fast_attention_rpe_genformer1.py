@@ -341,19 +341,19 @@ def favor_attention(query,
     query_prime = tf.transpose(query_prime, [1, 0, 2, 3])  # [L,B,H,M]
     key_prime = tf.transpose(key_prime, [1, 0, 2, 3])  # [L,B,H,M]
     value = tf.transpose(value, [1, 0, 2, 3])  # [L,B,H,D]
-    
+
     if causal:
         av_attention = causal_numerator(query_prime, key_prime, value)
         attention_normalizer = causal_denominator(query_prime, key_prime)
     else:
         av_attention = noncausal_numerator(query_prime, key_prime, value)
         attention_normalizer = noncausal_denominator(query_prime, key_prime)
-        
+
   # TODO(kchoro): Add more comments.
     av_attention = tf.transpose(av_attention, [1, 0, 2, 3])
     #print("avattn", av_attention.shape)
     attention_normalizer = tf.transpose(attention_normalizer, [1, 0, 2])
-    
+
     attention_normalizer = tf.expand_dims(attention_normalizer,
                                         len(attention_normalizer.shape))
     return av_attention / attention_normalizer, key_prime, query_prime
@@ -370,8 +370,6 @@ class Attention(tf.keras.layers.Layer):
                  numerical_stabilizer=0.001,
                    causal=False,
                    nb_random_features=16,
-                   use_rot_emb = True,
-                   use_mask_pos = False,
                    eps = 1e-6,
                    normalize = True,
                    seed=42,
@@ -381,9 +379,9 @@ class Attention(tf.keras.layers.Layer):
                  att_output=None,
                  load_init = False
                    ):
-        
+
 #     """Initialize Attention.
-    
+
 #     Args:
 #         hidden_size: int, output dim of hidden layer.
 #         num_heads: int, number of heads to repeat the same attention structure.
@@ -396,9 +394,9 @@ class Attention(tf.keras.layers.Layer):
 #             projection matrix will be applied.
 #         nb_random_features: number of random features to be used (relevant only if
 #             projection_matrix is not None).
-            
+
 #     """
-        
+
 
         if hidden_size % num_heads:
             raise ValueError(
@@ -412,8 +410,6 @@ class Attention(tf.keras.layers.Layer):
         self.numerical_stabilizer = numerical_stabilizer
         self.causal = causal
         self.nb_random_features = nb_random_features
-        self.use_rot_emb = use_rot_emb
-        self.use_mask_pos = use_mask_pos
         self.eps = eps
         self.normalize = normalize
         self.seed = seed
@@ -422,12 +418,12 @@ class Attention(tf.keras.layers.Layer):
         self.k_init=k_init
         self.v_init=v_init
         self.att_output=att_output
-        
+
 
 ## Removed projection matrix type since the call is throwing issues
-    
 
-    
+
+
     def build(self, input_shape):
         """Builds the layer."""
     # Layers for linearly projecting the queries, keys, and values.
@@ -462,14 +458,14 @@ class Attention(tf.keras.layers.Layer):
             kernel_initializer=self.att_output if self.load_init else output_initializer,
             use_bias=False,
             name="output_transform")
-        
+
         seed=tf.cast(self.seed,tf.int32)
         self.projection_matrix = create_projection_matrix(
             self.nb_random_features, size_per_head, seed)
-    
+
         super(Attention, self).build(input_shape)
 
-    
+
     def get_config(self):
         config = {
             "hidden_size": self.hidden_size,
@@ -479,8 +475,6 @@ class Attention(tf.keras.layers.Layer):
             "nb_random_features":self.nb_random_features,
             "causal":self.causal,
             'kernel_transformation':self.kernel_transformation,
-            "use_rot_emb":self.use_rot_emb,
-            "use_mask_pos":self.use_mask_pos,
             "eps":self.eps,
             "normalize":self.normalize,
             "seed":self.seed,
@@ -524,7 +518,7 @@ class Attention(tf.keras.layers.Layer):
         q = tf.cast(self.query_dense_layer(query_input),dtype=tf.float32)
         k = tf.cast(self.key_dense_layer(source_input),dtype=tf.float32)
         v = tf.cast(self.value_dense_layer(source_input),dtype=tf.float32)
-        
+
         if self.kernel_transformation == 'relu_kernel_transformation':
             kernel_transform = relu_kernel_transformation
         elif self.kernel_transformation == 'relu_kernel_transformation_q':
@@ -534,69 +528,19 @@ class Attention(tf.keras.layers.Layer):
 
         dim = q.shape[-1]
         tgt_len = k.shape[1]
-        
-        
-        if self.use_mask_pos is True:
 
-            create_kernel = partial(kernel_transform, projection_matrix= self.projection_matrix)
-            q, k = map(lambda t: tf.transpose(t, [0,2,1,3]), (q,k))
 
-                       #rearrange(t, 'b n h d -> b h n d', h = h), (q, k))
-            if self.normalize: 
-                q = tf.math.l2_normalize(q,axis=-1)
-                k = tf.math.l2_normalize(k,axis=-1)
-            q_prime = create_kernel(q, is_query = True)
-            k_prime = create_kernel(k, is_query = False)
-            #k_prime = rearrange(k_prime, 'b h n d -> b h d n', h=h) #(batch, head, dim_head, seq_len) ([1, 8, 1000, 16])
-            k_prime = tf.transpose(k_prime, [0,1,3,2])
-            #q_prime = rearrange(q_prime, 'b h n d -> b n h d', h=h)
-            q_prime = tf.transpose(q_prime, [0,2,1,3])
-
-            kv = tf.einsum("nhdl,nlhm->nhmdl", k_prime, v)
-
-            # Efficient matrix multiplication
-            u = tf.signal.rfft(tf.cast(rpe,dtype=tf.float32))          #rpe.shape = [num_heads, 2*tgt_len]
-            #print("u", u.shape)
-
-            y = tf.signal.rfft(tf.cast(kv, dtype=tf.float32),
-                               fft_length=[2*tgt_len]) #KV.shape  = [bsz, num_heads, v_dim, k_dim, tgt_len]  
-            y = tf.einsum("hl,nhmdl->nhmdl", u, y)
-            weighted_kv = tf.cast(tf.signal.irfft(y)[:, :,:,:,tgt_len:],dtype=tf.float32)
-
-            y1= tf.signal.rfft(tf.cast(k_prime,dtype=tf.float32) ,
-                               fft_length=[2*tgt_len]) #k.shape  = [bsz, num_heads, k_dim, tgt_len]
-
-            y1 = tf.einsum("hl,nhdl->nhdl", u, y1)
-            weighted_k = tf.cast(tf.signal.irfft(y1)[:, :,:,tgt_len:],dtype=tf.float32)
-            #print("weighted k", weighted_k.shape)
-
-            # Compute the normalizer
-            Z = 1/(tf.einsum("nlhd,nhdl->nlh", q_prime, weighted_k) + self.eps)
-            #Z = rearrange(Z, 'n l h -> n h l') #transpose by keeping the batch dim fixed
-            Z = tf.transpose(Z, [0,2,1])
-            #print("Z rearrange", Z.shape)
-
-            # Finally compute and return the new values
-            # Equivalent to V = torch.einsum("nlhd,nhmdl,nhl->nlhm", Q, weighted_KV, Z)
-            attention_output = tf.einsum("nlhd,nhmdl,nhl->nlhm", q_prime, weighted_kv, Z)
-            # attention_output = rearrange(attention_output, 'b n h d -> b n (h d)')
-            #print("attention_output rearrange", attention_output.shape)
-
-        if self.use_rot_emb is True and self.use_mask_pos is False:
-            #q, k, v = map(lambda t: rearrange(t, 'b n h d -> b h n d', h = h), (q, k, v))
+        if self.use_rot_emb:
             q,k = apply_rotary_pos_emb(q,k,rpe)
-            #k = apply_rotary_pos_emb(rpe, k)
-            #q, k = apply_rotary_pos_emb(q,k,rpe)
             attention_output, k_prime, q_prime = favor_attention(q, k, v,
                                        kernel_transform, self.causal,
                                        self.projection_matrix)
-        if rpe is None and not self.use_rot_emb and not self.use_mask_pos:
+        if rpe is None and not self.use_rot_emb:
             attention_output, k_prime, q_prime = favor_attention(q, k, v,
                                        kernel_transform, self.causal,
                                        self.projection_matrix)
-        
+
         attention_output = self.output_dense_layer(attention_output)
-        #print("attn2", attention_output.shape)
         return attention_output, k_prime, q_prime
 
 
@@ -615,7 +559,7 @@ class SelfAttention(Attention):
     def get_config(self):
         base_config = super(SelfAttention, self).get_config()
         return {**base_config}
-    
+
 
 def rotate_every_two(x):
     x = rearrange(x, '... (d j) -> ... d j', j = 2)
