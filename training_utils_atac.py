@@ -598,6 +598,13 @@ def return_train_val_functions(model,
         #def val_step(inputs):
         print('tracing val step!')
         sequence,atac,mask,mask_gathered,peaks,target,tf_activity=inputs
+        print(sequence.shape)
+        print(atac.shape)
+        print(mask.shape)
+        print(mask_gathered.shape)
+        print(peaks.shape)
+        print(target.shape)
+        print(tf_activity.shape)
 
         input_tuple = sequence,atac,tf_activity
 
@@ -610,7 +617,6 @@ def return_train_val_functions(model,
 
         target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
         output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
-
 
         mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
         target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
