@@ -363,14 +363,11 @@ class aformer(tf.keras.Model):
                                                   **kwargs,
                                                   name = 'final_pointwise')
 
-
         self.final_dense_profile = kl.Dense(1,
                                             activation='softplus',
                                             kernel_initializer='lecun_normal',
                                             bias_initializer='lecun_normal',
                                             use_bias=True)
-
-
 
         self.final_dense_peaks = tf.keras.Sequential([SoftmaxPooling1D(per_channel=True,
                                                           w_init_scale=2.0,
@@ -430,7 +427,9 @@ class aformer(tf.keras.Model):
         #transformer_input_x=self.sin_pe(transformer_input)
         out,att_matrices = self.performer(transformer_input_x,
                                                   training=training)
+        print(out.shape)
         out = out[:, :-1, :]
+        print(out.shape)
 
         out = self.crop_final(out)
 
