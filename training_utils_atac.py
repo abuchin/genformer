@@ -533,6 +533,14 @@ def return_train_val_functions(model,
 
         input_tuple = sequence, atac, tf_activity#, global_acc
 
+        print(sequence.shape)
+        print(atac.shape)
+        print(mask.shape)
+        print(mask_gathered.shape)
+        print(peaks.shape)
+        print(target.shape)
+        print(tf_activity.shape)
+
         with tf.GradientTape() as tape:
             conv_vars = model.stem_conv.trainable_variables + \
                         model.stem_res_conv.trainable_variables + \
@@ -598,13 +606,6 @@ def return_train_val_functions(model,
         #def val_step(inputs):
         print('tracing val step!')
         sequence,atac,mask,mask_gathered,peaks,target,tf_activity=inputs
-        print(sequence.shape)
-        print(atac.shape)
-        print(mask.shape)
-        print(mask_gathered.shape)
-        print(peaks.shape)
-        print(target.shape)
-        print(tf_activity.shape)
 
         input_tuple = sequence,atac,tf_activity
 
