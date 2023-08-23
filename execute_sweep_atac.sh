@@ -27,7 +27,7 @@ python3 train_model_atac.py \
             --model_save_basename="aformer" \
             --lr_base1="2.0e-04" \
             --lr_base2="2.0e-04" \
-            --decay_frac="0.50" \
+            --decay_frac="0.10" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-8 \
             --num_transformer_layers="4" \

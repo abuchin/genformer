@@ -548,7 +548,7 @@ def return_train_val_functions(model,
             vars_all = conv_vars + performer_vars
 
             output_profile,output_peaks = model(input_tuple,
-                                   training=True)
+                                                training=True)
             output_profile = tf.cast(output_profile,dtype=tf.float32) # ensure cast to float32
             output_peaks = tf.cast(output_peaks,dtype=tf.float32)
 
@@ -1296,15 +1296,6 @@ def parse_args(parser):
     parser.add_argument('--gcs_path',
                         dest='gcs_path',
                         help= 'google bucket containing preprocessed data')
-    parser.add_argument('--gcs_path_mm',
-                        dest=None,
-                        help= 'google bucket containing preprocessed data')
-    parser.add_argument('--gcs_path_rm',
-                        dest=None,
-                        help= 'google bucket containing preprocessed data')
-    parser.add_argument('--gcs_path_rat',
-                        dest=None,
-                        help= 'google bucket containing preprocessed data')
     parser.add_argument('--gcs_path_holdout',
                         dest='gcs_path_holdout',
                         help= 'google bucket containing preprocessed data')
@@ -1400,13 +1391,11 @@ def parse_args(parser):
                         default=1.0e-16,
                         type=float,
                         help= 'epsilon')
-
     parser.add_argument('--bce_loss_scale',
                         dest='bce_loss_scale',
                         default=0.90,
                         type=float,
                         help= 'bce_loss_scale')
-
     parser.add_argument('--gradient_clip',
                         dest='gradient_clip',
                         type=str,

@@ -315,11 +315,6 @@ class aformer(tf.keras.Model):
                 for i, num_filters in enumerate(self.filter_list_atac)], name='conv_tower_atac')
 
 
-        #self.sin_pe = abs_sin_PE(name='sin_pe',
-                                    #**kwargs)
-
-
-        ###
         self.tf_dropout=kl.Dropout(rate=self.tf_dropout_rate,
                                     **kwargs)
         self.tf_activity_fc = kl.Dense(self.hidden_size,
@@ -371,7 +366,7 @@ class aformer(tf.keras.Model):
 
         self.final_dense_peaks = tf.keras.Sequential([SoftmaxPooling1D(per_channel=True,
                                                           w_init_scale=2.0,
-                                                          pool_size=2,
+                                                          pool_size=4,
                                                           name ='peaks_pool'),
                                                       kl.Dense(1,
                                                         activation='sigmoid',
@@ -389,7 +384,9 @@ class aformer(tf.keras.Model):
     def call(self, inputs, training:bool=True):
 
         sequence,atac,tf_activity = inputs
-
+        print(sequence.shape)
+        print(atac.shape)
+        print(tf_activity.shape)
 
         x = self.stem_conv(sequence,
                            training=training)
@@ -422,23 +419,19 @@ class aformer(tf.keras.Model):
         tf_activity = self.tf_activity_fc(tf_activity)
         transformer_input_x = tf.concat([transformer_input,tf_activity],
                                         axis=1)
-
+        print(transformer_input_x.shape)
         out,att_matrices = self.performer(transformer_input_x,
-                                                  training=training)
+                                          training=training)
+        print(out.shape)
         out = out[:, :-1, :]
-
+        print(out.shape)
         out = self.crop_final(out)
-
         out = self.final_pointwise_conv(out,
                                        training=training)
-
         out = self.dropout(out,
                         training=training)
         out = self.gelu(out)
-
         out_profile = self.final_dense_profile(out, training=training)
-
-
         out_peaks = self.final_dense_peaks(out, training=training)
 
         return out_profile, out_peaks
