@@ -601,7 +601,7 @@ def return_train_val_functions(model,
         print('tracing val step!')
         sequence,atac,mask,mask_gathered,peaks,target,tf_activity=inputs
 
-        input_tuple = sequence,atac,tf_activity#,global_acc
+        input_tuple = sequence,atac,tf_activity
 
         output_profile,output_peaks = model(input_tuple,
                                             training=False)
@@ -648,8 +648,8 @@ def return_train_val_functions(model,
         @tf.function(reduce_retracing=True)
         def val_step(inputs):
             sequence,atac,mask,mask_gathered,peaks,target,tf_activity=inputs
-            #global_acc=tf.cast(inputs['global_acc'],dtype=tf.bfloat16)
-            input_tuple = sequence,atac#,global_acc
+
+            input_tuple = sequence,atac,tf_activity
 
             output_profile,output_peaks = model(input_tuple,
                            training=False)
