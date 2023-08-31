@@ -41,7 +41,7 @@ class aformer(tf.keras.Model):
                  freeze_conv_layers=False,
                  use_pooling = False,
                  num_tfs=1629,
-                 tf_dropout_rate=0.05,
+                 tf_dropout_rate=0.01,
                  name: str = 'aformer',
                  **kwargs):
         """ 'aformer' model based on Enformer for predicting RNA-seq from atac + sequence
@@ -414,11 +414,15 @@ class aformer(tf.keras.Model):
         ### tf activity
         tf_activity = self.tf_dropout(tf_activity,training=training)
         tf_activity = self.tf_activity_fc(tf_activity)
-        transformer_input_x = tf.concat([transformer_input,tf_activity],
-                                        axis=1)
+
+        tf_activity = tf.tile(tf_activity,
+                               [1,self.output_length,1])
+
+        transformer_input_x = transformer_input + tf_activity
+
         out,att_matrices = self.performer(transformer_input_x,
                                           training=training)
-        out = out[:, :-1, :]
+
         out = self.crop_final(out)
         out = self.final_pointwise_conv(out,
                                        training=training)
@@ -426,9 +430,9 @@ class aformer(tf.keras.Model):
                         training=training)
         out = self.gelu(out)
         out_profile = self.final_dense_profile(out, training=training)
-        out_peaks = self.final_dense_peaks(out, training=training)
+        #out_peaks = self.final_dense_peaks(out, training=training)
 
-        return out_profile, out_peaks
+        return out_profile#, out_peaks
 
 
     def get_config(self):
@@ -472,12 +476,11 @@ class aformer(tf.keras.Model):
 
         x = self.stem_conv(sequence,
                            training=training)
-
         x = self.stem_res_conv(x,
                                training=training)
-
-        x = self.stem_pool(x,
-                           training=training)
+        if self.use_pooling:
+            x = self.stem_pool(x,
+                               training=training)
 
         x = self.conv_tower(x,
                             training=training)
@@ -487,30 +490,34 @@ class aformer(tf.keras.Model):
 
         atac_x = self.stem_res_conv_atac(atac_x,
                                          training=training)
-        atac_x = self.stem_pool_atac(atac_x,training=training)
+        if self.use_pooling:
+            atac_x = self.stem_pool_atac(atac_x,
+                                         training=training)
+
         atac_x = self.conv_tower_atac(atac_x,training=training)
+
 
         transformer_input = tf.concat([x,atac_x],
                                       axis=2)
 
+        ### tf activity
+        tf_activity = self.tf_dropout(tf_activity,training=training)
+        tf_activity = self.tf_activity_fc(tf_activity)
 
-        #transformer_input_x=self.sin_pe(transformer_input)
+        tf_activity = tf.tile(tf_activity,
+                               [1,self.output_length,1])
 
-        out_att,att_matrices = self.performer(transformer_input_x,
-                                                  training=training)
+        transformer_input_x = transformer_input + tf_activity
+        
+        out,att_matrices = self.performer(transformer_input_x,
+                                          training=training)
 
-        out = self.crop_final(out_att)
-
-        final_point = self.final_pointwise_conv(out,
+        out = self.crop_final(out)
+        out = self.final_pointwise_conv(out,
                                        training=training)
-
-        out = self.dropout(final_point,
+        out = self.dropout(out,
                         training=training)
         out = self.gelu(out)
-
         out_profile = self.final_dense_profile(out, training=training)
 
-
-        out_peaks = self.final_dense_peaks(out, training=training)
-
-        return out_profile, out_peaks, final_point, out_att, att_matrices
+        return out_profile, final_point, out_att, att_matrices
