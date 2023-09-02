@@ -543,14 +543,14 @@ def return_train_val_functions(model,
                                     model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
                                     model.tf_activity_fc.trainable_variables + \
                                     model.performer.trainable_variables + model.final_pointwise_conv.trainable_variables + \
-                                    model.final_dense_profile.trainable_variables #+ model.final_dense_peaks.trainable_variables
+                                    model.final_dense_profile.trainable_variables + model.final_dense_peaks.trainable_variables
 
             vars_all = conv_vars + performer_vars
 
             output_profile = model(input_tuple,
                                     training=True)
             output_profile = tf.cast(output_profile,dtype=tf.float32) # ensure cast to float32
-            #output_peaks = tf.cast(output_peaks,dtype=tf.float32)
+            output_peaks = tf.cast(output_peaks,dtype=tf.float32)
 
             mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
 
@@ -559,13 +559,13 @@ def return_train_val_functions(model,
 
             poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac, output_atac))  * (1. / global_batch_size) #* (1.0-bce_loss_scale)
 
-            #mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
-            #target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
-            #output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
+            mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
+            target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
+            output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
 
-            #bce_loss = tf.reduce_mean(bce_loss_func(target_peaks, output_peaks)) * (1./ global_batch_size) * bce_loss_scale
+            bce_loss = tf.reduce_mean(bce_loss_func(target_peaks, output_peaks)) * (1./ global_batch_size) * bce_loss_scale
 
-            loss = poisson_loss #+ bce_loss
+            loss = poisson_loss + bce_loss
 
         gradients = tape.gradient(loss, vars_all)
         gradients, _ = tf.clip_by_global_norm(gradients,
@@ -577,7 +577,7 @@ def return_train_val_functions(model,
                                        performer_vars))
         metric_dict["train_loss"].update_state(loss)
         metric_dict["train_loss_poisson"].update_state(poisson_loss)
-        #metric_dict["train_loss_bce"].update_state(bce_loss)
+        metric_dict["train_loss_bce"].update_state(bce_loss)
 
 
         metric_dict['ATAC_PearsonR_tr'].update_state(target_atac,
@@ -585,13 +585,13 @@ def return_train_val_functions(model,
         metric_dict['ATAC_R2_tr'].update_state(target_atac,
                                             output_atac)
 
-        #metric_dict['ATAC_PR_tr'].update_state(target_peaks,
-        #                                    output_peaks)
-        #metric_dict['ATAC_ROC_tr'].update_state(target_peaks,
-        #                                     output_peaks)
+        metric_dict['ATAC_PR_tr'].update_state(target_peaks,
+                                            output_peaks)
+        metric_dict['ATAC_ROC_tr'].update_state(target_peaks,
+                                             output_peaks)
 
-        #metric_dict['ATAC_TP_tr'].update_state(target_peaks)
-        #metric_dict['ATAC_T_tr'].update_state((target_peaks + (1-target_peaks)))
+        metric_dict['ATAC_TP_tr'].update_state(target_peaks)
+        metric_dict['ATAC_T_tr'].update_state((target_peaks + (1-target_peaks)))
 
     @tf.function(reduce_retracing=True)
     def dist_val_step(inputs):
@@ -604,19 +604,19 @@ def return_train_val_functions(model,
         output_profile = model(input_tuple,
                                 training=False)
         output_profile = tf.cast(output_profile,dtype=tf.float32) # ensure cast to float32
-        #output_peaks = tf.cast(output_peaks,dtype=tf.float32)
+        output_peaks = tf.cast(output_peaks,dtype=tf.float32)
 
         mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
 
         target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
         output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
 
-        #mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
-        #target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
-        #output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
+        mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
+        target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
+        output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
 
-        #bce_loss = tf.reduce_mean(bce_loss_func(target_peaks,
-        #                                        output_peaks)) * (1./ global_batch_size) * bce_loss_scale
+        bce_loss = tf.reduce_mean(bce_loss_func(target_peaks,
+                                                output_peaks)) * (1./ global_batch_size) * bce_loss_scale
 
         poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac,
                                                         output_atac)) * (1. / global_batch_size) #* (1.0-bce_loss_scale)
@@ -628,17 +628,17 @@ def return_train_val_functions(model,
         metric_dict['ATAC_R2'].update_state(target_atac,
                                             output_atac)
 
-        #metric_dict['ATAC_PR'].update_state(target_peaks,
-        #                                    output_peaks)
-        #metric_dict['ATAC_ROC'].update_state(target_peaks,
-        #                                     output_peaks)
+        metric_dict['ATAC_PR'].update_state(target_peaks,
+                                            output_peaks)
+        metric_dict['ATAC_ROC'].update_state(target_peaks,
+                                             output_peaks)
 
-        #metric_dict['ATAC_TP'].update_state(target_peaks)
-        #metric_dict['ATAC_T'].update_state((target_peaks + (1-target_peaks)))
+        metric_dict['ATAC_TP'].update_state(target_peaks)
+        metric_dict['ATAC_T'].update_state((target_peaks + (1-target_peaks)))
 
         metric_dict["val_loss"].update_state(loss)
         metric_dict["val_loss_poisson"].update_state(poisson_loss)
-        #metric_dict["val_loss_bce"].update_state(bce_loss)
+        metric_dict["val_loss_bce"].update_state(bce_loss)
 
 
     def build_step(iterator): #input_batch, model, optimizer, organism, gradient_clip):
@@ -726,6 +726,7 @@ def deserialize_tr(serialized_example,
                            [1629])
     tf_activity = tf.expand_dims(tf_activity,axis=0)
     if not use_tf_activity:
+        print('not using tf activity')
         tf_activity = tf.zeros_like(tf_activity)
     tf_activity = tf_activity + tf.math.abs(g.normal(tf_activity.shape,
                                                mean=0.0,
@@ -757,7 +758,8 @@ def deserialize_tr(serialized_example,
     mask_indices_temp = tf.where(peaks_c_crop[:,0] > 0)[:,0]
     ridx = tf.concat([tf.random.experimental.stateless_shuffle(mask_indices_temp,seed=[4+randomish_seed,5]),
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
-    mask_indices = [[ridx[0]+x+crop_size] for x in range(-num_mask_bins//2,1+(num_mask_bins//2))]
+    mask_indices = [[ridx[0]+x+crop_size] for x in range(-num_mask_bins//2,1+(num_mask_bins//2))] + \
+                    [[ridx[1]+x+crop_size] for x in range(-num_mask_bins//2,1+(num_mask_bins//2))]
 
     st=tf.SparseTensor(
         indices=mask_indices,
@@ -796,18 +798,6 @@ def deserialize_tr(serialized_example,
     full_comb_mask = tf.expand_dims(tf.reshape(tf.tile(full_comb_mask, [1,tiling_req]),[-1]),axis=1)
 
     masked_atac = atac * full_comb_mask
-
-    random_noise = tf.math.abs(g.normal(masked_atac.shape,
-                                       mean=0.0,
-                                       stddev=1.0,
-                                       dtype=tf.float32))
-    masked_atac = masked_atac + (1.0-full_comb_mask)*random_noise
-
-    '''add some random gaussian noise '''
-    masked_atac = masked_atac + tf.math.abs(g.normal(atac.shape,
-                                               mean=0.0,
-                                               stddev=1.0e-04,
-                                               dtype=tf.float32)) ### add some gaussian noise
 
     if log_atac:
         masked_atac = tf.math.log1p(masked_atac)
@@ -853,12 +843,15 @@ def deserialize_tr(serialized_example,
 
     ''' in case we want to run ablation without these inputs'''
     if not use_atac:
-        masked_atac = random_noise
+        print('not using atac')
+        masked_atac = tf.math.abs(g.normal(masked_atac.shape,
+                               mean=0.0,
+                               stddev=1.0,
+                               dtype=tf.float32))
     if not use_seq:
+        print('not using sequence')
         masked_seq = tf.random.experimental.stateless_shuffle(masked_seq,
                                                               seed=[randomish_seed+1,randomish_seed+3])
-
-
 
     return tf.cast(tf.ensure_shape(sequence,[input_length,4]),dtype=tf.bfloat16), \
                 tf.cast(tf.ensure_shape(masked_atac, [output_length_ATAC,1]),dtype=tf.bfloat16), \
@@ -955,7 +948,8 @@ def deserialize_val(serialized_example,
     mask_indices_temp = tf.where(peaks_c_crop[:,0] > 0)[:,0]
     ridx = tf.concat([tf.random.experimental.stateless_shuffle(mask_indices_temp,seed=[4+randomish_seed,5]),
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
-    mask_indices = [[ridx[0]+x+crop_size] for x in range(-num_mask_bins//2,1+(num_mask_bins//2))] ## now select one of the peak centers and mask the surrounding bins
+    mask_indices = [[ridx[0]+x+crop_size] for x in range(-num_mask_bins//2,1+(num_mask_bins//2))] + \
+                    [[ridx[1]+x+crop_size] for x in range(-num_mask_bins//2,1+(num_mask_bins//2))]
 
     st=tf.SparseTensor(
         indices=mask_indices,
@@ -965,7 +959,6 @@ def deserialize_val(serialized_example,
     dense_peak_mask_store = dense_peak_mask
     dense_peak_mask=1.0-dense_peak_mask ### masking regions here are set to 1. so invert the mask to actually use
     dense_peak_mask = tf.expand_dims(dense_peak_mask,axis=1)
-
 
     out_length_cropped = output_length-2*crop_size
     edge_append = tf.ones((crop_size,1),dtype=tf.float32)
@@ -1017,7 +1010,11 @@ def deserialize_val(serialized_example,
                                        stddev=1.0,
                                        dtype=tf.float32))
     if not use_atac:
-        masked_atac = random_noise
+        print('not using atac')
+        masked_atac = tf.math.abs(g.normal(masked_atac.shape,
+                               mean=0.0,
+                               stddev=1.0,
+                               dtype=tf.float32))
     if not use_seq:
         sequence = tf.random.experimental.stateless_shuffle(sequence,
                                                             seed=[1,randomish_seed+12])
