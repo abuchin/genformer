@@ -762,7 +762,7 @@ def deserialize_tr(serialized_example,
                     [[ridx[1]+x+crop_size] for x in range(-num_mask_bins//2,1+(num_mask_bins//2))]
 
     st=tf.SparseTensor(
-        indices=mask_indices,
+        indices=mask_indices.sort(),
         values=[1.0]*len(mask_indices),
         dense_shape=[output_length])
     dense_peak_mask=tf.sparse.to_dense(st)
@@ -952,7 +952,7 @@ def deserialize_val(serialized_example,
                     [[ridx[1]+x+crop_size] for x in range(-num_mask_bins//2,1+(num_mask_bins//2))]
 
     st=tf.SparseTensor(
-        indices=mask_indices,
+        indices=mask_indices.sort(),
         values=[1.0]*len(mask_indices),
         dense_shape=[output_length])
     dense_peak_mask=tf.sparse.to_dense(st)

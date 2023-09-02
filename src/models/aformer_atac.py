@@ -363,7 +363,7 @@ class aformer(tf.keras.Model):
                                             kernel_initializer='lecun_normal',
                                             bias_initializer='lecun_normal',
                                             use_bias=True)
-        '''
+        
         self.final_dense_peaks = tf.keras.Sequential([SoftmaxPooling1D(per_channel=True,
                                                           w_init_scale=2.0,
                                                           pool_size=4,
@@ -374,7 +374,7 @@ class aformer(tf.keras.Model):
                                                         bias_initializer='lecun_normal',
                                                         use_bias=True)],
                                                      name='final_peaks')
-        '''
+
 
 
         self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
@@ -428,9 +428,9 @@ class aformer(tf.keras.Model):
                         training=training)
         out = self.gelu(out)
         out_profile = self.final_dense_profile(out, training=training)
-        #out_peaks = self.final_dense_peaks(out, training=training)
+        out_peaks = self.final_dense_peaks(out, training=training)
 
-        return out_profile#, out_peaks
+        return out_profile, out_peaks
 
 
     def get_config(self):
