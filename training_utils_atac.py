@@ -760,11 +760,14 @@ def deserialize_tr(serialized_example,
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
     mask_indices = [[ridx[0]+x+crop_size] for x in range(-num_mask_bins//2,1+(num_mask_bins//2))] + \
                     [[ridx[1]+x+crop_size] for x in range(-num_mask_bins//2,1+(num_mask_bins//2))]
-    mask_indices.sort()
+    stacked_tensor = tf.stack(mask_indices)
+    sorted_tensor = tf.sort(stacked_tensor, axis=0)
+    mask_indices_list = tf.unstack(sorted_tensor)
+
 
     st=tf.SparseTensor(
-        indices=mask_indices,
-        values=[1.0]*len(mask_indices),
+        indices=mask_indices_list,
+        values=[1.0]*len(mask_indices_list),
         dense_shape=[output_length])
     dense_peak_mask=tf.sparse.to_dense(st)
     dense_peak_mask_store = dense_peak_mask
@@ -951,11 +954,14 @@ def deserialize_val(serialized_example,
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
     mask_indices = [[ridx[0]+x+crop_size] for x in range(-num_mask_bins//2,1+(num_mask_bins//2))] + \
                     [[ridx[1]+x+crop_size] for x in range(-num_mask_bins//2,1+(num_mask_bins//2))]
-    mask_indices.sort()
+
+    stacked_tensor = tf.stack(mask_indices)
+    sorted_tensor = tf.sort(stacked_tensor, axis=0)
+    mask_indices_list = tf.unstack(sorted_tensor)
 
     st=tf.SparseTensor(
-        indices=mask_indices,
-        values=[1.0]*len(mask_indices),
+        indices=mask_indices_list,
+        values=[1.0]*len(mask_indices_list),
         dense_shape=[output_length])
     dense_peak_mask=tf.sparse.to_dense(st)
     dense_peak_mask_store = dense_peak_mask
