@@ -547,7 +547,7 @@ def return_train_val_functions(model,
 
             vars_all = conv_vars + performer_vars
 
-            output_profile = model(input_tuple,
+            output_profile,output_peaks = model(input_tuple,
                                     training=True)
             output_profile = tf.cast(output_profile,dtype=tf.float32) # ensure cast to float32
             output_peaks = tf.cast(output_peaks,dtype=tf.float32)
@@ -601,8 +601,8 @@ def return_train_val_functions(model,
 
         input_tuple = sequence,atac,tf_activity
 
-        output_profile = model(input_tuple,
-                                training=False)
+        output_profile,output_peaks = model(input_tuple,
+                                            training=False)
         output_profile = tf.cast(output_profile,dtype=tf.float32) # ensure cast to float32
         output_peaks = tf.cast(output_peaks,dtype=tf.float32)
 
@@ -648,8 +648,8 @@ def return_train_val_functions(model,
 
             input_tuple = sequence,atac,tf_activity
 
-            output_profile = model(input_tuple,
-                                    training=False)
+            output_profile,output_peaks = model(input_tuple,
+                                                training=False)
 
         #for _ in tf.range(1): ## for loop within @tf.fuction for improved TPU performance
         strategy.run(val_step, args=(next(iterator),))
