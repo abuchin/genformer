@@ -29,7 +29,6 @@ class aformer(tf.keras.Model):
                  norm=True,
                  max_seq_length = 1536,
                  BN_momentum = 0.90,
-                 use_rot_emb = True,
                  normalize = True,
                  seed = 3,
                  load_init=False,
@@ -64,7 +63,6 @@ class aformer(tf.keras.Model):
         self.final_output_length=final_output_length
         self.norm=norm
         self.max_seq_length = max_seq_length + 1
-        self.use_rot_emb = use_rot_emb
         self.normalize = normalize
         self.seed = seed
         self.inits=inits
@@ -182,21 +180,9 @@ class aformer(tf.keras.Model):
                                                          bias_init=self.inits['stem_res_conv_atac_b'] if self.load_init_atac else None,
                                                          name='pointwise_conv_block_atac'))
         self.stem_pool_atac = tf.keras.layers.MaxPool1D(pool_size=2)
-                                    #,SoftmaxPooling1D(per_channel=True,
-                                    #          w_init_scale=2.0,
-                                    #          pool_size=2,
-                                    #           k_init=self.inits['stem_pool_atac'] if self.load_init_atac else None,
-                                    #          train=False if self.freeze_conv_layers else True,
-                                    #          name ='stem_pool_atac')
 
 
         self.stem_pool = tf.keras.layers.MaxPool1D(pool_size=2)
-                                          #SoftmaxPooling1D(per_channel=True,
-                                          #w_init_scale=2.0,
-                                          #pool_size=2,
-                                          #k_init=self.inits['stem_pool'] if self.load_init else None,
-                                          #train=False if self.freeze_conv_layers else True,
-                                          #name ='stem_pool')
         if self.use_pooling:
             self.conv_tower = tf.keras.Sequential([
                 tf.keras.Sequential([
@@ -333,7 +319,6 @@ class aformer(tf.keras.Model):
                                                     hidden_size=self.hidden_size,
                                                     numerical_stabilizer=self.numerical_stabilizer,
                                                     dropout_rate=self.dropout_rate,
-                                                    use_rot_emb=self.use_rot_emb,
                                                     kernel_transformation=self.kernel_transformation,
                                                     normalize=self.normalize,
                                                     seed = self.seed,
@@ -363,7 +348,7 @@ class aformer(tf.keras.Model):
                                             kernel_initializer='lecun_normal',
                                             bias_initializer='lecun_normal',
                                             use_bias=True)
-        
+
         self.final_dense_peaks = tf.keras.Sequential([SoftmaxPooling1D(per_channel=True,
                                                           w_init_scale=2.0,
                                                           pool_size=4,
@@ -447,7 +432,6 @@ class aformer(tf.keras.Model):
             "final_output_length":self.final_output_length,
             "norm":self.norm,
             "max_seq_length":self.max_seq_length,
-            "use_rot_emb":self.use_rot_emb,
             "normalize":self.normalize,
             "seed":self.seed,
             "inits":self.inits,

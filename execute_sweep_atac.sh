@@ -42,7 +42,6 @@ python3 train_model_atac.py \
             --rectify="True" \
             --filter_list_seq="384,408,432,456,488,512" \
             --filter_list_atac="32,64" \
-            --optimizer="adam" \
             --atac_mask_dropout=0.10 \
             --log_atac="False" \
             --sonnet_weights_bool="False" \

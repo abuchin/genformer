@@ -349,7 +349,6 @@ class Performer_Encoder(kl.Layer):
                  name = 'performer_stack',
                  **kwargs):
 
-
         super().__init__(name=name, **kwargs)
         """Performer Encoder block
         Args:

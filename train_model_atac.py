@@ -40,7 +40,7 @@ from scipy.stats.stats import spearmanr
 from scipy import stats
 
 def parse_bool_str(input_str):
-    if input_str == 'False':
+    if ((input_str == 'False') or (input_str == 'false')):
         return False
     else:
         return True
@@ -364,29 +364,10 @@ def main():
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
                                          decay_schedule_fn=scheduler2)
 
-            if wandb.config.optimizer == 'adam':
-                optimizer1 = tf.keras.optimizers.Adam(learning_rate=scheduler1,
-                                                      epsilon=wandb.config.epsilon)
-                optimizer2 = tf.keras.optimizers.Adam(learning_rate=scheduler2,
-                                                      epsilon=wandb.config.epsilon)
-
-            elif wandb.config.optimizer == 'adamw':
-                optimizer1 = tfa.optimizers.AdamW(learning_rate=scheduler1,
-                                                     weight_decay=wandb.config.wd_1,
-                                                     epsilon=wandb.config.epsilon,
-                                                      exclude_from_weight_decay=['layer_norm',
-                                                                                 'bias',
-                                                                                 'embeddings',
-                                                                                 'batch_norm'])
-                optimizer2 = tfa.optimizers.AdamW(learning_rate=scheduler2,
-                                                     weight_decay=wandb.config.wd_2,
-                                                     epsilon=wandb.config.epsilon,
-                                                      exclude_from_weight_decay=['layer_norm',
-                                                                                 'bias',
-                                                                                 'embeddings',
-                                                                                 'batch_norm'])
-            else:
-                raise ValueError('optimizer not found')
+            optimizer1 = tf.keras.optimizers.Adam(learning_rate=scheduler1,
+                                                  epsilon=wandb.config.epsilon)
+            optimizer2 = tf.keras.optimizers.Adam(learning_rate=scheduler2,
+                                                  epsilon=wandb.config.epsilon)
 
             metric_dict = {}
 

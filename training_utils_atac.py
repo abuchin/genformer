@@ -758,16 +758,11 @@ def deserialize_tr(serialized_example,
     mask_indices_temp = tf.where(peaks_c_crop[:,0] > 0)[:,0]
     ridx = tf.concat([tf.random.experimental.stateless_shuffle(mask_indices_temp,seed=[4+randomish_seed,5]),
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
-    mask_indices = [[ridx[0]+x+crop_size] for x in range(-num_mask_bins//2,1+(num_mask_bins//2))] + \
-                    [[ridx[1]+x+crop_size] for x in range(-num_mask_bins//2,1+(num_mask_bins//2))]
-    stacked_tensor = tf.stack(mask_indices)
-    sorted_tensor = tf.sort(stacked_tensor, axis=0)
-    mask_indices_list = tf.unstack(sorted_tensor)
-
+    mask_indices = [[ridx[0]+x+crop_size] for x in range(-num_mask_bins//2,1+(num_mask_bins//2))]
 
     st=tf.SparseTensor(
-        indices=mask_indices_list,
-        values=[1.0]*len(mask_indices_list),
+        indices=mask_indices,
+        values=[1.0]*len(mask_indices),
         dense_shape=[output_length])
     dense_peak_mask=tf.sparse.to_dense(st)
     dense_peak_mask_store = dense_peak_mask
@@ -952,16 +947,11 @@ def deserialize_val(serialized_example,
     mask_indices_temp = tf.where(peaks_c_crop[:,0] > 0)[:,0]
     ridx = tf.concat([tf.random.experimental.stateless_shuffle(mask_indices_temp,seed=[4+randomish_seed,5]),
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
-    mask_indices = [[ridx[0]+x+crop_size] for x in range(-num_mask_bins//2,1+(num_mask_bins//2))] + \
-                    [[ridx[1]+x+crop_size] for x in range(-num_mask_bins//2,1+(num_mask_bins//2))]
-
-    stacked_tensor = tf.stack(mask_indices)
-    sorted_tensor = tf.sort(stacked_tensor, axis=0)
-    mask_indices_list = tf.unstack(sorted_tensor)
+    mask_indices = [[ridx[0]+x+crop_size] for x in range(-num_mask_bins//2,1+(num_mask_bins//2))]
 
     st=tf.SparseTensor(
-        indices=mask_indices_list,
-        values=[1.0]*len(mask_indices_list),
+        indices=mask_indices,
+        values=[1.0]*len(mask_indices),
         dense_shape=[output_length])
     dense_peak_mask=tf.sparse.to_dense(st)
     dense_peak_mask_store = dense_peak_mask
@@ -1345,14 +1335,6 @@ def parse_args(parser):
                         dest='lr_base2',
                         default="1.0e-03",
                         help='lr_base2')
-    parser.add_argument('--wd_1',
-                        dest='wd_1',
-                        default="1.0e-02",
-                        help='wd_1')
-    parser.add_argument('--wd_2',
-                        dest='wd_2',
-                        default="1.0e-02",
-                        help='wd_2')
     parser.add_argument('--decay_frac',
                         dest='decay_frac',
                         type=str,
@@ -1455,11 +1437,6 @@ def parse_args(parser):
                         type=str,
                         default="False",
                         help= 'freeze_conv_layers')
-    parser.add_argument('--use_rot_emb',
-                        dest='use_rot_emb',
-                        type=str,
-                        default="True",
-                        help= 'use_rot_emb')
     parser.add_argument('--normalize',
                         dest='normalize',
                         type=str,
@@ -1495,7 +1472,6 @@ def parse_args(parser):
                         type=str,
                         default="adam",
                         help= 'optimizer')
-
     parser.add_argument('--log_atac',
                         dest='log_atac',
                         type=str,
