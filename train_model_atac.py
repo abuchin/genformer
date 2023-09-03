@@ -98,12 +98,6 @@ def main():
                 'lr_base2': {
                     'values':[float(x) for x in args.lr_base2.split(',')]
                 },
-                'wd_1': {
-                    'values':[float(x) for x in args.wd_1.split(',')]
-                },
-                'wd_2': {
-                    'values':[float(x) for x in args.wd_2.split(',')]
-                },
                 'gradient_clip': {
                     'values': [float(x) for x in args.gradient_clip.split(',')]
                 },
@@ -145,9 +139,6 @@ def main():
                 },
                 'rectify': {
                     'values':[parse_bool_str(x) for x in args.rectify.split(',')]
-                },
-                'optimizer': {
-                    'values':[args.optimizer]
                 },
                 'log_atac': {
                     'values':[parse_bool_str(x) for x in args.log_atac.split(',')]
