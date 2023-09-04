@@ -327,7 +327,6 @@ def main():
                                     max_seq_length=wandb.config.output_length,
                                     norm=True,
                                     BN_momentum=wandb.config.BN_momentum,
-                                    use_rot_emb = True,
                                     normalize = True,
                                     num_transformer_layers=wandb.config.num_transformer_layers,
                                     inits=inits,
