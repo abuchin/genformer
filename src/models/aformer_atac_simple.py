@@ -165,10 +165,10 @@ class aformer(tf.keras.Model):
 
         ### conv stack for sequence inputs
         self.stem_conv_atac = tf.keras.layers.Conv1D(filters=32,
-                                                     kernel_size=125,
+                                                     kernel_size=50,
                                                      kernel_initializer=self.inits['stem_conv_atac_k'] if self.load_init_atac else 'lecun_normal',
                                                      bias_initializer=self.inits['stem_conv_atac_b'] if self.load_init_atac else 'zeros',
-                                                     strides=1 if self.use_pooling else 2,
+                                                     strides=1,
                                                      dilation_rate=1,
                                                      padding='same')
 
@@ -197,7 +197,7 @@ class aformer(tf.keras.Model):
                                kernel_init=self.inits['conv1_k_' + str(i)] if self.load_init else None,
                                bias_init=self.inits['conv1_b_' + str(i)] if self.load_init else None,
                                train=False if self.freeze_conv_layers else True,
-                               stride=1 if self.use_pooling else 2,
+                               stride=1,
                                padding='same'),
                 tf.keras.layers.MaxPool1D(pool_size=2)],
                        name=f'conv_tower_block_{i}')
@@ -228,7 +228,7 @@ class aformer(tf.keras.Model):
         self.tf_dropout=kl.Dropout(rate=self.tf_dropout_rate,
                                     **kwargs)
         self.tf_activity_fc = kl.Dense(self.hidden_size,
-                                        activation=None,
+                                        activation='gelu',
                                         kernel_initializer='lecun_normal',
                                         bias_initializer='lecun_normal',
                                         use_bias=True)
@@ -298,9 +298,9 @@ class aformer(tf.keras.Model):
                            training=training)
         x = self.stem_res_conv(x,
                                training=training)
-        if self.use_pooling:
-            x = self.stem_pool(x,
-                               training=training)
+
+        x = self.stem_pool(x,
+                           training=training)
 
         x = self.conv_tower(x,
                             training=training)
@@ -310,9 +310,9 @@ class aformer(tf.keras.Model):
 
         atac_x = self.stem_res_conv_atac(atac_x,
                                          training=training)
-        if self.use_pooling:
-            atac_x = self.stem_pool_atac(atac_x,
-                                         training=training)
+
+        atac_x = self.stem_pool_atac(atac_x,
+                                     training=training)
 
         atac_x = self.conv_tower_atac(atac_x,training=training)
 
