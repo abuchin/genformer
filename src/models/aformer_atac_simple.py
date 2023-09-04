@@ -199,8 +199,7 @@ class aformer(tf.keras.Model):
                                train=False if self.freeze_conv_layers else True,
                                stride=1 if self.use_pooling else 2,
                                padding='same'),
-                tf.keras.layers.MaxPool1D(pool_size=2)
-                ],
+                tf.keras.layers.MaxPool1D(pool_size=2)],
                        name=f'conv_tower_block_{i}')
             for i, num_filters in enumerate(self.filter_list_seq)], name='conv_tower')
 
@@ -219,10 +218,12 @@ class aformer(tf.keras.Model):
                                dilation_rate=1,
                                stride=1,
                                padding='same'),
-                tf.keras.layers.MaxPool1D(pool_size=4)
-                ],
+                tf.keras.layers.MaxPool1D(pool_size=4)],
                        name=f'conv_tower_block_atac_{i}')
             for i, num_filters in enumerate(self.filter_list_atac)], name='conv_tower_atac')
+
+
+
 
         self.tf_dropout=kl.Dropout(rate=self.tf_dropout_rate,
                                     **kwargs)

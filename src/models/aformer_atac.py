@@ -304,7 +304,7 @@ class aformer(tf.keras.Model):
         self.tf_dropout=kl.Dropout(rate=self.tf_dropout_rate,
                                     **kwargs)
         self.tf_activity_fc = kl.Dense(self.hidden_size,
-                                        activation=None,
+                                        activation='gelu',
                                         kernel_initializer='lecun_normal',
                                         bias_initializer='lecun_normal',
                                         use_bias=True)
