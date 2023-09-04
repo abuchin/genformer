@@ -27,7 +27,7 @@ from tensorflow import strings as tfs
 from tensorflow.keras import mixed_precision
 
 ## custom modules
-import src.models.aformer_atac as aformer
+import src.models.aformer_atac_simple as aformer
 import src.metrics as metrics
 import src.optimizers as optimizers
 import src.schedulers as schedulers

@@ -557,7 +557,7 @@ def return_train_val_functions(model,
             target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
             output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
 
-            poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac, output_atac))  * (1. / global_batch_size) #* (1.0-bce_loss_scale)
+            poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac, output_atac))  * (1. / global_batch_size) * (1.0-bce_loss_scale)
 
             mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
             target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
@@ -619,9 +619,9 @@ def return_train_val_functions(model,
                                                 output_peaks)) * (1./ global_batch_size) * bce_loss_scale
 
         poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac,
-                                                        output_atac)) * (1. / global_batch_size) #* (1.0-bce_loss_scale)
+                                                        output_atac)) * (1. / global_batch_size) * (1.0-bce_loss_scale)
 
-        loss = poisson_loss #+ bce_loss
+        loss = poisson_loss + bce_loss
 
         metric_dict['ATAC_PearsonR'].update_state(target_atac,
                                                   output_atac)
@@ -976,14 +976,6 @@ def deserialize_val(serialized_example,
     tiling_req = output_length_ATAC // output_length
     full_comb_mask = tf.expand_dims(tf.reshape(tf.tile(full_comb_mask, [1,tiling_req]),[-1]),axis=1)
     masked_atac = atac * full_comb_mask
-
-    ### now that we have masked specific tokens by setting them to 0, we want to randomly add wrong tokens to these positions
-    ## first, invert the mask
-    random_noise = tf.math.abs(g.normal(masked_atac.shape,
-                                       mean=0.0,
-                                       stddev=1.0,
-                                       dtype=tf.float32))
-    masked_atac = masked_atac + (1.0-full_comb_mask)*random_noise
 
     if log_atac:
         masked_atac = tf.math.log1p(masked_atac)
