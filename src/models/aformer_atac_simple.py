@@ -148,7 +148,7 @@ class aformer(tf.keras.Model):
                                    kernel_size=15,
                                    kernel_initializer=self.inits['stem_conv_k'] if self.load_init else 'lecun_normal',
                                    bias_initializer=self.inits['stem_conv_b'] if self.load_init else 'zeros',
-                                   strides=1 if self.use_pooling else 2,
+                                   strides=1,
                                    trainable=False if self.freeze_conv_layers else True,
                                    padding='same')
 
@@ -273,17 +273,6 @@ class aformer(tf.keras.Model):
                                             kernel_initializer='lecun_normal',
                                             bias_initializer='lecun_normal',
                                             use_bias=True)
-        self.final_dense_peaks = tf.keras.Sequential([SoftmaxPooling1D(per_channel=True,
-                                                          w_init_scale=2.0,
-                                                          pool_size=4,
-                                                          name ='peaks_pool'),
-                                                      kl.Dense(1,
-                                                        activation='sigmoid',
-                                                        kernel_initializer='lecun_normal',
-                                                        bias_initializer='lecun_normal',
-                                                        use_bias=True)],
-                                                     name='final_peaks')
-
 
         self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
                                   **kwargs)
@@ -335,9 +324,8 @@ class aformer(tf.keras.Model):
                         training=training)
         out = self.gelu(out)
         out_profile = self.final_dense_profile(out, training=training)
-        out_peaks = self.final_dense_peaks(out, training=training)
 
-        return out_profile, out_peaks
+        return out_profile
 
 
     def get_config(self):

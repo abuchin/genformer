@@ -39,6 +39,8 @@ import scipy.special
 import scipy.stats
 import scipy.ndimage
 
+from src.losses import poisson_multinomial
+
 import numpy as np
 from sklearn import metrics as sklearn_metrics
 
@@ -491,8 +493,8 @@ def return_train_val_functions(model,
                                gradient_clip,
                                bce_loss_scale):
 
-    poisson_loss_func = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
-    bce_loss_func = tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
+    #poisson_loss_func = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
+    #bce_loss_func = tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
 
     optimizer1,optimizer2=optimizers_in
 
@@ -543,29 +545,21 @@ def return_train_val_functions(model,
                                     model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
                                     model.tf_activity_fc.trainable_variables + \
                                     model.performer.trainable_variables + model.final_pointwise_conv.trainable_variables + \
-                                    model.final_dense_profile.trainable_variables + model.final_dense_peaks.trainable_variables
+                                    model.final_dense_profile.trainable_variables
 
             vars_all = conv_vars + performer_vars
 
-            output_profile,output_peaks = model(input_tuple,
+            output_profile = model(input_tuple,
                                     training=True)
             output_profile = tf.cast(output_profile,dtype=tf.float32) # ensure cast to float32
-            output_peaks = tf.cast(output_peaks,dtype=tf.float32)
 
             mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
 
             target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
             output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
 
-            poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac, output_atac))  * (1. / global_batch_size) * (1.0-bce_loss_scale)
-
-            mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
-            target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
-            output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
-
-            bce_loss = tf.reduce_mean(bce_loss_func(target_peaks, output_peaks)) * (1./ global_batch_size) * bce_loss_scale
-
-            loss = poisson_loss + bce_loss
+            loss = tf.reduce_mean(poisson_multinomial(target_atac,output_atac,total_weight=0.20,rescale=True)) *\
+                        (1./global_batch_size)
 
         gradients = tape.gradient(loss, vars_all)
         gradients, _ = tf.clip_by_global_norm(gradients,
@@ -576,22 +570,11 @@ def return_train_val_functions(model,
         optimizer2.apply_gradients(zip(gradients[len(conv_vars):],
                                        performer_vars))
         metric_dict["train_loss"].update_state(loss)
-        metric_dict["train_loss_poisson"].update_state(poisson_loss)
-        metric_dict["train_loss_bce"].update_state(bce_loss)
-
 
         metric_dict['ATAC_PearsonR_tr'].update_state(target_atac,
                                                   output_atac)
         metric_dict['ATAC_R2_tr'].update_state(target_atac,
                                             output_atac)
-
-        metric_dict['ATAC_PR_tr'].update_state(target_peaks,
-                                            output_peaks)
-        metric_dict['ATAC_ROC_tr'].update_state(target_peaks,
-                                             output_peaks)
-
-        metric_dict['ATAC_TP_tr'].update_state(target_peaks)
-        metric_dict['ATAC_T_tr'].update_state((target_peaks + (1-target_peaks)))
 
     @tf.function(reduce_retracing=True)
     def dist_val_step(inputs):
@@ -601,44 +584,21 @@ def return_train_val_functions(model,
 
         input_tuple = sequence,atac,tf_activity
 
-        output_profile,output_peaks = model(input_tuple,
+        output_profile = model(input_tuple,
                                             training=False)
         output_profile = tf.cast(output_profile,dtype=tf.float32) # ensure cast to float32
-        output_peaks = tf.cast(output_peaks,dtype=tf.float32)
 
         mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
 
         target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
         output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
-
-        mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
-        target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
-        output_peaks = tf.gather(output_peaks[:,:,0], mask_gather_indices,axis=1)
-
-        bce_loss = tf.reduce_mean(bce_loss_func(target_peaks,
-                                                output_peaks)) * (1./ global_batch_size) * bce_loss_scale
-
-        poisson_loss = tf.reduce_mean(poisson_loss_func(target_atac,
-                                                        output_atac)) * (1. / global_batch_size) * (1.0-bce_loss_scale)
-
-        loss = poisson_loss + bce_loss
-
+        loss = tf.reduce_mean(poisson_multinomial(target_atac,output_atac,total_weight=0.20,rescale=True)) *\
+                    (1./global_batch_size)
         metric_dict['ATAC_PearsonR'].update_state(target_atac,
                                                   output_atac)
         metric_dict['ATAC_R2'].update_state(target_atac,
                                             output_atac)
-
-        metric_dict['ATAC_PR'].update_state(target_peaks,
-                                            output_peaks)
-        metric_dict['ATAC_ROC'].update_state(target_peaks,
-                                             output_peaks)
-
-        metric_dict['ATAC_TP'].update_state(target_peaks)
-        metric_dict['ATAC_T'].update_state((target_peaks + (1-target_peaks)))
-
         metric_dict["val_loss"].update_state(loss)
-        metric_dict["val_loss_poisson"].update_state(poisson_loss)
-        metric_dict["val_loss_bce"].update_state(bce_loss)
 
 
     def build_step(iterator): #input_batch, model, optimizer, organism, gradient_clip):
@@ -648,8 +608,8 @@ def return_train_val_functions(model,
 
             input_tuple = sequence,atac,tf_activity
 
-            output_profile,output_peaks = model(input_tuple,
-                                                training=False)
+            output_profile = model(input_tuple,
+                                    training=False)
 
         #for _ in tf.range(1): ## for loop within @tf.fuction for improved TPU performance
         strategy.run(val_step, args=(next(iterator),))
