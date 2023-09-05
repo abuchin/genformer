@@ -7,8 +7,8 @@ import pandas as pd
 '''genformer trial losses'''
 
 def poisson_multinomial(y_true, y_pred, total_weight=1, epsilon=1e-6, rescale=False):
-    ## copied from the basenji suite 
-  seq_len = y_true.shape[1]
+    ## copied from the basenji suite
+  seq_len = tf.cast(tf.shape(y_true)[1],dtype=tf.float32)
 
   # add epsilon to protect against tiny values
   y_true += epsilon
@@ -34,7 +34,7 @@ def poisson_multinomial(y_true, y_pred, total_weight=1, epsilon=1e-6, rescale=Fa
   # normalize to scale of 1:1 term ratio
   loss_raw = multinomial_term + total_weight * poisson_term
   if rescale:
-    loss_rescale = loss_raw*2/(1 + total_weight)
+    loss_rescale = loss_raw*2.0/(1.0 + total_weight)
   else:
     loss_rescale = loss_raw
 
