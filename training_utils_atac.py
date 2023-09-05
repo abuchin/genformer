@@ -490,42 +490,21 @@ def return_train_val_functions(model,
                                strategy,
                                metric_dict,
                                global_batch_size,
-                               gradient_clip,
-                               bce_loss_scale):
-
-    #poisson_loss_func = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
-    #bce_loss_func = tf.keras.losses.BinaryCrossentropy(reduction=tf.keras.losses.Reduction.NONE)
+                               gradient_clip):
 
     optimizer1,optimizer2=optimizers_in
 
     metric_dict["train_loss"] = tf.keras.metrics.Mean("train_loss",
                                                  dtype=tf.float32)
-    metric_dict["train_loss_bce"] = tf.keras.metrics.Mean("train_loss_bce",
-                                                 dtype=tf.float32)
-    metric_dict["train_loss_poisson"] = tf.keras.metrics.Mean("train_loss_poisson",
-                                                 dtype=tf.float32)
     metric_dict["val_loss"] = tf.keras.metrics.Mean("val_loss",
-                                                  dtype=tf.float32)
-
-    metric_dict["val_loss_bce"] = tf.keras.metrics.Mean("val_loss_bce",
-                                                  dtype=tf.float32)
-    metric_dict["val_loss_poisson"] = tf.keras.metrics.Mean("val_loss_poisson",
                                                   dtype=tf.float32)
 
 
     metric_dict['ATAC_PearsonR_tr'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
     metric_dict['ATAC_R2_tr'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
-    metric_dict['ATAC_PR_tr'] = tf.keras.metrics.AUC(curve='PR')
-    metric_dict['ATAC_ROC_tr'] = tf.keras.metrics.AUC(curve='ROC')
-    metric_dict['ATAC_TP_tr'] = tf.keras.metrics.Sum()
-    metric_dict['ATAC_T_tr'] = tf.keras.metrics.Sum()
 
     metric_dict['ATAC_PearsonR'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
     metric_dict['ATAC_R2'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
-    metric_dict['ATAC_PR'] = tf.keras.metrics.AUC(curve='PR')
-    metric_dict['ATAC_ROC'] = tf.keras.metrics.AUC(curve='ROC')
-    metric_dict['ATAC_TP'] = tf.keras.metrics.Sum()
-    metric_dict['ATAC_T'] = tf.keras.metrics.Sum()
 
     @tf.function(reduce_retracing=True)
     def dist_train_step_human(inputs):
@@ -1333,11 +1312,6 @@ def parse_args(parser):
                         default=1.0e-16,
                         type=float,
                         help= 'epsilon')
-    parser.add_argument('--bce_loss_scale',
-                        dest='bce_loss_scale',
-                        default=0.90,
-                        type=float,
-                        help= 'bce_loss_scale')
     parser.add_argument('--gradient_clip',
                         dest='gradient_clip',
                         type=str,

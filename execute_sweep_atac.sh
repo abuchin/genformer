@@ -49,7 +49,6 @@ python3 train_model_atac.py \
             --use_atac="True" \
             --final_point_scale="6" \
             --use_seq="True" \
-            --bce_loss_scale="0.975" \
             --use_pooling="True" \
             --seed=15 \
             --seq_corrupt_rate="20" \
