@@ -406,7 +406,7 @@ def main():
                           step=step_num)
                 duration = (time.time() - start) / 60.
 
-                print('completed epoch ' + str(epoch_i) + 'training duration(mins): ' + str(duration))
+                print('completed epoch ' + str(epoch_i) + ' - duration(mins): ' + str(duration))
 
                 ####### validation steps #######################
                 start = time.time()
@@ -414,8 +414,8 @@ def main():
                 true_list = []
                 for k in range(wandb.config.val_steps_ho):
                     true, pred = strategy.run(val_step, args=(next(data_val_ho),))
-                    pred_list.append(tf.reshape(strategy.gather(pred_rep, axis=0), [-1]))
-                    true_list.append(tf.reshape(strategy.gather(true_rep, axis=0), [-1]))
+                    pred_list.append(tf.reshape(strategy.gather(pred, axis=0), [-1]))
+                    true_list.append(tf.reshape(strategy.gather(true, axis=0), [-1]))
 
                 figures,overall_corr,overall_corr_log= training_utils.make_plots(tf.concat(pred_list,0),
                                                                                  tf.concat(true_list,0),
@@ -444,8 +444,7 @@ def main():
                           step=step_num)
 
                 duration = (time.time() - start) / 60.
-                print('completed epoch ' + str(epoch_i) + ' validation')
-                print('validation duration(mins): ' + str(duration))
+                print('completed epoch ' + str(epoch_i) + ' validation - duration(mins): ' + str(duration))
 
                 if (epoch_i > 2):
                     stop_criteria,patience_counter,best_epoch = \
