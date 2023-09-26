@@ -49,440 +49,6 @@ from scipy.stats import zscore
 
 tf.keras.backend.set_floatx('float32')
 
-def tf_tpu_initialize(tpu_name,zone):
-    """Initialize TPU and return global batch size for loss calculation
-    Args:
-        tpu_name
-    Returns:
-        distributed strategy
-    """
-
-    try:
-        cluster_resolver = tf.distribute.cluster_resolver.TPUClusterResolver(
-            tpu=tpu_name,zone=zone)
-        tf.config.experimental_connect_to_cluster(cluster_resolver)
-        tf.tpu.experimental.initialize_tpu_system(cluster_resolver)
-        strategy = tf.distribute.TPUStrategy(cluster_resolver)
-
-    except ValueError: # no TPU found, detect GPUs
-        strategy = tf.distribute.get_strategy()
-
-    return strategy
-
-
-def get_initializers_enformer_conv(checkpoint_path,
-                                   from_enformer_bool,
-                                   num_convs):
-
-    inside_checkpoint=tf.train.list_variables(tf.train.latest_checkpoint(checkpoint_path))
-    reader = tf.train.load_checkpoint(checkpoint_path)
-
-
-    if from_enformer_bool:
-        initializers_dict = {'stem_conv_k': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/0/w/.ATTRIBUTES/VARIABLE_VALUE')),
-                             'stem_conv_b': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/0/b/.ATTRIBUTES/VARIABLE_VALUE')),
-                             'stem_res_conv_k': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/1/_module/_layers/2/w/.ATTRIBUTES/VARIABLE_VALUE')),
-                             'stem_res_conv_b': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/1/_module/_layers/2/b/.ATTRIBUTES/VARIABLE_VALUE')),
-                             'stem_res_conv_BN_g': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/1/_module/_layers/0/scale/.ATTRIBUTES/VARIABLE_VALUE')),
-                             'stem_res_conv_BN_b': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/1/_module/_layers/0/offset/.ATTRIBUTES/VARIABLE_VALUE')),
-                             'stem_res_conv_BN_m': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/1/_module/_layers/0/moving_mean/average/.ATTRIBUTES/VARIABLE_VALUE')[0,0:]),
-                             'stem_res_conv_BN_v': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/1/_module/_layers/0/moving_variance/average/.ATTRIBUTES/VARIABLE_VALUE')[0,0:]),
-                             'stem_pool': inits.Constant(reader.get_tensor('module/_trunk/_layers/0/_layers/2/_logit_linear/w/.ATTRIBUTES/VARIABLE_VALUE'))}
-
-        for i in range(num_convs):
-            var_name_stem = 'module/_trunk/_layers/1/_layers/' + str(i) + '/_layers/' #0/moving_mean/_counter/.ATTRIBUTES/VARIABLE_VALUE'
-
-            conv1_k = var_name_stem + '0/_layers/2/w/.ATTRIBUTES/VARIABLE_VALUE'
-            conv1_b = var_name_stem + '0/_layers/2/b/.ATTRIBUTES/VARIABLE_VALUE'
-            BN1_g = var_name_stem + '0/_layers/0/scale/.ATTRIBUTES/VARIABLE_VALUE'
-            BN1_b = var_name_stem + '0/_layers/0/offset/.ATTRIBUTES/VARIABLE_VALUE'
-            BN1_m = var_name_stem + '0/_layers/0/moving_mean/average/.ATTRIBUTES/VARIABLE_VALUE'
-            BN1_v = var_name_stem + '0/_layers/0/moving_variance/average/.ATTRIBUTES/VARIABLE_VALUE'
-            conv2_k = var_name_stem + '1/_module/_layers/2/w/.ATTRIBUTES/VARIABLE_VALUE'
-            conv2_b = var_name_stem + '1/_module/_layers/2/b/.ATTRIBUTES/VARIABLE_VALUE'
-            BN2_g = var_name_stem + '1/_module/_layers/0/scale/.ATTRIBUTES/VARIABLE_VALUE'
-            BN2_b = var_name_stem + '1/_module/_layers/0/offset/.ATTRIBUTES/VARIABLE_VALUE'
-            BN2_m = var_name_stem + '1/_module/_layers/0/moving_mean/average/.ATTRIBUTES/VARIABLE_VALUE'
-            BN2_v = var_name_stem + '1/_module/_layers/0/moving_variance/average/.ATTRIBUTES/VARIABLE_VALUE'
-            pool = var_name_stem + '2/_logit_linear/w/.ATTRIBUTES/VARIABLE_VALUE'
-
-            out_dict = {'conv1_k_' + str(i): inits.Constant(reader.get_tensor(conv1_k)),
-                        'conv1_b_' + str(i): inits.Constant(reader.get_tensor(conv1_b)),
-                        'BN1_g_' + str(i): inits.Constant(reader.get_tensor(BN1_g)),
-                        'BN1_b_' + str(i): inits.Constant(reader.get_tensor(BN1_b)),
-                        'BN1_m_' + str(i): inits.Constant(reader.get_tensor(BN1_m)),
-                        'BN1_v_' + str(i): inits.Constant(reader.get_tensor(BN1_v)),
-                        'conv2_k_' + str(i): inits.Constant(reader.get_tensor(conv2_k)),
-                        'conv2_b_' + str(i): inits.Constant(reader.get_tensor(conv2_b)),
-                        'BN2_g_' + str(i): inits.Constant(reader.get_tensor(BN2_g)),
-                        'BN2_b_' + str(i): inits.Constant(reader.get_tensor(BN2_b)),
-                        'BN2_m_' + str(i): inits.Constant(reader.get_tensor(BN2_m)),
-                        'BN2_v_' + str(i): inits.Constant(reader.get_tensor(BN2_v)),
-                        'pool_' + str(i): inits.Constant(reader.get_tensor(pool))}
-            initializers_dict.update(out_dict)
-    else:
-
-        initializers_dict = {'stem_conv_k': inits.Constant(reader.get_tensor('stem_conv/kernel/.ATTRIBUTES/VARIABLE_VALUE')),
-                             'stem_conv_b': inits.Constant(reader.get_tensor('stem_conv/bias/.ATTRIBUTES/VARIABLE_VALUE')),
-                             'stem_res_conv_k': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE')),
-                             'stem_res_conv_b': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE')),
-                             'stem_res_conv_BN_g': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/gamma/.ATTRIBUTES/VARIABLE_VALUE')),
-                             'stem_res_conv_BN_b': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/beta/.ATTRIBUTES/VARIABLE_VALUE')),
-                             'stem_res_conv_BN_m': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/moving_mean/.ATTRIBUTES/VARIABLE_VALUE')),
-                             'stem_res_conv_BN_v': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/moving_variance/.ATTRIBUTES/VARIABLE_VALUE')),
-                             'stem_pool': inits.Constant(reader.get_tensor('stem_pool/_logit_linear/kernel/.ATTRIBUTES/VARIABLE_VALUE'))}
-
-        for i in range(num_convs):
-            var_name_stem = 'conv_tower/layer_with_weights-' + str(i) + '/layer_with_weights-'
-
-
-
-            conv1_k = var_name_stem + '0/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE'
-            conv1_b = var_name_stem + '0/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE'
-            BN1_g = var_name_stem + '0/layer_with_weights-0/gamma/.ATTRIBUTES/VARIABLE_VALUE'
-            BN1_b = var_name_stem + '0/layer_with_weights-0/beta/.ATTRIBUTES/VARIABLE_VALUE'
-            BN1_m = var_name_stem + '0/layer_with_weights-0/moving_mean/.ATTRIBUTES/VARIABLE_VALUE'
-            BN1_v = var_name_stem + '0/layer_with_weights-0/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'
-
-            conv2_k = var_name_stem + '1/_layer/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE'
-            conv2_b = var_name_stem + '1/_layer/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE'
-            BN2_g = var_name_stem + '1/_layer/layer_with_weights-0/gamma/.ATTRIBUTES/VARIABLE_VALUE'
-            BN2_b = var_name_stem + '1/_layer/layer_with_weights-0/beta/.ATTRIBUTES/VARIABLE_VALUE'
-            BN2_m = var_name_stem + '1/_layer/layer_with_weights-0/moving_mean/.ATTRIBUTES/VARIABLE_VALUE'
-            BN2_v = var_name_stem + '1/_layer/layer_with_weights-0/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'
-            pool = var_name_stem + '2/_logit_linear/kernel/.ATTRIBUTES/VARIABLE_VALUE'
-
-
-            out_dict = {'conv1_k_' + str(i): inits.Constant(reader.get_tensor(conv1_k)),
-                        'conv1_b_' + str(i): inits.Constant(reader.get_tensor(conv1_b)),
-                        'BN1_g_' + str(i): inits.Constant(reader.get_tensor(BN1_g)),
-                        'BN1_b_' + str(i): inits.Constant(reader.get_tensor(BN1_b)),
-                        'BN1_m_' + str(i): inits.Constant(reader.get_tensor(BN1_m)),
-                        'BN1_v_' + str(i): inits.Constant(reader.get_tensor(BN1_v)),
-                        'conv2_k_' + str(i): inits.Constant(reader.get_tensor(conv2_k)),
-                        'conv2_b_' + str(i): inits.Constant(reader.get_tensor(conv2_b)),
-                        'BN2_g_' + str(i): inits.Constant(reader.get_tensor(BN2_g)),
-                        'BN2_b_' + str(i): inits.Constant(reader.get_tensor(BN2_b)),
-                        'BN2_m_' + str(i): inits.Constant(reader.get_tensor(BN2_m)),
-                        'BN2_v_' + str(i): inits.Constant(reader.get_tensor(BN2_v)),
-                        'pool_' + str(i): inits.Constant(reader.get_tensor(pool))}
-            initializers_dict.update(out_dict)
-    return initializers_dict
-
-def get_initializers_enformer_performer(checkpoint_path,
-                                        num_transformer_layers):
-
-    inside_checkpoint=tf.train.list_variables(tf.train.latest_checkpoint(checkpoint_path))
-    reader = tf.train.load_checkpoint(checkpoint_path)
-
-    initializers_dict = {'stem_conv_k': inits.Constant(reader.get_tensor('stem_conv/kernel/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_conv_b': inits.Constant(reader.get_tensor('stem_conv/bias/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_k': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_b': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_BN_g': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/batch_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_BN_b': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/batch_norm/beta/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_BN_m': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/batch_norm/moving_mean/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_BN_v': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/batch_norm/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'))}
-
-
-    out_dict = {'stem_conv_atac_k': inits.Constant(reader.get_tensor('stem_conv_atac/kernel/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_conv_atac_b': inits.Constant(reader.get_tensor('stem_conv_atac/bias/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_atac_k': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_atac_b': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_atac_BN_g': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-0/batch_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_atac_BN_b': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-0/batch_norm/beta/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_atac_BN_m': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-0/batch_norm/moving_mean/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_atac_BN_v': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-0/batch_norm/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'))}
-    initializers_dict.update(out_dict)
-
-
-    out_dict = {'final_point_k': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'final_point_b': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'final_point_BN_g': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-0/batch_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'final_point_BN_b': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-0/batch_norm/beta/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'final_point_BN_m': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-0/batch_norm/moving_mean/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'final_point_BN_v': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-0/batch_norm/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'))}
-    initializers_dict.update(out_dict)
-
-
-    initializers_dict['stem_pool'] = inits.Constant(reader.get_tensor('stem_pool/_logit_linear/kernel/.ATTRIBUTES/VARIABLE_VALUE'))
-    initializers_dict['stem_pool_atac'] = inits.Constant(reader.get_tensor('stem_pool_atac/_logit_linear/kernel/.ATTRIBUTES/VARIABLE_VALUE'))
-
-    ## load in convolutional weights
-    for i in range(6):
-        var_name_stem = 'conv_tower/layer_with_weights-' + str(i) + '/layer_with_weights-' #0/moving_mean/_counter/.ATTRIBUTES/VARIABLE_VALUE'
-
-        conv1_k = var_name_stem + '0/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE'
-        conv1_b = var_name_stem + '0/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_g = var_name_stem + '0/layer_with_weights-0/batch_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_b = var_name_stem + '0/layer_with_weights-0/batch_norm/beta/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_m = var_name_stem + '0/layer_with_weights-0/batch_norm/moving_mean/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_v = var_name_stem + '0/layer_with_weights-0/batch_norm/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'
-
-        conv2_k = var_name_stem + '1/_layer/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE'
-        conv2_b = var_name_stem + '1/_layer/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_g = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_b = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/beta/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_m = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/moving_mean/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_v = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'
-        pool = var_name_stem + '2/_logit_linear/kernel/.ATTRIBUTES/VARIABLE_VALUE'
-
-        out_dict = {'conv1_k_' + str(i): inits.Constant(reader.get_tensor(conv1_k)),
-                    'conv1_b_' + str(i): inits.Constant(reader.get_tensor(conv1_b)),
-                    'BN1_g_' + str(i): inits.Constant(reader.get_tensor(BN1_g)),
-                    'BN1_b_' + str(i): inits.Constant(reader.get_tensor(BN1_b)),
-                    'BN1_m_' + str(i): inits.Constant(reader.get_tensor(BN1_m)),
-                    'BN1_v_' + str(i): inits.Constant(reader.get_tensor(BN1_v)),
-                    'conv2_k_' + str(i): inits.Constant(reader.get_tensor(conv2_k)),
-                    'conv2_b_' + str(i): inits.Constant(reader.get_tensor(conv2_b)),
-                    'BN2_g_' + str(i): inits.Constant(reader.get_tensor(BN2_g)),
-                    'BN2_b_' + str(i): inits.Constant(reader.get_tensor(BN2_b)),
-                    'BN2_m_' + str(i): inits.Constant(reader.get_tensor(BN2_m)),
-                    'BN2_v_' + str(i): inits.Constant(reader.get_tensor(BN2_v))}
-
-        out_dict['pool_' + str(i)] = inits.Constant(reader.get_tensor(pool))
-        initializers_dict.update(out_dict)
-
-
-    ## load in convolutional weights ATAC
-    for i in range(2):
-        var_name_stem = 'conv_tower_atac/layer_with_weights-' + str(i) + '/layer_with_weights-' #0/moving_mean/_counter/.ATTRIBUTES/VARIABLE_VALUE'
-
-        conv1_k = var_name_stem + '0/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE'
-        conv1_b = var_name_stem + '0/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_g = var_name_stem + '0/layer_with_weights-0/batch_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_b = var_name_stem + '0/layer_with_weights-0/batch_norm/beta/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_m = var_name_stem + '0/layer_with_weights-0/batch_norm/moving_mean/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_v = var_name_stem + '0/layer_with_weights-0/batch_norm/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'
-
-        conv2_k = var_name_stem + '1/_layer/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE'
-        conv2_b = var_name_stem + '1/_layer/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_g = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_b = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/beta/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_m = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/moving_mean/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_v = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'
-        pool = var_name_stem + '2/_logit_linear/kernel/.ATTRIBUTES/VARIABLE_VALUE'
-
-        out_dict = {'conv_at1_k_' + str(i): inits.Constant(reader.get_tensor(conv1_k)),
-                    'conv_at1_b_' + str(i): inits.Constant(reader.get_tensor(conv1_b)),
-                    'BN_at1_g_' + str(i): inits.Constant(reader.get_tensor(BN1_g)),
-                    'BN_at1_b_' + str(i): inits.Constant(reader.get_tensor(BN1_b)),
-                    'BN_at1_m_' + str(i): inits.Constant(reader.get_tensor(BN1_m)),
-                    'BN_at1_v_' + str(i): inits.Constant(reader.get_tensor(BN1_v)),
-                    'conv_at2_k_' + str(i): inits.Constant(reader.get_tensor(conv2_k)),
-                    'conv_at2_b_' + str(i): inits.Constant(reader.get_tensor(conv2_b)),
-                    'BN_at2_g_' + str(i): inits.Constant(reader.get_tensor(BN2_g)),
-                    'BN_at2_b_' + str(i): inits.Constant(reader.get_tensor(BN2_b)),
-                    'BN_at2_m_' + str(i): inits.Constant(reader.get_tensor(BN2_m)),
-                    'BN_at2_v_' + str(i): inits.Constant(reader.get_tensor(BN2_v))}
-
-        out_dict['pool_at_' + str(i)] = inits.Constant(reader.get_tensor(pool))
-        initializers_dict.update(out_dict)
-
-
-    initializers_dict['performer_encoder_LN_b'] = inits.Constant(reader.get_tensor("performer/layer_norm/layer_norm/beta/.ATTRIBUTES/VARIABLE_VALUE"))
-    initializers_dict['performer_encoder_LN_g'] = inits.Constant(reader.get_tensor("performer/layer_norm/layer_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE"))
-
-    for i in range(num_transformer_layers):
-        var_name_stem = 'performer/layers/' + str(i) + '/' #0/moving_mean/_counter/.ATTRIBUTES/VARIABLE_VALUE'
-
-        #if not stable_variant:
-        LN_b=var_name_stem + 'layer_norm/layer_norm/beta/.ATTRIBUTES/VARIABLE_VALUE'
-        LN_g=var_name_stem + 'layer_norm/layer_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE'
-        out_dict = {'LN_b' + str(i): inits.Constant(reader.get_tensor(LN_b)),
-                    'LN_g' + str(i): inits.Constant(reader.get_tensor(LN_g))}
-        initializers_dict.update(out_dict)
-
-        SA_k=var_name_stem + "self_attention/key_dense_layer/kernel/.ATTRIBUTES/VARIABLE_VALUE"
-        SA_q=var_name_stem + "self_attention/query_dense_layer/kernel/.ATTRIBUTES/VARIABLE_VALUE"
-        SA_v=var_name_stem + "self_attention/value_dense_layer/kernel/.ATTRIBUTES/VARIABLE_VALUE"
-        SA_O=var_name_stem + "self_attention/output_dense_layer/kernel/.ATTRIBUTES/VARIABLE_VALUE"
-
-        FFN_narr_k=var_name_stem + "FFN/FFN_dense_narrow/kernel/.ATTRIBUTES/VARIABLE_VALUE"
-        FFN_narr_b=var_name_stem + "FFN/FFN_dense_narrow/bias/.ATTRIBUTES/VARIABLE_VALUE"
-        FFN_wide_k=var_name_stem + "FFN/FFN_dense_wide/kernel/.ATTRIBUTES/VARIABLE_VALUE"
-        FFN_wide_b=var_name_stem + "FFN/FFN_dense_wide/bias/.ATTRIBUTES/VARIABLE_VALUE"
-        FFN_LN_b=var_name_stem + "FFN/FFN_layer_norm/layer_norm/beta/.ATTRIBUTES/VARIABLE_VALUE"
-        FFN_LN_g=var_name_stem + "FFN/FFN_layer_norm/layer_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE"
-
-
-        out_dict = {'SA_k' + str(i): inits.Constant(reader.get_tensor(SA_k)),
-                    'SA_q' + str(i): inits.Constant(reader.get_tensor(SA_q)),
-                    'SA_v' + str(i): inits.Constant(reader.get_tensor(SA_v)),
-                    'SA_O' + str(i): inits.Constant(reader.get_tensor(SA_O)),
-                    'FFN_narr_k' + str(i): inits.Constant(reader.get_tensor(FFN_narr_k)),
-                    'FFN_narr_b' + str(i): inits.Constant(reader.get_tensor(FFN_narr_b)),
-                    'FFN_wide_k' + str(i): inits.Constant(reader.get_tensor(FFN_wide_k)),
-                    'FFN_wide_b' + str(i): inits.Constant(reader.get_tensor(FFN_wide_b)),
-                    'FFN_LN_b' + str(i): inits.Constant(reader.get_tensor(FFN_LN_b)),
-                    'FFN_LN_g' + str(i): inits.Constant(reader.get_tensor(FFN_LN_g))}
-
-        initializers_dict.update(out_dict)
-
-    #if pos_embedding_learned:
-    #    out_dict = {'pos_embedding_learned': inits.Constant(reader.get_tensor('pos_embedding_learned/embeddings/.ATTRIBUTES/VARIABLE_VALUE'))}
-    #    initializers_dict.update(out_dict)
-
-
-    return initializers_dict
-
-def get_initializers_enformer_performer_full(checkpoint_path,
-                                            num_transformer_layers):
-
-    inside_checkpoint=tf.train.list_variables(tf.train.latest_checkpoint(checkpoint_path))
-    reader = tf.train.load_checkpoint(checkpoint_path)
-
-    initializers_dict = {'stem_conv_k': inits.Constant(reader.get_tensor('stem_conv/kernel/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_conv_b': inits.Constant(reader.get_tensor('stem_conv/bias/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_k': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_b': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_BN_g': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/batch_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_BN_b': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/batch_norm/beta/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_BN_m': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/batch_norm/moving_mean/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_BN_v': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/batch_norm/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'))}
-
-
-    out_dict = {'stem_conv_atac_k': inits.Constant(reader.get_tensor('stem_conv_atac/kernel/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_conv_atac_b': inits.Constant(reader.get_tensor('stem_conv_atac/bias/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_atac_k': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_atac_b': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_atac_BN_g': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-0/batch_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_atac_BN_b': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-0/batch_norm/beta/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_atac_BN_m': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-0/batch_norm/moving_mean/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'stem_res_conv_atac_BN_v': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-0/batch_norm/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'))}
-    initializers_dict.update(out_dict)
-
-
-    out_dict = {'final_point_k': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'final_point_b': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'final_point_BN_g': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-0/batch_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'final_point_BN_b': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-0/batch_norm/beta/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'final_point_BN_m': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-0/batch_norm/moving_mean/.ATTRIBUTES/VARIABLE_VALUE')),
-                         'final_point_BN_v': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-0/batch_norm/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'))}
-    initializers_dict.update(out_dict)
-
-
-    initializers_dict['stem_pool'] = inits.Constant(reader.get_tensor('stem_pool/_logit_linear/kernel/.ATTRIBUTES/VARIABLE_VALUE'))
-    initializers_dict['stem_pool_atac'] = inits.Constant(reader.get_tensor('stem_pool_atac/_logit_linear/kernel/.ATTRIBUTES/VARIABLE_VALUE'))
-
-    ## load in convolutional weights
-    for i in range(6):
-        var_name_stem = 'conv_tower/layer_with_weights-' + str(i) + '/layer_with_weights-' #0/moving_mean/_counter/.ATTRIBUTES/VARIABLE_VALUE'
-
-        conv1_k = var_name_stem + '0/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE'
-        conv1_b = var_name_stem + '0/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_g = var_name_stem + '0/layer_with_weights-0/batch_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_b = var_name_stem + '0/layer_with_weights-0/batch_norm/beta/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_m = var_name_stem + '0/layer_with_weights-0/batch_norm/moving_mean/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_v = var_name_stem + '0/layer_with_weights-0/batch_norm/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'
-
-        conv2_k = var_name_stem + '1/_layer/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE'
-        conv2_b = var_name_stem + '1/_layer/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_g = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_b = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/beta/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_m = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/moving_mean/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_v = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'
-        pool = var_name_stem + '2/_logit_linear/kernel/.ATTRIBUTES/VARIABLE_VALUE'
-
-        out_dict = {'conv1_k_' + str(i): inits.Constant(reader.get_tensor(conv1_k)),
-                    'conv1_b_' + str(i): inits.Constant(reader.get_tensor(conv1_b)),
-                    'BN1_g_' + str(i): inits.Constant(reader.get_tensor(BN1_g)),
-                    'BN1_b_' + str(i): inits.Constant(reader.get_tensor(BN1_b)),
-                    'BN1_m_' + str(i): inits.Constant(reader.get_tensor(BN1_m)),
-                    'BN1_v_' + str(i): inits.Constant(reader.get_tensor(BN1_v)),
-                    'conv2_k_' + str(i): inits.Constant(reader.get_tensor(conv2_k)),
-                    'conv2_b_' + str(i): inits.Constant(reader.get_tensor(conv2_b)),
-                    'BN2_g_' + str(i): inits.Constant(reader.get_tensor(BN2_g)),
-                    'BN2_b_' + str(i): inits.Constant(reader.get_tensor(BN2_b)),
-                    'BN2_m_' + str(i): inits.Constant(reader.get_tensor(BN2_m)),
-                    'BN2_v_' + str(i): inits.Constant(reader.get_tensor(BN2_v))}
-
-        out_dict['pool_' + str(i)] = inits.Constant(reader.get_tensor(pool))
-        initializers_dict.update(out_dict)
-
-
-    ## load in convolutional weights ATAC
-    for i in range(2):
-        var_name_stem = 'conv_tower_atac/layer_with_weights-' + str(i) + '/layer_with_weights-' #0/moving_mean/_counter/.ATTRIBUTES/VARIABLE_VALUE'
-
-        conv1_k = var_name_stem + '0/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE'
-        conv1_b = var_name_stem + '0/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_g = var_name_stem + '0/layer_with_weights-0/batch_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_b = var_name_stem + '0/layer_with_weights-0/batch_norm/beta/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_m = var_name_stem + '0/layer_with_weights-0/batch_norm/moving_mean/.ATTRIBUTES/VARIABLE_VALUE'
-        BN1_v = var_name_stem + '0/layer_with_weights-0/batch_norm/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'
-
-        conv2_k = var_name_stem + '1/_layer/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE'
-        conv2_b = var_name_stem + '1/_layer/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_g = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_b = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/beta/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_m = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/moving_mean/.ATTRIBUTES/VARIABLE_VALUE'
-        BN2_v = var_name_stem + '1/_layer/layer_with_weights-0/batch_norm/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'
-        pool = var_name_stem + '2/_logit_linear/kernel/.ATTRIBUTES/VARIABLE_VALUE'
-
-        out_dict = {'conv_at1_k_' + str(i): inits.Constant(reader.get_tensor(conv1_k)),
-                    'conv_at1_b_' + str(i): inits.Constant(reader.get_tensor(conv1_b)),
-                    'BN_at1_g_' + str(i): inits.Constant(reader.get_tensor(BN1_g)),
-                    'BN_at1_b_' + str(i): inits.Constant(reader.get_tensor(BN1_b)),
-                    'BN_at1_m_' + str(i): inits.Constant(reader.get_tensor(BN1_m)),
-                    'BN_at1_v_' + str(i): inits.Constant(reader.get_tensor(BN1_v)),
-                    'conv_at2_k_' + str(i): inits.Constant(reader.get_tensor(conv2_k)),
-                    'conv_at2_b_' + str(i): inits.Constant(reader.get_tensor(conv2_b)),
-                    'BN_at2_g_' + str(i): inits.Constant(reader.get_tensor(BN2_g)),
-                    'BN_at2_b_' + str(i): inits.Constant(reader.get_tensor(BN2_b)),
-                    'BN_at2_m_' + str(i): inits.Constant(reader.get_tensor(BN2_m)),
-                    'BN_at2_v_' + str(i): inits.Constant(reader.get_tensor(BN2_v))}
-
-        out_dict['pool_at_' + str(i)] = inits.Constant(reader.get_tensor(pool))
-        initializers_dict.update(out_dict)
-
-
-    initializers_dict['performer_encoder_LN_b'] = inits.Constant(reader.get_tensor("performer/layer_norm/layer_norm/beta/.ATTRIBUTES/VARIABLE_VALUE"))
-    initializers_dict['performer_encoder_LN_g'] = inits.Constant(reader.get_tensor("performer/layer_norm/layer_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE"))
-
-    for i in range(num_transformer_layers):
-        var_name_stem = 'performer/layers/' + str(i) + '/' #0/moving_mean/_counter/.ATTRIBUTES/VARIABLE_VALUE'
-
-        #if not stable_variant:
-        LN_b=var_name_stem + 'layer_norm/layer_norm/beta/.ATTRIBUTES/VARIABLE_VALUE'
-        LN_g=var_name_stem + 'layer_norm/layer_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE'
-        out_dict = {'LN_b' + str(i): inits.Constant(reader.get_tensor(LN_b)),
-                    'LN_g' + str(i): inits.Constant(reader.get_tensor(LN_g))}
-        initializers_dict.update(out_dict)
-
-        SA_k=var_name_stem + "self_attention/key_dense_layer/kernel/.ATTRIBUTES/VARIABLE_VALUE"
-        SA_q=var_name_stem + "self_attention/query_dense_layer/kernel/.ATTRIBUTES/VARIABLE_VALUE"
-        SA_v=var_name_stem + "self_attention/value_dense_layer/kernel/.ATTRIBUTES/VARIABLE_VALUE"
-        SA_O=var_name_stem + "self_attention/output_dense_layer/kernel/.ATTRIBUTES/VARIABLE_VALUE"
-
-        FFN_narr_k=var_name_stem + "FFN/FFN_dense_narrow/kernel/.ATTRIBUTES/VARIABLE_VALUE"
-        FFN_narr_b=var_name_stem + "FFN/FFN_dense_narrow/bias/.ATTRIBUTES/VARIABLE_VALUE"
-        FFN_wide_k=var_name_stem + "FFN/FFN_dense_wide/kernel/.ATTRIBUTES/VARIABLE_VALUE"
-        FFN_wide_b=var_name_stem + "FFN/FFN_dense_wide/bias/.ATTRIBUTES/VARIABLE_VALUE"
-        FFN_LN_b=var_name_stem + "FFN/FFN_layer_norm/layer_norm/beta/.ATTRIBUTES/VARIABLE_VALUE"
-        FFN_LN_g=var_name_stem + "FFN/FFN_layer_norm/layer_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE"
-
-
-        out_dict = {'SA_k' + str(i): inits.Constant(reader.get_tensor(SA_k)),
-                    'SA_q' + str(i): inits.Constant(reader.get_tensor(SA_q)),
-                    'SA_v' + str(i): inits.Constant(reader.get_tensor(SA_v)),
-                    'SA_O' + str(i): inits.Constant(reader.get_tensor(SA_O)),
-                    'FFN_narr_k' + str(i): inits.Constant(reader.get_tensor(FFN_narr_k)),
-                    'FFN_narr_b' + str(i): inits.Constant(reader.get_tensor(FFN_narr_b)),
-                    'FFN_wide_k' + str(i): inits.Constant(reader.get_tensor(FFN_wide_k)),
-                    'FFN_wide_b' + str(i): inits.Constant(reader.get_tensor(FFN_wide_b)),
-                    'FFN_LN_b' + str(i): inits.Constant(reader.get_tensor(FFN_LN_b)),
-                    'FFN_LN_g' + str(i): inits.Constant(reader.get_tensor(FFN_LN_g))}
-
-        initializers_dict.update(out_dict)
-
-    #if pos_embedding_learned:
-    #out_dict = {'pos_embedding_learned': inits.Constant(reader.get_tensor('pos_embedding_learned/embeddings/.ATTRIBUTES/VARIABLE_VALUE'))}
-    #initializers_dict.update(out_dict)
-
-    return initializers_dict
-
-
 def return_train_val_functions(model,
                                train_steps,
                                val_steps_ho,
@@ -499,17 +65,18 @@ def return_train_val_functions(model,
     metric_dict["val_loss"] = tf.keras.metrics.Mean("val_loss",
                                                   dtype=tf.float32)
 
-
     metric_dict['ATAC_PearsonR_tr'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
     metric_dict['ATAC_R2_tr'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
 
     metric_dict['ATAC_PearsonR'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
     metric_dict['ATAC_R2'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
 
+    metric_dict["corr_stats"] = metrics.correlation_stats_gene_centered(name='corr_stats')
+
     @tf.function(reduce_retracing=True)
-    def dist_train_step_human(inputs):
+    def dist_train_step(inputs):
         #def train_step(inputs):
-        print('tracing human!')
+        print('tracing training step!')
         sequence,atac,mask,mask_gathered,peaks,target,tf_activity =inputs
 
         input_tuple = sequence, atac, tf_activity#, global_acc
@@ -537,7 +104,7 @@ def return_train_val_functions(model,
             target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
             output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
 
-            loss = tf.reduce_mean(poisson_multinomial(target_atac,output_atac,total_weight=0.20,rescale=True)) *\
+            loss = tf.reduce_mean(poisson_multinomial(target_atac,output_atac,total_weight=0.15,rescale=True)) *\
                         (1.0/global_batch_size)
 
         gradients = tape.gradient(loss, vars_all)
@@ -558,7 +125,7 @@ def return_train_val_functions(model,
     @tf.function(reduce_retracing=True)
     def dist_val_step(inputs):
         #def val_step(inputs):
-        print('tracing val step!')
+        print('tracing validation step!')
         sequence,atac,mask,mask_gathered,peaks,target,tf_activity=inputs
 
         input_tuple = sequence,atac,tf_activity
@@ -571,13 +138,15 @@ def return_train_val_functions(model,
 
         target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
         output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
-        loss = tf.reduce_mean(poisson_multinomial(target_atac,output_atac,total_weight=0.20,rescale=True)) *\
+        loss = tf.reduce_mean(poisson_multinomial(target_atac,output_atac,total_weight=0.15,rescale=True)) *\
                     (1.0/global_batch_size)
         metric_dict['ATAC_PearsonR'].update_state(target_atac,
                                                   output_atac)
         metric_dict['ATAC_R2'].update_state(target_atac,
                                             output_atac)
         metric_dict["val_loss"].update_state(loss)
+
+        return target_atac, output_atac
 
 
     def build_step(iterator): #input_batch, model, optimizer, organism, gradient_clip):
@@ -593,8 +162,7 @@ def return_train_val_functions(model,
         #for _ in tf.range(1): ## for loop within @tf.fuction for improved TPU performance
         strategy.run(val_step, args=(next(iterator),))
 
-
-    return dist_train_step_human,dist_val_step, build_step, metric_dict
+    return dist_train_step,dist_val_step, build_step, metric_dict
 
 
 def deserialize_tr(serialized_example,
@@ -1496,31 +1064,52 @@ def log2(x):
     denominator = tf.math.log(tf.constant(2, dtype=numerator.dtype))
     return numerator / denominator
 
+def tf_tpu_initialize(tpu_name,zone):
+    """Initialize TPU and return global batch size for loss calculation
+    Args:
+        tpu_name
+    Returns:
+        distributed strategy
+    """
 
+    try:
+        cluster_resolver = tf.distribute.cluster_resolver.TPUClusterResolver(
+            tpu=tpu_name,zone=zone)
+        tf.config.experimental_connect_to_cluster(cluster_resolver)
+        tf.tpu.experimental.initialize_tpu_system(cluster_resolver)
+        strategy = tf.distribute.TPUStrategy(cluster_resolver)
+
+    except ValueError: # no TPU found, detect GPUs
+        strategy = tf.distribute.get_strategy()
+
+    return strategy
 
 def make_plots(y_trues,
                y_preds,
-               cell_types,
-               gene_map, num_points):
+               num_points):
 
     results_df = pd.DataFrame()
     results_df['true'] = y_trues
     results_df['pred'] = y_preds
-    results_df['gene_encoding'] =gene_map
-    results_df['cell_type_encoding'] = cell_types
 
-    results_df['true'] = np.log2(1.0+results_df['true'])
-    results_df['pred'] = np.log2(1.0+results_df['pred'])
+    results_df['true_log'] = np.log2(1.0+results_df['true'])
+    results_df['pred_log'] = np.log2(1.0+results_df['pred'])
 
     true=results_df[['true']].to_numpy()[:,0]
-
     pred=results_df[['pred']].to_numpy()[:,0]
+    true_log=results_df[['true_log']].to_numpy()[:,0]
+    pred_log=results_df[['pred_log']].to_numpy()[:,0]
 
     try:
         overall_corr=results_df[['true','pred']].corr(method='pearson').unstack().iloc[:,1].tolist()
         #cell_specific_corrs_sp=results_df[['true','pred']].corr(method='spearman').unstack().iloc[:,1].tolist()
     except np.linalg.LinAlgError as err:
-        overall_corr = [0.0] * len(np.unique(cell_types))
+        overall_corr = [0.0]
+    try:
+        overall_corr_log=results_df[['true_log','pred_log']].corr(method='pearson').unstack().iloc[:,1].tolist()
+        #cell_specific_corrs_sp=results_df[['true','pred']].corr(method='spearman').unstack().iloc[:,1].tolist()
+    except np.linalg.LinAlgError as err:
+        overall_corr_log = [0.0]
 
     fig_overall,ax_overall=plt.subplots(figsize=(6,6))
 
@@ -1535,7 +1124,6 @@ def make_plots(y_trues,
 
     min_pred = min(pred)
     max_pred = max(pred)
-
 
     try:
         kernel = stats.gaussian_kde(data)(data)
@@ -1568,4 +1156,4 @@ def make_plots(y_trues,
         plt.ylabel("log-pred")
         plt.title("overall atac corr")
 
-    return fig_overall, overall_corr
+    return fig_overall, overall_corr,overall_corr_log

@@ -29,7 +29,6 @@ class aformer(tf.keras.Model):
                  norm=True,
                  max_seq_length = 1536,
                  BN_momentum = 0.90,
-                 use_rot_emb = True,
                  normalize = True,
                  seed = 3,
                  load_init=False,
@@ -64,7 +63,6 @@ class aformer(tf.keras.Model):
         self.final_output_length=final_output_length
         self.norm=norm
         self.max_seq_length = max_seq_length + 1
-        self.use_rot_emb = use_rot_emb
         self.normalize = normalize
         self.seed = seed
         self.inits=inits
@@ -148,7 +146,7 @@ class aformer(tf.keras.Model):
                                    kernel_size=15,
                                    kernel_initializer=self.inits['stem_conv_k'] if self.load_init else 'lecun_normal',
                                    bias_initializer=self.inits['stem_conv_b'] if self.load_init else 'zeros',
-                                   strides=1,
+                                   strides=1 if self.use_pooling else 2,
                                    trainable=False if self.freeze_conv_layers else True,
                                    padding='same')
 
@@ -165,10 +163,10 @@ class aformer(tf.keras.Model):
 
         ### conv stack for sequence inputs
         self.stem_conv_atac = tf.keras.layers.Conv1D(filters=32,
-                                                     kernel_size=50,
+                                                     kernel_size=125,
                                                      kernel_initializer=self.inits['stem_conv_atac_k'] if self.load_init_atac else 'lecun_normal',
                                                      bias_initializer=self.inits['stem_conv_atac_b'] if self.load_init_atac else 'zeros',
-                                                     strides=1,
+                                                     strides=1 if self.use_pooling else 2,
                                                      dilation_rate=1,
                                                      padding='same')
 
@@ -183,46 +181,124 @@ class aformer(tf.keras.Model):
                                                          name='pointwise_conv_block_atac'))
         self.stem_pool_atac = tf.keras.layers.MaxPool1D(pool_size=2)
 
+
         self.stem_pool = tf.keras.layers.MaxPool1D(pool_size=2)
+        if self.use_pooling:
+            self.conv_tower = tf.keras.Sequential([
+                tf.keras.Sequential([
+                    enf_conv_block(filters=num_filters,
+                                   width=5,
+                                   beta_init=self.inits['BN1_b_' + str(i)] if self.load_init else None,
+                                   gamma_init=self.inits['BN1_g_' + str(i)] if self.load_init else None,
+                                   mean_init=self.inits['BN1_m_' + str(i)] if self.load_init else None,
+                                   var_init=self.inits['BN1_v_' + str(i)] if self.load_init else None,
+                                   kernel_init=self.inits['conv1_k_' + str(i)] if self.load_init else None,
+                                   bias_init=self.inits['conv1_b_' + str(i)] if self.load_init else None,
+                                   train=False if self.freeze_conv_layers else True,
+                                   stride=1 if self.use_pooling else 2,
+                                   padding='same'),
+                    Residual(enf_conv_block(filters=num_filters,
+                                            width=1,
+                                           beta_init=self.inits['BN2_b_' + str(i)] if self.load_init else None,
+                                           gamma_init=self.inits['BN2_g_' + str(i)] if self.load_init else None,
+                                           mean_init=self.inits['BN2_m_' + str(i)] if self.load_init else None,
+                                           var_init=self.inits['BN2_v_' + str(i)] if self.load_init else None,
+                                           kernel_init=self.inits['conv2_k_' + str(i)] if self.load_init else None,
+                                           bias_init=self.inits['conv2_b_' + str(i)] if self.load_init else None,
+                                            train=False if self.freeze_conv_layers else True,
+                                            #strides=2,
+                                            name='pointwise_conv_block')),
+                    tf.keras.layers.MaxPool1D(pool_size=2)
+                    ],
+                           name=f'conv_tower_block_{i}')
+                for i, num_filters in enumerate(self.filter_list_seq)], name='conv_tower')
+
+        else:
+            self.conv_tower = tf.keras.Sequential([
+                tf.keras.Sequential([
+                    enf_conv_block(filters=num_filters,
+                                   width=5,
+                                   beta_init=self.inits['BN1_b_' + str(i)] if self.load_init else None,
+                                   gamma_init=self.inits['BN1_g_' + str(i)] if self.load_init else None,
+                                   mean_init=self.inits['BN1_m_' + str(i)] if self.load_init else None,
+                                   var_init=self.inits['BN1_v_' + str(i)] if self.load_init else None,
+                                   kernel_init=self.inits['conv1_k_' + str(i)] if self.load_init else None,
+                                   bias_init=self.inits['conv1_b_' + str(i)] if self.load_init else None,
+                                   train=False if self.freeze_conv_layers else True,
+                                   stride=1 if self.use_pooling else 2,
+                                   padding='same'),
+                    Residual(enf_conv_block(filters=num_filters,
+                                            width=1,
+                                           beta_init=self.inits['BN2_b_' + str(i)] if self.load_init else None,
+                                           gamma_init=self.inits['BN2_g_' + str(i)] if self.load_init else None,
+                                           mean_init=self.inits['BN2_m_' + str(i)] if self.load_init else None,
+                                           var_init=self.inits['BN2_v_' + str(i)] if self.load_init else None,
+                                           kernel_init=self.inits['conv2_k_' + str(i)] if self.load_init else None,
+                                           bias_init=self.inits['conv2_b_' + str(i)] if self.load_init else None,
+                                            train=False if self.freeze_conv_layers else True,
+                                            #strides=2,
+                                            name='pointwise_conv_block'))
+                    ],
+                           name=f'conv_tower_block_{i}')
+                for i, num_filters in enumerate(self.filter_list_seq)], name='conv_tower')
 
 
-        self.conv_tower = tf.keras.Sequential([
-            tf.keras.Sequential([
-                enf_conv_block(filters=num_filters,
-                               width=5,
-                               beta_init=self.inits['BN1_b_' + str(i)] if self.load_init else None,
-                               gamma_init=self.inits['BN1_g_' + str(i)] if self.load_init else None,
-                               mean_init=self.inits['BN1_m_' + str(i)] if self.load_init else None,
-                               var_init=self.inits['BN1_v_' + str(i)] if self.load_init else None,
-                               kernel_init=self.inits['conv1_k_' + str(i)] if self.load_init else None,
-                               bias_init=self.inits['conv1_b_' + str(i)] if self.load_init else None,
-                               train=False if self.freeze_conv_layers else True,
-                               stride=1,
-                               padding='same'),
-                tf.keras.layers.MaxPool1D(pool_size=2)],
-                       name=f'conv_tower_block_{i}')
-            for i, num_filters in enumerate(self.filter_list_seq)], name='conv_tower')
+        if self.use_pooling:
+            self.conv_tower_atac = tf.keras.Sequential([
+                tf.keras.Sequential([
+                    enf_conv_block(filters=num_filters,
+                                   width=5,
+                                   beta_init=self.inits['BN_at1_b_' + str(i)] if self.load_init_atac else None,
+                                   gamma_init=self.inits['BN_at1_g_' + str(i)] if self.load_init_atac else None,
+                                   mean_init=self.inits['BN_at1_m_' + str(i)] if self.load_init_atac else None,
+                                   var_init=self.inits['BN_at1_v_' + str(i)] if self.load_init_atac else None,
+                                   kernel_init=self.inits['conv_at1_k_' + str(i)] if self.load_init_atac else None,
+                                   bias_init=self.inits['conv_at1_b_' + str(i)] if self.load_init_atac else None,
+                                   train=False if self.freeze_conv_layers else True,
+                                   dilation_rate=1,
+                                   stride=1,
+                                   padding='same'),
+                    Residual(enf_conv_block(filters=num_filters, width=1,
+                                           beta_init=self.inits['BN_at2_b_' + str(i)] if self.load_init_atac else None,
+                                           gamma_init=self.inits['BN_at2_g_' + str(i)] if self.load_init_atac else None,
+                                           mean_init=self.inits['BN_at2_m_' + str(i)] if self.load_init_atac else None,
+                                           var_init=self.inits['BN_at2_v_' + str(i)] if self.load_init_atac else None,
+                                           kernel_init=self.inits['conv_at2_k_' + str(i)] if self.load_init_atac else None,
+                                           bias_init=self.inits['conv_at2_b_' + str(i)] if self.load_init_atac else None,
+                                            train=False if self.freeze_conv_layers else True,
+                                            name='pointwise_conv_block')),
+                    tf.keras.layers.MaxPool1D(pool_size=4)
+                    ],
+                           name=f'conv_tower_block_atac_{i}')
+                for i, num_filters in enumerate(self.filter_list_atac)], name='conv_tower_atac')
 
-
-        self.conv_tower_atac = tf.keras.Sequential([
-            tf.keras.Sequential([
-                enf_conv_block(filters=num_filters,
-                               width=5,
-                               beta_init=self.inits['BN_at1_b_' + str(i)] if self.load_init_atac else None,
-                               gamma_init=self.inits['BN_at1_g_' + str(i)] if self.load_init_atac else None,
-                               mean_init=self.inits['BN_at1_m_' + str(i)] if self.load_init_atac else None,
-                               var_init=self.inits['BN_at1_v_' + str(i)] if self.load_init_atac else None,
-                               kernel_init=self.inits['conv_at1_k_' + str(i)] if self.load_init_atac else None,
-                               bias_init=self.inits['conv_at1_b_' + str(i)] if self.load_init_atac else None,
-                               train=False if self.freeze_conv_layers else True,
-                               dilation_rate=1,
-                               stride=1,
-                               padding='same'),
-                tf.keras.layers.MaxPool1D(pool_size=4)],
-                       name=f'conv_tower_block_atac_{i}')
-            for i, num_filters in enumerate(self.filter_list_atac)], name='conv_tower_atac')
-
-
+        else:
+            self.conv_tower_atac = tf.keras.Sequential([
+                tf.keras.Sequential([
+                    enf_conv_block(filters=num_filters,
+                                   width=5,
+                                   beta_init=self.inits['BN_at1_b_' + str(i)] if self.load_init_atac else None,
+                                   gamma_init=self.inits['BN_at1_g_' + str(i)] if self.load_init_atac else None,
+                                   mean_init=self.inits['BN_at1_m_' + str(i)] if self.load_init_atac else None,
+                                   var_init=self.inits['BN_at1_v_' + str(i)] if self.load_init_atac else None,
+                                   kernel_init=self.inits['conv_at1_k_' + str(i)] if self.load_init_atac else None,
+                                   bias_init=self.inits['conv_at1_b_' + str(i)] if self.load_init_atac else None,
+                                   train=False if self.freeze_conv_layers else True,
+                                   dilation_rate=1,
+                                   stride=4,
+                                   padding='same'),
+                    Residual(enf_conv_block(filters=num_filters, width=1,
+                                           beta_init=self.inits['BN_at2_b_' + str(i)] if self.load_init_atac else None,
+                                           gamma_init=self.inits['BN_at2_g_' + str(i)] if self.load_init_atac else None,
+                                           mean_init=self.inits['BN_at2_m_' + str(i)] if self.load_init_atac else None,
+                                           var_init=self.inits['BN_at2_v_' + str(i)] if self.load_init_atac else None,
+                                           kernel_init=self.inits['conv_at2_k_' + str(i)] if self.load_init_atac else None,
+                                           bias_init=self.inits['conv_at2_b_' + str(i)] if self.load_init_atac else None,
+                                            train=False if self.freeze_conv_layers else True,
+                                            name='pointwise_conv_block'))
+                    ],
+                           name=f'conv_tower_block_atac_{i}')
+                for i, num_filters in enumerate(self.filter_list_atac)], name='conv_tower_atac')
 
 
         self.tf_dropout=kl.Dropout(rate=self.tf_dropout_rate,
@@ -243,7 +319,6 @@ class aformer(tf.keras.Model):
                                                     hidden_size=self.hidden_size,
                                                     numerical_stabilizer=self.numerical_stabilizer,
                                                     dropout_rate=self.dropout_rate,
-                                                    use_rot_emb=self.use_rot_emb,
                                                     kernel_transformation=self.kernel_transformation,
                                                     normalize=self.normalize,
                                                     seed = self.seed,
@@ -274,6 +349,19 @@ class aformer(tf.keras.Model):
                                             bias_initializer='lecun_normal',
                                             use_bias=True)
 
+        self.final_dense_peaks = tf.keras.Sequential([SoftmaxPooling1D(per_channel=True,
+                                                          w_init_scale=2.0,
+                                                          pool_size=4,
+                                                          name ='peaks_pool'),
+                                                      kl.Dense(1,
+                                                        activation='sigmoid',
+                                                        kernel_initializer='lecun_normal',
+                                                        bias_initializer='lecun_normal',
+                                                        use_bias=True)],
+                                                     name='final_peaks')
+
+
+
         self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
                                   **kwargs)
         self.gelu = tfa.layers.GELU()
@@ -287,9 +375,9 @@ class aformer(tf.keras.Model):
                            training=training)
         x = self.stem_res_conv(x,
                                training=training)
-
-        x = self.stem_pool(x,
-                           training=training)
+        if self.use_pooling:
+            x = self.stem_pool(x,
+                               training=training)
 
         x = self.conv_tower(x,
                             training=training)
@@ -299,9 +387,9 @@ class aformer(tf.keras.Model):
 
         atac_x = self.stem_res_conv_atac(atac_x,
                                          training=training)
-
-        atac_x = self.stem_pool_atac(atac_x,
-                                     training=training)
+        if self.use_pooling:
+            atac_x = self.stem_pool_atac(atac_x,
+                                         training=training)
 
         atac_x = self.conv_tower_atac(atac_x,training=training)
 
@@ -317,6 +405,7 @@ class aformer(tf.keras.Model):
         out,att_matrices = self.performer(transformer_input_x,
                                           training=training)
         out = out[:, :-1, :]
+
         out = self.crop_final(out)
         out = self.final_pointwise_conv(out,
                                        training=training)
@@ -324,8 +413,9 @@ class aformer(tf.keras.Model):
                         training=training)
         out = self.gelu(out)
         out_profile = self.final_dense_profile(out, training=training)
+        out_peaks = self.final_dense_peaks(out, training=training)
 
-        return out_profile
+        return out_profile, out_peaks
 
 
     def get_config(self):
@@ -342,7 +432,6 @@ class aformer(tf.keras.Model):
             "final_output_length":self.final_output_length,
             "norm":self.norm,
             "max_seq_length":self.max_seq_length,
-            "use_rot_emb":self.use_rot_emb,
             "normalize":self.normalize,
             "seed":self.seed,
             "inits":self.inits,

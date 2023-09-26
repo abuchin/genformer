@@ -27,13 +27,14 @@ from tensorflow import strings as tfs
 from tensorflow.keras import mixed_precision
 
 ## custom modules
-import src.models.aformer_atac_simple as aformer
+import src.models.aformer_atac as aformer
 import src.metrics as metrics
 import src.optimizers as optimizers
 import src.schedulers as schedulers
 import src.utils as utils
 
 import training_utils_atac as training_utils
+import src.load_weights_atac as load_weights_atac
 import seaborn as sns
 from scipy.stats.stats import pearsonr
 from scipy.stats.stats import spearmanr
@@ -249,14 +250,11 @@ def main():
             GLOBAL_BATCH_SIZE = BATCH_SIZE_PER_REPLICA*NUM_REPLICAS
             print('global batch size:', GLOBAL_BATCH_SIZE)
 
-            num_train=wandb.config.train_examples
-            num_val_ho=wandb.config.val_examples_ho
-
-            wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE)},
+            wandb.config.update({"train_steps": wandb.config.train_examples // (GLOBAL_BATCH_SIZE)},
                                 allow_val_change=True)
-            wandb.config.update({"val_steps_ho" : num_val_ho // GLOBAL_BATCH_SIZE},
+            wandb.config.update({"val_steps_ho" : wandb.config.val_examples_ho // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
-            wandb.config.update({"total_steps": num_train // GLOBAL_BATCH_SIZE},
+            wandb.config.update({"total_steps": wandb.config.train_examples // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
 
 
@@ -294,11 +292,11 @@ def main():
             if wandb.config.load_init:
                 if wandb.config.inits_type == 'enformer_performer':
                     print('loaded enformer performer weights')
-                    inits=training_utils.get_initializers_enformer_performer(args.multitask_checkpoint_path,
+                    inits=load_weights_atac.get_initializers_enformer_performer(args.multitask_checkpoint_path,
                                                                              wandb.config.num_transformer_layers)
                 elif wandb.config.inits_type == 'enformer_conv':
                     print('loaded enformer conv weights')
-                    inits=training_utils.get_initializers_enformer_conv(args.multitask_checkpoint_path,
+                    inits=load_weights_atac.get_initializers_enformer_conv(args.multitask_checkpoint_path,
                                                                         wandb.config.sonnet_weights_bool,
                                                                         len(wandb.config.filter_list_seq))
                     wandb.config.update({"filter_list_seq": [768, 896, 1024, 1152, 1280, 1536]},
@@ -380,6 +378,7 @@ def main():
             best_epoch = 0
 
             for epoch_i in range(1, wandb.config.num_epochs+1):
+                step_num = epoch_i * wandb.config.train_examples
                 if epoch_i == 1:
                     print('building model')
                     build_step(data_val_ho)
@@ -392,56 +391,61 @@ def main():
                         total_params += tf.size(var)
                     print('total params: ' + str(total_params))
 
+                ####### training steps #######################
                 print('starting epoch_', str(epoch_i))
                 start = time.time()
-
                 for step in range(wandb.config.train_steps):
                     strategy.run(human_step, args=(next(train_human),))
 
                 print('train_loss: ' + str(metric_dict['train_loss'].result().numpy()))
-                wandb.log({'human_train_loss': metric_dict['train_loss'].result().numpy()},
-                          step=epoch_i)
+                wandb.log({'train_loss': metric_dict['train_loss'].result().numpy()},
+                          step=step_num)
 
-                atac_pearsons_tr = metric_dict['ATAC_PearsonR_tr'].result()['PearsonR'].numpy()
-                atac_R2_tr = metric_dict['ATAC_R2_tr'].result()['R2'].numpy()
-                wandb.log({'human_ATAC_pearsons_tr': atac_pearsons_tr,
-                           'human_ATAC_R2_tr': atac_R2_tr},
-                          step=epoch_i)
+                wandb.log({'ATAC_pearsons_tr': metric_dict['ATAC_PearsonR_tr'].result()['PearsonR'].numpy(),
+                           'ATAC_R2_tr': metric_dict['ATAC_R2_tr'].result()['R2'].numpy()},
+                          step=step_num)
+                duration = (time.time() - start) / 60.
 
-                end = time.time()
-                duration = (end - start) / 60.
+                print('completed epoch ' + str(epoch_i) + 'training duration(mins): ' + str(duration))
 
-                print('completed epoch ' + str(epoch_i))
-                print('training duration(mins): ' + str(duration))
-
+                ####### validation steps #######################
                 start = time.time()
+                pred_list = []
+                true_list = []
                 for k in range(wandb.config.val_steps_ho):
-                    strategy.run(val_step, args=(next(data_val_ho),))
+                    true, pred = strategy.run(val_step, args=(next(data_val_ho),))
+                    pred_list.append(tf.reshape(strategy.gather(pred_rep, axis=0), [-1]))
+                    true_list.append(tf.reshape(strategy.gather(true_rep, axis=0), [-1]))
+
+                figures,overall_corr,overall_corr_log= training_utils.make_plots(tf.concat(pred_list,0),
+                                                                                 tf.concat(true_list,0),
+                                                                                 5000)
 
                 val_loss = metric_dict['val_loss'].result().numpy()
                 print('val_loss: ' + str(val_loss))
                 val_losses.append(val_loss)
 
-                wandb.log({'human_val_loss': metric_dict['val_loss'].result().numpy()},
-                           step=epoch_i)
+                wandb.log({'val_loss': metric_dict['val_loss'].result().numpy()},
+                           step=step_num)
+                val_pearsons.append(metric_dict['ATAC_PearsonR'].result()['PearsonR'].numpy())
+                print('ATAC_pearsons: ' + str(metric_dict['ATAC_PearsonR'].result()['PearsonR'].numpy()))
+                print('ATAC_R2: ' + str(metric_dict['ATAC_R2'].result()['R2'].numpy()))
+                wandb.log({'ATAC_pearsons': metric_dict['ATAC_PearsonR'].result()['PearsonR'].numpy(),
+                           'ATAC_R2': metric_dict['ATAC_R2'].result()['R2'].numpy()},
+                          step=step_num)
 
-                atac_pearsons = metric_dict['ATAC_PearsonR'].result()['PearsonR'].numpy()
-                atac_R2 = metric_dict['ATAC_R2'].result()['R2'].numpy()
+                print('ATAC_pearsons_overall: ' + str(overall_corr))
+                print('ATAC_pearsons_overall_log: ' + str(overall_corr_log))
+                wandb.log({'ATAC_pearsons_overall': overall_corr,
+                           'ATAC_pearsons_overall_log': overall_corr_log},
+                          step=step_num)
 
-                val_pearsons.append(atac_pearsons)
-                print('human_ATAC_pearsons: ' + str(atac_pearsons))
-                print('human_ATAC_R2: ' + str(atac_R2))
+                wandb.log({'overall_predictions': figures},
+                          step=step_num)
 
-                wandb.log({'human_ATAC_pearsons': atac_pearsons,
-                           'human_ATAC_R2': atac_R2},
-                          step=epoch_i)
-
-
-                end = time.time()
-                duration = (end - start) / 60.
+                duration = (time.time() - start) / 60.
                 print('completed epoch ' + str(epoch_i) + ' validation')
                 print('validation duration(mins): ' + str(duration))
-
 
                 if (epoch_i > 2):
                     stop_criteria,patience_counter,best_epoch = \
