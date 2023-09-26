@@ -359,7 +359,7 @@ def deserialize_tr(serialized_example,
         masked_seq = tf.random.experimental.stateless_shuffle(masked_seq,
                                                               seed=[randomish_seed+1,randomish_seed+3])
 
-    return tf.cast(tf.ensure_shape(sequence,[input_length,4]),dtype=tf.bfloat16), \
+    return tf.cast(tf.ensure_shape(masked_seq,[input_length,4]),dtype=tf.bfloat16), \
                 tf.cast(tf.ensure_shape(masked_atac, [output_length_ATAC,1]),dtype=tf.bfloat16), \
                 tf.cast(tf.ensure_shape(full_comb_mask_store, [output_length-crop_size*2,1]),dtype=tf.int32), \
                 tf.cast(tf.ensure_shape(mask_gathered, [(output_length-crop_size*2) // 4,1]),dtype=tf.int32), \
@@ -502,10 +502,6 @@ def deserialize_val(serialized_example,
     mask_gathered = tf.reduce_max(tf.reshape(full_comb_mask_store, [(output_length-2*crop_size) // 4, -1]),
                                    axis=1,keepdims=True)
 
-    random_noise = tf.math.abs(g.normal(masked_atac.shape,
-                                       mean=0.0,
-                                       stddev=1.0,
-                                       dtype=tf.float32))
     if not use_atac:
         print('not using atac')
         masked_atac = tf.math.abs(g.normal(masked_atac.shape,
@@ -1088,6 +1084,7 @@ def make_plots(y_trues,
                y_preds,
                num_points):
 
+
     results_df = pd.DataFrame()
     results_df['true'] = y_trues
     results_df['pred'] = y_preds
@@ -1101,15 +1098,12 @@ def make_plots(y_trues,
     pred_log=results_df[['pred_log']].to_numpy()[:,0]
 
     try:
-        overall_corr=results_df[['true','pred']].corr(method='pearson').unstack().iloc[:,1].tolist()
+        overall_corr=results_df['true'].corr(results_df['pred'])
+        overall_corr_log=results_df['true_log'].corr(results_df['pred_log'])
         #cell_specific_corrs_sp=results_df[['true','pred']].corr(method='spearman').unstack().iloc[:,1].tolist()
     except np.linalg.LinAlgError as err:
-        overall_corr = [0.0]
-    try:
-        overall_corr_log=results_df[['true_log','pred_log']].corr(method='pearson').unstack().iloc[:,1].tolist()
-        #cell_specific_corrs_sp=results_df[['true','pred']].corr(method='spearman').unstack().iloc[:,1].tolist()
-    except np.linalg.LinAlgError as err:
-        overall_corr_log = [0.0]
+        overall_corr = 0.0
+        overall_corr_log = 0.0
 
     fig_overall,ax_overall=plt.subplots(figsize=(6,6))
 

@@ -358,7 +358,7 @@ def main():
 
             optimizers_in = optimizer1,optimizer2
 
-            human_step, val_step, \
+            train_step, val_step, \
                 build_step, metric_dict = training_utils.return_train_val_functions(model,
                                                                                     wandb.config.train_steps,
                                                                                     wandb.config.val_steps_ho,
@@ -395,7 +395,7 @@ def main():
                 print('starting epoch_', str(epoch_i))
                 start = time.time()
                 for step in range(wandb.config.train_steps):
-                    strategy.run(human_step, args=(next(train_human),))
+                    strategy.run(train_step, args=(next(train_human),))
 
                 print('train_loss: ' + str(metric_dict['train_loss'].result().numpy()))
                 wandb.log({'train_loss': metric_dict['train_loss'].result().numpy()},
@@ -414,8 +414,11 @@ def main():
                 true_list = []
                 for k in range(wandb.config.val_steps_ho):
                     true, pred = strategy.run(val_step, args=(next(data_val_ho),))
-                    pred_list.append(tf.reshape(strategy.gather(pred, axis=0), [-1]))
-                    true_list.append(tf.reshape(strategy.gather(true, axis=0), [-1]))
+
+                    for x in strategy.experimental_local_results(true):
+                        true_list.append(tf.reshape(x, [-1]))
+                    for x in strategy.experimental_local_results(pred):
+                        pred_list.append(tf.reshape(x, [-1]))
 
                 figures,overall_corr,overall_corr_log= training_utils.make_plots(tf.concat(pred_list,0),
                                                                                  tf.concat(true_list,0),
