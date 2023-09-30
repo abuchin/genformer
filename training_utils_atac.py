@@ -184,7 +184,6 @@ def deserialize_tr(serialized_example,
     feature_map = {
         'sequence': tf.io.FixedLenFeature([], tf.string),
         'atac': tf.io.FixedLenFeature([], tf.string),
-        'tss_tokens': tf.io.FixedLenFeature([], tf.string),
         'peaks': tf.io.FixedLenFeature([], tf.string),
         'peaks_center': tf.io.FixedLenFeature([], tf.string),
         'tf_activity': tf.io.FixedLenFeature([], tf.string)
@@ -386,7 +385,6 @@ def deserialize_val(serialized_example,
     feature_map = {
         'sequence': tf.io.FixedLenFeature([], tf.string),
         'atac': tf.io.FixedLenFeature([], tf.string),
-        'tss_tokens': tf.io.FixedLenFeature([], tf.string),
         'peaks': tf.io.FixedLenFeature([], tf.string),
         'peaks_center': tf.io.FixedLenFeature([], tf.string),
         'tf_activity': tf.io.FixedLenFeature([], tf.string)
