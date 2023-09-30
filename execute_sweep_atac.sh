@@ -1,25 +1,25 @@
 #!/bin/bash -l
 
 python3 train_model_atac.py \
-            --tpu_name="node-2" \
+            --tpu_name="pod1" \
             --tpu_zone="us-east1-d" \
             --wandb_project="atac_pretraining" \
             --wandb_user="njaved" \
             --wandb_sweep_name="atac_pretraining" \
             --gcs_project="picard-testing-176520" \
-            --gcs_path="gs://picard-testing-176520/genformer_atac_pretrain/196k/genformer_atac_pretrain_globalacc_conv_fpm_human" \
-            --gcs_path_holdout="gs://picard-testing-176520/genformer_atac_pretrain/196k/genformer_atac_pretrain_globalacc_conv_fpm_human_valid" \
-            --input_length=196608 \
-            --output_length=1536 \
-            --output_length_ATAC=49152 \
+            --gcs_path="gs://picard-testing-176520/genformer_atac_pretrain/524k/genformer_atac_pretrain_globalacc_conv_fpm_human" \
+            --gcs_path_holdout="gs://picard-testing-176520/genformer_atac_pretrain/524k/genformer_atac_pretrain_globalacc_conv_fpm_human_valid" \
+            --input_length=524288 \
+            --output_length=4096 \
+            --output_length_ATAC=131072 \
             --final_output_length=896 \
             --max_shift=10 \
             --batch_size=4 \
             --num_epochs=60 \
-            --train_examples=5000 \
-            --val_examples_ho=15491 \
+            --train_examples=1000000 \
+            --val_examples_ho=15337 \
             --BN_momentum=0.90 \
-            --warmup_frac=0.001 \
+            --warmup_frac=0.0005 \
             --patience=50 \
             --output_res=128 \
             --min_delta=0.0000005 \
@@ -42,10 +42,10 @@ python3 train_model_atac.py \
             --rectify="True" \
             --filter_list_seq="768,896,1024,1152,1280,1536" \
             --filter_list_atac="32,64" \
-            --atac_mask_dropout=0.05 \
+            --atac_mask_dropout=0.10 \
             --log_atac="False" \
             --sonnet_weights_bool="False" \
-            --random_mask_size="2048" \
+            --random_mask_size="1792" \
             --use_atac="True" \
             --final_point_scale="6" \
             --use_seq="True" \

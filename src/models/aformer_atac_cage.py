@@ -38,7 +38,6 @@ class aformer(tf.keras.Model):
                  filter_list_seq=[768, 896, 1024, 1152, 1280, 1536],
                  filter_list_atac=[32, 64],
                  final_point_scale=6,
-                 predict_atac=True,
                  freeze_conv_layers=False,
                  use_pooling = False,
                  num_tfs=1629,
@@ -267,18 +266,11 @@ class aformer(tf.keras.Model):
                                                   **kwargs,
                                                   name = 'final_pointwise')
 
-        if self.predict_atac:
-            self.final_dense_profile = kl.Dense(2,
-                                                activation='softplus',
-                                                kernel_initializer='lecun_normal',
-                                                bias_initializer='lecun_normal',
-                                                use_bias=True)
-        else:
-            self.final_dense_profile = kl.Dense(1,
-                                                activation='softplus',
-                                                kernel_initializer='lecun_normal',
-                                                bias_initializer='lecun_normal',
-                                                use_bias=True)
+        self.final_dense_profile = kl.Dense(2, ## atac is the first, cage/RNA is the second dim
+                                            activation='softplus',
+                                            kernel_initializer='lecun_normal',
+                                            bias_initializer='lecun_normal',
+                                            use_bias=True)
 
         self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
                                   **kwargs)

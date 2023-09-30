@@ -148,9 +148,6 @@ def main():
                 'rectify': {
                     'values':[parse_bool_str(x) for x in args.rectify.split(',')]
                 },
-                'optimizer': {
-                    'values':[args.optimizer]
-                },
                 'log_atac': {
                     'values':[parse_bool_str(x) for x in args.log_atac.split(',')]
                 },
@@ -209,25 +206,19 @@ def main():
             wandb.config.crop_size = (wandb.config.output_length - wandb.config.final_output_length) // 2
 
 
-            run_name = '_'.join(["GENFORMER",
-                                 str(int(wandb.config.input_length) / 1000)[:4].rstrip('.') + 'k',
+            run_name = '_'.join([str(int(wandb.config.input_length) / 1000)[:4].rstrip('.') + 'k',
                                  'load-' + str(wandb.config.load_init),
                                  'LR1-' + str(wandb.config.lr_base1),
-                                 'LR2-' + str(wandb.config.lr_base2),
-                                 'LR3-' + str(wandb.config.lr_base3),
+                                 'LR2-' + str(wandb.config.lr_base1),
                                  'T-' + str(wandb.config.num_transformer_layers),
-                                 'D-' + str(wandb.config.dropout_rate)])
+                                 'TF-' + str(wandb.config.use_tf_activity)])
 
             date_string = f'{datetime.now():%Y-%m-%d %H:%M:%S%z}'
             date_string = date_string.replace(' ','_')
             wandb.run.name = run_name + "_" + date_string
             base_name = wandb.config.model_save_basename + "_" + wandb.run.name
 
-
-            '''
-            TPU init options
-            '''
-
+            '''TPU init options'''
             options = tf.data.Options()
             options.experimental_distribute.auto_shard_policy=\
                 tf.data.experimental.AutoShardPolicy.DATA
@@ -235,29 +226,22 @@ def main():
             #options.experimental_threading.max_intra_op_parallelism=1
             mixed_precision.set_global_policy('mixed_bfloat16')
 
-
             NUM_REPLICAS = strategy.num_replicas_in_sync
             BATCH_SIZE_PER_REPLICA=wandb.config.batch_size
             GLOBAL_BATCH_SIZE = BATCH_SIZE_PER_REPLICA*NUM_REPLICAS
             print('global batch size:', GLOBAL_BATCH_SIZE)
 
-            num_train=wandb.config.train_examples
-            num_val=wandb.config.val_examples
-            num_val_ho=wandb.config.val_examples_ho
-            num_val_TSS=wandb.config.val_examples_TSS#4192000
-            num_val_TSS_ho=wandb.config.val_examples_TSS_ho
-
-            wandb.config.update({"train_steps": num_train // (GLOBAL_BATCH_SIZE)},
+            wandb.config.update({"train_steps": wandb.config.train_examples // (GLOBAL_BATCH_SIZE)},
                                 allow_val_change=True)
-            wandb.config.update({"val_steps" : num_val // GLOBAL_BATCH_SIZE+1},
+            wandb.config.update({"val_steps" : wandb.config.val_examples // GLOBAL_BATCH_SIZE+1},
                                 allow_val_change=True)
-            wandb.config.update({"val_steps_ho" : num_val_ho // GLOBAL_BATCH_SIZE+1},
+            wandb.config.update({"val_steps_ho" : wandb.config.val_examples_ho // GLOBAL_BATCH_SIZE+1},
                                 allow_val_change=True)
-            wandb.config.update({"val_steps_TSS" : num_val_TSS // GLOBAL_BATCH_SIZE+1},
+            wandb.config.update({"val_steps_TSS" : wandb.config.val_examples_TSS // GLOBAL_BATCH_SIZE+1},
                                 allow_val_change=True)
-            wandb.config.update({"val_steps_TSS_ho" : num_val_TSS_ho // GLOBAL_BATCH_SIZE+1},
+            wandb.config.update({"val_steps_TSS_ho" : wandb.config.val_examples_TSS_ho // GLOBAL_BATCH_SIZE+1},
                                 allow_val_change=True)
-            wandb.config.update({"total_steps": num_train // GLOBAL_BATCH_SIZE},
+            wandb.config.update({"total_steps": wandb.config.train_examples // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
 
 

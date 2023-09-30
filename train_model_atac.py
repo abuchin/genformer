@@ -168,9 +168,6 @@ def main():
                 'seq_corrupt_rate': {
                     'values': [int(x) for x in args.seq_corrupt_rate.split(',')]
                 },
-                'use_pooling': {
-                    'values': [parse_bool_str(x) for x in args.use_pooling.split(',')]
-                },
                 'use_tf_activity': {
                     'values': [parse_bool_str(x) for x in args.use_tf_activity.split(',')]
                 }
@@ -222,7 +219,8 @@ def main():
 
             run_name = '_'.join([str(int(wandb.config.input_length) / 1000)[:4].rstrip('.') + 'k',
                                  'load-' + str(wandb.config.load_init),
-                                 'LR-' + str(wandb.config.lr_base),
+                                 'LR1-' + str(wandb.config.lr_base1),
+                                 'LR2-' + str(wandb.config.lr_base1),
                                  'T-' + str(wandb.config.num_transformer_layers),
                                  'TF-' + str(wandb.config.use_tf_activity)])
 

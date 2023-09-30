@@ -39,7 +39,6 @@ class aformer(tf.keras.Model):
                  filter_list_atac=[32, 64],
                  final_point_scale=6,
                  freeze_conv_layers=False,
-                 use_pooling = False,
                  num_tfs=1629,
                  tf_dropout_rate=0.01,
                  name: str = 'aformer',
@@ -75,7 +74,6 @@ class aformer(tf.keras.Model):
         self.inits_type=inits_type
         self.BN_momentum=BN_momentum
         self.final_point_scale=final_point_scale
-        self.use_pooling=use_pooling
         self.num_tfs=num_tfs
         self.tf_dropout_rate=tf_dropout_rate
 
@@ -368,9 +366,8 @@ class aformer(tf.keras.Model):
                            training=training)
         x = self.stem_res_conv(x,
                                training=training)
-        if self.use_pooling:
-            x = self.stem_pool(x,
-                               training=training)
+        x = self.stem_pool(x,
+                           training=training)
 
         x = self.conv_tower(x,
                             training=training)
@@ -380,9 +377,9 @@ class aformer(tf.keras.Model):
 
         atac_x = self.stem_res_conv_atac(atac_x,
                                          training=training)
-        if self.use_pooling:
-            atac_x = self.stem_pool_atac(atac_x,
-                                         training=training)
+
+        atac_x = self.stem_pool_atac(atac_x,
+                                     training=training)
 
         atac_x = self.conv_tower_atac(atac_x,training=training)
 

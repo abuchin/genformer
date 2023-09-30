@@ -71,8 +71,6 @@ def return_train_val_functions(model,
     metric_dict['ATAC_PearsonR'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
     metric_dict['ATAC_R2'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
 
-    metric_dict["corr_stats"] = metrics.correlation_stats_gene_centered(name='corr_stats')
-
     @tf.function(reduce_retracing=True)
     def dist_train_step(inputs):
         #def train_step(inputs):
@@ -220,7 +218,7 @@ def deserialize_tr(serialized_example,
     sequence = one_hot(tf.strings.substr(data['sequence'],
                                  seq_shift,input_length))
     atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
-                                              out_type=tf.float32),
+                                              out_type=tf.float16),
                            [output_length_ATAC,1])
     peaks = tf.ensure_shape(tf.io.parse_tensor(data['peaks'],
                                               out_type=tf.int32),
@@ -229,7 +227,7 @@ def deserialize_tr(serialized_example,
                                               out_type=tf.int32),
                            [output_length])
     tf_activity = tf.ensure_shape(tf.io.parse_tensor(data['tf_activity'],
-                                              out_type=tf.float32),
+                                              out_type=tf.float16),
                            [1629])
     tf_activity = tf.expand_dims(tf_activity,axis=0)
     if not use_tf_activity:
@@ -238,7 +236,7 @@ def deserialize_tr(serialized_example,
     tf_activity = tf_activity + tf.math.abs(g.normal(tf_activity.shape,
                                                mean=0.0,
                                                stddev=0.005,
-                                               dtype=tf.float32))
+                                               dtype=tf.float16))
 
     peaks = tf.expand_dims(peaks,axis=1)
     peaks_crop = tf.slice(peaks,
@@ -279,8 +277,8 @@ def deserialize_tr(serialized_example,
     out_length_cropped = output_length-2*crop_size
     if out_length_cropped % num_mask_bins != 0:
         raise ValueError('ensure that masking region size divided by output res is a factor of the cropped output length')
-    edge_append = tf.ones((crop_size,1),dtype=tf.float32) ## since we only mask over the center 896, base calcs on the cropped size
-    atac_mask = tf.ones(out_length_cropped // num_mask_bins,dtype=tf.float32)
+    edge_append = tf.ones((crop_size,1),dtype=tf.float16) ## since we only mask over the center 896, base calcs on the cropped size
+    atac_mask = tf.ones(out_length_cropped // num_mask_bins,dtype=tf.float16)
 
     '''now compute the random atac seq dropout, which is done in addition to the randomly selected peak '''
     if ((atac_mask_int == 0)):
@@ -353,7 +351,7 @@ def deserialize_tr(serialized_example,
         masked_atac = tf.math.abs(g.normal(masked_atac.shape,
                                mean=0.0,
                                stddev=1.0,
-                               dtype=tf.float32))
+                               dtype=tf.float16))
     if not use_seq:
         print('not using sequence')
         masked_seq = tf.random.experimental.stateless_shuffle(masked_seq,
@@ -365,7 +363,7 @@ def deserialize_tr(serialized_example,
                 tf.cast(tf.ensure_shape(mask_gathered, [(output_length-crop_size*2) // 4,1]),dtype=tf.int32), \
                 tf.cast(tf.ensure_shape(peaks_gathered, [(output_length-2*crop_size) // 4,1]),dtype=tf.int32), \
                 tf.cast(tf.ensure_shape(atac_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
-                tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.float32)
+                tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.bfloat16)
 
 
 def deserialize_val(serialized_example,
@@ -402,7 +400,7 @@ def deserialize_val(serialized_example,
     sequence = one_hot(tf.strings.substr(data['sequence'],
                                  seq_shift,input_length))
     atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
-                                              out_type=tf.float32),
+                                              out_type=tf.float16),
                            [output_length_ATAC,1])
     peaks = tf.ensure_shape(tf.io.parse_tensor(data['peaks'],
                                               out_type=tf.int32),
@@ -411,7 +409,7 @@ def deserialize_val(serialized_example,
                                               out_type=tf.int32),
                            [output_length])
     tf_activity = tf.ensure_shape(tf.io.parse_tensor(data['tf_activity'],
-                                              out_type=tf.float32),
+                                              out_type=tf.float16),
                            [1629])
     tf_activity = tf.expand_dims(tf_activity,axis=0)
     if not use_tf_activity:
@@ -419,7 +417,7 @@ def deserialize_val(serialized_example,
     tf_activity = tf_activity + tf.math.abs(g.normal(tf_activity.shape,
                                                mean=0.0,
                                                stddev=0.005,
-                                               dtype=tf.float32))
+                                               dtype=tf.float16))
 
     peaks_sum = tf.reduce_sum(peaks_center)
     seq_seed = tf.reduce_sum(sequence[:,0])
@@ -466,8 +464,8 @@ def deserialize_val(serialized_example,
     dense_peak_mask = tf.expand_dims(dense_peak_mask,axis=1)
 
     out_length_cropped = output_length-2*crop_size
-    edge_append = tf.ones((crop_size,1),dtype=tf.float32)
-    atac_mask = tf.ones(out_length_cropped // num_mask_bins,dtype=tf.float32)
+    edge_append = tf.ones((crop_size,1),dtype=tf.float16)
+    atac_mask = tf.ones(out_length_cropped // num_mask_bins,dtype=tf.float16)
     atac_mask=tf.nn.experimental.stateless_dropout(atac_mask,
                                               rate=(atac_mask_dropout),
                                               seed=[randomish_seed+1,randomish_seed+10]) / (1. / (1.0-(atac_mask_dropout)))
@@ -507,7 +505,7 @@ def deserialize_val(serialized_example,
         masked_atac = tf.math.abs(g.normal(masked_atac.shape,
                                mean=0.0,
                                stddev=1.0,
-                               dtype=tf.float32))
+                               dtype=tf.float16))
     if not use_seq:
         sequence = tf.random.experimental.stateless_shuffle(sequence,
                                                             seed=[1,randomish_seed+12])
@@ -518,7 +516,7 @@ def deserialize_val(serialized_example,
                 tf.cast(tf.ensure_shape(mask_gathered, [(output_length-crop_size*2) // 4,1]),dtype=tf.int32), \
                 tf.cast(tf.ensure_shape(peaks_gathered, [(output_length-2*crop_size) // 4,1]),dtype=tf.int32), \
                 tf.cast(tf.ensure_shape(atac_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
-                tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.float32)
+                tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.bfloat16)
 
 
 def return_dataset(gcs_path,
@@ -1002,11 +1000,6 @@ def parse_args(parser):
                         type=str,
                         default="20",
                         help= 'atac_corrupt_rate')
-    parser.add_argument('--use_pooling',
-                        dest='use_pooling',
-                        type=str,
-                        default="False",
-                        help= 'use_pooling')
     parser.add_argument('--use_tf_activity',
                         dest='use_tf_activity',
                         type=str,
@@ -1031,7 +1024,7 @@ def one_hot(sequence):
 
     out = tf.one_hot(table.lookup(input_characters),
                       depth = 4,
-                      dtype=tf.float32)
+                      dtype=tf.bfloat16)
     return out
 
 def rev_comp_one_hot(sequence):
@@ -1051,7 +1044,7 @@ def rev_comp_one_hot(sequence):
 
     out = tf.one_hot(table.lookup(input_characters),
                       depth = 4,
-                      dtype=tf.float32)
+                      dtype=tf.bfloat16)
     return out
 
 
