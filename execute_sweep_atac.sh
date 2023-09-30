@@ -7,8 +7,8 @@ python3 train_model_atac.py \
             --wandb_user="njaved" \
             --wandb_sweep_name="atac_pretraining" \
             --gcs_project="picard-testing-176520" \
-            --gcs_path="gs://picard-testing-176520/genformer_atac_pretrain/524k/genformer_atac_pretrain_globalacc_conv_fpm_human" \
-            --gcs_path_holdout="gs://picard-testing-176520/genformer_atac_pretrain/524k/genformer_atac_pretrain_globalacc_conv_fpm_human_valid" \
+            --gcs_path="gs://picard-testing-176520/genformer_atac_pretrain/524k/genformer_atac_pretrain_globalacc_conv_fpm" \
+            --gcs_path_holdout="gs://picard-testing-176520/genformer_atac_pretrain/524k/genformer_atac_pretrain_globalacc_conv_fpm_valid" \
             --input_length=524288 \
             --output_length=4096 \
             --output_length_ATAC=131072 \
@@ -30,13 +30,13 @@ python3 train_model_atac.py \
             --decay_frac="0.005" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-8 \
-            --num_transformer_layers="6" \
+            --num_transformer_layers="8" \
             --dropout_rate="0.20" \
             --pointwise_dropout_rate="0.10" \
             --num_heads="8" \
             --num_random_features="256" \
             --kernel_transformation="relu_kernel_transformation" \
-            --savefreq=50 \
+            --savefreq=1 \
             --freeze_conv_layers="False" \
             --load_init="False" \
             --rectify="True" \
