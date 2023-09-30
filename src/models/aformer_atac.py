@@ -186,7 +186,7 @@ class aformer(tf.keras.Model):
 
         self.conv_tower = tf.keras.Sequential([
             tf.keras.Sequential([
-                enf_conv_block(filters=num_filters,
+                Residual(enf_conv_block(filters=num_filters,
                                width=5,
                                beta_init=self.inits['BN1_b_' + str(i)] if self.load_init else None,
                                gamma_init=self.inits['BN1_g_' + str(i)] if self.load_init else None,
@@ -196,7 +196,7 @@ class aformer(tf.keras.Model):
                                bias_init=self.inits['conv1_b_' + str(i)] if self.load_init else None,
                                train=False if self.freeze_conv_layers else True,
                                stride=1,
-                               padding='same'),
+                               padding='same')),
                 tf.keras.layers.MaxPool1D(pool_size=2)],
                        name=f'conv_tower_block_{i}')
             for i, num_filters in enumerate(self.filter_list_seq)], name='conv_tower')
@@ -204,7 +204,7 @@ class aformer(tf.keras.Model):
 
         self.conv_tower_atac = tf.keras.Sequential([
             tf.keras.Sequential([
-                enf_conv_block(filters=num_filters,
+                Residual(enf_conv_block(filters=num_filters,
                                width=5,
                                beta_init=self.inits['BN_at1_b_' + str(i)] if self.load_init_atac else None,
                                gamma_init=self.inits['BN_at1_g_' + str(i)] if self.load_init_atac else None,
@@ -215,7 +215,7 @@ class aformer(tf.keras.Model):
                                train=False if self.freeze_conv_layers else True,
                                dilation_rate=1,
                                stride=1,
-                               padding='same'),
+                               padding='same')),
                 tf.keras.layers.MaxPool1D(pool_size=4)],
                        name=f'conv_tower_block_atac_{i}')
             for i, num_filters in enumerate(self.filter_list_atac)], name='conv_tower_atac')
