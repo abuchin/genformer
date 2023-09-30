@@ -220,6 +220,7 @@ def deserialize_tr(serialized_example,
     atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
                                               out_type=tf.float16),
                            [output_length_ATAC,1])
+    atac = tf.cast(atac,dtype=tf.float32)
     peaks = tf.ensure_shape(tf.io.parse_tensor(data['peaks'],
                                               out_type=tf.int32),
                            [output_length])
@@ -227,7 +228,7 @@ def deserialize_tr(serialized_example,
                                               out_type=tf.int32),
                            [output_length])
     tf_activity = tf.ensure_shape(tf.io.parse_tensor(data['tf_activity'],
-                                              out_type=tf.float16),
+                                              out_type=tf.float32),
                            [1629])
     tf_activity = tf.expand_dims(tf_activity,axis=0)
     if not use_tf_activity:
@@ -236,7 +237,7 @@ def deserialize_tr(serialized_example,
     tf_activity = tf_activity + tf.math.abs(g.normal(tf_activity.shape,
                                                mean=0.0,
                                                stddev=0.005,
-                                               dtype=tf.float16))
+                                               dtype=tf.float32))
 
     peaks = tf.expand_dims(peaks,axis=1)
     peaks_crop = tf.slice(peaks,
@@ -273,18 +274,16 @@ def deserialize_tr(serialized_example,
     dense_peak_mask_store = dense_peak_mask
     dense_peak_mask=1.0-dense_peak_mask ### masking regions here are set to 1. so invert the mask to actually use
     dense_peak_mask = tf.expand_dims(dense_peak_mask,axis=1)
-    dense_peak_mask = tf.cast(dense_peak_mask,dtype=tf.float16)
 
     out_length_cropped = output_length-2*crop_size
     if out_length_cropped % num_mask_bins != 0:
         raise ValueError('ensure that masking region size divided by output res is a factor of the cropped output length')
-    edge_append = tf.ones((crop_size,1),dtype=tf.float16) ## since we only mask over the center 896, base calcs on the cropped size
-    atac_mask = tf.ones(out_length_cropped // num_mask_bins,dtype=tf.float16)
+    edge_append = tf.ones((crop_size,1),dtype=tf.float32) ## since we only mask over the center 896, base calcs on the cropped size
+    atac_mask = tf.ones(out_length_cropped // num_mask_bins,dtype=tf.float32)
 
     '''now compute the random atac seq dropout, which is done in addition to the randomly selected peak '''
     if ((atac_mask_int == 0)):
         atac_mask_dropout = 3 * atac_mask_dropout
-    atac_mask_dropout = tf.cast(atac_mask_dropout, dtype=tf.float16)
     atac_mask=tf.nn.experimental.stateless_dropout(atac_mask,
                                               rate=(atac_mask_dropout),
                                               seed=[0,randomish_seed-5]) / (1. / (1.0-(atac_mask_dropout)))
@@ -353,7 +352,7 @@ def deserialize_tr(serialized_example,
         masked_atac = tf.math.abs(g.normal(masked_atac.shape,
                                mean=0.0,
                                stddev=1.0,
-                               dtype=tf.float16))
+                               dtype=tf.float32))
     if not use_seq:
         print('not using sequence')
         masked_seq = tf.random.experimental.stateless_shuffle(masked_seq,
@@ -404,6 +403,7 @@ def deserialize_val(serialized_example,
     atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
                                               out_type=tf.float16),
                            [output_length_ATAC,1])
+    atac = tf.cast(atac,dtype=tf.float32)
     peaks = tf.ensure_shape(tf.io.parse_tensor(data['peaks'],
                                               out_type=tf.int32),
                            [output_length])
@@ -413,13 +413,14 @@ def deserialize_val(serialized_example,
     tf_activity = tf.ensure_shape(tf.io.parse_tensor(data['tf_activity'],
                                               out_type=tf.float16),
                            [1629])
+    tf_activity = tf.cast(tf_activity,dtype=tf.float32)
     tf_activity = tf.expand_dims(tf_activity,axis=0)
     if not use_tf_activity:
         tf_activity = tf.zeros_like(tf_activity)
     tf_activity = tf_activity + tf.math.abs(g.normal(tf_activity.shape,
                                                mean=0.0,
                                                stddev=0.005,
-                                               dtype=tf.float16))
+                                               dtype=tf.float32))
 
     peaks_sum = tf.reduce_sum(peaks_center)
     seq_seed = tf.reduce_sum(sequence[:,0])
@@ -464,12 +465,10 @@ def deserialize_val(serialized_example,
     dense_peak_mask_store = dense_peak_mask
     dense_peak_mask=1.0-dense_peak_mask ### masking regions here are set to 1. so invert the mask to actually use
     dense_peak_mask = tf.expand_dims(dense_peak_mask,axis=1)
-    dense_peak_mask = tf.cast(dense_peak_mask,dtype=tf.float16)
 
     out_length_cropped = output_length-2*crop_size
-    edge_append = tf.ones((crop_size,1),dtype=tf.float16)
-    atac_mask = tf.ones(out_length_cropped // num_mask_bins,dtype=tf.float16)
-    atac_mask_dropout = tf.cast(atac_mask_dropout, dtype=tf.float16)
+    edge_append = tf.ones((crop_size,1),dtype=tf.float32)
+    atac_mask = tf.ones(out_length_cropped // num_mask_bins,dtype=tf.float32)
     atac_mask=tf.nn.experimental.stateless_dropout(atac_mask,
                                               rate=(atac_mask_dropout),
                                               seed=[randomish_seed+1,randomish_seed+10]) / (1. / (1.0-(atac_mask_dropout)))
@@ -509,7 +508,7 @@ def deserialize_val(serialized_example,
         masked_atac = tf.math.abs(g.normal(masked_atac.shape,
                                mean=0.0,
                                stddev=1.0,
-                               dtype=tf.float16))
+                               dtype=tf.float32))
     if not use_seq:
         sequence = tf.random.experimental.stateless_shuffle(sequence,
                                                             seed=[1,randomish_seed+12])
