@@ -273,6 +273,7 @@ def deserialize_tr(serialized_example,
     dense_peak_mask_store = dense_peak_mask
     dense_peak_mask=1.0-dense_peak_mask ### masking regions here are set to 1. so invert the mask to actually use
     dense_peak_mask = tf.expand_dims(dense_peak_mask,axis=1)
+    dense_peak_mask = tf.cast(dense_peak_mask,dtype=tf.float16)
 
     out_length_cropped = output_length-2*crop_size
     if out_length_cropped % num_mask_bins != 0:
@@ -463,6 +464,7 @@ def deserialize_val(serialized_example,
     dense_peak_mask_store = dense_peak_mask
     dense_peak_mask=1.0-dense_peak_mask ### masking regions here are set to 1. so invert the mask to actually use
     dense_peak_mask = tf.expand_dims(dense_peak_mask,axis=1)
+    dense_peak_mask = tf.cast(dense_peak_mask,dtype=tf.float16)
 
     out_length_cropped = output_length-2*crop_size
     edge_append = tf.ones((crop_size,1),dtype=tf.float16)
