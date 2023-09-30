@@ -1027,7 +1027,7 @@ def one_hot(sequence):
 
     out = tf.one_hot(table.lookup(input_characters),
                       depth = 4,
-                      dtype=tf.bfloat16)
+                      dtype=tf.float32)
     return out
 
 def rev_comp_one_hot(sequence):
@@ -1047,7 +1047,7 @@ def rev_comp_one_hot(sequence):
 
     out = tf.one_hot(table.lookup(input_characters),
                       depth = 4,
-                      dtype=tf.bfloat16)
+                      dtype=tf.float32)
     return out
 
 
