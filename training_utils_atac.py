@@ -283,6 +283,7 @@ def deserialize_tr(serialized_example,
     '''now compute the random atac seq dropout, which is done in addition to the randomly selected peak '''
     if ((atac_mask_int == 0)):
         atac_mask_dropout = 3 * atac_mask_dropout
+    atac_mask_dropout = tf.cast(atac_mask_dropout, dtype=tf.float16)
     atac_mask=tf.nn.experimental.stateless_dropout(atac_mask,
                                               rate=(atac_mask_dropout),
                                               seed=[0,randomish_seed-5]) / (1. / (1.0-(atac_mask_dropout)))
@@ -466,6 +467,7 @@ def deserialize_val(serialized_example,
     out_length_cropped = output_length-2*crop_size
     edge_append = tf.ones((crop_size,1),dtype=tf.float16)
     atac_mask = tf.ones(out_length_cropped // num_mask_bins,dtype=tf.float16)
+    atac_mask_dropout = tf.cast(atac_mask_dropout, dtype=tf.float16)
     atac_mask=tf.nn.experimental.stateless_dropout(atac_mask,
                                               rate=(atac_mask_dropout),
                                               seed=[randomish_seed+1,randomish_seed+10]) / (1. / (1.0-(atac_mask_dropout)))
