@@ -227,8 +227,9 @@ def deserialize_tr(serialized_example,
                                               out_type=tf.int32),
                            [output_length])
     tf_activity = tf.ensure_shape(tf.io.parse_tensor(data['tf_activity'],
-                                              out_type=tf.float32),
+                                              out_type=tf.float16),
                            [1629])
+    tf_activity = tf.cast(tf_activity,dtype=tf.float32)
     tf_activity = tf.expand_dims(tf_activity,axis=0)
     if not use_tf_activity:
         print('not using tf activity')
