@@ -1241,7 +1241,7 @@ def parse_args(parser):
     parser.add_argument('--checkpoint_path',
                         dest='checkpoint_path',
                         type=str,
-                        default="gs://picard-testing-176520/enformer_performer/models/enformer_performer_230120_196k_load_init-True_freeze-False_LR1-1e-06_LR2-0.0001_T-6_F-1536_D-0.4_K-relu_kernel_transformation_MP-True_AD-0.05/iteration_10",
+                        default="gs://picard-testing-176520/genformer_atac_pretrain/models/aformer_524k_load-False_LR1-0.0001_LR2-0.0001_T-7_TF-False_2023-10-01_15:07:58/iteration_26",
                         help= 'checkpoint_path')
     parser.add_argument('--load_init_FT',
                         dest='load_init_FT',
