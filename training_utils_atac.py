@@ -46,16 +46,12 @@ from sklearn import metrics as sklearn_metrics
 
 from tensorflow.keras import initializers as inits
 from scipy.stats import zscore
+import tensorflow_probability as tfp
 
 tf.keras.backend.set_floatx('float32')
 
-def return_train_val_functions(model,
-                               train_steps,
-                               val_steps_ho,
-                               optimizers_in,
-                               strategy,
-                               metric_dict,
-                               global_batch_size,
+def return_train_val_functions(model, train_steps, val_steps_ho, optimizers_in,
+                               strategy, metric_dict, global_batch_size,
                                gradient_clip):
 
     optimizer1,optimizer2=optimizers_in
@@ -163,22 +159,12 @@ def return_train_val_functions(model,
     return dist_train_step,dist_val_step, build_step, metric_dict
 
 
-def deserialize_tr(serialized_example,
-                    g,
-                    use_tf_activity,
-                   input_length = 196608,
-                   max_shift = 10,
-                   output_length_ATAC = 49152,
-                   output_length = 1536,
-                   crop_size = 320,
-                   output_res = 128,
-                   atac_mask_dropout = 0.15,
-                   mask_size = 896,
-                   log_atac = True,
-                   use_atac = True,
-                   use_seq = True,
-                     seq_corrupt_rate = 20,
-                     atac_corrupt_rate = 20):
+def deserialize_tr(serialized_example, g, use_tf_activity,
+                   input_length = 196608, max_shift = 10, output_length_ATAC = 49152,
+                   output_length = 1536, crop_size = 320, output_res = 128,
+                   atac_mask_dropout = 0.15, mask_size = 896, log_atac = True,
+                   use_atac = True, use_seq = True, seq_corrupt_rate = 20,
+                   atac_corrupt_rate = 20):
     """Deserialize bytes stored in TFRecordFile."""
     ## parse out feature map
     feature_map = {
@@ -236,8 +222,12 @@ def deserialize_tr(serialized_example,
         tf_activity = tf.zeros_like(tf_activity)
     tf_activity = tf_activity + tf.math.abs(g.normal(tf_activity.shape,
                                                mean=0.0,
-                                               stddev=0.005,
+                                               stddev=0.001,
                                                dtype=tf.float32))
+    '''scale'''
+    percentile99 = tfp.stats.percentile(tf_activity, q=99.0, axis=0)
+    tf_activity = tf_activity / percentile99
+
 
     peaks = tf.expand_dims(peaks,axis=1)
     peaks_crop = tf.slice(peaks,
@@ -367,20 +357,10 @@ def deserialize_tr(serialized_example,
                 tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.bfloat16)
 
 
-def deserialize_val(serialized_example,
-                   g,
-                   use_tf_activity,
-                    input_length = 196608,
-                   max_shift = 10,
-                   output_length_ATAC = 49152,
-                   output_length = 1536,
-                   crop_size = 320,
-                   output_res = 128,
-                   atac_mask_dropout = 0.15,
-                   mask_size = 896,
-                   log_atac = True,
-                   use_atac = True,
-                   use_seq = True):
+def deserialize_val(serialized_example, g, use_tf_activity, input_length = 196608,
+                   max_shift = 10, output_length_ATAC = 49152, output_length = 1536,
+                   crop_size = 320, output_res = 128, atac_mask_dropout = 0.15,
+                   mask_size = 896, log_atac = True, use_atac = True, use_seq = True):
     """Deserialize bytes stored in TFRecordFile."""
     ## parse out feature map
     feature_map = {
@@ -415,11 +395,15 @@ def deserialize_val(serialized_example,
     tf_activity = tf.cast(tf_activity,dtype=tf.float32)
     tf_activity = tf.expand_dims(tf_activity,axis=0)
     if not use_tf_activity:
+        print('not using tf activity')
         tf_activity = tf.zeros_like(tf_activity)
     tf_activity = tf_activity + tf.math.abs(g.normal(tf_activity.shape,
                                                mean=0.0,
-                                               stddev=0.005,
+                                               stddev=0.001,
                                                dtype=tf.float32))
+    '''scale'''
+    percentile99 = tfp.stats.percentile(tf_activity, q=99.0, axis=0)
+    tf_activity = tf_activity / percentile99
 
     peaks_sum = tf.reduce_sum(peaks_center)
     seq_seed = tf.reduce_sum(sequence[:,0])
@@ -521,30 +505,12 @@ def deserialize_val(serialized_example,
                 tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.bfloat16)
 
 
-def return_dataset(gcs_path,
-                   split,
-                   batch,
-                   input_length,
-                   output_length_ATAC,
-                   output_length,
-                   crop_size,
-                   output_res,
-                   max_shift,
-                   options,
-                   num_parallel,
-                   num_epoch,
-                   #seq_mask_dropout,
-                   atac_mask_dropout,
-                   random_mask_size,
-                   log_atac,
-                   use_atac,
-                   use_seq,
-                   seed,
-                     seq_corrupt_rate,
-                     atac_corrupt_rate,
-                   validation_steps,
-                   use_tf_activity,
-                   g):
+def return_dataset(gcs_path, split, batch, input_length, output_length_ATAC,
+                   output_length, crop_size, output_res, max_shift, options,
+                   num_parallel, num_epoch, atac_mask_dropout,
+                   random_mask_size, log_atac, use_atac, use_seq, seed,
+                   seq_corrupt_rate, atac_corrupt_rate, validation_steps,
+                   use_tf_activity, g):
     """
     return a tf dataset object for given gcs path
     """
@@ -563,26 +529,17 @@ def return_dataset(gcs_path,
         dataset = dataset.with_options(options)
 
         dataset = dataset.map(lambda record: deserialize_tr(record,
-                                                            g,
-                                                            use_tf_activity,
-                                                            input_length,
-                                                            max_shift,
-                                                            output_length_ATAC,
-                                                            output_length,
-                                                            crop_size,
-                                                            output_res,
-                                                            #seq_mask_dropout,
-                                                            atac_mask_dropout,
-                                                            random_mask_size,
-                                                            log_atac,
-                                                           use_atac,
-                                                           use_seq,
-                                                         seq_corrupt_rate,
-                                                         atac_corrupt_rate),
+                                                            g, use_tf_activity,
+                                                            input_length, max_shift,
+                                                            output_length_ATAC, output_length,
+                                                            crop_size, output_res,
+                                                            atac_mask_dropout, random_mask_size,
+                                                            log_atac, use_atac, use_seq,
+                                                            seq_corrupt_rate, atac_corrupt_rate),
                               deterministic=False,
                               num_parallel_calls=num_parallel)
 
-        return dataset.repeat(num_epoch).batch(batch).prefetch(tf.data.AUTOTUNE)
+        return dataset.repeat((num_epoch*2)).batch(batch).prefetch(tf.data.AUTOTUNE)
 
     else:
         list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
@@ -595,102 +552,40 @@ def return_dataset(gcs_path,
                                           compression_type='ZLIB',
                                           num_parallel_reads=num_parallel)
         dataset = dataset.with_options(options)
-        dataset = dataset.map(lambda record: deserialize_val(record,
-                                                            g,
-                                                            use_tf_activity,
-                                                            input_length,
-                                                            max_shift,
-                                                            output_length_ATAC,
-                                                            output_length,
-                                                            crop_size,
-                                                            output_res,
-                                                             #seq_mask_dropout,
-                                                            atac_mask_dropout,
-                                                            random_mask_size,
-                                                            log_atac,
-                                                           use_atac,
-                                                           use_seq),
+        dataset = dataset.map(lambda record: deserialize_val(record, g, use_tf_activity,
+                                                             input_length, max_shift,
+                                                             output_length_ATAC, output_length,
+                                                             crop_size, output_res,
+                                                             atac_mask_dropout, random_mask_size,
+                                                             log_atac, use_atac, use_seq),
                       deterministic=True,
                       num_parallel_calls=num_parallel)
 
-        return dataset.take(batch*validation_steps).batch(batch).repeat(num_epoch).prefetch(tf.data.AUTOTUNE)
+        return dataset.take(batch*validation_steps).batch(batch).repeat((num_epoch*2)).prefetch(tf.data.AUTOTUNE)
 
 
-def return_distributed_iterators(gcs_path,
-                                 gcs_path_ho,
-                                 global_batch_size,
-                                 input_length,
-                                 max_shift,
-                                 output_length_ATAC,
-                                 output_length,
-                                 crop_size,
-                                 output_res,
-                                 num_parallel_calls,
-                                 num_epoch,
-                                 strategy,
-                                 options,
-                                 atac_mask_dropout,
-                                 random_mask_size,
-                                 log_atac,
-                                 use_atac,
-                                 use_seq,
-                                 seed,
-                                 seq_corrupt_rate,
-                                 atac_corrupt_rate,
-                                 validation_steps,
-                                 use_tf_activity,
-                                 g):
+def return_distributed_iterators(gcs_path, gcs_path_ho, global_batch_size,
+                                 input_length, max_shift, output_length_ATAC,
+                                 output_length, crop_size, output_res,
+                                 num_parallel_calls, num_epoch, strategy,
+                                 options, atac_mask_dropout, random_mask_size,
+                                 log_atac, use_atac, use_seq, seed,
+                                 seq_corrupt_rate, atac_corrupt_rate,
+                                 validation_steps, use_tf_activity, g):
 
+    tr_data = return_dataset(gcs_path, "train", global_batch_size, input_length,
+                             output_length_ATAC, output_length, crop_size,
+                             output_res, max_shift, options, num_parallel_calls,
+                             num_epoch, atac_mask_dropout, random_mask_size,
+                             log_atac, use_atac, use_seq, seed, seq_corrupt_rate,
+                             atac_corrupt_rate, validation_steps, use_tf_activity, g)
 
-    tr_data = return_dataset(gcs_path,
-                             "train",
-                             global_batch_size,
-                             input_length,
-                             output_length_ATAC,
-                             output_length,
-                             crop_size,
-                             output_res,
-                             max_shift,
-                             options,
-                             num_parallel_calls,
-                             num_epoch,
-                             #seq_mask_dropout,
-                             atac_mask_dropout,
-                             random_mask_size,
-                             log_atac,
-                                   use_atac,
-                                   use_seq,
-                             seed,
-                             seq_corrupt_rate,
-                             atac_corrupt_rate,
-                             validation_steps,
-                             use_tf_activity,
-                             g)
-
-    val_data_ho = return_dataset(gcs_path_ho,
-                              "valid",
-                              global_batch_size,
-                              input_length,
-                              output_length_ATAC,
-                              output_length,
-                              crop_size,
-                              output_res,
-                              max_shift,
-                              options,
-                              num_parallel_calls,
-                              num_epoch,
-                                 #seq_mask_dropout,
-                              atac_mask_dropout,
-                              random_mask_size,
-                              log_atac,
-                                   use_atac,
-                                   use_seq,
-                                 seed,
-                                 seq_corrupt_rate,
-                                 atac_corrupt_rate,
-                                 validation_steps,
-                                 use_tf_activity,
-                              g)
+    val_data_ho = return_dataset(gcs_path_ho, "valid", global_batch_size, input_length,
+                                 output_length_ATAC, output_length, crop_size,
+                                 output_res, max_shift, options, num_parallel_calls, num_epoch,
+                                 atac_mask_dropout, random_mask_size, log_atac,
+                                 use_atac, use_seq, seed, seq_corrupt_rate, atac_corrupt_rate,
+                                 validation_steps, use_tf_activity, g)
 
     val_dist_ho=strategy.experimental_distribute_dataset(val_data_ho)
     val_data_ho_it = iter(val_dist_ho)
@@ -1102,8 +997,8 @@ def make_plots(y_trues,
     try:
         kernel = stats.gaussian_kde(data)(data)
         sns.scatterplot(
-            x=true[idx],
-            y=pred[idx],
+            x=true_log[idx],
+            y=pred_log[idx],
             c=kernel,
             cmap="viridis")
         ax_overall.set_xlim(min_true,max_true)
@@ -1113,8 +1008,8 @@ def make_plots(y_trues,
         plt.title("overall atac corr")
     except np.linalg.LinAlgError as err:
         sns.scatterplot(
-            x=true[idx],
-            y=pred[idx],
+            x=true_log[idx],
+            y=pred_log[idx],
             cmap="viridis")
         ax_overall.set_xlim(min_true,max_true)
         ax_overall.set_ylim(min_pred,max_pred)
@@ -1123,8 +1018,8 @@ def make_plots(y_trues,
         plt.title("overall atac corr")
     except ValueError:
         sns.scatterplot(
-            x=true[idx],
-            y=pred[idx],
+            x=true_log[idx],
+            y=pred_log[idx],
             cmap="viridis")
         plt.xlabel("log-true")
         plt.ylabel("log-pred")
