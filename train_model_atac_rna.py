@@ -214,7 +214,7 @@ def main():
             wandb.config.model_save_dir=args.model_save_dir
             wandb.config.model_save_basename=args.model_save_basename
             wandb.config.max_shift=args.max_shift
-
+            wandb.config.checkpoint_path=args.checkpoint_path
             wandb.config.crop_size = (wandb.config.output_length - wandb.config.final_output_length) // 2
 
             if (wandb.config.load_init_FULL and wandb.config.load_init_FT):
@@ -282,9 +282,10 @@ def main():
 
             inits=None
             print('created dataset iterators')
+            print(wandb.config.checkpoint_path)
             if wandb.config.load_init_FT:
                 print('loading fine-tuning weights')
-                inits=load_weights_atac_rna.get_initializers_genformer_ft(args.checkpoint_path,
+                inits=load_weights_atac_rna.get_initializers_genformer_ft(wandb.config.checkpoint_path,
                                                                          wandb.config.num_transformer_layers,
                                                                          wandb.config.use_tf_activity)
 
