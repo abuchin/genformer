@@ -1,6 +1,6 @@
 #!/bin/bash -l
 
-python3 train_model_atac_cage.py \
+python3 train_model_atac_rna.py \
             --tpu_name="pod3" \
             --tpu_zone="us-central1-a" \
             --wandb_project="paired_rampage_atac" \
