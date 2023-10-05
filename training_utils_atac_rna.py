@@ -626,7 +626,8 @@ def deserialize_val_TSS(serialized_example, g, use_tf_activity, input_length = 1
                            [output_length,1])
     rna_assay_type = tf.ensure_shape(tf.io.parse_tensor(data['rna_assay_type'],
                                               out_type=tf.int32),
-                                 [1])
+                                 [0])
+    rna_assay_type = tf.expand_dims(rna_assay_type,axis=0)
     rna_assay_type = tf.expand_dims(rna_assay_type,axis=0)
     peaks = tf.ensure_shape(tf.io.parse_tensor(data['peaks'],
                                               out_type=tf.int32),
@@ -793,6 +794,7 @@ def return_dataset(gcs_path, split, tss_bool, batch, input_length, output_length
         list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
                                                     split,
                                                     wc)))
+        print(list_files)
 
         #random.shuffle(list_files)
         files = tf.data.Dataset.list_files(list_files,shuffle=False)
@@ -810,9 +812,6 @@ def return_dataset(gcs_path, split, tss_bool, batch, input_length, output_length
                       num_parallel_calls=num_parallel)
 
         return dataset.take(batch*validation_steps).batch(batch).repeat((num_epoch*2)).prefetch(tf.data.AUTOTUNE)
-
-        return dataset.repeat(num_epoch).batch(batch).prefetch(tf.data.AUTOTUNE)
-
 
 def return_distributed_iterators(gcs_path, gcs_path_ho, global_batch_size,
                                  input_length, max_shift, output_length_ATAC,
@@ -836,7 +835,7 @@ def return_distributed_iterators(gcs_path, gcs_path_ho, global_batch_size,
                              seed, seq_corrupt_rate,atac_corrupt_rate, validation_steps,
                              use_tf_activity, g)
 
-    val_data = return_dataset(gcs_path, "valid", False, global_batch_size,
+    val_data = return_dataset(gcs_path_ho, "valid", False, global_batch_size,
                              input_length, output_length_ATAC, output_length,
                              crop_size, output_res, max_shift, options,
                              num_parallel_calls, num_epoch, atac_mask_dropout,
