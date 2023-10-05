@@ -38,6 +38,7 @@ class aformer(tf.keras.Model):
                  filter_list_atac=[32, 64],
                  final_point_scale=6,
                  freeze_conv_layers=False,
+                 load_tf=False,
                  num_tfs=1629,
                  tf_dropout_rate=0.01,
                  name: str = 'aformer',
@@ -69,6 +70,7 @@ class aformer(tf.keras.Model):
         self.filter_list_seq = filter_list_seq
         self.filter_list_atac=filter_list_atac
         self.load_init_FT=load_init_FT
+        self.load_tf=load_tf
         self.BN_momentum=BN_momentum
         self.final_point_scale=final_point_scale
         self.num_tfs=num_tfs
@@ -203,10 +205,11 @@ class aformer(tf.keras.Model):
 
         self.tf_dropout=kl.Dropout(rate=self.tf_dropout_rate,
                                     **kwargs)
+
         self.tf_activity_fc = kl.Dense(self.hidden_size,
                                         activation='gelu',
-                                        kernel_initializer=self.inits['tf_activity_fc_k'] if self.load_init_FT else 'lecun_normal',
-                                        bias_initializer=self.inits['tf_activity_fc_b'] if self.load_init_FT else 'lecun_normal',
+                                        kernel_initializer=self.inits['tf_activity_fc_k'] if (self.load_init_FT and self.load_tf) else 'lecun_normal',
+                                        bias_initializer=self.inits['tf_activity_fc_b'] if (self.load_init_FT and self.load_tf) else 'lecun_normal',
                                         use_bias=True)
 
 
