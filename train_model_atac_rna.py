@@ -162,7 +162,10 @@ def main():
                 },
                 'use_tf_activity': {
                     'values': [parse_bool_str(x) for x in args.use_tf_activity.split(',')]
-                }
+                },
+                'seed': {
+                    'values':[args.seed]
+                },
             }
     }
 
