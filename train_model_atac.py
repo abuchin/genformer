@@ -123,9 +123,6 @@ def main():
                 'load_init': {
                     'values':[parse_bool_str(x) for x in args.load_init.split(',')]
                 },
-                'freeze_conv_layers': {
-                    'values':[parse_bool_str(x) for x in args.freeze_conv_layers.split(',')]
-                },
                 'filter_list_seq': {
                     'values': [[int(x) for x in args.filter_list_seq.split(',')]]
                 },
@@ -150,9 +147,6 @@ def main():
                 'use_seq': {
                     'values':[parse_bool_str(x) for x in args.use_seq.split(',')]
                 },
-                'sonnet_weights_bool': {
-                    'values':[parse_bool_str(x) for x in args.sonnet_weights_bool.split(',')]
-                },
                 'random_mask_size': {
                     'values':[int(x) for x in args.random_mask_size.split(',')]
                 },
@@ -176,16 +170,12 @@ def main():
 
 
     def sweep_train(config_defaults=None):
-        # Set default values
-        # Specify the other hyperparameters to the configuration, if any
-
         ## tpu initialization
         strategy = training_utils.tf_tpu_initialize(args.tpu_name,args.tpu_zone)
         mixed_precision.set_global_policy('mixed_bfloat16')
         g = tf.random.Generator.from_seed(args.seed)
-        ## rest must be w/in strategy scope
 
-        with strategy.scope():
+        with strategy.scope(): ## rest must be w/in strategy scope
 
             config_defaults = {
                 "lr_base": 0.01 ### will be overwritten
@@ -228,19 +218,13 @@ def main():
             wandb.run.name = run_name + "_" + date_string
             base_name = wandb.config.model_save_basename + "_" + wandb.run.name
 
-
-            '''
-            TPU init options
-            '''
+            ''' TPU init options '''
 
             options = tf.data.Options()
             options.experimental_distribute.auto_shard_policy=\
                 tf.data.experimental.AutoShardPolicy.DATA
             options.deterministic=False
-            #options.experimental_threading.max_intra_op_parallelism=1
             mixed_precision.set_global_policy('mixed_bfloat16')
-            #tf.autograph.set_verbosity(5)
-
 
             NUM_REPLICAS = strategy.num_replicas_in_sync
             BATCH_SIZE_PER_REPLICA=wandb.config.batch_size
@@ -282,9 +266,7 @@ def main():
                                                                 g)
 
             train_human, data_val_ho = out_iterators
-
             print('created dataset iterators')
-
             print(wandb.config)
             model = aformer.aformer(kernel_transformation=wandb.config.kernel_transformation,
                                     dropout_rate=wandb.config.dropout_rate,
@@ -305,9 +287,7 @@ def main():
                                     filter_list_seq=wandb.config.filter_list_seq,
                                     filter_list_atac=wandb.config.filter_list_atac)
 
-
             print('initialized model')
-
 
             scheduler1= tf.keras.optimizers.schedules.CosineDecay(
                 initial_learning_rate=wandb.config.lr_base1,
