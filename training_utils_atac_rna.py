@@ -1272,6 +1272,11 @@ def parse_args(parser):
                         type=str,
                         default="True",
                         help= 'load_init_FT')
+    parser.add_argument('--load_init_FULL',
+                        dest='load_init_FULL',
+                        type=str,
+                        default="True",
+                        help= 'load_init_FULL')
     parser.add_argument('--freeze_BN_layers',
                         dest='freeze_BN_layers',
                         type=str,
@@ -1332,7 +1337,26 @@ def parse_args(parser):
                         type=str,
                         default="1024",
                         help= 'random_mask_size')
-
+    parser.add_argument('--seed',
+                        dest='seed',
+                        type=int,
+                        default=42,
+                        help= 'seed')
+    parser.add_argument('--seq_corrupt_rate',
+                        dest='seq_corrupt_rate',
+                        type=str,
+                        default="20",
+                        help= 'seq_corrupt_rate')
+    parser.add_argument('--atac_corrupt_rate',
+                        dest='atac_corrupt_rate',
+                        type=str,
+                        default="20",
+                        help= 'atac_corrupt_rate')
+    parser.add_argument('--use_tf_activity',
+                        dest='use_tf_activity',
+                        type=str,
+                        default="False",
+                        help= 'use_tf_activity')
 
     args = parser.parse_args()
     return parser
