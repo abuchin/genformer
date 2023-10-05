@@ -196,7 +196,6 @@ def return_train_val_functions(model,
         @tf.function(jit_compile=True)
         def val_step(inputs):
             sequence,atac,mask,mask_gathered,peaks,target_atac,target_rna,assay_type,tf_activity = inputs
-            print(inputs)
             input_tuple = sequence, atac, tf_activity, assay_type
 
             output_atac,output_rna = model(input_tuple,

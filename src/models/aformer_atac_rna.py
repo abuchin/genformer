@@ -273,8 +273,6 @@ class aformer(tf.keras.Model):
     def call(self, inputs, training:bool=True):
 
         sequence,atac,tf_activity,assay_type = inputs
-
-        print(inputs)
         x = self.stem_conv(sequence,
                            training=training)
         x = self.stem_res_conv(x,
@@ -408,7 +406,7 @@ class aformer(tf.keras.Model):
 
         ### rna prediction
         assay_type = self.assay_type(assay_type,training=training)
-        assay_type = tf.tile(assay_type, [1, final_output_length,1])
+        assay_type = tf.tile(assay_type, [1, self.final_output_length,1])
         out = tf.concat([out,assay_type],axis=2)
         out_rna = self.final_dense_profile_rna(out, training=training)
 
