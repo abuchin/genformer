@@ -77,7 +77,7 @@ def return_train_val_functions(model,
         print('tracing training step!')
         sequence,atac,mask,mask_gathered,peaks,target,tf_activity =inputs
 
-        input_tuple = sequence, atac, tf_activity#, global_acc
+        input_tuple = sequence, atac, tf_activity
 
         with tf.GradientTape() as tape:
             conv_vars = model.stem_conv.trainable_variables + \
@@ -912,21 +912,16 @@ def parse_args(parser):
                         dest='savefreq',
                         type=int,
                         help= 'savefreq')
-    parser.add_argument('--multitask_checkpoint_path',
-                        dest='multitask_checkpoint_path',
+    parser.add_argument('--checkpoint_path',
+                        dest='checkpoint_path',
                         type=str,
                         default="gs://picard-testing-176520/enformer_performer/models/enformer_performer_230120_196k_load_init-True_freeze-False_LR1-1e-06_LR2-0.0001_T-6_F-1536_D-0.4_K-relu_kernel_transformation_MP-True_AD-0.05/iteration_10",
-                        help= 'multitask_checkpoint_path')
+                        help= 'checkpoint_path')
     parser.add_argument('--load_init',
                         dest='load_init',
                         type=str,
                         default="True",
                         help= 'load_init')
-    parser.add_argument('--freeze_conv_layers',
-                        dest='freeze_conv_layers',
-                        type=str,
-                        default="False",
-                        help= 'freeze_conv_layers')
     parser.add_argument('--normalize',
                         dest='normalize',
                         type=str,
@@ -952,11 +947,6 @@ def parse_args(parser):
                         type=str,
                         default="True",
                         help= 'rectify')
-    parser.add_argument('--inits_type',
-                        dest='inits_type',
-                        type=str,
-                        default="enformer_conv",
-                        help= 'inits_type')
     parser.add_argument('--optimizer',
                         dest='optimizer',
                         type=str,
@@ -967,11 +957,6 @@ def parse_args(parser):
                         type=str,
                         default="True",
                         help= 'log_atac')
-    parser.add_argument('--sonnet_weights_bool',
-                        dest='sonnet_weights_bool',
-                        type=str,
-                        default="False",
-                        help= 'sonnet_weights_bool')
     parser.add_argument('--use_atac',
                         dest='use_atac',
                         type=str,

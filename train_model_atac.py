@@ -211,7 +211,6 @@ def main():
             wandb.config.model_save_dir=args.model_save_dir
             wandb.config.model_save_basename=args.model_save_basename
             wandb.config.max_shift=args.max_shift
-            wandb.config.inits_type=args.inits_type
 
             wandb.config.crop_size = (wandb.config.output_length - wandb.config.final_output_length) // 2
 
@@ -284,28 +283,7 @@ def main():
 
             train_human, data_val_ho = out_iterators
 
-            loading_checkpoint_bool=False
-            inits=None
             print('created dataset iterators')
-            if wandb.config.load_init:
-                if wandb.config.inits_type == 'enformer_performer':
-                    print('loaded enformer performer weights')
-                    inits=load_weights_atac.get_initializers_enformer_performer(args.multitask_checkpoint_path,
-                                                                             wandb.config.num_transformer_layers)
-                elif wandb.config.inits_type == 'enformer_conv':
-                    print('loaded enformer conv weights')
-                    inits=load_weights_atac.get_initializers_enformer_conv(args.multitask_checkpoint_path,
-                                                                        wandb.config.sonnet_weights_bool,
-                                                                        len(wandb.config.filter_list_seq))
-                    wandb.config.update({"filter_list_seq": [768, 896, 1024, 1152, 1280, 1536]},
-                                        allow_val_change=True)
-                elif wandb.config.inits_type == 'enformer_performer_full':
-                    wandb.config.update({"load_init": False},
-                                        allow_val_change=True)
-                    loading_checkpoint_bool=True
-
-                else:
-                    raise ValueError('inits type not found')
 
             print(wandb.config)
             model = aformer.aformer(kernel_transformation=wandb.config.kernel_transformation,
@@ -322,9 +300,6 @@ def main():
                                     BN_momentum=wandb.config.BN_momentum,
                                     normalize = True,
                                     num_transformer_layers=wandb.config.num_transformer_layers,
-                                    inits=inits,
-                                    inits_type=wandb.config.inits_type,
-                                    load_init=wandb.config.load_init,
                                     final_point_scale=wandb.config.final_point_scale,
                                     freeze_conv_layers=wandb.config.freeze_conv_layers,
                                     filter_list_seq=wandb.config.filter_list_seq,
@@ -376,12 +351,12 @@ def main():
             best_epoch = 0
 
             for epoch_i in range(1, wandb.config.num_epochs+1):
-                step_num = epoch_i * wandb.config.train_examples
+                step_num = epoch_i * wandb.config.train_steps * GLOBAL_BATCH_SIZE
                 if epoch_i == 1:
                     print('building model')
                     build_step(data_val_ho)
-                    if ((wandb.config.inits_type == 'enformer_performer_full') and (loading_checkpoint_bool==True)):
-                        model.load_weights(args.multitask_checkpoint_path + "/saved_model")
+                    if wandb.config.load_init:
+                        model.load_weights(args.checkpoint_path + "/saved_model")
                         print('built and loaded model')
                     total_params = 0
                     for k in model.trainable_variables:
@@ -412,7 +387,6 @@ def main():
                 true_list = []
                 for k in range(wandb.config.val_steps_ho):
                     true, pred = strategy.run(val_step, args=(next(data_val_ho),))
-
                     for x in strategy.experimental_local_results(true):
                         true_list.append(tf.reshape(x, [-1]))
                     for x in strategy.experimental_local_results(pred):

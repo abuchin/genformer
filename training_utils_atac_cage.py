@@ -78,8 +78,7 @@ def return_train_val_functions(model,
                                metric_dict,
                                global_batch_size,
                                gradient_clip,
-                               cage_scale,
-                               atac_predict):
+                               rna_scale):
 
     optimizer1,optimizer2=optimizers_in
 
@@ -90,19 +89,19 @@ def return_train_val_functions(model,
                                                  dtype=tf.float32)
     metric_dict["train_loss_atac"] = tf.keras.metrics.Mean("train_loss_atac",
                                                  dtype=tf.float32)
-    metric_dict["train_loss_cage"] = tf.keras.metrics.Mean("train_loss_cage",
+    metric_dict["train_loss_rna"] = tf.keras.metrics.Mean("train_loss_rna",
                                                  dtype=tf.float32)
     metric_dict["val_loss"] = tf.keras.metrics.Mean("val_loss",
                                                   dtype=tf.float32)
     metric_dict["val_loss_atac"] = tf.keras.metrics.Mean("val_loss_atac",
                                                   dtype=tf.float32)
-    metric_dict["val_loss_cage"] = tf.keras.metrics.Mean("val_loss_cage",
+    metric_dict["val_loss_rna"] = tf.keras.metrics.Mean("val_loss_rna",
                                                   dtype=tf.float32)
 
-    metric_dict['CAGE_PearsonR'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
-    metric_dict['CAGE_R2'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
-    metric_dict['CAGE_PearsonR_ho'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
-    metric_dict['CAGE_R2_ho'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
+    metric_dict['RNA_PearsonR'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
+    metric_dict['RNA_R2'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
+    metric_dict['RNA_PearsonR_ho'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
+    metric_dict['RNA_R2_ho'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
     metric_dict['ATAC_PearsonR'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
     metric_dict['ATAC_R2'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
     metric_dict['ATAC_PearsonR_ho'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
@@ -111,39 +110,31 @@ def return_train_val_functions(model,
     def dist_train_step(iterator):
         @tf.function(jit_compile=True)
         def train_step(inputs):
-            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
-            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            target=tf.cast(inputs['target'],dtype=tf.float32)
-            mask=tf.cast(inputs['mask'],dtype=tf.float32)
-            mask_gathered=tf.cast(inputs['mask_gathered'],dtype=tf.int32)
-            peaks=tf.cast(inputs['peaks'],dtype=tf.int32)
+            sequence,atac,mask,mask_gathered,peaks,target_atac,target_rna,tf_activity =inputs
 
-            input_tuple = sequence, atac
+            input_tuple = sequence, atac, tf_activity
 
             with tf.GradientTape() as tape:
                 conv_vars = model.stem_conv.trainable_variables + \
                             model.stem_res_conv.trainable_variables + \
                             model.stem_pool.trainable_variables + \
-                            model.conv_tower.trainable_variables + \
-                            model.stem_conv_atac.trainable_variables + \
-                                model.stem_res_conv_atac.trainable_variables + \
-                                        model.stem_pool_atac.trainable_variables + \
-                                            model.conv_tower_atac.trainable_variables
+                            model.conv_tower.trainable_variables
 
-                performer_vars =model.pos_embedding_learned.trainable_variables + \
-                                            model.performer.trainable_variables+ \
-                                                model.final_pointwise_conv.trainable_variables
-                heads_vars = model.final_dense_profile_FT.trainable_variables
+                performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
+                                        model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
+                                        model.tf_activity_fc.trainable_variables + \
+                                        model.performer.trainable_variables + model.final_pointwise_conv.trainable_variables + \
+                                        model.final_dense_profile.trainable_variables
 
-                vars_all = conv_vars + performer_vars + heads_vars
+                vars_all = conv_vars + performer_vars
                 for var in vars_all:
                     tape.watch(var)
 
-                output_profile = model(input_tuple,
+                output_atac,output_rna = model(input_tuple,
                                        training=True)
 
-                output_profile = tf.cast(output_profile,dtype=tf.float32)
-                #output_peaks = tf.cast(output_peaks,dtype=tf.float32)
+                output_atac = tf.cast(output_atac,dtype=tf.float32)
+                output_rna = tf.cast(output_rna,dtype=tf.float32)
 
                 mask_indices = tf.where(mask[0,:,0] == 1.0)[:,0]
 
@@ -151,11 +142,11 @@ def return_train_val_functions(model,
                 output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
 
                 atac_loss = tf.reduce_mean(loss_fn(target_atac,
-                                                   output_atac)) * (1. / global_batch_size) * (1.0-cage_scale)
+                                                   output_atac)) * (1. / global_batch_size)
 
-                cage_loss = tf.reduce_mean(loss_fn(target[:,:,1],
-                                                           output_profile[:,:,1])) * cage_scale * (1. / global_batch_size)
-                loss = atac_loss + cage_loss
+                rna_loss = tf.reduce_mean(loss_fn(target_rna,
+                                                    output_rna)) * (1. / global_batch_size)
+                loss = atac_loss * (1.0-rna_scale) + rna_loss * rna_scale
 
             gradients = tape.gradient(loss, vars_all)
             gradients, _ = tf.clip_by_global_norm(gradients,
@@ -163,10 +154,8 @@ def return_train_val_functions(model,
 
             optimizer1.apply_gradients(zip(gradients[:len(conv_vars)],
                                            conv_vars))
-            optimizer2.apply_gradients(zip(gradients[len(conv_vars):len(conv_vars+performer_vars)],
+            optimizer2.apply_gradients(zip(gradients[len(conv_vars):],
                                            performer_vars))
-            optimizer3.apply_gradients(zip(gradients[len(conv_vars+performer_vars):],
-                                           heads_vars))
             metric_dict["train_loss"].update_state(loss)
             metric_dict["train_loss_cage"].update_state(cage_loss)
             metric_dict["train_loss_atac"].update_state(atac_loss)
@@ -178,50 +167,39 @@ def return_train_val_functions(model,
     def dist_val_step(iterator):
         @tf.function(jit_compile=True)
         def val_step(inputs):
-            sequence=tf.cast(inputs['sequence'],dtype=tf.bfloat16)
-            target=tf.cast(inputs['target'],dtype=tf.float32)
-            atac=tf.cast(inputs['atac'],dtype=tf.bfloat16)
-            mask=tf.cast(inputs['mask'],dtype=tf.float32)
-            mask_gathered=tf.cast(inputs['mask_gathered'],dtype=tf.int32)
-            peaks=tf.cast(inputs['peaks'],dtype=tf.int32)
+            sequence,atac,mask,mask_gathered,peaks,target_atac,target_rna,tf_activity =inputs
 
-            input_tuple = sequence,atac
+            input_tuple = sequence, atac, tf_activity
 
-            output_profile = model(input_tuple,
+            output_atac,output_rna = model(input_tuple,
                                    training=False)
 
-            output_profile = tf.cast(output_profile,dtype=tf.float32)
-            #output_peaks = tf.cast(output_peaks,dtype=tf.float32)
+            output_atac = tf.cast(output_atac,dtype=tf.float32)
+            output_rna = tf.cast(output_rna,dtype=tf.float32)
 
             mask_indices = tf.where(mask[0,:,0] == 1.0)[:,0]
 
             target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
             output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
 
-            mask_gather_indices = tf.where(mask_gathered[0,:,0] == 1)[:,0]
-            target_peaks = tf.gather(peaks[:,:,0], mask_gather_indices,axis=1)
+            atac_loss = tf.reduce_mean(loss_fn(target_atac,
+                                               output_atac)) * (1. / global_batch_size)
 
-            poisson_loss = tf.reduce_mean(loss_fn(target_atac,
-                                                            output_atac)) * (1. / global_batch_size)
+            rna_loss = tf.reduce_mean(loss_fn(target_rna,
+                                                output_rna)) * (1. / global_batch_size)
+            loss = atac_loss * (1.0-rna_scale) + rna_loss * rna_scale
 
-            atac_loss = (poisson_loss) * (1.0-cage_scale)
-
-            cage_loss = tf.reduce_mean(loss_fn(target[:,:,1],
-                                               output_profile[:,:,1])) * cage_scale * (1. / global_batch_size)
-            loss = atac_loss + cage_loss
-
-
-            metric_dict['CAGE_PearsonR'].update_state(target[:,:,1:],
-                                                      output_profile[:,:,1:])
-            metric_dict['CAGE_R2'].update_state(target[:,:,1:],
-                                                output_profile[:,:,1:])
+            metric_dict['RNA_PearsonR'].update_state(target_rna,
+                                                     output_rna)
+            metric_dict['RNA_R2'].update_state(target_rna,
+                                               output_rna)
             metric_dict['ATAC_PearsonR'].update_state(target_atac,
                                                       output_atac)
             metric_dict['ATAC_R2'].update_state(target_atac,
                                                 output_atac)
 
             metric_dict["val_loss"].update_state(loss)
-            metric_dict["val_loss_CAGE"].update_state(cage_loss)
+            metric_dict["val_loss_RNA"].update_state(rna_loss)
             metric_dict["val_loss_ATAC"].update_state(atac_loss)
 
         for _ in tf.range(val_steps): ## for loop within @tf.fuction for improved TPU performance

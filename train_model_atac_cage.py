@@ -524,8 +524,6 @@ def main():
                     cell_types = metric_dict['corr_stats_ho'].result()['cell_types'].numpy()
                     gene_map = metric_dict['corr_stats_ho'].result()['gene_map'].numpy()
 
-                    print(np.unique(gene_map).shape)
-                    print(np.unique(cell_types).shape)
 
                     figures,corrs_overall= training_utils.make_plots(y_trues,y_preds,
                                                                      cell_types,gene_map, 5000)
