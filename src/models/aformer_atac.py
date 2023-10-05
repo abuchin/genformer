@@ -125,7 +125,7 @@ class aformer(tf.keras.Model):
         ### conv stack for sequence inputs
         self.stem_conv_atac = tf.keras.layers.Conv1D(filters=32,
                                                      kernel_size=50,
-                                                     kernel_initializer=s'lecun_normal',
+                                                     kernel_initializer='lecun_normal',
                                                      bias_initializer='zeros',
                                                      strides=1,
                                                      dilation_rate=1,
