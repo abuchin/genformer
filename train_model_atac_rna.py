@@ -374,7 +374,7 @@ def main():
                 print('starting epoch_', str(epoch_i))
                 start = time.time()
                 for step in range(wandb.config.train_steps):
-                    strategy.run(train_step, args=(next(train_human),))
+                    strategy.run(train_step, args=(next(train_step),))
 
                 print('train_loss: ' + str(metric_dict['train_loss'].result().numpy()))
                 wandb.log({'train_loss': metric_dict['train_loss'].result().numpy(),
@@ -388,7 +388,7 @@ def main():
                 ####### validation steps #######################
                 start = time.time()
                 for k in range(wandb.config.val_steps):
-                    strategy.run(val_step, args=(next(data_val_ho),))
+                    strategy.run(val_step, args=(next(data_val),))
 
                 val_loss = metric_dict['val_loss'].result().numpy()
                 print('val_loss: ' + str(val_loss))

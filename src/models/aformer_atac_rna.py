@@ -274,6 +274,7 @@ class aformer(tf.keras.Model):
 
         sequence,atac,tf_activity,assay_type = inputs
 
+        print(inputs)
         x = self.stem_conv(sequence,
                            training=training)
         x = self.stem_res_conv(x,

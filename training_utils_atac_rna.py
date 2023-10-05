@@ -194,11 +194,12 @@ def return_train_val_functions(model,
     def build_step(iterator):
         @tf.function(jit_compile=True)
         def val_step(inputs):
-            sequence,atac,mask,mask_gathered,peaks,target_atac,target_rna,assay_type,tf_activity =inputs
-            input_tuple = sequence, atac, tf_activity,assay_type
+            sequence,atac,mask,mask_gathered,peaks,target_atac,target_rna,assay_type,tf_activity = inputs
+            print(inputs)
+            input_tuple = sequence, atac, tf_activity, assay_type
 
             output_atac,output_rna = model(input_tuple,
-                                   training=False)
+                                           training=False)
         strategy.run(val_step, args=(next(iterator),))
 
     return dist_train_step,dist_val_step, build_step, metric_dict
@@ -271,15 +272,18 @@ def deserialize_tr(serialized_example, g, use_tf_activity, input_length = 196608
     tf_activity = tf.ensure_shape(tf.io.parse_tensor(data['tf_activity'],
                                               out_type=tf.float16),
                            [1629])
+    tf_activity = tf.cast(tf_activity,dtype=tf.float32)
     tf_activity = tf.expand_dims(tf_activity,axis=0)
-    tf_activity=tf.cast(tf_activity,dtype=tf.float32)
     if not use_tf_activity:
         print('not using tf activity')
         tf_activity = tf.zeros_like(tf_activity)
     tf_activity = tf_activity + tf.math.abs(g.normal(tf_activity.shape,
                                                mean=0.0,
-                                               stddev=0.005,
+                                               stddev=0.001,
                                                dtype=tf.float32))
+    '''scale'''
+    percentile99 = (tfp.stats.percentile(tf_activity, q=99.0, axis=1) + 1.0e-04)
+    tf_activity = tf_activity / percentile99
 
     peaks = tf.expand_dims(peaks,axis=1)
     peaks_crop = tf.slice(peaks,
@@ -461,14 +465,18 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
     tf_activity = tf.ensure_shape(tf.io.parse_tensor(data['tf_activity'],
                                               out_type=tf.float16),
                            [1629])
-    tf_activity=tf.cast(tf_activity,dtype=tf.float32)
+    tf_activity = tf.cast(tf_activity,dtype=tf.float32)
     tf_activity = tf.expand_dims(tf_activity,axis=0)
     if not use_tf_activity:
+        print('not using tf activity')
         tf_activity = tf.zeros_like(tf_activity)
     tf_activity = tf_activity + tf.math.abs(g.normal(tf_activity.shape,
                                                mean=0.0,
-                                               stddev=0.005,
+                                               stddev=0.001,
                                                dtype=tf.float32))
+    '''scale'''
+    percentile99 = (tfp.stats.percentile(tf_activity, q=99.0, axis=1) + 1.0e-04)
+    tf_activity = tf_activity / percentile99
 
     peaks_sum = tf.reduce_sum(peaks_center)
     seq_seed = tf.reduce_sum(sequence[:,0])
