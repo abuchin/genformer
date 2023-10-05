@@ -360,6 +360,7 @@ def main():
                 if epoch_i == 1:
                     print('building model')
                     build_step(data_val)
+                    print('built model')
                     if wandb.config.load_init_FULL:
                         model.load_weights(args.checkpoint_path + "/saved_model")
                         print('built and loaded model')

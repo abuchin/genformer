@@ -583,8 +583,6 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
                 tf.cast(tf.ensure_shape(rna_assay_type,[1,1]),dtype=tf.bfloat16), \
                 tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.bfloat16)
 
-
-
 def deserialize_val_TSS(serialized_example, g, use_tf_activity, input_length = 196608,
                    max_shift = 10, output_length_ATAC = 49152, output_length = 1536,
                    crop_size = 320, output_res = 128, atac_mask_dropout = 0.15,
