@@ -455,7 +455,8 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
     rna = tf.cast(rna,dtype=tf.float32)
     rna_assay_type = tf.ensure_shape(tf.io.parse_tensor(data['rna_assay_type'],
                                               out_type=tf.int32),
-                                 [1])
+                                 [])
+    rna_assay_type = tf.expand_dims(rna_assay_type,axis=0)
     rna_assay_type = tf.expand_dims(rna_assay_type,axis=0)
     peaks = tf.ensure_shape(tf.io.parse_tensor(data['peaks'],
                                               out_type=tf.int32),
