@@ -286,7 +286,7 @@ def main():
                 print('loading fine-tuning weights')
                 inits=load_weights_atac_rna.get_initializers_genformer_ft(args.checkpoint_path,
                                                                          wandb.config.num_transformer_layers,
-                                                                         wandb.config.tf_activity)
+                                                                         wandb.config.use_tf_activity)
 
             print(wandb.config)
             model = aformer.aformer(kernel_transformation=wandb.config.kernel_transformation,
