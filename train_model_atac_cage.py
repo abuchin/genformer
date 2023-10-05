@@ -103,7 +103,7 @@ def main():
                 'gradient_clip': {
                     'values': [float(x) for x in args.gradient_clip.split(',')]
                 },
-                'cage_scale': {
+                'rna_scale': {
                     'values': [float(x) for x in args.cage_scale.split(',')]
                 },
                 'decay_frac': {
@@ -124,11 +124,11 @@ def main():
                 'epsilon': {
                     'values':[args.epsilon]
                 },
-                'load_init': {
-                    'values':[parse_bool_str(x) for x in args.load_init.split(',')]
+                'load_init_FT': {
+                    'values':[parse_bool_str(x) for x in args.load_init_FT.split(',')]
                 },
-                'freeze_conv_layers': {
-                    'values':[parse_bool_str(x) for x in args.freeze_conv_layers.split(',')]
+                'load_init_FULL': {
+                    'values':[parse_bool_str(x) for x in args.load_init_FULL.split(',')]
                 },
                 'filter_list_seq': {
                     'values': [[int(x) for x in args.filter_list_seq.split(',')]]
@@ -156,6 +156,9 @@ def main():
                 },
                 'final_point_scale': {
                     'values':[int(x) for x in args.final_point_scale.split(',')]
+                },
+                'use_tf_activity': {
+                    'values': [parse_bool_str(x) for x in args.use_tf_activity.split(',')]
                 }
             }
     }
@@ -185,9 +188,6 @@ def main():
             #wandb.init(mode="disabled")
             wandb.config.tpu=args.tpu_name
             wandb.config.gcs_path=args.gcs_path
-            wandb.config.gcs_path_holdout=args.gcs_path_holdout
-            wandb.config.gcs_path_TSS=args.gcs_path_TSS
-            wandb.config.gcs_path_TSS_holdout=args.gcs_path_TSS_holdout
             wandb.config.num_epochs=args.num_epochs
             wandb.config.train_examples=args.train_examples
             wandb.config.val_examples=args.val_examples
@@ -201,13 +201,15 @@ def main():
             wandb.config.model_save_dir=args.model_save_dir
             wandb.config.model_save_basename=args.model_save_basename
             wandb.config.max_shift=args.max_shift
-            wandb.config.inits_type=args.inits_type
 
             wandb.config.crop_size = (wandb.config.output_length - wandb.config.final_output_length) // 2
 
+            if (wandb.config.load_init_FULL and wandb.config.load_init_FT):
+                raise ValueError('cannot load fine-tuning and FULL checkpoint at same time')
 
             run_name = '_'.join([str(int(wandb.config.input_length) / 1000)[:4].rstrip('.') + 'k',
-                                 'load-' + str(wandb.config.load_init),
+                                 'load-FT-' + str(wandb.config.load_init_FT),
+                                 'load-FULL-' + str(wandb.config.load_init_FULL),
                                  'LR1-' + str(wandb.config.lr_base1),
                                  'LR2-' + str(wandb.config.lr_base1),
                                  'T-' + str(wandb.config.num_transformer_layers),
@@ -233,23 +235,15 @@ def main():
 
             wandb.config.update({"train_steps": wandb.config.train_examples // (GLOBAL_BATCH_SIZE)},
                                 allow_val_change=True)
-            wandb.config.update({"val_steps" : wandb.config.val_examples // GLOBAL_BATCH_SIZE+1},
-                                allow_val_change=True)
-            wandb.config.update({"val_steps_ho" : wandb.config.val_examples_ho // GLOBAL_BATCH_SIZE+1},
-                                allow_val_change=True)
-            wandb.config.update({"val_steps_TSS" : wandb.config.val_examples_TSS // GLOBAL_BATCH_SIZE+1},
-                                allow_val_change=True)
-            wandb.config.update({"val_steps_TSS_ho" : wandb.config.val_examples_TSS_ho // GLOBAL_BATCH_SIZE+1},
+            wandb.config.update({"val_steps" : wandb.config.val_examples // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
             wandb.config.update({"total_steps": wandb.config.train_examples // GLOBAL_BATCH_SIZE},
                                 allow_val_change=True)
 
 
-            data_train,data_val,data_val_ho,data_val_TSS,data_val_TSS_ho = \
+            data_train,data_val = \
                     training_utils.return_distributed_iterators(wandb.config.gcs_path,
                                                                 wandb.config.gcs_path_holdout,
-                                                                wandb.config.gcs_path_TSS,
-                                                                wandb.config.gcs_path_TSS_holdout,
                                                                 GLOBAL_BATCH_SIZE,
                                                                 wandb.config.input_length,
                                                                 wandb.config.max_shift,
@@ -266,35 +260,21 @@ def main():
                                                                 wandb.config.log_atac,
                                                                 wandb.config.use_atac,
                                                                 wandb.config.use_seq,
-                                                                wandb.config.predict_atac,
+                                                                wandb.config.seed,
+                                                                wandb.config.seq_corrupt_rate,
+                                                                wandb.config.atac_corrupt_rate,
+                                                                wandb.config.val_steps_ho,
+                                                                wandb.config.use_tf_activity,
                                                                 g)
 
-            loading_checkpoint_bool=False
             inits=None
             print('created dataset iterators')
             #if (wandb.config.load_init and os.path.isdir(args.multitask_checkpoint_path)):
-            if wandb.config.inits_type == 'enformer_performer':
-                print('loaded enformer performer weights')
-                inits=load_weights_atac_cage.get_initializers_enformer_performer(args.multitask_checkpoint_path,
+            if wandb.config.load_init_FT:
+                print('loaded weights')
+                inits=load_weights_atac_cage.get_initializers_genformer_ft(args.multitask_checkpoint_path,
                                                                          wandb.config.num_transformer_layers,
-                                                                         wandb.config.stable_variant,
-                                                                         wandb.config.learnable_PE)
-            elif wandb.config.inits_type == 'enformer_conv':
-                print('loaded enformer conv weights')
-                inits=load_weights_atac_cage.get_initializers_enformer_conv(args.multitask_checkpoint_path,
-                                                                    wandb.config.sonnet_weights_bool,
-                                                                    len(wandb.config.filter_list_seq))
-                wandb.config.update({"filter_list_seq": [768, 896, 1024, 1152, 1280, 1536]},
-                                    allow_val_change=True)
-            elif wandb.config.inits_type == 'enformer_performer_full':
-                wandb.config.update({"load_init": False},
-                                    allow_val_change=True)
-                loading_checkpoint_bool=True
-            elif wandb.config.inits_type == 'None':
-                wandb.config.update({"load_init": False},
-                                    allow_val_change=True)
-            else:
-                raise ValueError('inits type not found')
+                                                                         wandb.config.tf_activity)
 
             print(wandb.config)
             model = aformer.aformer(kernel_transformation=wandb.config.kernel_transformation,
@@ -312,8 +292,7 @@ def main():
                                     normalize = True,
                                     num_transformer_layers=wandb.config.num_transformer_layers,
                                     inits=inits,
-                                    inits_type=wandb.config.inits_type,
-                                    load_init=wandb.config.load_init,
+                                    load_init_FT=wandb.config.load_init_FT,
                                     final_point_scale=wandb.config.final_point_scale,
                                     freeze_conv_layers=wandb.config.freeze_conv_layers,
                                     filter_list_seq=wandb.config.filter_list_seq,
@@ -321,8 +300,6 @@ def main():
 
 
             print('initialized model')
-
-
             scheduler1= tf.keras.optimizers.schedules.CosineDecay(
                 initial_learning_rate=wandb.config.lr_base1,
                 decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
@@ -346,26 +323,13 @@ def main():
 
             metric_dict = {}
 
-            train_step,train_step_c_only, \
-                val_step,val_step_c_only, val_step_ho, val_step_ho_c_only, \
-                    val_step_TSS,val_step_TSS_c_only, \
-                        val_step_TSS_ho,val_step_TSS_ho_c_only, \
-                            build_step, metric_dict = training_utils.return_train_val_functions(model,
-                                                                                            wandb.config.train_steps,
-                                                                                            wandb.config.val_steps,
-                                                                                            wandb.config.val_steps_ho,
-                                                                                            wandb.config.val_steps_TSS,
-                                                                                            wandb.config.val_steps_TSS_ho,
+            train_step, val_step, build_step, metric_dict = training_utils.return_train_val_functions(model,
                                                                                             optimizers_in,
                                                                                             strategy,
                                                                                             metric_dict,
                                                                                             GLOBAL_BATCH_SIZE,
                                                                                             wandb.config.gradient_clip,
-                                                                                            wandb.config.cage_scale,
-                                                                                            wandb.config.predict_atac)
-
-
-
+                                                                                            wandb.config.rna_scale)
 
             global_step = 0
             val_losses = []
@@ -376,176 +340,58 @@ def main():
             best_epoch = 0
 
             for epoch_i in range(1, wandb.config.num_epochs+1):
-
+                step_num = epoch_i * wandb.config.train_steps * GLOBAL_BATCH_SIZE
                 if epoch_i == 1:
                     print('building model')
                     build_step(data_val)
-                    if ((wandb.config.inits_type == 'enformer_performer_full') and (loading_checkpoint_bool==True)):
-                        model.load_weights(args.multitask_checkpoint_path + "/saved_model")
+                    if wandb.config.load_init_FULL:
+                        model.load_weights(args.checkpoint_path + "/saved_model")
                         print('built and loaded model')
                     total_params = 0
                     for k in model.trainable_variables:
-                        #print(k)
-                        #print(tf.size(k))
                         var = k.values[0]
                         total_params += tf.size(var)
                     print('total params: ' + str(total_params))
 
+
+                ####### training steps #######################
                 print('starting epoch_', str(epoch_i))
                 start = time.time()
-                if wandb.config.predict_atac:
-                    train_step(data_train)
-                else:
-                    train_step_c_only(data_train)
-                end = time.time()
-                duration = (end - start) / 60.
+                for step in range(wandb.config.train_steps):
+                    strategy.run(train_step, args=(next(train_human),))
 
-                print('completed epoch ' + str(epoch_i))
                 print('train_loss: ' + str(metric_dict['train_loss'].result().numpy()))
-                wandb.log({'human_train_loss': metric_dict['train_loss'].result().numpy()},
-                          step=epoch_i)
-                print('training duration(mins): ' + str(duration))
-                print('train_loss_cage: ' + str(metric_dict['train_loss_cage'].result().numpy()))
+                wandb.log({'train_loss': metric_dict['train_loss'].result().numpy(),
+                           'train_loss_rna': metric_dict['train_loss_rna'].result().numpy(),
+                           'train_loss_atac': metric_dict['train_loss_atac'].result().numpy()},
+                          step=step_num)
+                duration = (time.time() - start) / 60.
+                print('completed epoch ' + str(epoch_i) + ' - duration(mins): ' + str(duration))
 
-                if wandb.config.predict_atac:
-                    print('train_loss_atac: ' + str(metric_dict['train_loss_atac'].result().numpy()))
 
+                ####### validation steps #######################
                 start = time.time()
+                for k in range(wandb.config.val_steps):
+                    strategy.run(val_step, args=(next(data_val_ho),))
 
-                if wandb.config.predict_atac:
-                    val_step(data_val)
-                else:
-                    val_step_c_only(data_val)
                 val_loss = metric_dict['val_loss'].result().numpy()
-                val_loss_CAGE = metric_dict['val_loss_CAGE'].result().numpy()
                 print('val_loss: ' + str(val_loss))
-                print('val_loss_CAGE: ' + str(val_loss_CAGE))
-                wandb.log({'human_val_loss': metric_dict['val_loss'].result().numpy(),
-                           'human_val_loss_CAGE': metric_dict['val_loss_CAGE'].result().numpy()},
-                           step=epoch_i)
-
-                cage_pearsons = metric_dict['CAGE_PearsonR'].result()['PearsonR'].numpy()
-                print('cage_pearsons: ' + str(metric_dict['CAGE_PearsonR'].result()['PearsonR'].numpy()))
-
-                cage_R2 = metric_dict['CAGE_R2'].result()['R2'].numpy()
-
                 val_losses.append(val_loss)
-                val_pearsons.append(cage_pearsons)
-                wandb.log({'human_CAGE_pearsons': cage_pearsons,
-                           'human_CAGE_R2': cage_R2,
-                          },step=epoch_i)
 
-                if wandb.config.predict_atac:
-                    val_loss_ATAC = metric_dict['val_loss_ATAC'].result().numpy()
-                    print('val_loss_ATAC: ' + str(val_loss_ATAC))
-
-                    wandb.log({'human_val_loss_ATAC': metric_dict['val_loss_ATAC'].result().numpy()},
-                               step=epoch_i)
-
-                    atac_pearsons = metric_dict['ATAC_PearsonR'].result()['PearsonR'].numpy()
-                    atac_R2 = metric_dict['ATAC_R2'].result()['R2'].numpy()
-
-
-                if wandb.config.predict_atac:
-                    wandb.log({'human_ATAC_pearsons': atac_pearsons,
-                               'human_ATAC_R2': atac_R2,
-                              },step=epoch_i)
-
-
-                if wandb.config.predict_atac:
-                    val_step_ho(data_val_ho)
-                else:
-                    val_step_ho_c_only(data_val_ho)
-
-                cage_pearsons_ho = metric_dict['CAGE_PearsonR_ho'].result()['PearsonR'].numpy()
-                print('cage_pearsons_ho: ' + str(metric_dict['CAGE_PearsonR_ho'].result()['PearsonR'].numpy()))
-                cage_R2_ho = metric_dict['CAGE_R2_ho'].result()['R2'].numpy()
-
-
-                if wandb.config.predict_atac:
-                    atac_pearsons_ho = metric_dict['ATAC_PearsonR_ho'].result()['PearsonR'].numpy()
-                    atac_R2_ho = metric_dict['ATAC_R2_ho'].result()['R2'].numpy()
-
-
-                wandb.log({'human_CAGE_pearsons_ho': cage_pearsons_ho,
-                           'human_CAGE_R2_ho': cage_R2_ho
-                          },step=epoch_i)
-                if wandb.config.predict_atac:
-                    wandb.log({'human_ATAC_pearsons_ho': atac_pearsons_ho,
-                               'human_ATAC_R2_ho': atac_R2_ho
-                              },step=epoch_i)
-
-
-                if epoch_i % 1 == 0:
-                    if wandb.config.predict_atac:
-                        val_step_TSS(data_val_TSS)
-                        val_step_TSS_ho(data_val_TSS_ho)
-                    else:
-                        val_step_TSS_c_only(data_val_TSS)
-                        val_step_TSS_ho_c_only(data_val_TSS_ho)
-
-                    val_pearson_TSS = metric_dict['corr_stats'].result()['pearsonR'].numpy()
-                    val_R2_TSS = metric_dict['corr_stats'].result()['R2'].numpy()
-
-                    y_trues = metric_dict['corr_stats'].result()['y_trues'].numpy()
-                    y_preds = metric_dict['corr_stats'].result()['y_preds'].numpy()
-                    cell_types = metric_dict['corr_stats'].result()['cell_types'].numpy()
-                    gene_map = metric_dict['corr_stats'].result()['gene_map'].numpy()
-
-                    print('making plots')
-                    figures,corrs_overall= training_utils.make_plots(y_trues,y_preds,
-                                                                     cell_types,gene_map, 5000)
-
-
-                    fig_cell_spec, fig_gene_spec, fig_overall=figures
-
-                    cell_specific_corrs, gene_specific_corrs, \
-                        cell_specific_corrs_raw, gene_specific_corrs_raw= corrs_overall
-
-                    print('cell_specific_correlation: ' + str(cell_specific_corrs))
-                    print('gene_specific_correlation: ' + str(gene_specific_corrs))
-
-                    wandb.log({'gene_spec_mean_corrs': gene_specific_corrs,
-                               'cell_spec_mean_corrs': cell_specific_corrs,
-                               'gene_spec_mean_corrs_raw': gene_specific_corrs_raw,
-                               'cell_spec_mean_corrs_raw': cell_specific_corrs_raw},
-                              step=epoch_i)
-                    wandb.log({'hg_OVERALL_TSS_predictions': fig_overall,
-                               'cross_cell_dist': fig_cell_spec,
-                               'cross_gene_dist': fig_gene_spec},
-                              step=epoch_i)
-
-
-                    val_pearson_TSS_ho= metric_dict['corr_stats_ho'].result()['pearsonR'].numpy()
-                    val_R2_TSS_ho = metric_dict['corr_stats_ho'].result()['R2'].numpy()
-
-                    y_trues = metric_dict['corr_stats_ho'].result()['y_trues'].numpy()
-                    y_preds = metric_dict['corr_stats_ho'].result()['y_preds'].numpy()
-                    cell_types = metric_dict['corr_stats_ho'].result()['cell_types'].numpy()
-                    gene_map = metric_dict['corr_stats_ho'].result()['gene_map'].numpy()
-
-
-                    figures,corrs_overall= training_utils.make_plots(y_trues,y_preds,
-                                                                     cell_types,gene_map, 5000)
-
-                    fig_cell_spec, fig_gene_spec, fig_overall=figures
-
-                    cell_specific_corrs, gene_specific_corrs, \
-                        cell_specific_corrs_raw, gene_specific_corrs_raw= corrs_overall
-
-                    print('cell_specific_correlation_ho: ' + str(cell_specific_corrs))
-                    print('gene_specific_correlation_ho: ' + str(gene_specific_corrs))
-
-                    wandb.log({'gene_spec_mean_corrs_ho': gene_specific_corrs,
-                               'cell_spec_mean_corrs_ho': cell_specific_corrs,
-                               'gene_spec_mean_corrs_raw_ho': gene_specific_corrs_raw,
-                               'cell_spec_mean_corrs_raw_ho': cell_specific_corrs_raw},
-                              step=epoch_i)
-                    wandb.log({'hg_OVERALL_TSS_predictions_ho': fig_overall,
-                               'cross_cell_dist_ho': fig_cell_spec,
-                               'cross_gene_dist_ho': fig_gene_spec},
-                              step=epoch_i)
-
+                wandb.log({'val_loss': metric_dict['val_loss'].result().numpy(),
+                           'val_loss_atac': metric_dict['val_loss_atac'].result().numpy(),
+                           'val_loss_rna': metric_dict['val_loss_rna'].result().numpy()},
+                           step=step_num)
+                val_pearsons.append(metric_dict['RNA_PearsonR'].result()['PearsonR'].numpy())
+                print('ATAC_pearsons: ' + str(metric_dict['ATAC_PearsonR'].result()['PearsonR'].numpy()))
+                print('ATAC_R2: ' + str(metric_dict['ATAC_R2'].result()['R2'].numpy()))
+                print('RNA_pearsons: ' + str(metric_dict['RNA_PearsonR'].result()['PearsonR'].numpy()))
+                print('RNA_R2: ' + str(metric_dict['RNA_R2'].result()['R2'].numpy()))
+                wandb.log({'ATAC_pearsons': metric_dict['ATAC_PearsonR'].result()['PearsonR'].numpy(),
+                           'ATAC_R2': metric_dict['ATAC_R2'].result()['R2'].numpy(),
+                           'RNA_pearsons': metric_dict['RNA_PearsonR'].result()['PearsonR'].numpy(),
+                           'RNA_R2': metric_dict['RNA_R2'].result()['R2'].numpy()},
+                          step=step_num)
 
                 end = time.time()
                 duration = (end - start) / 60.

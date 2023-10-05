@@ -32,14 +32,12 @@ class aformer(tf.keras.Model):
                  use_rot_emb = True,
                  normalize = True,
                  seed = 3,
-                 load_init_FT_FT=False,
+                 load_init_FT=False,
                  inits=None,
-                 inits_type='enformer_conv',
                  filter_list_seq=[768, 896, 1024, 1152, 1280, 1536],
                  filter_list_atac=[32, 64],
                  final_point_scale=6,
                  freeze_conv_layers=False,
-                 use_pooling = False,
                  num_tfs=1629,
                  tf_dropout_rate=0.01,
                  name: str = 'aformer',
@@ -70,11 +68,9 @@ class aformer(tf.keras.Model):
         self.inits=inits
         self.filter_list_seq = filter_list_seq
         self.filter_list_atac=filter_list_atac
-        self.freeze_conv_layers = freeze_conv_layers
-        self.load_init_FT_FT=load_init_FT_FT
+        self.load_init_FT=load_init_FT
         self.BN_momentum=BN_momentum
         self.final_point_scale=final_point_scale
-        self.use_pooling=use_pooling
         self.num_tfs=num_tfs
         self.tf_dropout_rate=tf_dropout_rate
 
@@ -258,6 +254,11 @@ class aformer(tf.keras.Model):
                                             kernel_initializer='lecun_normal',
                                             bias_initializer='lecun_normal',
                                             use_bias=True)
+        self.assay_type = kl.Dense(1, ## atac is the first, cage/RNA is the second dim
+                                   activation='softplus',
+                                   kernel_initializer='lecun_normal',
+                                   bias_initializer='lecun_normal',
+                                   use_bias=True)
 
         self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
                                   **kwargs)
@@ -266,7 +267,7 @@ class aformer(tf.keras.Model):
 
     def call(self, inputs, training:bool=True):
 
-        sequence,atac,tf_activity = inputs
+        sequence,atac,tf_activity,assay_type = inputs
 
         x = self.stem_conv(sequence,
                            training=training)
@@ -308,7 +309,13 @@ class aformer(tf.keras.Model):
         out = self.dropout(out,
                         training=training)
         out = self.gelu(out)
+        ### atac prediction
         out_atac = self.final_dense_profile_atac(out, training=training)
+
+        ### rna prediction
+        assay_type = self.assay_type(assay_type,training=training)
+        assay_type = tf.tile(assay_type, [1, final_output_length,1])
+        out = tf.concat([out,assay_type],axis=2)
         out_rna = self.final_dense_profile_rna(out, training=training)
         return out_atac, out_rna
 
@@ -348,15 +355,15 @@ class aformer(tf.keras.Model):
 
     def predict_on_batch(self, inputs, training:bool=False):
 
-        sequence,atac,tf_activity = inputs
+        sequence,atac,tf_activity,assay_type = inputs
 
         x = self.stem_conv(sequence,
                            training=training)
         x = self.stem_res_conv(x,
                                training=training)
-        if self.use_pooling:
-            x = self.stem_pool(x,
-                               training=training)
+
+        x = self.stem_pool(x,
+                           training=training)
 
         x = self.conv_tower(x,
                             training=training)
@@ -366,9 +373,9 @@ class aformer(tf.keras.Model):
 
         atac_x = self.stem_res_conv_atac(atac_x,
                                          training=training)
-        if self.use_pooling:
-            atac_x = self.stem_pool_atac(atac_x,
-                                         training=training)
+
+        atac_x = self.stem_pool_atac(atac_x,
+                                     training=training)
 
         atac_x = self.conv_tower_atac(atac_x,training=training)
 
@@ -379,22 +386,24 @@ class aformer(tf.keras.Model):
         ### tf activity
         tf_activity = self.tf_dropout(tf_activity,training=training)
         tf_activity = self.tf_activity_fc(tf_activity)
-
-        tf_activity = tf.tile(tf_activity,
-                               [1,self.output_length,1])
-
-        transformer_input_x = transformer_input + tf_activity
-
+        transformer_input_x = tf.concat([transformer_input,tf_activity],
+                                        axis=1)
         out,att_matrices = self.performer(transformer_input_x,
                                           training=training)
-
+        out = out[:, :-1, :]
         out = self.crop_final(out)
         out = self.final_pointwise_conv(out,
                                        training=training)
         out = self.dropout(out,
                         training=training)
         out = self.gelu(out)
+        ### atac prediction
         out_atac = self.final_dense_profile_atac(out, training=training)
+
+        ### rna prediction
+        assay_type = self.assay_type(assay_type,training=training)
+        assay_type = tf.tile(assay_type, [1, final_output_length,1])
+        out = tf.concat([out,assay_type],axis=2)
         out_rna = self.final_dense_profile_rna(out, training=training)
 
-        return out_atac, out_rna, out_att, att_matrices
+        return out_atac, out_rna, att_matrices

@@ -4,7 +4,7 @@ sudo pip3 install silence_tensorflow
 sudo pip3 install tensorflow-addons
 sudo pip3 install matplotlib==3.4.3
 sudo pip3 install pandas==1.3.3
-sudo pip3 install tensorflow-probability
+sudo pip3 install tensorflow-probability==0.20.0
 sudo pip3 install seaborn==0.11.2
 sudo pip3 install einops==0.4.0
 sudo pip3 install tqdm==4.63.0
@@ -15,7 +15,7 @@ sudo pip3 install tensorboard-plugin-profile==2.4.0
 sudo pip3 install scikit-learn
 sudo pip3 install numpy --upgrade
 export TPU_NAME=pod
-export ZONE=us-east1-d 
+export ZONE=us-east1-d
 export TPU_LOAD_LIBRARY=0
 
 sudo pip3 install numpy --upgrade

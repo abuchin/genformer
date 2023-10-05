@@ -313,7 +313,6 @@ def main():
             train_step, val_step, \
                 build_step, metric_dict = training_utils.return_train_val_functions(model,
                                                                                     wandb.config.train_steps,
-                                                                                    wandb.config.val_steps_ho,
                                                                                     optimizers_in,
                                                                                     strategy,
                                                                                     metric_dict,

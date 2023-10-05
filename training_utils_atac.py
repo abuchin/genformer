@@ -50,7 +50,7 @@ import tensorflow_probability as tfp
 
 tf.keras.backend.set_floatx('float32')
 
-def return_train_val_functions(model, train_steps, val_steps_ho, optimizers_in,
+def return_train_val_functions(model, train_steps, optimizers_in,
                                strategy, metric_dict, global_batch_size,
                                gradient_clip):
 
