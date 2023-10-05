@@ -39,7 +39,7 @@ from scipy.stats.stats import pearsonr
 from scipy.stats.stats import spearmanr
 from scipy import stats
 
-import src.load_weights_atac_cage as load_weights_atac_cage
+import src.load_weights_atac_rna as load_weights_atac_rna
 
 def parse_bool_str(input_str):
     if input_str == 'False':
