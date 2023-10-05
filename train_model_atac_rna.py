@@ -104,7 +104,7 @@ def main():
                     'values': [float(x) for x in args.gradient_clip.split(',')]
                 },
                 'rna_scale': {
-                    'values': [float(x) for x in args.cage_scale.split(',')]
+                    'values': [float(x) for x in args.rna_scale.split(',')]
                 },
                 'decay_frac': {
                     'values': [float(x) for x in args.decay_frac.split(',')]
