@@ -171,6 +171,9 @@ def main():
                 },
                 'use_tf_activity': {
                     'values': [parse_bool_str(x) for x in args.use_tf_activity.split(',')]
+                },
+                'freeze_conv_layers': {
+                    'values': [parse_bool_str(x) for x in args.freeze_conv_layers.split(',')]
                 }
             }
     }
@@ -307,6 +310,7 @@ def main():
                                     load_init_FT=wandb.config.load_init_FT,
                                     final_point_scale=wandb.config.final_point_scale,
                                     filter_list_seq=wandb.config.filter_list_seq,
+                                    freeze_conv_layers=wandb.config.freeze_conv_layers,
                                     filter_list_atac=wandb.config.filter_list_atac)
 
 

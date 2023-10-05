@@ -146,6 +146,7 @@ class aformer(tf.keras.Model):
                                                      bias_initializer=self.inits['stem_conv_atac_b'] if self.load_init_FT else 'zeros',
                                                      strides=1,
                                                      dilation_rate=1,
+                                                     trainable=False if self.freeze_conv_layers else True,
                                                      padding='same')
 
         self.stem_res_conv_atac =Residual(enf_conv_block(32,
@@ -156,6 +157,7 @@ class aformer(tf.keras.Model):
                                                          var_init=self.inits['stem_res_conv_atac_BN_v'] if self.load_init_FT else None,
                                                          kernel_init=self.inits['stem_res_conv_atac_k'] if self.load_init_FT else None,
                                                          bias_init=self.inits['stem_res_conv_atac_b'] if self.load_init_FT else None,
+                                                         train=False if self.freeze_conv_layers else True,
                                                          name='pointwise_conv_block_atac'))
         self.stem_pool_atac = tf.keras.layers.MaxPool1D(pool_size=2)
 
@@ -240,7 +242,6 @@ class aformer(tf.keras.Model):
                                                    var_init=self.inits['final_point_BN_v'] if self.load_init_FT else None,
                                                    kernel_init=self.inits['final_point_k'] if self.load_init_FT else None,
                                                    bias_init=self.inits['final_point_b'] if self.load_init_FT else None,
-                                                   train=False if self.freeze_conv_layers else True,
                                                   **kwargs,
                                                   name = 'final_pointwise')
 

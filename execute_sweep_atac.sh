@@ -51,4 +51,5 @@ python3 train_model_atac.py \
             --seed=5 \
             --seq_corrupt_rate="20" \
             --atac_corrupt_rate="20" \
-            --use_tf_activity="False"
+            --use_tf_activity="False" \
+            --freeze_conv_layers="False"
