@@ -308,6 +308,7 @@ def main():
                                     num_transformer_layers=wandb.config.num_transformer_layers,
                                     inits=inits,
                                     load_init_FT=wandb.config.load_init_FT,
+                                    load_tf=wandb.config.use_tf_activity,
                                     final_point_scale=wandb.config.final_point_scale,
                                     filter_list_seq=wandb.config.filter_list_seq,
                                     freeze_conv_layers=wandb.config.freeze_conv_layers,
