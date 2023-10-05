@@ -228,6 +228,7 @@ def deserialize_tr(serialized_example, g, use_tf_activity, input_length = 196608
       randomish_seed: hacky workaround to previous issue with random atac masking
     '''
     rev_comp = tf.math.round(g.uniform([], 0, 1)) #switch for random reverse complementation
+    seq_mask_int = g.uniform([], 0, seq_corrupt_rate, dtype=tf.int32) ## sequence corruption rate
     atac_mask_int = g.uniform([], 0, atac_corrupt_rate, dtype=tf.int32) ## atac increased corruption rate
     randomish_seed = g.uniform([], 0, 100000000,dtype=tf.int32) # hacky work-around to ensure randomish stateless operations
     shift = g.uniform(shape=(),
