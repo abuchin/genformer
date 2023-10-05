@@ -282,8 +282,8 @@ def main():
                                                                 wandb.config.val_steps,
                                                                 wandb.config.use_tf_activity,
                                                                 g)
+            print(next(data_train))
             print(next(data_val))
-
             inits=None
             print('created dataset iterators')
             if wandb.config.load_init_FT:
