@@ -73,6 +73,7 @@ class aformer(tf.keras.Model):
         self.final_point_scale=final_point_scale
         self.num_tfs=num_tfs
         self.tf_dropout_rate=tf_dropout_rate
+        self.freeze_conv_layers=freeze_conv_layers
 
         self.hidden_size=self.filter_list_seq[-1] + self.filter_list_atac[-1] #+ self.global_acc_size
         self.d_model = self.filter_list_seq[-1] + self.filter_list_atac[-1] #+ self.global_acc_size
