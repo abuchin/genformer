@@ -730,8 +730,7 @@ def deserialize_val_TSS(serialized_example, g, use_tf_activity, input_length = 1
                 tf.cast(tf.ensure_shape(rna_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
                 tf.cast(tf.ensure_shape(rna_assay_type,[1,1]),dtype=tf.float32), \
                 tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.float32),\
-                gene_token,
-                cell_type
+                gene_token, cell_type
 
 
 def return_dataset(gcs_path, split, tss_bool, batch, input_length, output_length_ATAC,
