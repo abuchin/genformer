@@ -375,7 +375,7 @@ def main():
                 print('starting epoch_', str(epoch_i))
                 start = time.time()
                 for step in range(wandb.config.train_steps):
-                    strategy.run(train_step, args=(next(train_step),))
+                    strategy.run(train_step, args=(next(data_train),))
 
                 print('train_loss: ' + str(metric_dict['train_loss'].result().numpy()))
                 wandb.log({'train_loss': metric_dict['train_loss'].result().numpy(),
