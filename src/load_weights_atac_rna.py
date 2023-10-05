@@ -64,6 +64,7 @@ def get_initializers_genformer_ft(checkpoint_path,
                          'stem_res_conv_BN_m': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/batch_norm/moving_mean/.ATTRIBUTES/VARIABLE_VALUE')),
                          'stem_res_conv_BN_v': inits.Constant(reader.get_tensor('stem_res_conv/_layer/layer_with_weights-0/batch_norm/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'))}
 
+    print('1')
 
     out_dict = {'stem_conv_atac_k': inits.Constant(reader.get_tensor('stem_conv_atac/kernel/.ATTRIBUTES/VARIABLE_VALUE')),
                          'stem_conv_atac_b': inits.Constant(reader.get_tensor('stem_conv_atac/bias/.ATTRIBUTES/VARIABLE_VALUE')),
@@ -74,7 +75,7 @@ def get_initializers_genformer_ft(checkpoint_path,
                          'stem_res_conv_atac_BN_m': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-0/batch_norm/moving_mean/.ATTRIBUTES/VARIABLE_VALUE')),
                          'stem_res_conv_atac_BN_v': inits.Constant(reader.get_tensor('stem_res_conv_atac/_layer/layer_with_weights-0/batch_norm/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'))}
     initializers_dict.update(out_dict)
-
+    print('1')
     out_dict = {'final_point_k': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE')),
                          'final_point_b': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE')),
                          'final_point_BN_g': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-0/batch_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE')),
@@ -87,11 +88,12 @@ def get_initializers_genformer_ft(checkpoint_path,
         out_dict = {'tf_activity_fc_b': inits.Constant(reader.get_tensor('tf_activity_fc/bias/.ATTRIBUTES/VARIABLE_VALUE')),
                     'tf_activity_fc_k': inits.Constant(reader.get_tensor('tf_activity_fc/kernel/.ATTRIBUTES/VARIABLE_VALUE'))}
         initializers_dict.update(out_dict)
-
+    print('1')
     out_dict = {'final_dense_b': inits.Constant(reader.get_tensor('final_dense_profile/bias/.ATTRIBUTES/VARIABLE_VALUE')),
                 'final_dense_k': inits.Constant(reader.get_tensor('final_dense_profile/kernel/.ATTRIBUTES/VARIABLE_VALUE'))}
     initializers_dict.update(out_dict)
     ## load in convolutional weights
+    print('1')
     for i in range(6):
         var_name_stem = 'conv_tower/layer_with_weights-' + str(i) + '/layer_with_weights-' #0/moving_mean/_counter/.ATTRIBUTES/VARIABLE_VALUE'
 
@@ -110,6 +112,7 @@ def get_initializers_genformer_ft(checkpoint_path,
                     'BN1_v_' + str(i): inits.Constant(reader.get_tensor(BN1_v))}
 
         initializers_dict.update(out_dict)
+        print('1')
     ## load in convolutional weights ATAC
     for i in range(2):
         var_name_stem = 'conv_tower_atac/layer_with_weights-' + str(i) + '/layer_with_weights-' #0/moving_mean/_counter/.ATTRIBUTES/VARIABLE_VALUE'
@@ -129,14 +132,14 @@ def get_initializers_genformer_ft(checkpoint_path,
                     'BN_at1_v_' + str(i): inits.Constant(reader.get_tensor(BN1_v))}
 
         initializers_dict.update(out_dict)
+        print('1')
 
     initializers_dict['performer_encoder_LN_b'] = inits.Constant(reader.get_tensor("performer/layer_norm/layer_norm/beta/.ATTRIBUTES/VARIABLE_VALUE"))
     initializers_dict['performer_encoder_LN_g'] = inits.Constant(reader.get_tensor("performer/layer_norm/layer_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE"))
-
+    print('1')
     for i in range(num_transformer_layers):
         var_name_stem = 'performer/layers/' + str(i) + '/' #0/moving_mean/_counter/.ATTRIBUTES/VARIABLE_VALUE'
 
-        #if not stable_variant:
         LN_b=var_name_stem + 'layer_norm/layer_norm/beta/.ATTRIBUTES/VARIABLE_VALUE'
         LN_g=var_name_stem + 'layer_norm/layer_norm/gamma/.ATTRIBUTES/VARIABLE_VALUE'
         out_dict = {'LN_b' + str(i): inits.Constant(reader.get_tensor(LN_b)),
@@ -168,5 +171,6 @@ def get_initializers_genformer_ft(checkpoint_path,
                     'FFN_LN_g' + str(i): inits.Constant(reader.get_tensor(FFN_LN_g))}
 
         initializers_dict.update(out_dict)
+        print('1')
 
     return initializers_dict
