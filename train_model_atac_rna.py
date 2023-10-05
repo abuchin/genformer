@@ -188,6 +188,7 @@ def main():
             #wandb.init(mode="disabled")
             wandb.config.tpu=args.tpu_name
             wandb.config.gcs_path=args.gcs_path
+            wandb.config.gcs_path_holdout=args.gcs_path_holdout
             wandb.config.num_epochs=args.num_epochs
             wandb.config.train_examples=args.train_examples
             wandb.config.val_examples=args.val_examples
