@@ -225,7 +225,7 @@ def deserialize_tr(serialized_example, g, use_tf_activity,
                                                stddev=0.001,
                                                dtype=tf.float32))
     '''scale'''
-    percentile99 = tfp.stats.percentile(tf_activity, q=99.0, axis=0)
+    percentile99 = (tfp.stats.percentile(tf_activity, q=99.0, axis=1) + 1.0e-04)
     tf_activity = tf_activity / percentile99
 
 
@@ -402,7 +402,7 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
                                                stddev=0.001,
                                                dtype=tf.float32))
     '''scale'''
-    percentile99 = tfp.stats.percentile(tf_activity, q=99.0, axis=0)
+    percentile99 = (tfp.stats.percentile(tf_activity, q=99.0, axis=1) + 1.0e-04)
     tf_activity = tf_activity / percentile99
 
     peaks_sum = tf.reduce_sum(peaks_center)
