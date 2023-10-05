@@ -160,12 +160,18 @@ def main():
                 'final_point_scale': {
                     'values':[int(x) for x in args.final_point_scale.split(',')]
                 },
-                'use_tf_activity': {
-                    'values': [parse_bool_str(x) for x in args.use_tf_activity.split(',')]
-                },
                 'seed': {
                     'values':[args.seed]
                 },
+                'atac_corrupt_rate': {
+                    'values': [int(x) for x in args.atac_corrupt_rate.split(',')]
+                },
+                'seq_corrupt_rate': {
+                    'values': [int(x) for x in args.seq_corrupt_rate.split(',')]
+                },
+                'use_tf_activity': {
+                    'values': [parse_bool_str(x) for x in args.use_tf_activity.split(',')]
+                }
             }
     }
 
