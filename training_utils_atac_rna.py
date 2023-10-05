@@ -794,7 +794,6 @@ def return_dataset(gcs_path, split, tss_bool, batch, input_length, output_length
         list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
                                                     split,
                                                     wc)))
-        print(list_files)
 
         #random.shuffle(list_files)
         files = tf.data.Dataset.list_files(list_files,shuffle=False)
