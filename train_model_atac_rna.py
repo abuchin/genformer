@@ -27,13 +27,13 @@ from tensorflow import strings as tfs
 from tensorflow.keras import mixed_precision
 
 ## custom modules
-import src.models.aformer_atac_cage as aformer
+import src.models.aformer_atac_rna as aformer
 import src.metrics as metrics
 import src.optimizers as optimizers
 import src.schedulers as schedulers
 import src.utils as utils
 
-import training_utils_atac_cage as training_utils
+import training_utils_atac_rna as training_utils
 import seaborn as sns
 from scipy.stats.stats import pearsonr
 from scipy.stats.stats import spearmanr

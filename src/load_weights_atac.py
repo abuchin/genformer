@@ -48,8 +48,8 @@ from tensorflow.keras import initializers as inits
 from scipy.stats import zscore
 
 def get_initializers_genformer_ft(checkpoint_path,
-                                    num_transformer_layers,
-                                    tf_activity_bool):
+                                  num_transformer_layers,
+                                  tf_activity_bool):
 
     inside_checkpoint=tf.train.list_variables(tf.train.latest_checkpoint(checkpoint_path))
     reader = tf.train.load_checkpoint(checkpoint_path)
@@ -86,6 +86,10 @@ def get_initializers_genformer_ft(checkpoint_path,
         out_dict = {'tf_activity_fc_b': inits.Constant(reader.get_tensor('tf_activity_fc/bias/.ATTRIBUTES/VARIABLE_VALUE')),
                     'tf_activity_fc_k': inits.Constant(reader.get_tensor('tf_activity_fc/kernel/.ATTRIBUTES/VARIABLE_VALUE'))}
         initializers_dict.update(out_dict)
+
+    out_dict = {'final_dense_b': inits.Constant(reader.get_tensor('final_dense_profile/bias/.ATTRIBUTES/VARIABLE_VALUE')),
+                'final_dense_k': inits.Constant(reader.get_tensor('final_dense_profile/kernel/.ATTRIBUTES/VARIABLE_VALUE'))}
+    initializers_dict.update(out_dict)
 
 
     initializers_dict['stem_pool'] = inits.Constant(reader.get_tensor('stem_pool/_logit_linear/kernel/.ATTRIBUTES/VARIABLE_VALUE'))

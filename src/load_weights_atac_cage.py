@@ -48,8 +48,8 @@ from tensorflow.keras import initializers as inits
 from scipy.stats import zscore
 
 def get_initializers_genformer_ft(checkpoint_path,
-                                    num_transformer_layers,
-                                    tf_activity_bool):
+                                  num_transformer_layers,
+                                  tf_activity_bool):
 
     inside_checkpoint=tf.train.list_variables(tf.train.latest_checkpoint(checkpoint_path))
     reader = tf.train.load_checkpoint(checkpoint_path)
