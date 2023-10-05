@@ -207,7 +207,7 @@ def deserialize_tr(serialized_example, g, use_tf_activity, input_length = 196608
                    max_shift = 10, output_length_ATAC = 49152, output_length = 1536,
                    crop_size = 320, output_res = 128, atac_mask_dropout = 0.15,
                    mask_size = 896, log_atac = True, use_atac = True,
-                   use_seq = True, atac_corrupt_rate = 20):
+                   use_seq = True, seq_corrupt_rate = 20, atac_corrupt_rate = 20):
     """Deserialize bytes stored in TFRecordFile."""
     ## parse out feature map
     feature_map = {
