@@ -44,6 +44,7 @@ from sklearn import metrics as sklearn_metrics
 
 from tensorflow.keras import initializers as inits
 from scipy.stats import zscore
+import tensorflow_probability as tfp
 
 tf.keras.backend.set_floatx('float32')
 
