@@ -282,7 +282,6 @@ def main():
 
             inits=None
             print('created dataset iterators')
-            print(wandb.config.checkpoint_path)
             if wandb.config.load_init_FT:
                 print('loading fine-tuning weights')
                 inits=load_weights_atac_rna.get_initializers_genformer_ft(wandb.config.checkpoint_path,
