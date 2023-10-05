@@ -1253,11 +1253,6 @@ def parse_args(parser):
                         type=str,
                         default="True",
                         help= 'load_init_FULL')
-    parser.add_argument('--freeze_BN_layers',
-                        dest='freeze_BN_layers',
-                        type=str,
-                        default="False",
-                        help= 'freeze_BN_layers')
     parser.add_argument('--use_rot_emb',
                         dest='use_rot_emb',
                         type=str,
@@ -1273,6 +1268,11 @@ def parse_args(parser):
                         type=str,
                         default="True",
                         help= 'norm')
+    parser.add_argument('--freeze_conv_layers',
+                        dest='freeze_conv_layers',
+                        type=str,
+                        default="False",
+                        help= 'freeze_conv_layers')
     parser.add_argument('--use_atac',
                         dest='use_atac',
                         type=str,
