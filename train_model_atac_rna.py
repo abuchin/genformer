@@ -276,7 +276,7 @@ def main():
                                                                 wandb.config.seed,
                                                                 wandb.config.seq_corrupt_rate,
                                                                 wandb.config.atac_corrupt_rate,
-                                                                wandb.config.val_steps_ho,
+                                                                wandb.config.val_steps,
                                                                 wandb.config.use_tf_activity,
                                                                 g)
 
