@@ -272,7 +272,7 @@ def main():
             #if (wandb.config.load_init and os.path.isdir(args.multitask_checkpoint_path)):
             if wandb.config.load_init_FT:
                 print('loaded weights')
-                inits=load_weights_atac_cage.get_initializers_genformer_ft(args.multitask_checkpoint_path,
+                inits=load_weights_atac_rna.get_initializers_genformer_ft(args.multitask_checkpoint_path,
                                                                          wandb.config.num_transformer_layers,
                                                                          wandb.config.tf_activity)
 

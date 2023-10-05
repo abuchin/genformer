@@ -38,7 +38,7 @@ python3 train_model_atac_rna.py \
             --kernel_transformation="relu_kernel_transformation" \
             --savefreq=1 \
             --load_init_FT="True" \
-            --load_init_FULL="True" \
+            --load_init_FULL="False" \
             --rectify="True" \
             --checkpoint_path="gs://picard-testing-176520/genformer_atac_pretrain/models/aformer_524k_load-False_LR1-0.0001_LR2-0.0001_T-7_TF-False_2023-10-01_15:07:58/iteration_26" \
             --filter_list_seq="768,896,1024,1152,1280,1536" \
