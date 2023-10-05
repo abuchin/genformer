@@ -50,4 +50,7 @@ python3 train_model_atac_rna.py \
             --seed=5 \
             --seq_corrupt_rate="20" \
             --atac_corrupt_rate="20" \
-            --use_tf_activity="False"
+            --use_tf_activity="False" \
+            --random_mask_size="1792" \
+            --use_atac="True" \
+            --use_seq="True"
