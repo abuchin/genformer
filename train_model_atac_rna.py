@@ -306,7 +306,6 @@ def main():
                                     inits=inits,
                                     load_init_FT=wandb.config.load_init_FT,
                                     final_point_scale=wandb.config.final_point_scale,
-                                    freeze_conv_layers=wandb.config.freeze_conv_layers,
                                     filter_list_seq=wandb.config.filter_list_seq,
                                     filter_list_atac=wandb.config.filter_list_atac)
 
