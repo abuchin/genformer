@@ -133,7 +133,7 @@ def return_train_val_functions(model,
             output_atac = tf.cast(output_atac,dtype=tf.float32)
             output_rna = tf.cast(output_rna,dtype=tf.float32)
 
-            mask_indices = tf.where(mask[0,:,0] == 1.0)[:,0]
+            mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
 
             target_atac = tf.gather(target_atac[:,:,0], mask_indices,axis=1)
             output_atac = tf.gather(output_atac[:,:,0], mask_indices,axis=1)
@@ -169,7 +169,7 @@ def return_train_val_functions(model,
         output_atac = tf.cast(output_atac,dtype=tf.float32)
         output_rna = tf.cast(output_rna,dtype=tf.float32)
 
-        mask_indices = tf.where(mask[0,:,0] == 1.0)[:,0]
+        mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
 
         target_atac = tf.gather(target_atac[:,:,0], mask_indices,axis=1)
         output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
