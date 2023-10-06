@@ -401,7 +401,6 @@ def deserialize_tr(serialized_example, g, use_tf_activity, input_length = 196608
     diff = tf.math.sqrt(tf.nn.relu(rna_out - 50000.0 * tf.ones(rna_out.shape)))
     rna_out = tf.clip_by_value(rna_out, clip_value_min=0.0, clip_value_max=50000.0) + diff
 
-
     peaks_gathered = tf.reduce_max(tf.reshape(peaks_crop, [(output_length-2*crop_size) // 4, -1]),
                                    axis=1,keepdims=True)
     mask_gathered = tf.reduce_max(tf.reshape(full_comb_mask_store, [(output_length-2*crop_size) // 4, -1]),
