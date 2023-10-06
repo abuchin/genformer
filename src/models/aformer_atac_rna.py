@@ -259,11 +259,7 @@ class aformer(tf.keras.Model):
                                             kernel_initializer='lecun_normal',
                                             bias_initializer='lecun_normal',
                                             use_bias=True)
-        self.assay_type_fc = kl.Dense(1, ## atac is the first, cage/RNA is the second dim
-                                   activation='softplus',
-                                   kernel_initializer='lecun_normal',
-                                   bias_initializer='lecun_normal',
-                                   use_bias=True)
+        self.assay_type_fc = tf.keras.layers.Embedding(8, 8, input_length=1)
 
         self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
                                   **kwargs)
@@ -317,7 +313,7 @@ class aformer(tf.keras.Model):
         out_atac = self.final_dense_profile_atac(out, training=training)
 
         ### rna prediction
-        assay_type = self.assay_type_fc(assay_type,training=training)
+        assay_type = self.assay_type_fc(assay_type)
         assay_type = tf.tile(assay_type, [1, self.final_output_length,1])
         out = tf.concat([out,assay_type],axis=2)
         out_rna = self.final_dense_profile_rna(out, training=training)
