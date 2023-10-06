@@ -3,7 +3,7 @@
 python3 train_model_atac_rna.py \
             --tpu_name="pod3" \
             --tpu_zone="us-central1-a" \
-            --wandb_project="paired_rampage_atac" \
+            --wandb_project="paired_rna_atac" \
             --wandb_user="njaved" \
             --wandb_sweep_name="paired_rna_atac" \
             --gcs_project="picard-testing-176520" \
@@ -15,15 +15,15 @@ python3 train_model_atac_rna.py \
             --final_output_length=896 \
             --max_shift=10 \
             --batch_size=4 \
-            --num_epochs=25 \
-            --train_examples=250000 \
-            --val_examples=59751  \
+            --num_epochs=50 \
+            --train_examples=512 \
+            --val_examples=128  \
             --BN_momentum=0.90 \
-            --warmup_frac=0.02 \
+            --warmup_frac=0.0001 \
             --patience=50 \
             --output_res=128 \
             --min_delta=0.000005 \
-            --model_save_dir="gs://picard-testing-176520/paired_rna_atac/genformer/models" \
+            --model_save_dir="gs://picard-testing-176520/paired_rna_atac/models" \
             --model_save_basename="aformer_baseline" \
             --lr_base1="1.0e-06" \
             --lr_base2="1.0e-06" \
