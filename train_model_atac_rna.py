@@ -73,108 +73,41 @@ def main():
                 'goal': 'minimize'
             },
             'parameters': {
-                'input_length': {
-                    'values': [args.input_length]
-                },
-                'output_length': {
-                    'values': [args.output_length]
-                },
-                'output_length_ATAC': {
-                    'values': [args.output_length_ATAC]
-                },
-                'final_output_length': {
-                    'values': [args.final_output_length]
-                },
-                'output_res': {
-                    'values': [args.output_res]
-                },
-                'dropout_rate': {
-                    'values': [float(x) for x in args.dropout_rate.split(',')]
-                },
-                'pointwise_dropout_rate': {
-                    'values': [float(x) for x in args.pointwise_dropout_rate.split(',')]
-                },
-                'lr_base1': {
-                    'values':[float(x) for x in args.lr_base1.split(',')]
-                },
-                'lr_base2': {
-                    'values':[float(x) for x in args.lr_base2.split(',')]
-                },
-                'gradient_clip': {
-                    'values': [float(x) for x in args.gradient_clip.split(',')]
-                },
-                'rna_scale': {
-                    'values': [float(x) for x in args.rna_scale.split(',')]
-                },
-                'decay_frac': {
-                    'values': [float(x) for x in args.decay_frac.split(',')]
-                },
-                'num_transformer_layers':{
-                    'values': [int(x) for x in args.num_transformer_layers.split(',')]
-                },
-                'num_heads':{
-                    'values': [int(x) for x in args.num_heads.split(',')]
-                },
-                'num_random_features': {
-                    'values':[int(x) for x in args.num_random_features.split(',')]
-                },
-                'kernel_transformation': {
-                    'values':[args.kernel_transformation]
-                },
-                'epsilon': {
-                    'values':[args.epsilon]
-                },
-                'load_init_FT': {
-                    'values':[parse_bool_str(x) for x in args.load_init_FT.split(',')]
-                },
-                'load_init_FULL': {
-                    'values':[parse_bool_str(x) for x in args.load_init_FULL.split(',')]
-                },
-                'filter_list_seq': {
-                    'values': [[int(x) for x in args.filter_list_seq.split(',')]]
-                },
-                'filter_list_atac': {
-                    'values': [[int(x) for x in args.filter_list_atac.split(',')]]
-                },
-                'BN_momentum': {
-                    'values': [args.BN_momentum]
-                },
-                'use_seq': {
-                    'values':[parse_bool_str(x) for x in args.use_seq.split(',')]
-                },
-                'use_atac': {
-                    'values':[parse_bool_str(x) for x in args.use_atac.split(',')]
-                },
-                'atac_mask_dropout': {
-                    'values': [args.atac_mask_dropout]
-                },
-                'rectify': {
-                    'values':[parse_bool_str(x) for x in args.rectify.split(',')]
-                },
-                'log_atac': {
-                    'values':[parse_bool_str(x) for x in args.log_atac.split(',')]
-                },
-                'random_mask_size': {
-                    'values':[int(x) for x in args.random_mask_size.split(',')]
-                },
-                'final_point_scale': {
-                    'values':[int(x) for x in args.final_point_scale.split(',')]
-                },
-                'seed': {
-                    'values':[args.seed]
-                },
-                'atac_corrupt_rate': {
-                    'values': [int(x) for x in args.atac_corrupt_rate.split(',')]
-                },
-                'seq_corrupt_rate': {
-                    'values': [int(x) for x in args.seq_corrupt_rate.split(',')]
-                },
-                'use_tf_activity': {
-                    'values': [parse_bool_str(x) for x in args.use_tf_activity.split(',')]
-                },
-                'freeze_conv_layers': {
-                    'values': [parse_bool_str(x) for x in args.freeze_conv_layers.split(',')]
-                }
+                'input_length': {'values': [args.input_length]},
+                'output_length': {'values': [args.output_length]},
+                'output_length_ATAC': {'values': [args.output_length_ATAC]},
+                'final_output_length': {'values': [args.final_output_length]},
+                'output_res': {'values': [args.output_res]},
+                'dropout_rate': {'values': [float(x) for x in args.dropout_rate.split(',')]},
+                'pointwise_dropout_rate': {'values': [float(x) for x in args.pointwise_dropout_rate.split(',')]},
+                'lr_base1': {'values':[float(x) for x in args.lr_base1.split(',')]},
+                'lr_base2': {'values':[float(x) for x in args.lr_base2.split(',')]},
+                'lr_base3': {'values':[float(x) for x in args.lr_base2.split(',')]},
+                'gradient_clip': {'values': [float(x) for x in args.gradient_clip.split(',')]},
+                'rna_scale': {'values': [float(x) for x in args.rna_scale.split(',')]},
+                'decay_frac': {'values': [float(x) for x in args.decay_frac.split(',')]},
+                'num_transformer_layers': {'values': [int(x) for x in args.num_transformer_layers.split(',')]},
+                'num_heads': {'values': [int(x) for x in args.num_heads.split(',')]},
+                'num_random_features': {'values':[int(x) for x in args.num_random_features.split(',')]},
+                'kernel_transformation': {'values':[args.kernel_transformation]},
+                'epsilon': {'values':[args.epsilon]},
+                'load_init_FT': {'values':[parse_bool_str(x) for x in args.load_init_FT.split(',')]},
+                'load_init_FULL': {'values':[parse_bool_str(x) for x in args.load_init_FULL.split(',')]},
+                'filter_list_seq': {'values': [[int(x) for x in args.filter_list_seq.split(',')]]},
+                'filter_list_atac': {'values': [[int(x) for x in args.filter_list_atac.split(',')]]},
+                'BN_momentum': {'values': [args.BN_momentum]},
+                'use_seq': {'values':[parse_bool_str(x) for x in args.use_seq.split(',')]},
+                'use_atac': {'values':[parse_bool_str(x) for x in args.use_atac.split(',')]},
+                'atac_mask_dropout': {'values': [args.atac_mask_dropout]},
+                'rectify': {'values':[parse_bool_str(x) for x in args.rectify.split(',')]},
+                'log_atac': {'values':[parse_bool_str(x) for x in args.log_atac.split(',')]},
+                'random_mask_size': {'values':[int(x) for x in args.random_mask_size.split(',')]},
+                'final_point_scale': {'values':[int(x) for x in args.final_point_scale.split(',')]},
+                'seed': {'values':[args.seed]},
+                'atac_corrupt_rate': {'values': [int(x) for x in args.atac_corrupt_rate.split(',')]},
+                'seq_corrupt_rate': {'values': [int(x) for x in args.seq_corrupt_rate.split(',')]},
+                'use_tf_activity': {'values': [parse_bool_str(x) for x in args.use_tf_activity.split(',')]},
+                'freeze_conv_layers': {'values': [parse_bool_str(x) for x in args.freeze_conv_layers.split(',')]}
             }
     }
 
@@ -258,30 +191,17 @@ def main():
 
 
             data_train,data_val = \
-                    training_utils.return_distributed_iterators(wandb.config.gcs_path,
-                                                                wandb.config.gcs_path_holdout,
-                                                                GLOBAL_BATCH_SIZE,
-                                                                wandb.config.input_length,
-                                                                wandb.config.max_shift,
-                                                                wandb.config.output_length_ATAC,
-                                                                wandb.config.output_length,
-                                                                wandb.config.crop_size,
-                                                                wandb.config.output_res,
-                                                                args.num_parallel,
-                                                                args.num_epochs,
-                                                                strategy,
-                                                                options,
-                                                                wandb.config.atac_mask_dropout,
-                                                                wandb.config.random_mask_size,
-                                                                wandb.config.log_atac,
-                                                                wandb.config.use_atac,
-                                                                wandb.config.use_seq,
-                                                                wandb.config.seed,
-                                                                wandb.config.seq_corrupt_rate,
-                                                                wandb.config.atac_corrupt_rate,
-                                                                wandb.config.val_steps,
-                                                                wandb.config.use_tf_activity,
-                                                                g)
+                    training_utils.return_distributed_iterators(wandb.config.gcs_path, wandb.config.gcs_path_holdout,
+                                                                GLOBAL_BATCH_SIZE, wandb.config.input_length,
+                                                                wandb.config.max_shift, wandb.config.output_length_ATAC,
+                                                                wandb.config.output_length, wandb.config.crop_size,
+                                                                wandb.config.output_res, args.num_parallel,
+                                                                args.num_epochs, strategy, options,
+                                                                wandb.config.atac_mask_dropout, wandb.config.random_mask_size,
+                                                                wandb.config.log_atac, wandb.config.use_atac,
+                                                                wandb.config.use_seq, wandb.config.seed,
+                                                                wandb.config.seq_corrupt_rate, wandb.config.atac_corrupt_rate,
+                                                                wandb.config.val_steps, wandb.config.use_tf_activity, g)
 
             inits=None
             print('created dataset iterators')
