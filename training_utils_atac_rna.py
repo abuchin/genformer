@@ -78,7 +78,7 @@ def return_train_val_functions(model,
                                gradient_clip,
                                rna_scale):
 
-    optimizer1,optimizer2=optimizers_in
+    optimizer1,optimizer2,optimizer3=optimizers_in
 
     metric_dict["corr_stats"] = metrics.correlation_stats_gene_centered(name='corr_stats')
     metric_dict["corr_stats_ho"] = metrics.correlation_stats_gene_centered(name='corr_stats_ho')

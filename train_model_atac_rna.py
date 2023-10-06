@@ -262,7 +262,7 @@ def main():
             optimizer3 = tf.keras.optimizers.Adam(learning_rate=scheduler3,
                                                   epsilon=wandb.config.epsilon)
 
-            optimizers_in = optimizer1,optimizer2
+            optimizers_in = optimizer1,optimizer2,optimizer3
 
             metric_dict = {}
 
