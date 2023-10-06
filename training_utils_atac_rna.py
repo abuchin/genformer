@@ -103,8 +103,8 @@ def return_train_val_functions(model,
     metric_dict['ATAC_PearsonR_ho'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
     metric_dict['ATAC_R2_ho'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
 
+    @tf.function(reduce_retracing=True)
     def dist_train_step(iterator):
-        @tf.function(jit_compile=True)
         def train_step(inputs):
             print('tracing training step!')
             sequence,atac,mask,mask_gathered,peaks,target_atac,target_rna,assay_type,tf_activity =inputs
@@ -156,8 +156,8 @@ def return_train_val_functions(model,
             metric_dict["train_loss_rna"].update_state(rna_loss)
             metric_dict["train_loss_atac"].update_state(atac_loss)
 
+    @tf.function(reduce_retracing=True)
     def dist_val_step(iterator):
-        @tf.function(jit_compile=True)
         def val_step(inputs):
             print('tracing validation step!')
             sequence,atac,mask,mask_gathered,peaks,target_atac,target_rna,assay_type,tf_activity =inputs
