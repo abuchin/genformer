@@ -25,8 +25,9 @@ python3 train_model_atac.py \
             --min_delta=0.0000005 \
             --model_save_dir="gs://picard-testing-176520/genformer_atac_pretrain/models" \
             --model_save_basename="aformer" \
-            --lr_base1="1.0e-04" \
-            --lr_base2="1.0e-04" \
+            --lr_base1="1.0e-05" \
+            --lr_base2="1.0e-05" \
+            --lr_base3="1.0e-04" \
             --decay_frac="0.005" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-8 \

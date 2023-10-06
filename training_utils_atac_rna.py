@@ -117,15 +117,16 @@ def return_train_val_functions(model,
                         model.stem_pool.trainable_variables + \
                         model.conv_tower.trainable_variables
 
-            performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
+            performer_and_end_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
                                     model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
                                     model.tf_activity_fc.trainable_variables + \
                                     model.performer.trainable_variables + model.final_pointwise_conv.trainable_variables + \
-                                    model.assay_type_fc.trainable_variables + \
-                                    model.final_dense_profile_atac.trainable_variables + \
-                                    model.final_dense_profile_rna.trainable_variables
+                                    model.final_dense_profile_atac.trainable_variables
 
-            vars_all = conv_vars + performer_vars
+            rna_vars=model.assay_type_fc.trainable_variables + \
+                    model.final_dense_profile_rna.trainable_variables
+
+            vars_all = conv_vars + performer_and_end_vars + rna_vars
             for var in vars_all:
                 tape.watch(var)
 
@@ -150,8 +151,10 @@ def return_train_val_functions(model,
 
         optimizer1.apply_gradients(zip(gradients[:len(conv_vars)],
                                        conv_vars))
-        optimizer2.apply_gradients(zip(gradients[len(conv_vars):],
-                                       performer_vars))
+        optimizer2.apply_gradients(zip(gradients[len(conv_vars):len(conv_vars+performer_and_end_vars)],
+                                       performer_and_end_vars))
+        optimizer3.apply_gradients(zip(gradients[len(conv_vars+performer_and_end_vars):],
+                                       rna_vars))
         metric_dict["train_loss"].update_state(loss)
         metric_dict["train_loss_rna"].update_state(rna_loss)
         metric_dict["train_loss_atac"].update_state(atac_loss)
@@ -280,8 +283,8 @@ def deserialize_tr(serialized_example, g, use_tf_activity, input_length = 196608
                                                stddev=0.001,
                                                dtype=tf.float32))
     '''scale'''
-    percentile99 = (tfp.stats.percentile(tf_activity, q=99.0, axis=1) + 1.0e-04)
-    tf_activity = tf_activity / percentile99
+    #percentile99 = (tfp.stats.percentile(tf_activity, q=99.0, axis=1) + 1.0e-04)
+    #tf_activity = tf_activity / percentile99
 
     peaks = tf.expand_dims(peaks,axis=1)
     peaks_crop = tf.slice(peaks,
@@ -294,9 +297,7 @@ def deserialize_tr(serialized_example, g, use_tf_activity, input_length = 196608
                      [crop_size,0],
                      [output_length-2*crop_size,-1])
 
-    '''
-    here set up masking of one of the peaks. If there are no peaks, then mask the middle of the input sequence window
-    '''
+    ''' mask of one of the peaks. If no peaks, mask middle of the window '''
     atac_target = atac ## store the target ATAC
 
     ### here set up the ATAC masking
@@ -477,7 +478,8 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
                                                stddev=0.001,
                                                dtype=tf.float32))
     '''scale'''
-    percentile99 = (tfp.stats.percentile(tf_activity, q=99.0, axis=1) + 1.0e-04)
+    #percentile99 = (tfp.stats.percentile(tf_activity, q=99.0, axis=1) + 1.0e-04)
+    #
     tf_activity = tf_activity / percentile99
 
     peaks_sum = tf.reduce_sum(peaks_center)
@@ -1173,6 +1175,10 @@ def parse_args(parser):
                         dest='lr_base2',
                         default="1.0e-03",
                         help='lr_base2')
+    parser.add_argument('--lr_base3',
+                        dest='lr_base3',
+                        default="1.0e-03",
+                        help='lr_base3')
     parser.add_argument('--decay_frac',
                         dest='decay_frac',
                         type=str,
