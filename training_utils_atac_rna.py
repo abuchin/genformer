@@ -106,6 +106,7 @@ def return_train_val_functions(model,
     def dist_train_step(iterator):
         @tf.function(jit_compile=True)
         def train_step(inputs):
+            print('tracing training step!')
             sequence,atac,mask,mask_gathered,peaks,target_atac,target_rna,assay_type,tf_activity =inputs
             input_tuple = sequence, atac, tf_activity,assay_type
 
@@ -126,7 +127,7 @@ def return_train_val_functions(model,
                     tape.watch(var)
 
                 output_atac,output_rna = model(input_tuple,
-                                       training=True)
+                                               training=True)
 
                 output_atac = tf.cast(output_atac,dtype=tf.float32)
                 output_rna = tf.cast(output_rna,dtype=tf.float32)
@@ -158,6 +159,7 @@ def return_train_val_functions(model,
     def dist_val_step(iterator):
         @tf.function(jit_compile=True)
         def val_step(inputs):
+            print('tracing validation step!')
             sequence,atac,mask,mask_gathered,peaks,target_atac,target_rna,assay_type,tf_activity =inputs
             input_tuple = sequence, atac, tf_activity,assay_type
 
