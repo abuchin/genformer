@@ -84,10 +84,10 @@ def get_initializers_genformer_ft(checkpoint_path,
                          'final_point_BN_v': inits.Constant(reader.get_tensor('final_pointwise_conv/layer_with_weights-0/moving_variance/.ATTRIBUTES/VARIABLE_VALUE'))}
     initializers_dict.update(out_dict)
 
-    if tf_activity_bool:
-        out_dict = {'tf_activity_fc_b': inits.Constant(reader.get_tensor('tf_activity_fc/bias/.ATTRIBUTES/VARIABLE_VALUE')),
-                    'tf_activity_fc_k': inits.Constant(reader.get_tensor('tf_activity_fc/kernel/.ATTRIBUTES/VARIABLE_VALUE'))}
-        initializers_dict.update(out_dict)
+    #if tf_activity_bool:
+    out_dict = {'tf_activity_fc_b': inits.Constant(reader.get_tensor('tf_activity_fc/bias/.ATTRIBUTES/VARIABLE_VALUE')),
+                'tf_activity_fc_k': inits.Constant(reader.get_tensor('tf_activity_fc/kernel/.ATTRIBUTES/VARIABLE_VALUE'))}
+    initializers_dict.update(out_dict)
 
     out_dict = {'final_dense_b': inits.Constant(reader.get_tensor('final_dense_profile/bias/.ATTRIBUTES/VARIABLE_VALUE')),
                 'final_dense_k': inits.Constant(reader.get_tensor('final_dense_profile/kernel/.ATTRIBUTES/VARIABLE_VALUE'))}
