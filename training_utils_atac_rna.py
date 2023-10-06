@@ -105,66 +105,28 @@ def return_train_val_functions(model,
 
     @tf.function(reduce_retracing=True)
     def dist_train_step(iterator):
-        def train_step(inputs):
-            print('tracing training step!')
-            sequence,atac,mask,mask_gathered,peaks,target_atac,target_rna,assay_type,tf_activity =inputs
-            input_tuple = sequence, atac, tf_activity,assay_type
+        print('tracing training step!')
+        sequence,atac,mask,mask_gathered,peaks,target_atac,target_rna,assay_type,tf_activity =inputs
+        input_tuple = sequence, atac, tf_activity,assay_type
 
-            with tf.GradientTape() as tape:
-                conv_vars = model.stem_conv.trainable_variables + \
-                            model.stem_res_conv.trainable_variables + \
-                            model.stem_pool.trainable_variables + \
-                            model.conv_tower.trainable_variables
+        with tf.GradientTape() as tape:
+            conv_vars = model.stem_conv.trainable_variables + \
+                        model.stem_res_conv.trainable_variables + \
+                        model.stem_pool.trainable_variables + \
+                        model.conv_tower.trainable_variables
 
-                performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
-                                        model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
-                                        model.tf_activity_fc.trainable_variables + \
-                                        model.performer.trainable_variables + model.final_pointwise_conv.trainable_variables + \
-                                        model.final_dense_profile.trainable_variables
+            performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
+                                    model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
+                                    model.tf_activity_fc.trainable_variables + \
+                                    model.performer.trainable_variables + model.final_pointwise_conv.trainable_variables + \
+                                    model.final_dense_profile.trainable_variables
 
-                vars_all = conv_vars + performer_vars
-                for var in vars_all:
-                    tape.watch(var)
-
-                output_atac,output_rna = model(input_tuple,
-                                               training=True)
-
-                output_atac = tf.cast(output_atac,dtype=tf.float32)
-                output_rna = tf.cast(output_rna,dtype=tf.float32)
-
-                mask_indices = tf.where(mask[0,:,0] == 1.0)[:,0]
-
-                target_atac = tf.gather(target_atac[:,:,0], mask_indices,axis=1)
-                output_atac = tf.gather(output_atac[:,:,0], mask_indices,axis=1)
-
-                atac_loss = tf.reduce_mean(loss_fn(target_atac,
-                                                   output_atac)) * (1. / global_batch_size)
-
-                rna_loss = tf.reduce_mean(loss_fn(target_rna,
-                                                  output_rna)) * (1. / global_batch_size)
-                loss = atac_loss * (1.0-rna_scale) + rna_loss * rna_scale
-
-            gradients = tape.gradient(loss, vars_all)
-            gradients, _ = tf.clip_by_global_norm(gradients,
-                                                  gradient_clip)
-
-            optimizer1.apply_gradients(zip(gradients[:len(conv_vars)],
-                                           conv_vars))
-            optimizer2.apply_gradients(zip(gradients[len(conv_vars):],
-                                           performer_vars))
-            metric_dict["train_loss"].update_state(loss)
-            metric_dict["train_loss_rna"].update_state(rna_loss)
-            metric_dict["train_loss_atac"].update_state(atac_loss)
-
-    @tf.function(reduce_retracing=True)
-    def dist_val_step(iterator):
-        def val_step(inputs):
-            print('tracing validation step!')
-            sequence,atac,mask,mask_gathered,peaks,target_atac,target_rna,assay_type,tf_activity =inputs
-            input_tuple = sequence, atac, tf_activity,assay_type
+            vars_all = conv_vars + performer_vars
+            for var in vars_all:
+                tape.watch(var)
 
             output_atac,output_rna = model(input_tuple,
-                                   training=False)
+                                           training=True)
 
             output_atac = tf.cast(output_atac,dtype=tf.float32)
             output_rna = tf.cast(output_rna,dtype=tf.float32)
@@ -172,30 +134,66 @@ def return_train_val_functions(model,
             mask_indices = tf.where(mask[0,:,0] == 1.0)[:,0]
 
             target_atac = tf.gather(target_atac[:,:,0], mask_indices,axis=1)
-            output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
+            output_atac = tf.gather(output_atac[:,:,0], mask_indices,axis=1)
 
             atac_loss = tf.reduce_mean(loss_fn(target_atac,
                                                output_atac)) * (1. / global_batch_size)
 
             rna_loss = tf.reduce_mean(loss_fn(target_rna,
-                                                output_rna)) * (1. / global_batch_size)
+                                              output_rna)) * (1. / global_batch_size)
             loss = atac_loss * (1.0-rna_scale) + rna_loss * rna_scale
 
-            metric_dict['RNA_PearsonR'].update_state(target_rna,
-                                                     output_rna)
-            metric_dict['RNA_R2'].update_state(target_rna,
-                                               output_rna)
-            metric_dict['ATAC_PearsonR'].update_state(target_atac,
-                                                      output_atac)
-            metric_dict['ATAC_R2'].update_state(target_atac,
-                                                output_atac)
-            metric_dict["val_loss"].update_state(loss)
-            metric_dict["val_loss_rna"].update_state(rna_loss)
-            metric_dict["val_loss_atac"].update_state(atac_loss)
+        gradients = tape.gradient(loss, vars_all)
+        gradients, _ = tf.clip_by_global_norm(gradients,
+                                              gradient_clip)
+
+        optimizer1.apply_gradients(zip(gradients[:len(conv_vars)],
+                                       conv_vars))
+        optimizer2.apply_gradients(zip(gradients[len(conv_vars):],
+                                       performer_vars))
+        metric_dict["train_loss"].update_state(loss)
+        metric_dict["train_loss_rna"].update_state(rna_loss)
+        metric_dict["train_loss_atac"].update_state(atac_loss)
+
+    @tf.function(reduce_retracing=True)
+    def dist_val_step(iterator):
+        print('tracing validation step!')
+        sequence,atac,mask,mask_gathered,peaks,target_atac,target_rna,assay_type,tf_activity =inputs
+        input_tuple = sequence, atac, tf_activity,assay_type
+
+        output_atac,output_rna = model(input_tuple,
+                               training=False)
+
+        output_atac = tf.cast(output_atac,dtype=tf.float32)
+        output_rna = tf.cast(output_rna,dtype=tf.float32)
+
+        mask_indices = tf.where(mask[0,:,0] == 1.0)[:,0]
+
+        target_atac = tf.gather(target_atac[:,:,0], mask_indices,axis=1)
+        output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
+
+        atac_loss = tf.reduce_mean(loss_fn(target_atac,
+                                           output_atac)) * (1. / global_batch_size)
+
+        rna_loss = tf.reduce_mean(loss_fn(target_rna,
+                                            output_rna)) * (1. / global_batch_size)
+        loss = atac_loss * (1.0-rna_scale) + rna_loss * rna_scale
+
+        metric_dict['RNA_PearsonR'].update_state(target_rna,
+                                                 output_rna)
+        metric_dict['RNA_R2'].update_state(target_rna,
+                                           output_rna)
+        metric_dict['ATAC_PearsonR'].update_state(target_atac,
+                                                  output_atac)
+        metric_dict['ATAC_R2'].update_state(target_atac,
+                                            output_atac)
+        metric_dict["val_loss"].update_state(loss)
+        metric_dict["val_loss_rna"].update_state(rna_loss)
+        metric_dict["val_loss_atac"].update_state(atac_loss)
 
 
     def build_step(iterator):
-        @tf.function(jit_compile=True)
+        @tf.function(reduce_retracing=True)
         def val_step(inputs):
             sequence,atac,mask,mask_gathered,peaks,target_atac,target_rna,assay_type,tf_activity = inputs
             input_tuple = sequence, atac, tf_activity, assay_type
