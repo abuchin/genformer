@@ -208,8 +208,8 @@ class aformer(tf.keras.Model):
 
         self.tf_activity_fc = kl.Dense(self.hidden_size,
                                         activation='gelu',
-                                        kernel_initializer=self.inits['tf_activity_fc_k'] if (self.load_init_FT and self.load_tf) else 'lecun_normal',
-                                        bias_initializer=self.inits['tf_activity_fc_b'] if (self.load_init_FT and self.load_tf) else 'lecun_normal',
+                                        kernel_initializer=self.inits['tf_activity_fc_k'] if (self.load_init_FT) else 'lecun_normal',
+                                        bias_initializer=self.inits['tf_activity_fc_b'] if (self.load_init_FT) else 'lecun_normal',
                                         use_bias=True)
 
 
