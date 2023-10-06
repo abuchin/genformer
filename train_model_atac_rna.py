@@ -82,7 +82,7 @@ def main():
                 'pointwise_dropout_rate': {'values': [float(x) for x in args.pointwise_dropout_rate.split(',')]},
                 'lr_base1': {'values':[float(x) for x in args.lr_base1.split(',')]},
                 'lr_base2': {'values':[float(x) for x in args.lr_base2.split(',')]},
-                'lr_base3': {'values':[float(x) for x in args.lr_base2.split(',')]},
+                'lr_base3': {'values':[float(x) for x in args.lr_base3.split(',')]},
                 'gradient_clip': {'values': [float(x) for x in args.gradient_clip.split(',')]},
                 'rna_scale': {'values': [float(x) for x in args.rna_scale.split(',')]},
                 'decay_frac': {'values': [float(x) for x in args.decay_frac.split(',')]},
