@@ -159,7 +159,7 @@ def return_train_val_functions(model,
         metric_dict["train_loss_rna"].update_state(rna_loss)
         metric_dict["train_loss_atac"].update_state(atac_loss)
 
-        return output_rna,target_rna
+        return output_atac,target_atac,output_rna,target_rna
 
     @tf.function(reduce_retracing=True)
     def dist_val_step(inputs):
