@@ -321,7 +321,7 @@ class aformer(tf.keras.Model):
         assay_type = tf.tile(assay_type, [1, self.final_output_length,1])
         out = tf.concat([out,assay_type],axis=2)
         out_rna = self.final_dense_profile_rna(out, training=training)
-        return out_atac, out_rna
+        return tf.cast(out_atac,dtype=tf.float32), tf.cast(out_rna,dtype=tf.float32)
 
 
     def get_config(self):
@@ -410,4 +410,4 @@ class aformer(tf.keras.Model):
         out = tf.concat([out,assay_type],axis=2)
         out_rna = self.final_dense_profile_rna(out, training=training)
 
-        return out_atac, out_rna, att_matrices
+        return tf.cast(out_atac,dtype=tf.float32), tf.cast(out_rna,dtype=tf.float32), att_matrices
