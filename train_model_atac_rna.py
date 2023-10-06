@@ -308,6 +308,8 @@ def main():
                     break
 
                 print('train_loss: ' + str(metric_dict['train_loss'].result().numpy()))
+                print('train_loss_rna: ' + str(metric_dict['train_loss_rna'].result().numpy()))
+                print('train_loss_atac: ' + str(metric_dict['train_loss_atac'].result().numpy()))
                 wandb.log({'train_loss': metric_dict['train_loss'].result().numpy(),
                            'train_loss_rna': metric_dict['train_loss_rna'].result().numpy(),
                            'train_loss_atac': metric_dict['train_loss_atac'].result().numpy()},
