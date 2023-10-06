@@ -25,8 +25,9 @@ python3 train_model_atac_rna.py \
             --min_delta=0.000005 \
             --model_save_dir="gs://picard-testing-176520/paired_rna_atac/genformer/models" \
             --model_save_basename="aformer_baseline" \
-            --lr_base1="1.0e-04" \
-            --lr_base2="1.0e-04" \
+            --lr_base1="1.0e-06" \
+            --lr_base2="1.0e-06" \
+            --lr_base3="1.0e-04" \
             --decay_frac="0.005" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-8 \
@@ -36,7 +37,7 @@ python3 train_model_atac_rna.py \
             --num_heads="8" \
             --num_random_features="256" \
             --kernel_transformation="relu_kernel_transformation" \
-            --savefreq=1 \
+            --savefreq=50 \
             --load_init_FT="True" \
             --load_init_FULL="False" \
             --rectify="True" \
@@ -51,6 +52,5 @@ python3 train_model_atac_rna.py \
             --seq_corrupt_rate="20" \
             --atac_corrupt_rate="20" \
             --use_tf_activity="False" \
-            --random_mask_size="1792" \
             --use_atac="True" \
             --use_seq="True"
