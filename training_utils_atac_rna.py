@@ -138,11 +138,17 @@ def return_train_val_functions(model,
             target_atac = tf.gather(target_atac[:,:,0], mask_indices,axis=1)
             output_atac = tf.gather(output_atac[:,:,0], mask_indices,axis=1)
 
-            atac_loss = tf.reduce_mean(poisson_multinomial(target_atac,output_atac,total_weight=0.15,rescale=True)) *\
-                        (1.0/global_batch_size)
+            atac_loss = tf.reduce_mean(poisson_multinomial(target_atac,
+                                                           output_atac,
+                                                           total_weight=0.15,
+                                                           rescale=True)) *\
+                                                           (1.0/global_batch_size)
 
-            rna_loss = tf.reduce_mean(poisson_multinomial(target_rna,output_rna,total_weight=0.15,rescale=True)) *\
-                        (1.0/global_batch_size)
+        rna_loss = tf.reduce_mean(poisson_multinomial(target_rna[:,:,0],
+                                                      output_rna[:,:,0],
+                                                      total_weight=0.15,
+                                                      rescale=True)) *\
+                                                      (1.0/global_batch_size)
             loss = atac_loss * (1.0-rna_scale) + rna_loss * rna_scale
 
         gradients = tape.gradient(loss, vars_all)
@@ -178,8 +184,11 @@ def return_train_val_functions(model,
         atac_loss = tf.reduce_mean(poisson_multinomial(target_atac,output_atac,total_weight=0.15,rescale=True)) *\
                     (1.0/global_batch_size)
 
-        rna_loss = tf.reduce_mean(poisson_multinomial(target_rna,output_rna,total_weight=0.15,rescale=True)) *\
-                    (1.0/global_batch_size)
+        rna_loss = tf.reduce_mean(poisson_multinomial(target_rna[:,:,0],
+                                                      output_rna[:,:,0],
+                                                      total_weight=0.15,
+                                                      rescale=True)) *\
+                                                      (1.0/global_batch_size)
         loss = atac_loss * (1.0-rna_scale) + rna_loss * rna_scale
 
         metric_dict['RNA_PearsonR'].update_state(target_rna,
