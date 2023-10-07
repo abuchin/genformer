@@ -130,7 +130,7 @@ def return_train_val_functions(model,
             for var in vars_all:
                 tape.watch(var)
 
-            output_atac,output_rna = model(input_tuple,
+            output_atac,output_rna,assay_type_t = model(input_tuple,
                                            training=True)
 
             mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
@@ -165,7 +165,7 @@ def return_train_val_functions(model,
         metric_dict["train_loss_rna"].update_state(rna_loss)
         metric_dict["train_loss_atac"].update_state(atac_loss)
 
-        return output_atac,target_atac,output_rna,target_rna
+        return output_atac,target_atac,output_rna,target_rna,assay_type_t
 
     @tf.function(reduce_retracing=True)
     def dist_val_step(inputs):

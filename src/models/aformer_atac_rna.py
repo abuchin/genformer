@@ -313,11 +313,11 @@ class aformer(tf.keras.Model):
         out_atac = self.final_dense_profile_atac(out, training=training)
 
         ### rna prediction
-        assay_type = self.assay_type_fc(assay_type)
-        assay_type = tf.tile(assay_type, [1, self.final_output_length,1])
+        assay_type_t = self.assay_type_fc(assay_type)
+        assay_type = tf.tile(assay_type_t, [1, self.final_output_length,1])
         out = tf.concat([out,assay_type],axis=2)
         out_rna = self.final_dense_profile_rna(out, training=training)
-        return tf.cast(out_atac,dtype=tf.float32), tf.cast(out_rna,dtype=tf.float32)
+        return tf.cast(out_atac,dtype=tf.float32), tf.cast(out_rna,dtype=tf.float32),assay_type_t
 
 
     def get_config(self):
@@ -343,8 +343,6 @@ class aformer(tf.keras.Model):
             "load_init_FT":self.load_init_FT
 
         }
-
-
 
         base_config = super().get_config()
         return {**base_config, **config}
