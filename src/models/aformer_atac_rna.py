@@ -256,10 +256,10 @@ class aformer(tf.keras.Model):
                                             use_bias=True)
         self.final_dense_profile_rna = kl.Dense(1, ## atac is the first, cage/RNA is the second dim
                                             activation='softplus',
-                                            kernel_initializer='lecun_normal',
-                                            bias_initializer='lecun_normal',
+                                            kernel_initializer=self.inits['final_dense_k'] if self.load_init_FT else 'lecun_normal',
+                                            bias_initializer=self.inits['final_dense_b'] if self.load_init_FT else 'lecun_normal',
                                             use_bias=True)
-        self.assay_type_fc = tf.keras.layers.Embedding(8, 8, input_length=1)
+        self.assay_type_fc = tf.keras.layers.Embedding(8, 2, input_length=1)
 
         self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
                                   **kwargs)

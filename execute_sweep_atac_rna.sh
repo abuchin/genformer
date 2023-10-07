@@ -15,11 +15,11 @@ python3 train_model_atac_rna.py \
             --final_output_length=896 \
             --max_shift=10 \
             --batch_size=4 \
-            --num_epochs=50 \
+            --num_epochs=100 \
             --train_examples=512 \
             --val_examples=128  \
             --BN_momentum=0.90 \
-            --warmup_frac=0.01 \
+            --warmup_frac=0.10 \
             --patience=50 \
             --output_res=128 \
             --min_delta=0.000005 \
@@ -53,4 +53,5 @@ python3 train_model_atac_rna.py \
             --atac_corrupt_rate="25" \
             --use_tf_activity="False" \
             --use_atac="True" \
-            --use_seq="True"
+            --use_seq="True" \
+            --freeze_conv_layers="False"
