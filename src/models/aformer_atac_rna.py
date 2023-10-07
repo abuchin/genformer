@@ -314,8 +314,8 @@ class aformer(tf.keras.Model):
 
         ### rna prediction
         assay_type_t = self.assay_type_fc(assay_type)
-        assay_type = tf.tile(assay_type_t, [1, self.final_output_length,1])
-        out = tf.concat([out,assay_type],axis=2)
+        #assay_type = tf.tile(assay_type_t, [1, self.final_output_length,1])
+        #out = tf.concat([out,assay_type],axis=2)
         out_rna = self.final_dense_profile_rna(out, training=training)
         return tf.cast(out_atac,dtype=tf.float32), tf.cast(out_rna,dtype=tf.float32),assay_type_t
 
