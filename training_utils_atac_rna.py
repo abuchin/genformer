@@ -108,7 +108,7 @@ def return_train_val_functions(model,
     @tf.function(reduce_retracing=True)
     def dist_train_step(inputs):
         print('tracing training step!')
-        sequence,atac,rnamask,mask_gathered,peaks,target_atac,target_rna,assay_type,tf_activity =inputs
+        sequence,atac,mask,mask_gathered,peaks,target_atac,target_rna,assay_type,tf_activity =inputs
         input_tuple = sequence, atac, target_rna,tf_activity,assay_type
 
         with tf.GradientTape() as tape:
