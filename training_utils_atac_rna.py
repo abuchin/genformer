@@ -181,8 +181,11 @@ def return_train_val_functions(model,
         target_atac = tf.gather(target_atac[:,:,0], mask_indices,axis=1)
         output_atac = tf.gather(output_atac[:,:,0], mask_indices,axis=1)
 
-        atac_loss = tf.reduce_mean(poisson_multinomial(target_atac,output_atac,total_weight=0.15,rescale=True)) *\
-                    (1.0/global_batch_size)
+        atac_loss = tf.reduce_mean(poisson_multinomial(target_atac,
+                                                       output_atac,
+                                                       total_weight=0.15,
+                                                       rescale=True)) *\
+                                                       (1.0/global_batch_size)
 
         rna_loss = tf.reduce_mean(poisson_multinomial(target_rna[:,:,0],
                                                       output_rna[:,:,0],
@@ -399,8 +402,8 @@ def deserialize_tr(serialized_example, g, use_tf_activity, input_length = 196608
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
     rna_out = tf.pow(rna_out,0.75)
-    diff = tf.math.sqrt(tf.nn.relu(rna_out - 1000.0 * tf.ones(rna_out.shape)))
-    rna_out = tf.clip_by_value(rna_out, clip_value_min=0.0, clip_value_max=1000.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(rna_out - 500.0 * tf.ones(rna_out.shape)))
+    rna_out = tf.clip_by_value(rna_out, clip_value_min=0.0, clip_value_max=500.0) + diff
 
     peaks_gathered = tf.reduce_max(tf.reshape(peaks_crop, [(output_length-2*crop_size) // 4, -1]),
                                    axis=1,keepdims=True)
@@ -570,8 +573,8 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
     rna_out = tf.pow(rna_out,0.75)
-    diff = tf.math.sqrt(tf.nn.relu(rna_out - 1000.0 * tf.ones(rna_out.shape)))
-    rna_out = tf.clip_by_value(rna_out, clip_value_min=0.0, clip_value_max=1000.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(rna_out - 500.0 * tf.ones(rna_out.shape)))
+    rna_out = tf.clip_by_value(rna_out, clip_value_min=0.0, clip_value_max=500.0) + diff
 
     peaks_gathered = tf.reduce_max(tf.reshape(peaks_crop, [(output_length-2*crop_size) // 4, -1]),
                                    axis=1,keepdims=True)
