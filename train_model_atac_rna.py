@@ -324,7 +324,9 @@ def main():
                     strategy.run(val_step, args=(next(data_val),))
 
                 val_loss = metric_dict['val_loss'].result().numpy()
-                print('val_loss: ' + str(val_loss))
+                print('val_loss: ' + str(metric_dict['val_loss'].result().numpy()))
+                print('val_loss_rna: ' + str(metric_dict['val_loss_rna'].result().numpy()))
+                print('val_loss_atac: ' + str(metric_dict['val_loss_atac'].result().numpy()))
                 val_losses.append(val_loss)
 
                 wandb.log({'val_loss': metric_dict['val_loss'].result().numpy(),

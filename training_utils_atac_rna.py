@@ -191,10 +191,10 @@ def return_train_val_functions(model,
                                                       (1.0/global_batch_size)
         loss = atac_loss * (1.0-rna_scale) + rna_loss * rna_scale
 
-        metric_dict['RNA_PearsonR'].update_state(target_rna,
-                                                 output_rna)
-        metric_dict['RNA_R2'].update_state(target_rna,
-                                           output_rna)
+        metric_dict['RNA_PearsonR'].update_state(target_rna[:,:,0],
+                                                 output_rna[:,:,0])
+        metric_dict['RNA_R2'].update_state(target_rna[:,:,0],
+                                           output_rna[:,:,0])
         metric_dict['ATAC_PearsonR'].update_state(target_atac,
                                                   output_atac)
         metric_dict['ATAC_R2'].update_state(target_atac,
