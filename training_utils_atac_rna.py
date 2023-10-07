@@ -108,8 +108,8 @@ def return_train_val_functions(model,
     @tf.function(reduce_retracing=True)
     def dist_train_step(inputs):
         print('tracing training step!')
-        sequence,atac,mask,mask_gathered,peaks,target_atac,target_rna,assay_type,tf_activity =inputs
-        input_tuple = sequence, atac, tf_activity,assay_type
+        sequence,atac,rnamask,mask_gathered,peaks,target_atac,target_rna,assay_type,tf_activity =inputs
+        input_tuple = sequence, atac, target_rna,tf_activity,assay_type
 
         with tf.GradientTape() as tape:
             conv_vars = model.stem_conv.trainable_variables + \
@@ -171,7 +171,7 @@ def return_train_val_functions(model,
     def dist_val_step(inputs):
         print('tracing validation step!')
         sequence,atac,mask,mask_gathered,peaks,target_atac,target_rna,assay_type,tf_activity =inputs
-        input_tuple = sequence, atac, tf_activity,assay_type
+        input_tuple = sequence, atac, target_rna,tf_activity,assay_type
 
         output_atac,output_rna,assay_type_t = model(input_tuple,
                                training=False)
@@ -211,7 +211,7 @@ def return_train_val_functions(model,
         @tf.function(reduce_retracing=True)
         def val_step(inputs):
             sequence,atac,mask,mask_gathered,peaks,target_atac,target_rna,assay_type,tf_activity = inputs
-            input_tuple = sequence, atac, tf_activity, assay_type
+            input_tuple = sequence, atac, target_rna,tf_activity, assay_type
 
             output_atac,output_rna,assay_type_t= model(input_tuple,
                                            training=False)
