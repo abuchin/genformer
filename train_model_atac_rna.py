@@ -304,8 +304,6 @@ def main():
                 for step in range(wandb.config.train_steps):
                     strategy.run(train_step, args=(next(data_train),))
 
-                print(assay_type_t)
-
                 print('train_loss: ' + str(metric_dict['train_loss'].result().numpy()))
                 print('train_loss_rna: ' + str(metric_dict['train_loss_rna'].result().numpy()))
                 print('train_loss_atac: ' + str(metric_dict['train_loss_atac'].result().numpy()))

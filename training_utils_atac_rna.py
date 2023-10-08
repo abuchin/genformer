@@ -130,7 +130,7 @@ def return_train_val_functions(model,
             for var in vars_all:
                 tape.watch(var)
 
-            output_atac,output_rna,assay_type_t = model(input_tuple,
+            output_atac,output_rna = model(input_tuple,
                                            training=True)
 
             mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
@@ -171,7 +171,7 @@ def return_train_val_functions(model,
         sequence,atac,mask,mask_gathered,peaks,target_atac,target_rna,assay_type,tf_activity =inputs
         input_tuple = sequence, atac, target_rna,tf_activity,assay_type
 
-        output_atac,output_rna,assay_type_t = model(input_tuple,
+        output_atac,output_rna = model(input_tuple,
                                training=False)
 
         mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
@@ -213,7 +213,7 @@ def return_train_val_functions(model,
             sequence,atac,mask,mask_gathered,peaks,target_atac,target_rna,assay_type,tf_activity = inputs
             input_tuple = sequence, atac, target_rna,tf_activity, assay_type
 
-            output_atac,output_rna,assay_type_t= model(input_tuple,
+            output_atac,output_rna= model(input_tuple,
                                            training=False)
         strategy.run(val_step, args=(next(iterator),))
 
