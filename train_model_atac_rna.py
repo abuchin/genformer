@@ -302,8 +302,7 @@ def main():
                 print('starting epoch_', str(epoch_i))
                 start = time.time()
                 for step in range(wandb.config.train_steps):
-                    output_atac,target_atac,output_rna,target_rna,assay_type_t\
-                        = strategy.run(train_step, args=(next(data_train),))
+                    strategy.run(train_step, args=(next(data_train),))
 
                 print(assay_type_t)
 
@@ -321,7 +320,10 @@ def main():
                 ####### validation steps #######################
                 start = time.time()
                 for k in range(wandb.config.val_steps):
-                    strategy.run(val_step, args=(next(data_val),))
+                    output_rna,target_rna= strategy.run(val_step, args=(next(data_val),))
+                    print(output_rna)
+                    print(target_rna)
+
                 val_loss = metric_dict['val_loss'].result().numpy()
                 print('val_loss: ' + str(metric_dict['val_loss'].result().numpy()))
                 print('val_loss_rna: ' + str(metric_dict['val_loss_rna'].result().numpy()))

@@ -165,8 +165,6 @@ def return_train_val_functions(model,
         #metric_dict["train_loss_rna"].update_state(rna_loss)
         metric_dict["train_loss_atac"].update_state(atac_loss)
 
-        return output_atac,target_atac,output_rna,target_rna,assay_type_t
-
     @tf.function(reduce_retracing=True)
     def dist_val_step(inputs):
         print('tracing validation step!')
@@ -205,6 +203,8 @@ def return_train_val_functions(model,
         metric_dict["val_loss"].update_state(loss)
         metric_dict["val_loss_rna"].update_state(rna_loss)
         metric_dict["val_loss_atac"].update_state(atac_loss)
+
+        return output_rna[:,:,0],target_rna[:,:,0]
 
 
     def build_step(iterator):
