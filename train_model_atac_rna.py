@@ -318,9 +318,7 @@ def main():
                 ####### validation steps #######################
                 start = time.time()
                 for k in range(wandb.config.val_steps):
-                    output_rna,target_rna= strategy.run(val_step, args=(next(data_val),))
-                    print(output_rna)
-                    print(target_rna)
+                    strategy.run(val_step, args=(next(data_val),))
 
                 val_loss = metric_dict['val_loss'].result().numpy()
                 print('val_loss: ' + str(metric_dict['val_loss'].result().numpy()))
