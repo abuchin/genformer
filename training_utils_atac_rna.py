@@ -123,10 +123,10 @@ def return_train_val_functions(model,
                                     model.performer.trainable_variables + model.final_pointwise_conv.trainable_variables + \
                                     model.final_dense_profile_atac.trainable_variables
 
-            #rna_vars=model.assay_type_fc.trainable_variables + \
-            #        model.final_dense_profile_rna.trainable_variables
+            rna_vars=model.assay_type_fc.trainable_variables + \
+                    model.final_dense_profile_rna.trainable_variables
 
-            vars_all = conv_vars + performer_and_end_vars #+ rna_vars
+            vars_all = conv_vars + performer_and_end_vars + rna_vars
             for var in vars_all:
                 tape.watch(var)
 
@@ -159,10 +159,10 @@ def return_train_val_functions(model,
                                        conv_vars))
         optimizer2.apply_gradients(zip(gradients[len(conv_vars):len(conv_vars+performer_and_end_vars)],
                                        performer_and_end_vars))
-        #optimizer3.apply_gradients(zip(gradients[len(conv_vars+performer_and_end_vars):],
-        #                               rna_vars))
+        optimizer3.apply_gradients(zip(gradients[len(conv_vars+performer_and_end_vars):],
+                                       rna_vars))
         metric_dict["train_loss"].update_state(loss)
-        #metric_dict["train_loss_rna"].update_state(rna_loss)
+        metric_dict["train_loss_rna"].update_state(rna_loss)
         metric_dict["train_loss_atac"].update_state(atac_loss)
 
     @tf.function(reduce_retracing=True)
@@ -203,9 +203,6 @@ def return_train_val_functions(model,
         metric_dict["val_loss"].update_state(loss)
         metric_dict["val_loss_rna"].update_state(rna_loss)
         metric_dict["val_loss_atac"].update_state(atac_loss)
-
-        return output_rna[:,:,0],target_rna[:,:,0]
-
 
     def build_step(iterator):
         @tf.function(reduce_retracing=True)
