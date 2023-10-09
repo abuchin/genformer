@@ -260,13 +260,11 @@ def deserialize_tr(serialized_example, g, use_tf_activity, input_length = 196608
     sequence = one_hot(tf.strings.substr(data['sequence'],
                                  seq_shift,input_length))
     atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
-                                              out_type=tf.float16),
+                                              out_type=tf.float32),
                            [output_length_ATAC,1])
-    atac=tf.cast(atac,dtype=tf.float32)
     rna = tf.ensure_shape(tf.io.parse_tensor(data['rna'],
-                                              out_type=tf.float16),
+                                              out_type=tf.float32),
                            [output_length,1])
-    rna=tf.cast(rna,dtype=tf.float32)
     rna_assay_type = tf.ensure_shape(tf.io.parse_tensor(data['rna_assay_type'],
                                               out_type=tf.int32),
                                  [])
@@ -624,9 +622,9 @@ def deserialize_val_TSS(serialized_example, g, use_tf_activity, input_length = 1
     sequence = one_hot(tf.strings.substr(data['sequence'],
                                  seq_shift,input_length))
     atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
-                                              out_type=tf.float16),
+                                              out_type=tf.float32),
                            [output_length_ATAC,1])
-    atac = tf.cast(atac,dtype=tf.float32)
+
     gene_token= tf.io.parse_tensor(data['processed_gene_token'],
                                    out_type=tf.int32)
 
