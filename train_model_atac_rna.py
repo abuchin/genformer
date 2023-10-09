@@ -319,15 +319,15 @@ def main():
                 start = time.time()
                 pred_list = []
                 true_list = []
+                assay_list = []
                 for k in range(wandb.config.val_steps):
-                    true,pred=strategy.run(val_step, args=(next(data_val),))
+                    true,pred,assay=strategy.run(val_step, args=(next(data_val),))
                     for x in strategy.experimental_local_results(true):
                         true_list.append(tf.reshape(x, [-1]))
                     for x in strategy.experimental_local_results(pred):
                         pred_list.append(tf.reshape(x, [-1]))
-                figures,overall_corr,overall_corr_log= training_utils.make_plots(tf.concat(pred_list,0),
-                                                                                 tf.concat(true_list,0),
-                                                                                 5000)
+                    for x in strategy.experimental_local_results(assay):
+                        assay_list.append(tf.reshape(x, [-1]))
 
                 val_loss = metric_dict['val_loss'].result().numpy()
                 print('val_loss: ' + str(metric_dict['val_loss'].result().numpy()))
@@ -339,15 +339,40 @@ def main():
                            'val_loss_atac': metric_dict['val_loss_atac'].result().numpy(),
                            'val_loss_rna': metric_dict['val_loss_rna'].result().numpy()},
                            step=step_num)
-                val_pearsons.append(metric_dict['RNA_PearsonR'].result()['PearsonR'].numpy())
+
+                cage_36_idx = [i for i, value in enumerate(tf.concat(assay_list,0)) if value == x]
+                _,cage36_pearsonr = pearsonr([true_list[i] for i in cage_36_idx],
+                                                [pred_list[i] for i in cage_36_idx])
+                rampage_100_idx = [i for i, value in enumerate(tf.concat(assay_list,2)) if value == x]
+                _,rampage100_pearsonr = pearsonr([true_list[i] for i in rampage_100_idx],
+                                                [pred_list[i] for i in rampage_100_idx])
+                polyA_rev_100 = [i for i, value in enumerate(tf.concat(assay_list,4)) if value == x]
+                _,polyA100_pearsonr = pearsonr([true_list[i] for i in polyA_rev_100],
+                                                [pred_list[i] for i in polyA_rev_100])
+                total_rev_100 = [i for i, value in enumerate(tf.concat(assay_list,6)) if value == x]
+                _,total100_pearsonr = pearsonr([true_list[i] for i in total_rev_100],
+                                                [pred_list[i] for i in total_rev_100])
+
+
+                val_pearsons.append(rampage100_pearsonr)
+
+
                 print('ATAC_pearsons: ' + str(metric_dict['ATAC_PearsonR'].result()['PearsonR'].numpy()))
                 print('ATAC_R2: ' + str(metric_dict['ATAC_R2'].result()['R2'].numpy()))
-                print('RNA_pearsons: ' + str(metric_dict['RNA_PearsonR'].result()['PearsonR'].numpy()))
-                print('RNA_R2: ' + str(metric_dict['RNA_R2'].result()['R2'].numpy()))
+
+
+                print('RAMPAGE_pearsons_RAMPAGE: ' + str(rampage100_pearsonr))
+                print('CAGE_pearsons_CAGE: ' + str(cage36_pearsonr))
+                print('polyA_RNA_pearsons: ' + str(polyA100_pearsonr))
+                print('total_RNA_pearsons: ' + str(total100_pearsonr))
+
+
                 wandb.log({'ATAC_pearsons': metric_dict['ATAC_PearsonR'].result()['PearsonR'].numpy(),
                            'ATAC_R2': metric_dict['ATAC_R2'].result()['R2'].numpy(),
-                           'RNA_pearsons': metric_dict['RNA_PearsonR'].result()['PearsonR'].numpy(),
-                           'RNA_R2': metric_dict['RNA_R2'].result()['R2'].numpy()},
+                           'RAMPAGE_pearsons_RAMPAGE': RAMPAGE_pearsons_RAMPAGE,
+                           'CAGE_pearsons_CAGE': CAGE_pearsons_CAGE,
+                           'polyA_RNA_pearsons': polyA_RNA_pearsons,
+                           'total_RNA_pearsons': total_RNA_pearsons},
                           step=step_num)
 
                 end = time.time()

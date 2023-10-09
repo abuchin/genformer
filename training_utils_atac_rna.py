@@ -192,10 +192,6 @@ def return_train_val_functions(model,
                                                       (1.0/global_batch_size)
         loss = atac_loss * (1.0-rna_scale) + rna_loss * rna_scale
 
-        metric_dict['RNA_PearsonR'].update_state(target_rna[:,:,0],
-                                                 output_rna[:,:,0])
-        metric_dict['RNA_R2'].update_state(target_rna[:,:,0],
-                                           output_rna[:,:,0])
         metric_dict['ATAC_PearsonR'].update_state(target_atac,
                                                   output_atac)
         metric_dict['ATAC_R2'].update_state(target_atac,
@@ -203,6 +199,8 @@ def return_train_val_functions(model,
         metric_dict["val_loss"].update_state(loss)
         metric_dict["val_loss_rna"].update_state(rna_loss)
         metric_dict["val_loss_atac"].update_state(atac_loss)
+
+        return target_rna[:,:,0], output_rna[:,:,0]
 
     def build_step(iterator):
         @tf.function(reduce_retracing=True)
@@ -487,9 +485,9 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
                                                stddev=0.001,
                                                dtype=tf.float32))
     '''scale'''
-    #percentile99 = (tfp.stats.percentile(tf_activity, q=99.0, axis=1) + 1.0e-04)
+    percentile99 = (tfp.stats.percentile(tf_activity, q=99.0, axis=1) + 1.0e-04)
     #
-    #tf_activity = tf_activity / percentile99
+    tf_activity = tf_activity / percentile99
 
     peaks_sum = tf.reduce_sum(peaks_center)
     seq_seed = tf.reduce_sum(sequence[:,0])
