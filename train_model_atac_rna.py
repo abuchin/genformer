@@ -340,16 +340,16 @@ def main():
                            'val_loss_rna': metric_dict['val_loss_rna'].result().numpy()},
                            step=step_num)
 
-                cage_36_idx = [i for i, value in enumerate(tf.concat(assay_list,0)) if value == x]
+                cage_36_idx = [i for i, value in enumerate(tf.concat(assay_list,0.0)) if value == x]
                 _,cage36_pearsonr = pearsonr([true_list[i] for i in cage_36_idx],
                                                 [pred_list[i] for i in cage_36_idx])
-                rampage_100_idx = [i for i, value in enumerate(tf.concat(assay_list,2)) if value == x]
+                rampage_100_idx = [i for i, value in enumerate(tf.concat(assay_list,2.0)) if value == x]
                 _,rampage100_pearsonr = pearsonr([true_list[i] for i in rampage_100_idx],
                                                 [pred_list[i] for i in rampage_100_idx])
-                polyA_rev_100 = [i for i, value in enumerate(tf.concat(assay_list,4)) if value == x]
+                polyA_rev_100 = [i for i, value in enumerate(tf.concat(assay_list,4.0)) if value == x]
                 _,polyA100_pearsonr = pearsonr([true_list[i] for i in polyA_rev_100],
                                                 [pred_list[i] for i in polyA_rev_100])
-                total_rev_100 = [i for i, value in enumerate(tf.concat(assay_list,6)) if value == x]
+                total_rev_100 = [i for i, value in enumerate(tf.concat(assay_list,6.0)) if value == x]
                 _,total100_pearsonr = pearsonr([true_list[i] for i in total_rev_100],
                                                 [pred_list[i] for i in total_rev_100])
 
