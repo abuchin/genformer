@@ -25,9 +25,8 @@ python3 train_model_atac.py \
             --min_delta=0.0000005 \
             --model_save_dir="gs://picard-testing-176520/genformer_atac_pretrain/models" \
             --model_save_basename="aformer" \
-            --lr_base1="1.0e-05" \
-            --lr_base2="1.0e-05" \
-            --lr_base3="1.0e-04" \
+            --lr_base1="6.0e-05" \
+            --lr_base2="6.0e-05" \
             --decay_frac="0.005" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-8 \
@@ -39,7 +38,7 @@ python3 train_model_atac.py \
             --kernel_transformation="relu_kernel_transformation" \
             --savefreq=1 \
             --load_init="True" \
-            --checkpoint_path="gs://picard-testing-176520/genformer_atac_pretrain/models/aformer_524k_load-False_LR1-0.0001_LR2-0.0001_T-7_TF-False_2023-10-01_15:07:58/iteration_26" \
+            --checkpoint_path="gs://picard-testing-176520/genformer_atac_pretrain/models/aformer_524k_load-True_LR1-6e-05_LR2-6e-05_T-7_TF-False_2023-10-05_18:58:19/iteration_26" \
             --rectify="True" \
             --filter_list_seq="768,896,1024,1152,1280,1536" \
             --filter_list_atac="32,64" \
@@ -49,8 +48,7 @@ python3 train_model_atac.py \
             --use_atac="True" \
             --final_point_scale="6" \
             --use_seq="True" \
-            --seed=5 \
+            --seed=25 \
             --seq_corrupt_rate="20" \
             --atac_corrupt_rate="20" \
-            --use_tf_activity="False" \
-            --freeze_conv_layers="False"
+            --use_tf_activity="False"
