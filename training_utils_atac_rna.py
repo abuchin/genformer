@@ -277,9 +277,8 @@ def deserialize_tr(serialized_example, g, use_tf_activity, input_length = 196608
                                               out_type=tf.int32),
                            [output_length])
     tf_activity = tf.ensure_shape(tf.io.parse_tensor(data['tf_activity'],
-                                              out_type=tf.float16),
+                                              out_type=tf.float32),
                            [1629])
-    tf_activity = tf.cast(tf_activity,dtype=tf.float32)
     tf_activity = tf.expand_dims(tf_activity,axis=0)
     if not use_tf_activity:
         print('not using tf activity')
@@ -453,13 +452,11 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
     sequence = one_hot(tf.strings.substr(data['sequence'],
                                  seq_shift,input_length))
     atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
-                                              out_type=tf.float16),
+                                              out_type=tf.float32),
                            [output_length_ATAC,1])
-    atac = tf.cast(atac,dtype=tf.float32)
     rna = tf.ensure_shape(tf.io.parse_tensor(data['rna'],
-                                              out_type=tf.float16),
+                                              out_type=tf.float32),
                            [output_length,1])
-    rna = tf.cast(rna,dtype=tf.float32)
     rna_assay_type = tf.ensure_shape(tf.io.parse_tensor(data['rna_assay_type'],
                                               out_type=tf.int32),
                                  [])
@@ -471,9 +468,8 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
                                               out_type=tf.int32),
                            [output_length])
     tf_activity = tf.ensure_shape(tf.io.parse_tensor(data['tf_activity'],
-                                              out_type=tf.float16),
+                                              out_type=tf.float32),
                            [1629])
-    tf_activity = tf.cast(tf_activity,dtype=tf.float32)
     tf_activity = tf.expand_dims(tf_activity,axis=0)
     if not use_tf_activity:
         print('not using tf activity')
@@ -756,8 +752,8 @@ def deserialize_val_TSS(serialized_example, g, use_tf_activity, input_length = 1
                 tf.cast(tf.ensure_shape(peaks_gathered, [(output_length-2*crop_size) // 4,1]),dtype=tf.int32), \
                 tf.cast(tf.ensure_shape(atac_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
                 tf.cast(tf.ensure_shape(rna_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
-                tf.cast(tf.ensure_shape(rna_assay_type,[1,1]),dtype=tf.float32), \
-                tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.float32),\
+                tf.cast(tf.ensure_shape(rna_assay_type,[1,1]),dtype=tf.bfloat16), \
+                tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.bfloat16),\
                 gene_token, cell_type
 
 
