@@ -317,8 +317,17 @@ def main():
 
                 ####### validation steps #######################
                 start = time.time()
+                pred_list = []
+                true_list = []
                 for k in range(wandb.config.val_steps):
-                    strategy.run(val_step, args=(next(data_val),))
+                    true,pred=strategy.run(val_step, args=(next(data_val),))
+                    for x in strategy.experimental_local_results(true):
+                        true_list.append(tf.reshape(x, [-1]))
+                    for x in strategy.experimental_local_results(pred):
+                        pred_list.append(tf.reshape(x, [-1]))
+                figures,overall_corr,overall_corr_log= training_utils.make_plots(tf.concat(pred_list,0),
+                                                                                 tf.concat(true_list,0),
+                                                                                 5000)
 
                 val_loss = metric_dict['val_loss'].result().numpy()
                 print('val_loss: ' + str(metric_dict['val_loss'].result().numpy()))

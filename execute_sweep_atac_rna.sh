@@ -16,8 +16,8 @@ python3 train_model_atac_rna.py \
             --max_shift=10 \
             --batch_size=4 \
             --num_epochs=100 \
-            --train_examples=512 \
-            --val_examples=128  \
+            --train_examples=2048 \
+            --val_examples=1024  \
             --BN_momentum=0.90 \
             --warmup_frac=0.10 \
             --patience=50 \
