@@ -831,7 +831,7 @@ def return_distributed_iterators(gcs_path, gcs_path_ho, global_batch_size,
     for given heads_dictionary
     """
 
-    tr_data = return_dataset(gcs_path, "train", False, global_batch_size,
+    tr_data = return_dataset(gcs_path, "valid", False, global_batch_size,
                              input_length, output_length_ATAC, output_length,
                              crop_size, output_res, max_shift, options,
                              num_parallel_calls, num_epoch, atac_mask_dropout,
