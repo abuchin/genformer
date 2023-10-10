@@ -339,24 +339,30 @@ def main():
                            'val_loss_rna': metric_dict['val_loss_rna'].result().numpy()},
                            step=step_num)
 
-                print(assay_list)
-                print(true_list)
+                print(tf.concat(assay_list,0))
+
                 cage_36_idx = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 0.0]
-                _,cage36_pearsonr = pearsonr([true_list[i] for i in cage_36_idx],
-                                                [pred_list[i] for i in cage_36_idx])
+                trues = tf.concat([true_list[i] for i in cage_36_idx],0)
+                preds = tf.concat([pred_list[i] for i in cage_36_idx],0)
+                _,cage36_pearsonr = pearsonr(trues,preds)
+
                 rampage_100_idx = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 2.0]
-                _,rampage100_pearsonr = pearsonr([true_list[i] for i in rampage_100_idx],
-                                                [pred_list[i] for i in rampage_100_idx])
+                trues = tf.concat([true_list[i] for i in rampage_100_idx],0)
+                preds = tf.concat([pred_list[i] for i in rampage_100_idx],0)
+                _,rampage100_pearsonr = pearsonr(trues,preds)
+
                 polyA_rev_100 = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 4.0]
-                _,polyA100_pearsonr = pearsonr([true_list[i] for i in polyA_rev_100],
-                                                [pred_list[i] for i in polyA_rev_100])
+                trues = tf.concat([true_list[i] for i in polyA_rev_100],0)
+                preds = tf.concat([pred_list[i] for i in polyA_rev_100],0)
+                _,polyA100_pearsonr = pearsonr(trues,preds)
+
                 total_rev_100 = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 6.0]
-                _,total100_pearsonr = pearsonr([true_list[i] for i in total_rev_100],
-                                                [pred_list[i] for i in total_rev_100])
+                trues = tf.concat([true_list[i] for i in total_rev_100],0)
+                preds = tf.concat([pred_list[i] for i in total_rev_100],0)
+                _,total100_pearsonr = pearsonr(trues,preds)
 
 
                 val_pearsons.append(rampage100_pearsonr)
-
 
                 print('ATAC_pearsons: ' + str(metric_dict['ATAC_PearsonR'].result()['PearsonR'].numpy()))
                 print('ATAC_R2: ' + str(metric_dict['ATAC_R2'].result()['R2'].numpy()))
