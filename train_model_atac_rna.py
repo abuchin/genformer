@@ -296,7 +296,6 @@ def main():
                         var = k.values[0]
                         total_params += tf.size(var)
                     print('total params: ' + str(total_params))
-                print(next(data_train))
 
                 ####### training steps #######################
                 print('starting epoch_', str(epoch_i))
@@ -322,10 +321,6 @@ def main():
                 assay_list = []
                 for k in range(wandb.config.val_steps):
                     true,pred,assay=strategy.run(val_step, args=(next(data_val),))
-                    if k == 0:
-                        print(true)
-                        print(pred)
-                        print(assay)
                     for x in strategy.experimental_local_results(true):
                         true_list.append(tf.reshape(x, [-1]))
                     for x in strategy.experimental_local_results(pred):
@@ -344,16 +339,18 @@ def main():
                            'val_loss_rna': metric_dict['val_loss_rna'].result().numpy()},
                            step=step_num)
 
-                cage_36_idx = [i for i, value in enumerate(tf.concat(assay_list,0.0)) if value == x]
+                print(assay_list)
+                print(true_list)
+                cage_36_idx = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 0.0]
                 _,cage36_pearsonr = pearsonr([true_list[i] for i in cage_36_idx],
                                                 [pred_list[i] for i in cage_36_idx])
-                rampage_100_idx = [i for i, value in enumerate(tf.concat(assay_list,2.0)) if value == x]
+                rampage_100_idx = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 2.0]
                 _,rampage100_pearsonr = pearsonr([true_list[i] for i in rampage_100_idx],
                                                 [pred_list[i] for i in rampage_100_idx])
-                polyA_rev_100 = [i for i, value in enumerate(tf.concat(assay_list,4.0)) if value == x]
+                polyA_rev_100 = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 4.0]
                 _,polyA100_pearsonr = pearsonr([true_list[i] for i in polyA_rev_100],
                                                 [pred_list[i] for i in polyA_rev_100])
-                total_rev_100 = [i for i, value in enumerate(tf.concat(assay_list,6.0)) if value == x]
+                total_rev_100 = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 6.0]
                 _,total100_pearsonr = pearsonr([true_list[i] for i in total_rev_100],
                                                 [pred_list[i] for i in total_rev_100])
 
