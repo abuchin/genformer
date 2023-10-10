@@ -346,7 +346,7 @@ def main():
 
                 cage_36_idx = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 0]
                 test = [true_list[i] for i in cage_36_idx]
-                print(test)
+                print(len(test))
                 trues = tf.concat([true_list[i] for i in cage_36_idx],0)
                 print(trues)
                 preds = tf.concat([pred_list[i] for i in cage_36_idx],0)
