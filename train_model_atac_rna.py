@@ -322,12 +322,16 @@ def main():
                 for k in range(wandb.config.val_steps):
                     true,pred,assay=strategy.run(val_step, args=(next(data_val),))
                     for x in strategy.experimental_local_results(true):
-                        true_list.append(tf.reshape(x, [-1]))
+                        true_list.append(x)
                     for x in strategy.experimental_local_results(pred):
-                        pred_list.append(tf.reshape(x, [-1]))
+                        pred_list.append(x)
                     for x in strategy.experimental_local_results(assay):
                         assay_list.append(tf.reshape(x, [-1]))
 
+                true_list = tf.concat(true_list,0).numpy()
+                print(true_list)
+                pred_list = tf.concat(pred_list,0).numpy()
+                print(pred_list)
                 val_loss = metric_dict['val_loss'].result().numpy()
                 print('val_loss: ' + str(metric_dict['val_loss'].result().numpy()))
                 print('val_loss_rna: ' + str(metric_dict['val_loss_rna'].result().numpy()))
