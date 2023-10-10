@@ -383,7 +383,6 @@ def deserialize_tr(serialized_example, g, use_tf_activity, input_length = 196608
         full_comb_mask_store=tf.reverse(full_comb_mask_store,axis=[0])
         rna = tf.reverse(rna, axis=[0])
 
-
     atac_out = tf.reduce_sum(tf.reshape(atac_target, [-1,tiling_req]),axis=1,keepdims=True)
     diff = tf.math.sqrt(tf.nn.relu(atac_out - 50000.0 * tf.ones(atac_out.shape)))
     atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=50000.0) + diff
