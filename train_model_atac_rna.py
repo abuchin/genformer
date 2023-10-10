@@ -364,6 +364,11 @@ def main():
                 preds = tf.concat([pred_list[i] for i in total_rev_100],0)
                 total100_r,_ = pearsonr(trues,preds)
 
+                total_revSE_100 = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 7]
+                trues = tf.concat([true_list[i] for i in total_revSE_100],0)
+                preds = tf.concat([pred_list[i] for i in total_revSE_100],0)
+                total100SE_r,_ = pearsonr(trues,preds)
+
 
                 val_pearsons.append(rampage100_r)
 
@@ -373,14 +378,15 @@ def main():
                 print('CAGE_pearsons_CAGE: ' + str(cage36_r))
                 print('polyA_RNA_pearsons: ' + str(polyA100_r))
                 print('total_RNA_pearsons: ' + str(total100_r))
-
+                print('total_RNA_SE_pearsons: ' + str(total100SE_r))
 
                 wandb.log({'ATAC_pearsons': metric_dict['ATAC_PearsonR'].result()['PearsonR'].numpy(),
                            'ATAC_R2': metric_dict['ATAC_R2'].result()['R2'].numpy(),
                            'RAMPAGE_pearsons_RAMPAGE': rampage100_r,
                            'CAGE_pearsons_CAGE': cage36_r,
                            'polyA_RNA_pearsons': polyA100_r,
-                           'total_RNA_pearsons': total100_r},
+                           'total_RNA_pearsons': total100_r,
+                           'total_RNA_SE_pearsons': total100SE_r},
                           step=step_num)
 
                 end = time.time()
