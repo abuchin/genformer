@@ -329,9 +329,8 @@ def main():
                         assay_list.append(tf.reshape(x, [-1]))
 
                 true_list = tf.concat(true_list,0).numpy()
-                print(true_list)
                 pred_list = tf.concat(pred_list,0).numpy()
-                print(pred_list)
+
                 val_loss = metric_dict['val_loss'].result().numpy()
                 print('val_loss: ' + str(metric_dict['val_loss'].result().numpy()))
                 print('val_loss_rna: ' + str(metric_dict['val_loss_rna'].result().numpy()))
@@ -346,9 +345,10 @@ def main():
                 assay_list_concat = tf.concat(assay_list,0).numpy().astype(int)
 
                 cage_36_idx = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 0]
-                print(cage_36_idx)
-                print(len(true_list))
+                test = [true_list[i] for i in cage_36_idx]
+                print(test)
                 trues = tf.concat([true_list[i] for i in cage_36_idx],0)
+                print(trues)
                 preds = tf.concat([pred_list[i] for i in cage_36_idx],0)
                 _,cage36_pearsonr = pearsonr(trues,preds)
 
