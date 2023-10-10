@@ -296,7 +296,7 @@ def main():
                         var = k.values[0]
                         total_params += tf.size(var)
                     print('total params: ' + str(total_params))
-
+                print(next(data_train))
 
                 ####### training steps #######################
                 print('starting epoch_', str(epoch_i))
