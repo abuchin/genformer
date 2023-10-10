@@ -322,6 +322,10 @@ def main():
                 assay_list = []
                 for k in range(wandb.config.val_steps):
                     true,pred,assay=strategy.run(val_step, args=(next(data_val),))
+                    if k == 0:
+                        print(true)
+                        print(pred)
+                        print(assay)
                     for x in strategy.experimental_local_results(true):
                         true_list.append(tf.reshape(x, [-1]))
                     for x in strategy.experimental_local_results(pred):
