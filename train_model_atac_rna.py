@@ -369,7 +369,6 @@ def main():
                 preds = tf.concat([pred_list[i] for i in total_revSE_100],0)
                 total100SE_r,_ = pearsonr(trues,preds)
 
-
                 val_pearsons.append(rampage100_r)
 
                 print('ATAC_pearsons: ' + str(metric_dict['ATAC_PearsonR'].result()['PearsonR'].numpy()))

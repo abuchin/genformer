@@ -164,6 +164,9 @@ def main():
                 },
                 'use_tf_activity': {
                     'values': [parse_bool_str(x) for x in args.use_tf_activity.split(',')]
+                },
+                'num_epochs_to_start': {
+                    'values': [int(x) for x in args.num_epochs_to_start.split(',')]
                 }
             }
     }
@@ -240,30 +243,16 @@ def main():
 
 
             out_iterators = \
-                    training_utils.return_distributed_iterators(wandb.config.gcs_path,
-                                                                wandb.config.gcs_path_holdout,
-                                                                GLOBAL_BATCH_SIZE,
-                                                                wandb.config.input_length,
-                                                                wandb.config.max_shift,
-                                                                wandb.config.output_length_ATAC,
-                                                                wandb.config.output_length,
-                                                                wandb.config.crop_size,
-                                                                wandb.config.output_res,
-                                                                args.num_parallel,
-                                                                args.num_epochs,
-                                                                strategy,
-                                                                options,
-                                                                wandb.config.atac_mask_dropout,
-                                                                wandb.config.random_mask_size,
-                                                                wandb.config.log_atac,
-                                                                wandb.config.use_atac,
-                                                                wandb.config.use_seq,
-                                                                wandb.config.seed,
-                                                                wandb.config.seq_corrupt_rate,
-                                                                wandb.config.atac_corrupt_rate,
-                                                                wandb.config.val_steps_ho,
-                                                                wandb.config.use_tf_activity,
-                                                                g)
+                    training_utils.return_distributed_iterators(wandb.config.gcs_path, wandb.config.gcs_path_holdout,
+                                                                GLOBAL_BATCH_SIZE, wandb.config.input_length,
+                                                                wandb.config.max_shift, wandb.config.output_length_ATAC,
+                                                                wandb.config.output_length, wandb.config.crop_size,
+                                                                wandb.config.output_res, args.num_parallel, args.num_epochs,
+                                                                strategy, options, wandb.config.atac_mask_dropout,
+                                                                wandb.config.random_mask_size, wandb.config.log_atac,
+                                                                wandb.config.use_atac, wandb.config.use_seq, wandb.config.seed,
+                                                                wandb.config.seq_corrupt_rate, wandb.config.atac_corrupt_rate,
+                                                                wandb.config.val_steps_ho, wandb.config.use_tf_activity, g)
 
             train_human, data_val_ho = out_iterators
             print('created dataset iterators')
@@ -329,7 +318,8 @@ def main():
             best_epoch = 0
 
             for epoch_i in range(1, wandb.config.num_epochs+1):
-                step_num = epoch_i * wandb.config.train_steps * GLOBAL_BATCH_SIZE
+                step_num = (wandb.config.num_epochs_to_start+epoch_i) * \
+                            wandb.config.train_steps * GLOBAL_BATCH_SIZE
                 if epoch_i == 1:
                     print('building model')
                     build_step(data_val_ho)
@@ -341,6 +331,12 @@ def main():
                         var = k.values[0]
                         total_params += tf.size(var)
                     print('total params: ' + str(total_params))
+
+                if wandb.config.num_epochs_to_start > 0:
+                    print('iterating to where last checkpoint left off')
+                    for step in range(wandb.config.train_steps*wandb.config.num_epochs_to_start):
+                        out_temp=next(train_human)
+                    print('finished iterating to new starting point')
 
                 ####### training steps #######################
                 print('starting epoch_', str(epoch_i))

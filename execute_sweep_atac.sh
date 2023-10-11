@@ -51,4 +51,5 @@ python3 train_model_atac.py \
             --seed=25 \
             --seq_corrupt_rate="20" \
             --atac_corrupt_rate="20" \
-            --use_tf_activity="False"
+            --use_tf_activity="False" \
+            --num_epochs_to_start="26"
