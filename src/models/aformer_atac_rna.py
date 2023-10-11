@@ -246,20 +246,19 @@ class aformer(tf.keras.Model):
                                                    var_init=self.inits['final_point_BN_v'] if self.load_init_FT else None,
                                                    kernel_init=self.inits['final_point_k'] if self.load_init_FT else None,
                                                    bias_init=self.inits['final_point_b'] if self.load_init_FT else None,
-                                                  **kwargs,
-                                                  name = 'final_pointwise')
+                                                   **kwargs,
+                                                   name = 'final_pointwise')
 
         self.final_dense_profile_atac = kl.Dense(1, ## atac is the first, cage/RNA is the second dim
-                                            activation='softplus',
-                                            kernel_initializer=self.inits['final_dense_k'] if self.load_init_FT else 'lecun_normal',
-                                            bias_initializer=self.inits['final_dense_b'] if self.load_init_FT else 'lecun_normal',
-                                            use_bias=True)
-        self.final_dense_profile_rna = kl.Dense(1, ## atac is the first, cage/RNA is the second dim
                                             activation='softplus',
                                             kernel_initializer='lecun_normal',
                                             bias_initializer='lecun_normal',
                                             use_bias=True)
-        self.assay_type_fc = tf.keras.layers.Embedding(8, 2, input_length=1)
+        self.final_dense_profile_rna = kl.Dense(8, ## atac is the first, cage/RNA is the second dim
+                                            activation='softplus',
+                                            kernel_initializer='lecun_normal',
+                                            bias_initializer='lecun_normal',
+                                            use_bias=True)
 
         self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
                                   **kwargs)
@@ -268,7 +267,7 @@ class aformer(tf.keras.Model):
 
     def call(self, inputs, training:bool=True):
 
-        sequence,atac,rna,tf_activity,assay_type = inputs
+        sequence,atac,rna,tf_activity,rna_assay_type = inputs
         x = self.stem_conv(sequence,
                            training=training)
         x = self.stem_res_conv(x,
@@ -305,18 +304,15 @@ class aformer(tf.keras.Model):
         out = out[:, :-1, :]
         out = self.crop_final(out)
         out = self.final_pointwise_conv(out,
-                                       training=training)
+                                        training=training)
         out = self.dropout(out,
                         training=training)
         out = self.gelu(out)
-        ### atac prediction
+        ### output predictions
         out_atac = self.final_dense_profile_atac(out, training=training)
 
-        ### rna prediction
-        assay_type_t = self.assay_type_fc(assay_type)
-        assay_type = tf.tile(assay_type_t, [1, self.final_output_length,1])
-        out = tf.concat([out,assay_type],axis=2)
-        out_rna = self.final_dense_profile_rna(out, training=training)
+        out_rna = tf.gather(self.final_dense_profile_rna(out, training=training),
+                            rna_assay_type,axis=2)
         return tf.cast(out_atac,dtype=tf.float32), tf.cast(out_rna,dtype=tf.float32)
 
 
@@ -395,13 +391,11 @@ class aformer(tf.keras.Model):
         out = self.dropout(out,
                         training=training)
         out = self.gelu(out)
-        ### atac prediction
+
+        ### output predictions
         out_atac = self.final_dense_profile_atac(out, training=training)
 
-        ### rna prediction
-        assay_type = self.assay_type_fc(assay_type,training=training)
-        assay_type = tf.tile(assay_type, [1, self.final_output_length,1])
-        out = tf.concat([out,assay_type],axis=2)
-        out_rna = self.final_dense_profile_rna(out, training=training)
+        out_rna = tf.gather(self.final_dense_profile_rna(out, training=training),
+                            rna_assay_type,axis=2)
 
         return tf.cast(out_atac,dtype=tf.float32), tf.cast(out_rna,dtype=tf.float32), att_matrices

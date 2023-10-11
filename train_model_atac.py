@@ -179,12 +179,7 @@ def main():
         g = tf.random.Generator.from_seed(args.seed)
 
         with strategy.scope(): ## rest must be w/in strategy scope
-
-            config_defaults = {
-                "lr_base": 0.01 ### will be overwritten
-            }
-
-
+            config_defaults = {"lr_base": 0.01 }### will be overwritten
             ### log training parameters
             wandb.init(config=config_defaults,
                        project= args.wandb_project,

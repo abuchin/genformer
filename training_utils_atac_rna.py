@@ -112,21 +112,22 @@ def return_train_val_functions(model,
         input_tuple = sequence, atac, target_rna,tf_activity,assay_type
 
         with tf.GradientTape() as tape:
-            conv_vars = model.stem_conv.trainable_variables + \
+            conv_performer_vars = model.stem_conv.trainable_variables + \
                         model.stem_res_conv.trainable_variables + \
                         model.stem_pool.trainable_variables + \
-                        model.conv_tower.trainable_variables
+                        model.conv_tower.trainable_variables + \
+                        model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
+                        model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
+                        model.tf_activity_fc.trainable_variables + \
+                        model.performer.trainable_variables
 
-            performer_and_end_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
-                                    model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
-                                    model.tf_activity_fc.trainable_variables + \
-                                    model.performer.trainable_variables + model.final_pointwise_conv.trainable_variables + \
-                                    model.final_dense_profile_atac.trainable_variables
+            final_pointwise_vars = model.final_pointwise_conv.trainable_variables
 
-            rna_vars=model.assay_type_fc.trainable_variables + \
-                    model.final_dense_profile_rna.trainable_variables
+            rna_vars=model.final_dense_profile_atac.trainable_variables + \
+                        model.assay_type_fc.trainable_variables + \
+                            model.final_dense_profile_rna.trainable_variables
 
-            vars_all = conv_vars + performer_and_end_vars + rna_vars
+            vars_all = conv_performer_vars + final_pointwise_vars + rna_vars
             for var in vars_all:
                 tape.watch(var)
 
@@ -269,7 +270,6 @@ def deserialize_tr(serialized_example, g, use_tf_activity, input_length = 196608
                                               out_type=tf.int32),
                                  [])
     rna_assay_type = tf.expand_dims(rna_assay_type,axis=0)
-
     peaks = tf.ensure_shape(tf.io.parse_tensor(data['peaks'],
                                               out_type=tf.int32),
                            [output_length])
@@ -420,7 +420,7 @@ def deserialize_tr(serialized_example, g, use_tf_activity, input_length = 196608
                 tf.cast(tf.ensure_shape(peaks_gathered, [(output_length-2*crop_size) // 4,1]),dtype=tf.int32), \
                 tf.cast(tf.ensure_shape(atac_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
                 tf.cast(tf.ensure_shape(rna_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
-                tf.cast(tf.ensure_shape(rna_assay_type,[1]),dtype=tf.bfloat16), \
+                tf.cast(tf.ensure_shape(rna_assay_type,[1]),dtype=tf.int32), \
                 tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.bfloat16)
 
 
@@ -586,7 +586,7 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
                 tf.cast(tf.ensure_shape(peaks_gathered, [(output_length-2*crop_size) // 4,1]),dtype=tf.int32), \
                 tf.cast(tf.ensure_shape(atac_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
                 tf.cast(tf.ensure_shape(rna_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
-                tf.cast(tf.ensure_shape(rna_assay_type,[1]),dtype=tf.bfloat16), \
+                tf.cast(tf.ensure_shape(rna_assay_type,[1]),dtype=tf.int32), \
                 tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.bfloat16)
 
 def deserialize_val_TSS(serialized_example, g, use_tf_activity, input_length = 196608,
