@@ -50,12 +50,9 @@ import tensorflow_probability as tfp
 
 tf.keras.backend.set_floatx('float32')
 
-def return_train_val_functions(model, train_steps, optimizers_in,
+def return_train_val_functions(model, train_steps, optimizer,
                                strategy, metric_dict, global_batch_size,
                                gradient_clip):
-
-    optimizer1,optimizer2=optimizers_in
-
     metric_dict["train_loss"] = tf.keras.metrics.Mean("train_loss",
                                                  dtype=tf.float32)
     metric_dict["val_loss"] = tf.keras.metrics.Mean("val_loss",
@@ -76,18 +73,6 @@ def return_train_val_functions(model, train_steps, optimizers_in,
         input_tuple = sequence, atac, tf_activity
 
         with tf.GradientTape() as tape:
-            conv_vars = model.stem_conv.trainable_variables + \
-                        model.stem_res_conv.trainable_variables + \
-                        model.stem_pool.trainable_variables + \
-                        model.conv_tower.trainable_variables
-
-            performer_vars =  model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
-                                    model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
-                                    model.tf_activity_fc.trainable_variables + \
-                                    model.performer.trainable_variables + model.final_pointwise_conv.trainable_variables + \
-                                    model.final_dense_profile.trainable_variables
-
-            vars_all = conv_vars + performer_vars
 
             output_profile = model(input_tuple,
                                     training=True)
@@ -101,14 +86,11 @@ def return_train_val_functions(model, train_steps, optimizers_in,
             loss = tf.reduce_mean(poisson_multinomial(target_atac,output_atac,total_weight=0.15,rescale=True)) *\
                         (1.0/global_batch_size)
 
-        gradients = tape.gradient(loss, vars_all)
+        gradients = tape.gradient(loss, model.trainable_variables)
         gradients, _ = tf.clip_by_global_norm(gradients,
                                               gradient_clip)
-
-        optimizer1.apply_gradients(zip(gradients[:len(conv_vars)],
-                                       conv_vars))
-        optimizer2.apply_gradients(zip(gradients[len(conv_vars):],
-                                       performer_vars))
+        optimizer.apply_gradients(zip(gradients,
+                                       model.trainable_variables))
         metric_dict["train_loss"].update_state(loss)
 
         metric_dict['ATAC_PearsonR_tr'].update_state(target_atac,
@@ -717,14 +699,10 @@ def parse_args(parser):
                     dest='output_res',
                         default=128,
                     type=int)
-    parser.add_argument('--lr_base1',
-                        dest='lr_base1',
+    parser.add_argument('--lr_base',
+                        dest='lr_base',
                         default="1.0e-03",
-                        help='lr_base1')
-    parser.add_argument('--lr_base2',
-                        dest='lr_base2',
-                        default="1.0e-03",
-                        help='lr_base2')
+                        help='lr_base')
     parser.add_argument('--decay_frac',
                         dest='decay_frac',
                         type=str,

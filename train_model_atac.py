@@ -93,11 +93,8 @@ def main():
                 'pointwise_dropout_rate': {
                     'values': [float(x) for x in args.pointwise_dropout_rate.split(',')]
                 },
-                'lr_base1': {
-                    'values':[float(x) for x in args.lr_base1.split(',')]
-                },
-                'lr_base2': {
-                    'values':[float(x) for x in args.lr_base2.split(',')]
+                'lr_base': {
+                    'values':[float(x) for x in args.lr_base.split(',')]
                 },
                 'gradient_clip': {
                     'values': [float(x) for x in args.gradient_clip.split(',')]
@@ -206,8 +203,7 @@ def main():
 
             run_name = '_'.join([str(int(wandb.config.input_length) / 1000)[:4].rstrip('.') + 'k',
                                  'load-' + str(wandb.config.load_init),
-                                 'LR1-' + str(wandb.config.lr_base1),
-                                 'LR2-' + str(wandb.config.lr_base1),
+                                 'LR-' + str(wandb.config.lr_base),
                                  'T-' + str(wandb.config.num_transformer_layers),
                                  'TF-' + str(wandb.config.use_tf_activity)])
 
@@ -272,32 +268,21 @@ def main():
 
             print('initialized model')
 
-            scheduler1= tf.keras.optimizers.schedules.CosineDecay(
-                initial_learning_rate=wandb.config.lr_base1,
+            scheduler= tf.keras.optimizers.schedules.CosineDecay(
+                initial_learning_rate=wandb.config.lr_base,
                 decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
-            scheduler1=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base1,
+            scheduler=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
-                                         decay_schedule_fn=scheduler1)
-            scheduler2= tf.keras.optimizers.schedules.CosineDecay(
-                initial_learning_rate=wandb.config.lr_base2,
-                decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
-            scheduler2=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base2,
-                                         warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
-                                         decay_schedule_fn=scheduler2)
-
-            optimizer1 = tf.keras.optimizers.Adam(learning_rate=scheduler1,
-                                                  epsilon=wandb.config.epsilon)
-            optimizer2 = tf.keras.optimizers.Adam(learning_rate=scheduler2,
+                                         decay_schedule_fn=scheduler)
+            optimizer = tf.keras.optimizers.Adam(learning_rate=scheduler,
                                                   epsilon=wandb.config.epsilon)
 
             metric_dict = {}
 
-            optimizers_in = optimizer1,optimizer2
-
             train_step, val_step, \
                 build_step, metric_dict = training_utils.return_train_val_functions(model,
                                                                                     wandb.config.train_steps,
-                                                                                    optimizers_in,
+                                                                                    optimizer,
                                                                                     strategy,
                                                                                     metric_dict,
                                                                                     GLOBAL_BATCH_SIZE,

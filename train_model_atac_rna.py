@@ -364,19 +364,19 @@ def main():
 
                 print('ATAC_pearsons: ' + str(metric_dict['ATAC_PearsonR'].result()['PearsonR'].numpy()))
                 print('ATAC_R2: ' + str(metric_dict['ATAC_R2'].result()['R2'].numpy()))
-                print('RAMPAGE_pearsons_RAMPAGE: ' + str(rampage100_r))
-                print('CAGE_pearsons_CAGE: ' + str(cage36_r))
-                print('polyA_RNA_pearsons: ' + str(polyA100_r))
-                print('total_RNA_pearsons: ' + str(total100_r))
-                print('total_RNA_SE_pearsons: ' + str(total100SE_r))
+                print('RAMPAGE: ' + str(rampage100_r))
+                print('CAGE: ' + str(cage36_r))
+                print('polyA_RNA: ' + str(polyA100_r))
+                print('total_RNA: ' + str(total100_r))
+                print('total_RNA_SE: ' + str(total100SE_r))
 
                 wandb.log({'ATAC_pearsons': metric_dict['ATAC_PearsonR'].result()['PearsonR'].numpy(),
                            'ATAC_R2': metric_dict['ATAC_R2'].result()['R2'].numpy(),
-                           'RAMPAGE_pearsons_RAMPAGE': rampage100_r,
-                           'CAGE_pearsons_CAGE': cage36_r,
-                           'polyA_RNA_pearsons': polyA100_r,
-                           'total_RNA_pearsons': total100_r,
-                           'total_RNA_SE_pearsons': total100SE_r},
+                           'RAMPAGE_pearsons': rampage100_r,
+                           'CAGE': cage36_r,
+                           'polyA_RNA': polyA100_r,
+                           'total_RNA': total100_r,
+                           'total_RNA_SE': total100SE_r},
                           step=step_num)
 
                 end = time.time()
