@@ -156,7 +156,7 @@ def return_train_val_functions(model,
 
         optimizer1.apply_gradients(zip(gradients[:len(conv_performer_vars)],
                                        conv_performer_vars))
-        optimizer2.apply_gradients(zip(gradients[len(conv_vars):],
+        optimizer2.apply_gradients(zip(gradients[len(conv_performer_vars):],
                                        output_heads))
         metric_dict["train_loss"].update_state(loss)
         metric_dict["train_loss_rna"].update_state(rna_loss)
