@@ -78,7 +78,7 @@ def return_train_val_functions(model,
                                gradient_clip,
                                rna_scale):
 
-    optimizer1,optimizer2,optimizer3=optimizers_in
+    optimizer1,optimizer2=optimizers_in
 
     metric_dict["corr_stats"] = metrics.correlation_stats_gene_centered(name='corr_stats')
     metric_dict["corr_stats_ho"] = metrics.correlation_stats_gene_centered(name='corr_stats_ho')
@@ -121,13 +121,11 @@ def return_train_val_functions(model,
                         model.tf_activity_fc.trainable_variables + \
                         model.performer.trainable_variables
 
-            final_pointwise_vars = model.final_pointwise_conv.trainable_variables
-
-            rna_vars=model.final_dense_profile_atac.trainable_variables + \
-                        model.assay_type_fc.trainable_variables + \
+            output_heads =model.final_pointwise_conv.trainable_variables + \
+                        model.final_dense_profile_atac.trainable_variables + \
                             model.final_dense_profile_rna.trainable_variables
 
-            vars_all = conv_performer_vars + final_pointwise_vars + rna_vars
+            vars_all = conv_performer_vars + output_heads
             for var in vars_all:
                 tape.watch(var)
 
@@ -156,12 +154,10 @@ def return_train_val_functions(model,
         gradients, _ = tf.clip_by_global_norm(gradients,
                                               gradient_clip)
 
-        optimizer1.apply_gradients(zip(gradients[:len(conv_vars)],
-                                       conv_vars))
-        optimizer2.apply_gradients(zip(gradients[len(conv_vars):len(conv_vars+performer_and_end_vars)],
-                                       performer_and_end_vars))
-        optimizer3.apply_gradients(zip(gradients[len(conv_vars+performer_and_end_vars):],
-                                       rna_vars))
+        optimizer1.apply_gradients(zip(gradients[:len(conv_performer_vars)],
+                                       conv_performer_vars))
+        optimizer2.apply_gradients(zip(gradients[len(conv_vars):],
+                                       output_heads))
         metric_dict["train_loss"].update_state(loss)
         metric_dict["train_loss_rna"].update_state(rna_loss)
         metric_dict["train_loss_atac"].update_state(atac_loss)
@@ -1175,10 +1171,6 @@ def parse_args(parser):
                         dest='lr_base2',
                         default="1.0e-03",
                         help='lr_base2')
-    parser.add_argument('--lr_base3',
-                        dest='lr_base3',
-                        default="1.0e-03",
-                        help='lr_base3')
     parser.add_argument('--decay_frac',
                         dest='decay_frac',
                         type=str,

@@ -82,7 +82,6 @@ def main():
                 'pointwise_dropout_rate': {'values': [float(x) for x in args.pointwise_dropout_rate.split(',')]},
                 'lr_base1': {'values':[float(x) for x in args.lr_base1.split(',')]},
                 'lr_base2': {'values':[float(x) for x in args.lr_base2.split(',')]},
-                'lr_base3': {'values':[float(x) for x in args.lr_base3.split(',')]},
                 'gradient_clip': {'values': [float(x) for x in args.gradient_clip.split(',')]},
                 'rna_scale': {'values': [float(x) for x in args.rna_scale.split(',')]},
                 'decay_frac': {'values': [float(x) for x in args.decay_frac.split(',')]},
@@ -248,21 +247,13 @@ def main():
             scheduler2=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base2,
                                          warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
                                          decay_schedule_fn=scheduler2)
-            scheduler3= tf.keras.optimizers.schedules.CosineDecay(
-                initial_learning_rate=wandb.config.lr_base3,
-                decay_steps=wandb.config.total_steps*wandb.config.num_epochs, alpha=wandb.config.decay_frac)
-            scheduler3=optimizers.WarmUp(initial_learning_rate=wandb.config.lr_base3,
-                                         warmup_steps=wandb.config.warmup_frac*wandb.config.total_steps*wandb.config.num_epochs,
-                                         decay_schedule_fn=scheduler3)
 
             optimizer1 = tf.keras.optimizers.Adam(learning_rate=scheduler1,
                                                   epsilon=wandb.config.epsilon)
             optimizer2 = tf.keras.optimizers.Adam(learning_rate=scheduler2,
                                                   epsilon=wandb.config.epsilon)
-            optimizer3 = tf.keras.optimizers.Adam(learning_rate=scheduler3,
-                                                  epsilon=wandb.config.epsilon)
 
-            optimizers_in = optimizer1,optimizer2,optimizer3
+            optimizers_in = optimizer1,optimizer2
 
             metric_dict = {}
 

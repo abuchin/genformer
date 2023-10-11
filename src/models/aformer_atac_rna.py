@@ -240,12 +240,6 @@ class aformer(tf.keras.Model):
                                              name='target_input')
 
         self.final_pointwise_conv = enf_conv_block(filters=self.filter_list_seq[-1] // self.final_point_scale,
-                                                   beta_init=self.inits['final_point_BN_b'] if self.load_init_FT else None,
-                                                   gamma_init=self.inits['final_point_BN_g'] if self.load_init_FT else None,
-                                                   mean_init=self.inits['final_point_BN_m'] if self.load_init_FT else None,
-                                                   var_init=self.inits['final_point_BN_v'] if self.load_init_FT else None,
-                                                   kernel_init=self.inits['final_point_k'] if self.load_init_FT else None,
-                                                   bias_init=self.inits['final_point_b'] if self.load_init_FT else None,
                                                    **kwargs,
                                                    name = 'final_pointwise')
 
