@@ -27,7 +27,6 @@ python3 train_model_atac_rna.py \
             --model_save_basename="aformer_baseline" \
             --lr_base1="1.0e-06" \
             --lr_base2="1.0e-06" \
-            --lr_base3="1.0e-05" \
             --decay_frac="0.005" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-8 \

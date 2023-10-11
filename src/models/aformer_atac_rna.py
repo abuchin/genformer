@@ -305,9 +305,17 @@ class aformer(tf.keras.Model):
         ### output predictions
         out_atac = self.final_dense_profile_atac(out, training=training)
 
-        out_rna = tf.gather(self.final_dense_profile_rna(out, training=training),
-                            rna_assay_type,axis=2)
-        return tf.cast(out_atac,dtype=tf.float32), tf.cast(out_rna,dtype=tf.float32)
+        out_rna = self.final_dense_profile_rna(out, training=training)
+
+        # output relevant dimension of out_rna
+        batch_indices, length_indices = tf.meshgrid(tf.range(tf.shape(rna_assay_type)[0]),
+                                                    tf.range(tf.shape(out_rna)[1]), indexing='ij')
+        B_tiled = tf.tile(rna_assay_type, [1, tf.shape(out_rna)[1]])
+        indices = tf.stack([batch_indices, length_indices, B_tiled], axis=-1)
+        subset = tf.gather_nd(out_rna, indices)
+        subset = tf.expand_dims(subset, axis=-1)
+
+        return tf.cast(out_atac,dtype=tf.float32), tf.cast(subset,dtype=tf.float32)
 
 
     def get_config(self):
@@ -391,5 +399,12 @@ class aformer(tf.keras.Model):
 
         out_rna = tf.gather(self.final_dense_profile_rna(out, training=training),
                             rna_assay_type,axis=2)
+        # output relevant dimension of out_rna
+        batch_indices, length_indices = tf.meshgrid(tf.range(tf.shape(rna_assay_type)[0]),
+                                                    tf.range(tf.shape(out_rna)[1]), indexing='ij')
+        B_tiled = tf.tile(rna_assay_type, [1, tf.shape(out_rna)[1]])
+        indices = tf.stack([batch_indices, length_indices, B_tiled], axis=-1)
+        subset = tf.gather_nd(out_rna, indices)
+        subset = tf.expand_dims(subset, axis=-1)
 
-        return tf.cast(out_atac,dtype=tf.float32), tf.cast(out_rna,dtype=tf.float32), att_matrices
+        return tf.cast(out_atac,dtype=tf.float32), tf.cast(subset,dtype=tf.float32), att_matrices
