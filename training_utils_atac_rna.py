@@ -413,8 +413,8 @@ def deserialize_tr(serialized_example, g, use_tf_activity, input_length = 196608
 
 
     ### add variable for loss weighting for different assay cell_types
-    rna_lookup = {0:1.108779, 1:2.956744,2:0.187965, 3: 1.478372,
-                                 4: 0.739186,5:1.267176,6:0.170581,7:0.094364}
+    rna_lookup = {0:1.0, 1:2.0,2:0.40, 3: 1.5,
+                                 4: 0.70,5:1.25,6:0.20,7:0.15}
     keys_tensor = tf.constant(list(rna_lookup.keys()))
     vals_tensor = tf.constant(list(rna_lookup.values()))
     table = tf.lookup.StaticHashTable(tf.lookup.KeyValueTensorInitializer(keys_tensor, vals_tensor), default_value=1.0)
@@ -588,8 +588,8 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
                                                             seed=[1,randomish_seed+12])
 
     ### add variable for loss weighting for different assay cell_types
-    rna_lookup = {0:1.108779, 1:2.956744,2:0.187965, 3: 1.478372,
-                                 4: 0.739186,5:1.267176,6:0.170581,7:0.094364}
+    rna_lookup = {0:1.0, 1:2.0,2:0.40, 3: 1.5,
+                                 4: 0.70,5:1.25,6:0.20,7:0.15}
     keys_tensor = tf.constant(list(rna_lookup.keys()))
     vals_tensor = tf.constant(list(rna_lookup.values()))
     table = tf.lookup.StaticHashTable(tf.lookup.KeyValueTensorInitializer(keys_tensor, vals_tensor), default_value=-1.0)
