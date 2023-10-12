@@ -83,7 +83,10 @@ def return_train_val_functions(model, train_steps, optimizer,
             target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
             output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
 
-            loss = tf.reduce_mean(poisson_multinomial(target_atac,output_atac,total_weight=0.15,rescale=True)) *\
+            loss = tf.reduce_mean(poisson_multinomial(target_atac,
+                                                      output_atac,
+                                                      total_weight=0.15,
+                                                      rescale=True)) *\
                         (1.0/global_batch_size)
 
         gradients = tape.gradient(loss, model.trainable_variables)
@@ -114,7 +117,10 @@ def return_train_val_functions(model, train_steps, optimizer,
 
         target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
         output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
-        loss = tf.reduce_mean(poisson_multinomial(target_atac,output_atac,total_weight=0.15,rescale=True)) *\
+        loss = tf.reduce_mean(poisson_multinomial(target_atac,
+                                                  output_atac,
+                                                  total_weight=0.15,
+                                                  rescale=True)) *\
                     (1.0/global_batch_size)
         metric_dict['ATAC_PearsonR'].update_state(target_atac,
                                                   output_atac)

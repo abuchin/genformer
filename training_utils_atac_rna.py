@@ -121,9 +121,10 @@ def return_train_val_functions(model,
                         model.tf_activity_fc.trainable_variables + \
                         model.performer.trainable_variables
 
-            output_heads =model.final_pointwise_conv.trainable_variables + \
-                        model.final_dense_profile_atac.trainable_variables + \
-                            model.final_dense_profile_rna.trainable_variables
+            output_heads = model.final_pointwise_conv.trainable_variables + \
+                           model.final_dense_profile_atac.trainable_variables + \
+                           model.assay_type_fc.trainable_variables + \
+                           model.final_dense_profile_rna.trainable_variables
 
             vars_all = conv_performer_vars + output_heads
             for var in vars_all:
@@ -416,7 +417,7 @@ def deserialize_tr(serialized_example, g, use_tf_activity, input_length = 196608
                 tf.cast(tf.ensure_shape(peaks_gathered, [(output_length-2*crop_size) // 4,1]),dtype=tf.int32), \
                 tf.cast(tf.ensure_shape(atac_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
                 tf.cast(tf.ensure_shape(rna_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
-                tf.cast(tf.ensure_shape(rna_assay_type,[1]),dtype=tf.int32), \
+                tf.cast(tf.ensure_shape(rna_assay_type,[1]),dtype=tf.bfloat16), \
                 tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.bfloat16)
 
 
@@ -582,7 +583,7 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
                 tf.cast(tf.ensure_shape(peaks_gathered, [(output_length-2*crop_size) // 4,1]),dtype=tf.int32), \
                 tf.cast(tf.ensure_shape(atac_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
                 tf.cast(tf.ensure_shape(rna_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
-                tf.cast(tf.ensure_shape(rna_assay_type,[1]),dtype=tf.int32), \
+                tf.cast(tf.ensure_shape(rna_assay_type,[1]),dtype=tf.bfloat16), \
                 tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.bfloat16)
 
 def deserialize_val_TSS(serialized_example, g, use_tf_activity, input_length = 196608,
