@@ -312,12 +312,6 @@ def main():
                         total_params += tf.size(var)
                     print('total params: ' + str(total_params))
 
-                if wandb.config.num_epochs_to_start > 0:
-                    print('iterating to where last checkpoint left off')
-                    for step in range(wandb.config.train_steps*wandb.config.num_epochs_to_start):
-                        out_temp=next(train_human)
-                    print('finished iterating to new starting point')
-
                 ####### training steps #######################
                 print('starting epoch_', str(epoch_i))
                 start = time.time()
