@@ -147,7 +147,7 @@ def return_train_val_functions(model,
             rna_loss = tf.reduce_mean(poisson_multinomial(target_rna[:,:,0],
                                                           output_rna[:,:,0],
                                                           total_weight=0.15,
-                                                          rescale=True) * weights) *\
+                                                          rescale=True)) *\
                                                           (1.0/global_batch_size)
             loss = atac_loss * (1.0-rna_scale) + rna_loss * rna_scale
 
@@ -186,7 +186,7 @@ def return_train_val_functions(model,
         rna_loss = tf.reduce_mean(poisson_multinomial(target_rna[:,:,0],
                                                       output_rna[:,:,0],
                                                       total_weight=0.15,
-                                                      rescale=True)*weights) *\
+                                                      rescale=True)) *\
                                                       (1.0/global_batch_size)
         loss = atac_loss * (1.0-rna_scale) + rna_loss * rna_scale
 
