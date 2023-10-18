@@ -256,11 +256,11 @@ class aformer(tf.keras.Model):
                                             kernel_initializer=self.inits['final_dense_k'] if self.load_init_FT else 'lecun_normal',
                                             bias_initializer=self.inits['final_dense_b'] if self.load_init_FT else 'lecun_normal',
                                             use_bias=True)
-        self.final_dense_profile_rna = {head: kl.Dense(1, ## atac is the first, cage/RNA is the second dim
+        self.final_dense_profile_rna = {head.ref(): kl.Dense(1, ## atac is the first, cage/RNA is the second dim
                                             activation='softplus',
                                             kernel_initializer='lecun_normal',
                                             bias_initializer='lecun_normal',
-                                            use_bias=True) for head in self.output_rna_heads}
+                                            use_bias=True) for head in self.output_heads_rna}
         #self.assay_type_fc = tf.keras.layers.Embedding(8, 2, input_length=1)
 
         self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
@@ -319,9 +319,11 @@ class aformer(tf.keras.Model):
         #assay_type_t = self.assay_type_fc(assay_type)
         #assay_type = tf.tile(assay_type_t, [1, self.final_output_length,1])
         #out = tf.concat([out,assay_type],axis=2)
-        out_rna_dict = self.final_dense_profile_rna(out, training=training)
-        out_rna = out_rna_dict[assay_type]
-        return tf.cast(out_atac,dtype=tf.float32), tf.cast(out_rna,dtype=tf.float32)
+        #out_rna_dict = self.final_dense_profile_rna(out, training=training)
+        #print(out_rna_dict)
+        #out_rna = out_rna_dict[assay_type]
+        #print(out_rna)
+        return tf.cast(out_atac,dtype=tf.float32), tf.cast(self.final_dense_profile_rna(out, training=training)[assay_type.ref()],dtype=tf.float32)
 
 
     def get_config(self):
