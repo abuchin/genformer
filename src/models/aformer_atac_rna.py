@@ -41,6 +41,7 @@ class aformer(tf.keras.Model):
                  load_tf=False,
                  num_tfs=1629,
                  tf_dropout_rate=0.01,
+                 output_heads_rna=[0,1,2,3,4,5,6,7],
                  name: str = 'aformer',
                  **kwargs):
         """ 'aformer' model based on Enformer for predicting RNA-seq from atac + sequence
@@ -81,6 +82,7 @@ class aformer(tf.keras.Model):
         self.d_model = self.filter_list_seq[-1] + self.filter_list_atac[-1] #+ self.global_acc_size
 
         self.dim = self.hidden_size  // self.num_heads
+        self.output_heads_rna = [tf.constant(x,dtype=tf.int32) for x in output_heads_rna]
 
         def enf_conv_block(filters,
                            width=1,
@@ -254,12 +256,12 @@ class aformer(tf.keras.Model):
                                             kernel_initializer=self.inits['final_dense_k'] if self.load_init_FT else 'lecun_normal',
                                             bias_initializer=self.inits['final_dense_b'] if self.load_init_FT else 'lecun_normal',
                                             use_bias=True)
-        self.final_dense_profile_rna = kl.Dense(1, ## atac is the first, cage/RNA is the second dim
+        self.final_dense_profile_rna = {head: kl.Dense(1, ## atac is the first, cage/RNA is the second dim
                                             activation='softplus',
                                             kernel_initializer='lecun_normal',
                                             bias_initializer='lecun_normal',
-                                            use_bias=True)
-        self.assay_type_fc = tf.keras.layers.Embedding(8, 2, input_length=1)
+                                            use_bias=True) for head in self.output_rna_heads}
+        #self.assay_type_fc = tf.keras.layers.Embedding(8, 2, input_length=1)
 
         self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
                                   **kwargs)
@@ -313,10 +315,12 @@ class aformer(tf.keras.Model):
         out_atac = self.final_dense_profile_atac(out, training=training)
 
         ### rna prediction
-        assay_type_t = self.assay_type_fc(assay_type)
-        assay_type = tf.tile(assay_type_t, [1, self.final_output_length,1])
-        out = tf.concat([out,assay_type],axis=2)
-        out_rna = self.final_dense_profile_rna(out, training=training)
+
+        #assay_type_t = self.assay_type_fc(assay_type)
+        #assay_type = tf.tile(assay_type_t, [1, self.final_output_length,1])
+        #out = tf.concat([out,assay_type],axis=2)
+        out_rna_dict = self.final_dense_profile_rna(out, training=training)
+        out_rna = out_rna_dict[assay_type]
         return tf.cast(out_atac,dtype=tf.float32), tf.cast(out_rna,dtype=tf.float32)
 
 
