@@ -121,6 +121,7 @@ def return_train_val_functions(model,
                         model.tf_activity_fc.trainable_variables + \
                         model.performer.trainable_variables
 
+
             output_heads = model.final_pointwise_conv.trainable_variables + \
                            model.final_dense_profile_atac.trainable_variables + \
                            model.final_dense_profile_rna.trainable_variables
@@ -204,8 +205,15 @@ def return_train_val_functions(model,
         @tf.function(reduce_retracing=True)
         def val_step(inputs):
             sequence,atac,mask,mask_gathered,peaks,target_atac,target_rna,assay_type,tf_activity = inputs
-            input_tuple = sequence, atac, target_rna,tf_activity, assay_type
+            input_tuple = sequence, atac, target_rna,tf_activity, tf.constant([4,5,6,7],dtype=tf.int32)
+            output_atac,output_rna= model(input_tuple,
+                                           training=False)
+        strategy.run(val_step, args=(next(iterator),))
 
+        @tf.function(reduce_retracing=True)
+        def val_step(inputs):
+            sequence,atac,mask,mask_gathered,peaks,target_atac,target_rna,assay_type,tf_activity = inputs
+            input_tuple = sequence, atac, target_rna,tf_activity, tf.constant([4,5,6,7],dtype=tf.int32)
             output_atac,output_rna= model(input_tuple,
                                            training=False)
         strategy.run(val_step, args=(next(iterator),))
@@ -1390,8 +1398,6 @@ def rev_comp_one_hot(sequence):
                       depth = 4,
                       dtype=tf.float32)
     return out
-
-
 
 
 
