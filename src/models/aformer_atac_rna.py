@@ -314,7 +314,7 @@ class aformer(tf.keras.Model):
         ### atac prediction
         out_atac = self.final_dense_profile_atac(out, training=training)
 
-        out_atac_list = tf.unstack(out_atac,axis=0)
+        out_list = tf.unstack(out,axis=0)
         out_assay_list = tf.unstack(assay_type,axis=0)
 
         def apply_based_on_index(x_tensor, y_tensor, layers_list):
@@ -324,7 +324,7 @@ class aformer(tf.keras.Model):
             return tf.switch_case(y_tensor, branches)
 
         out_rna = [apply_based_on_index(x_tensor, y_tensor,self.final_dense_profile_rna) for x_tensor, y_tensor \
-                        in zip(out_atac_list, out_assay_list)]
+                        in zip(out_list, out_assay_list)]
         ### rna prediction
 
         #assay_type_t = self.assay_type_fc(assay_type)
@@ -334,9 +334,8 @@ class aformer(tf.keras.Model):
         #print(out_rna_dict)
         #out_rna = out_rna_dict[assay_type]
         #print(out_rna)
-
-        out_rna = tf.stack(out_rna,axis=0)
-        return tf.cast(out_atac,dtype=tf.float32), tf.cast(out_rna,dtype=tf.float32)
+        out_rna_stack = tf.stack(out_rna,axis=0)
+        return tf.cast(out_atac,dtype=tf.float32), tf.cast(out_rna_stack,dtype=tf.float32)
 
 
     def get_config(self):
