@@ -323,7 +323,9 @@ class aformer(tf.keras.Model):
         #print(out_rna_dict)
         #out_rna = out_rna_dict[assay_type]
         #print(out_rna)
-        return tf.cast(out_atac,dtype=tf.float32), tf.cast(self.final_dense_profile_rna(out, training=training)[assay_type.ref()],dtype=tf.float32)
+
+        out_rna = {head: head_module(x) for head, head_module in self.final_dense_profile_rna.items()}
+        return tf.cast(out_atac,dtype=tf.float32), tf.cast(out_rna[assay_type.ref()],dtype=tf.float32)
 
 
     def get_config(self):
