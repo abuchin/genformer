@@ -319,11 +319,11 @@ class aformer(tf.keras.Model):
 
         def apply_based_on_index(x_tensor, y_tensor, layers_list):
             # Define the branches for the switch_case operation
-            branches = {i: lambda: layers_list[i](x_tensor) for i in range(len(self.final_dense_profile_rna))}
+            branches = {i: lambda: layers_list[i](x_tensor) for i in range(len(layers_list))}
             # Use switch_case to apply the correct layer based on y_tensor's value
             return tf.switch_case(y_tensor, branches)
 
-        out_rna = [apply_based_on_index(x_tensor, y_tensor, Z) for x_tensor, y_tensor \
+        out_rna = [apply_based_on_index(x_tensor, y_tensor,self.final_dense_profile_rna) for x_tensor, y_tensor \
                         in zip(out_atac_list, out_assay_list)]
         ### rna prediction
 
