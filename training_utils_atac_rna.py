@@ -131,6 +131,7 @@ def return_train_val_functions(model,
 
             output_atac,output_rna = model(input_tuple,
                                            training=True)
+            output_rna = tf.
 
             mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
 

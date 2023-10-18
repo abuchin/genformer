@@ -256,11 +256,11 @@ class aformer(tf.keras.Model):
                                             kernel_initializer=self.inits['final_dense_k'] if self.load_init_FT else 'lecun_normal',
                                             bias_initializer=self.inits['final_dense_b'] if self.load_init_FT else 'lecun_normal',
                                             use_bias=True)
-        self.final_dense_profile_rna = {head.ref(): kl.Dense(1, ## atac is the first, cage/RNA is the second dim
+        self.final_dense_profile_rna = [kl.Dense(1, ## atac is the first, cage/RNA is the second dim
                                             activation='softplus',
                                             kernel_initializer='lecun_normal',
                                             bias_initializer='lecun_normal',
-                                            use_bias=True) for head in self.output_heads_rna}
+                                            use_bias=True) for head in self.output_heads_rna]
         #self.assay_type_fc = tf.keras.layers.Embedding(8, 2, input_length=1)
 
         self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
@@ -314,6 +314,17 @@ class aformer(tf.keras.Model):
         ### atac prediction
         out_atac = self.final_dense_profile_atac(out, training=training)
 
+        out_atac_list = tf.unstack(out_atac,axis=0)
+        out_assay_list = tf.unstack(assay_type,axis=0)
+
+        def apply_based_on_index(x_tensor, y_tensor, layers_list):
+            # Define the branches for the switch_case operation
+            branches = {i: lambda: layers_list[i](x_tensor) for i in range(len(self.final_dense_profile_rna))}
+            # Use switch_case to apply the correct layer based on y_tensor's value
+            return tf.switch_case(y_tensor, branches)
+
+        out_rna = [apply_based_on_index(x_tensor, y_tensor, Z) for x_tensor, y_tensor \
+                        in zip(out_atac_list, out_assay_list)]
         ### rna prediction
 
         #assay_type_t = self.assay_type_fc(assay_type)
@@ -324,8 +335,8 @@ class aformer(tf.keras.Model):
         #out_rna = out_rna_dict[assay_type]
         #print(out_rna)
 
-        out_rna = {head: head_module(x) for head, head_module in self.final_dense_profile_rna.items()}
-        return tf.cast(out_atac,dtype=tf.float32), tf.cast(out_rna[assay_type.ref()],dtype=tf.float32)
+        out_rna = tf.stack(out_rna,axis=0)
+        return tf.cast(out_atac,dtype=tf.float32), tf.cast(out_rna,dtype=tf.float32)
 
 
     def get_config(self):
