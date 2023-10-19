@@ -132,8 +132,6 @@ def return_train_val_functions(model,
 
             output_atac,output_rna = model(input_tuple,
                                            training=True)
-            output_rna = tf.gather(output_rna)
-
             mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
 
             target_atac = tf.gather(target_atac[:,:,0], mask_indices,axis=1)
