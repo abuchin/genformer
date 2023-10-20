@@ -396,7 +396,7 @@ def deserialize_tr(serialized_example, g, use_tf_activity, input_length = 196608
     keys_tensor = tf.constant(list(rna_lookup.keys()))
     vals_tensor = tf.constant(list(rna_lookup.values()))
     table = tf.lookup.StaticHashTable(tf.lookup.KeyValueTensorInitializer(keys_tensor, vals_tensor), default_value=1.0)
-    weighting_factor=table.lookup(rna_assay_type)
+    weighting_factor=table.lookup(tf.expand_dims(rna_assay_type,axis=0))
 
     rna_out = tf.slice(rna,
                         [crop_size,0],
@@ -570,7 +570,7 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
     keys_tensor = tf.constant(list(rna_lookup.keys()))
     vals_tensor = tf.constant(list(rna_lookup.values()))
     table = tf.lookup.StaticHashTable(tf.lookup.KeyValueTensorInitializer(keys_tensor, vals_tensor), default_value=1.0)
-    weighting_factor=table.lookup(rna_assay_type)
+    weighting_factor=table.lookup(tf.expand_dims(rna_assay_type,axis=0))
 
     rna_out = tf.slice(rna,
                         [crop_size,0],
