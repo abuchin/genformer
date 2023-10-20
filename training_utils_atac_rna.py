@@ -76,7 +76,7 @@ def return_train_val_functions(model,
                                metric_dict,
                                global_batch_size,
                                gradient_clip,
-                               rna_scale):
+                               atac_scale):
 
     optimizer1,optimizer2=optimizers_in
 
@@ -148,7 +148,7 @@ def return_train_val_functions(model,
                                                           total_weight=0.15,
                                                           rescale=True)) *\
                                                           (1.0/global_batch_size)
-            loss = atac_loss * (1.0-rna_scale) + rna_loss * rna_scale
+            loss = (atac_loss * atac_scale + rna_loss) / (1.0+atac_scale)
 
         gradients = tape.gradient(loss, vars_all)
         gradients, _ = tf.clip_by_global_norm(gradients,
@@ -187,7 +187,7 @@ def return_train_val_functions(model,
                                                       total_weight=0.15,
                                                       rescale=True)) *\
                                                       (1.0/global_batch_size)
-        loss = atac_loss * (1.0-rna_scale) + rna_loss * rna_scale
+        loss = (atac_loss * atac_scale + rna_loss) / (1.0+atac_scale)
 
         metric_dict['ATAC_PearsonR'].update_state(target_atac,
                                                   output_atac)
@@ -391,11 +391,19 @@ def deserialize_tr(serialized_example, g, use_tf_activity, input_length = 196608
     atac_out = tf.slice(atac_out,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
+
+    rna_lookup = {0:5.0, 1:5.0,2:5.0, 3: 5.0, 4:15.0,5:15.0,6:15.0,7:15.0}
+    keys_tensor = tf.constant(list(rna_lookup.keys()))
+    vals_tensor = tf.constant(list(rna_lookup.values()))
+    table = tf.lookup.StaticHashTable(tf.lookup.KeyValueTensorInitializer(keys_tensor, vals_tensor), default_value=1.0)
+    weighting_factor=table.lookup(rna_assay_type)
+
     rna_out = tf.slice(rna,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
-    diff = tf.math.sqrt(tf.nn.relu(rna_out - 50000.0 * tf.ones(rna_out.shape)))
-    rna_out = tf.clip_by_value(rna_out, clip_value_min=0.0, clip_value_max=50000.0) + diff
+    rna_out = tf.math.pow(rna_out * weighting_factor,0.75)
+    diff = tf.math.sqrt(tf.nn.relu(rna_out - 10000.0 * tf.ones(rna_out.shape)))
+    rna_out = tf.clip_by_value(rna_out, clip_value_min=0.0, clip_value_max=10000.0) + diff
 
     peaks_gathered = tf.reduce_max(tf.reshape(peaks_crop, [(output_length-2*crop_size) // 4, -1]),
                                    axis=1,keepdims=True)
@@ -413,9 +421,6 @@ def deserialize_tr(serialized_example, g, use_tf_activity, input_length = 196608
         print('not using sequence')
         masked_seq = tf.random.experimental.stateless_shuffle(masked_seq,
                                                               seed=[randomish_seed+1,randomish_seed+3])
-
-
-
 
     return tf.cast(tf.ensure_shape(masked_seq,[input_length,4]),dtype=tf.bfloat16), \
                 tf.cast(tf.ensure_shape(masked_atac, [output_length_ATAC,1]),dtype=tf.bfloat16), \
@@ -560,11 +565,19 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
     atac_out = tf.slice(atac_out,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
+
+    rna_lookup = {0:5.0, 1:5.0,2:5.0, 3: 5.0, 4:15.0,5:15.0,6:15.0,7:15.0}
+    keys_tensor = tf.constant(list(rna_lookup.keys()))
+    vals_tensor = tf.constant(list(rna_lookup.values()))
+    table = tf.lookup.StaticHashTable(tf.lookup.KeyValueTensorInitializer(keys_tensor, vals_tensor), default_value=1.0)
+    weighting_factor=table.lookup(rna_assay_type)
+
     rna_out = tf.slice(rna,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
-    diff = tf.math.sqrt(tf.nn.relu(rna_out - 50000.0 * tf.ones(rna_out.shape)))
-    rna_out = tf.clip_by_value(rna_out, clip_value_min=0.0, clip_value_max=50000.0) + diff
+    rna_out = tf.math.pow(rna_out * weighting_factor,0.75)
+    diff = tf.math.sqrt(tf.nn.relu(rna_out - 10000.0 * tf.ones(rna_out.shape)))
+    rna_out = tf.clip_by_value(rna_out, clip_value_min=0.0, clip_value_max=10000.0) + diff
 
     peaks_gathered = tf.reduce_max(tf.reshape(peaks_crop, [(output_length-2*crop_size) // 4, -1]),
                                    axis=1,keepdims=True)
@@ -1314,11 +1327,11 @@ def parse_args(parser):
                         type=str,
                         default="6",
                         help= 'final_point_scale')
-    parser.add_argument('--rna_scale',
-                        dest='rna_scale',
+    parser.add_argument('--atac_scale',
+                        dest='atac_scale',
                         type=str,
-                        default="5.0",
-                        help= 'rna_scale')
+                        default="0.0001",
+                        help= 'atac_scale')
     parser.add_argument('--rectify',
                         dest='rectify',
                         type=str,

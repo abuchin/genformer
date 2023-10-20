@@ -83,7 +83,7 @@ def main():
                 'lr_base1': {'values':[float(x) for x in args.lr_base1.split(',')]},
                 'lr_base2': {'values':[float(x) for x in args.lr_base2.split(',')]},
                 'gradient_clip': {'values': [float(x) for x in args.gradient_clip.split(',')]},
-                'rna_scale': {'values': [float(x) for x in args.rna_scale.split(',')]},
+                'atac_scale': {'values': [float(x) for x in args.atac_scale.split(',')]},
                 'decay_frac': {'values': [float(x) for x in args.decay_frac.split(',')]},
                 'num_transformer_layers': {'values': [int(x) for x in args.num_transformer_layers.split(',')]},
                 'num_heads': {'values': [int(x) for x in args.num_heads.split(',')]},
@@ -263,7 +263,7 @@ def main():
                                                                                             metric_dict,
                                                                                             GLOBAL_BATCH_SIZE,
                                                                                             wandb.config.gradient_clip,
-                                                                                            wandb.config.rna_scale)
+                                                                                            wandb.config.atac_scale)
 
             global_step = 0
             val_losses = []
