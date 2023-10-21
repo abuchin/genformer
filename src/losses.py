@@ -6,7 +6,7 @@ import pandas as pd
 
 '''genformer trial losses'''
 
-def poisson_multinomial(y_true, y_pred, total_weight=1, epsilon=1e-6, rescale=False):
+def poisson_multinomial(y_true, y_pred, total_weight=0.15, epsilon=1e-6, rescale=True):
     ## copied from the basenji suite
   seq_len = tf.cast(tf.shape(y_true)[1],dtype=tf.float32)
 

@@ -76,9 +76,17 @@ def return_train_val_functions(model,
                                metric_dict,
                                global_batch_size,
                                gradient_clip,
-                               atac_scale):
+                               atac_scale,
+                               loss_type):
 
     optimizer1,optimizer2=optimizers_in
+
+    if loss_type == 'poisson_multinomial':
+        loss_fn = poisson_multinomial
+    elif loss_type == 'poisson':
+        loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
+    else:
+        raise ValueError('loss_type not implemented')
 
     metric_dict["corr_stats"] = metrics.correlation_stats_gene_centered(name='corr_stats')
     metric_dict["corr_stats_ho"] = metrics.correlation_stats_gene_centered(name='corr_stats_ho')
@@ -121,7 +129,6 @@ def return_train_val_functions(model,
                         model.tf_activity_fc.trainable_variables + \
                         model.performer.trainable_variables
 
-
             output_heads = model.final_pointwise_conv.trainable_variables + \
                            model.final_dense_profile_atac.trainable_variables + \
                            model.final_dense_profile_rna.trainable_variables
@@ -137,16 +144,11 @@ def return_train_val_functions(model,
             target_atac = tf.gather(target_atac[:,:,0], mask_indices,axis=1)
             output_atac = tf.gather(output_atac[:,:,0], mask_indices,axis=1)
 
-            atac_loss = tf.reduce_mean(poisson_multinomial(target_atac,
-                                                           output_atac,
-                                                           total_weight=0.15,
-                                                           rescale=True)) *\
+
+            atac_loss = tf.reduce_mean(loss_fn(target_atac,output_atac)) *\
                                                            (1.0/global_batch_size)
 
-            rna_loss = tf.reduce_mean(poisson_multinomial(target_rna[:,:,0],
-                                                          output_rna[:,:,0],
-                                                          total_weight=0.15,
-                                                          rescale=True)) *\
+            rna_loss = tf.reduce_mean(loss_fn(target_rna[:,:,0], output_rna[:,:,0])) *\
                                                           (1.0/global_batch_size)
             loss = (atac_loss * atac_scale + rna_loss) / (1.0+atac_scale)
 
@@ -176,16 +178,10 @@ def return_train_val_functions(model,
         target_atac = tf.gather(target_atac[:,:,0], mask_indices,axis=1)
         output_atac = tf.gather(output_atac[:,:,0], mask_indices,axis=1)
 
-        atac_loss = tf.reduce_mean(poisson_multinomial(target_atac,
-                                                       output_atac,
-                                                       total_weight=0.15,
-                                                       rescale=True)) *\
+        atac_loss = tf.reduce_mean(loss_fn(target_atac,output_atac) *\
                                                        (1.0/global_batch_size)
 
-        rna_loss = tf.reduce_mean(poisson_multinomial(target_rna[:,:,0],
-                                                      output_rna[:,:,0],
-                                                      total_weight=0.15,
-                                                      rescale=True)) *\
+        rna_loss = tf.reduce_mean(loss_fn(target_rna[:,:,0],output_rna[:,:,0])) *\
                                                       (1.0/global_batch_size)
         loss = (atac_loss * atac_scale + rna_loss) / (1.0+atac_scale)
 
@@ -1367,6 +1363,11 @@ def parse_args(parser):
                         type=str,
                         default="False",
                         help= 'use_tf_activity')
+    parser.add_argument('--loss_type',
+                        dest='loss_type',
+                        type=str,
+                        default="poisson_multinomial",
+                        help= 'loss_type')
 
     args = parser.parse_args()
     return parser

@@ -106,6 +106,7 @@ def main():
                 'atac_corrupt_rate': {'values': [int(x) for x in args.atac_corrupt_rate.split(',')]},
                 'seq_corrupt_rate': {'values': [int(x) for x in args.seq_corrupt_rate.split(',')]},
                 'use_tf_activity': {'values': [parse_bool_str(x) for x in args.use_tf_activity.split(',')]},
+                'loss_type': {'values': [str(x) for x in args.loss_type.split(',')]},
                 'freeze_conv_layers': {'values': [parse_bool_str(x) for x in args.freeze_conv_layers.split(',')]}
             }
     }
@@ -263,7 +264,8 @@ def main():
                                                                                             metric_dict,
                                                                                             GLOBAL_BATCH_SIZE,
                                                                                             wandb.config.gradient_clip,
-                                                                                            wandb.config.atac_scale)
+                                                                                            wandb.config.atac_scale,
+                                                                                            wandb.config.loss_type)
 
             global_step = 0
             val_losses = []

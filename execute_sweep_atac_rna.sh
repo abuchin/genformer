@@ -53,4 +53,5 @@ python3 train_model_atac_rna.py \
             --use_tf_activity="False" \
             --use_atac="True" \
             --use_seq="True" \
-            --freeze_conv_layers="False"
+            --freeze_conv_layers="False" \
+            --loss_type="poisson"
