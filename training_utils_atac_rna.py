@@ -178,10 +178,10 @@ def return_train_val_functions(model,
         target_atac = tf.gather(target_atac[:,:,0], mask_indices,axis=1)
         output_atac = tf.gather(output_atac[:,:,0], mask_indices,axis=1)
 
-        atac_loss = tf.reduce_mean(loss_fn(target_atac,output_atac) *\
+        atac_loss = tf.reduce_mean(loss_fn(target_atac,output_atac)) *\
                                                        (1.0/global_batch_size)
 
-        rna_loss = tf.reduce_mean(loss_fn(target_rna[:,:,0],output_rna[:,:,0])) *\
+        rna_loss = tf.reduce_mean(loss_fn(target_rna[:,:,0], output_rna[:,:,0])) *\
                                                       (1.0/global_batch_size)
         loss = (atac_loss * atac_scale + rna_loss) / (1.0+atac_scale)
 
