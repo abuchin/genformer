@@ -127,11 +127,12 @@ def return_train_val_functions(model,
                         model.stem_conv_atac.trainable_variables + model.stem_res_conv_atac.trainable_variables + \
                         model.stem_pool_atac.trainable_variables + model.conv_tower_atac.trainable_variables + \
                         model.tf_activity_fc.trainable_variables + \
-                        model.performer.trainable_variables
+                        model.performer.trainable_variables + \
+                        model.final_pointwise_conv.trainable_variables + \
+                        model.final_dense_profile_atac.trainable_variables
 
-            output_heads = model.final_pointwise_conv.trainable_variables + \
-                           model.final_dense_profile_atac.trainable_variables + \
-                           model.final_dense_profile_rna.trainable_variables
+            output_heads = model.mlp_rna.trainable_variables + \
+                            model.final_dense_profile_rna.trainable_variables
 
             vars_all = conv_performer_vars + output_heads
             for var in vars_all:
