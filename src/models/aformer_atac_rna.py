@@ -341,7 +341,7 @@ class aformer(tf.keras.Model):
         #out_rna = out_rna_dict[assay_type]
         #print(out_rna)
         #out_rna_stack = tf.stack(out_rna,axis=0)
-        return tf.cast(out_atac,dtype=tf.float32), tf.cast(out_rna_stack,dtype=tf.float32)
+        return tf.cast(out_atac,dtype=tf.float32), tf.cast(out_rna,dtype=tf.float32)
 
 
     def get_config(self):
