@@ -40,7 +40,7 @@ python3 train_model_atac_rna.py \
             --load_init_FT="True" \
             --load_init_FULL="False" \
             --rectify="True" \
-            --checkpoint_path="gs://picard-testing-176520/genformer_atac_pretrain/models/aformer_524k_load-True_LR-5e-06_T-7_TF-True_2023-10-24_14:38:50/iteration_3" \
+            --checkpoint_path="gs://picard-testing-176520/genformer_atac_pretrain/models/aformer_524k_load-True_LR1-6e-05_LR2-6e-05_T-7_TF-False_2023-10-05_18:58:19/iteration_26" \
             --filter_list_seq="768,896,1024,1152,1280,1536" \
             --atac_scale="0.001" \
             --atac_mask_dropout=0.05 \
@@ -48,10 +48,11 @@ python3 train_model_atac_rna.py \
             --log_atac="False" \
             --final_point_scale="6" \
             --seed=5 \
-            --seq_corrupt_rate="5" \
-            --atac_corrupt_rate="10" \
+            --seq_corrupt_rate="20" \
+            --atac_corrupt_rate="20" \
             --use_tf_activity="True" \
             --use_atac="True" \
             --use_seq="True" \
             --freeze_conv_layers="False" \
-            --loss_type="poisson"
+            --loss_type="poisson" \
+            --total_weight_loss="0.05"

@@ -77,12 +77,16 @@ def return_train_val_functions(model,
                                global_batch_size,
                                gradient_clip,
                                atac_scale,
-                               loss_type):
+                               loss_type,
+                               total_weight_loss):
 
     optimizer1,optimizer2=optimizers_in
 
+
     if loss_type == 'poisson_multinomial':
-        loss_fn = poisson_multinomial
+        def loss_fn(y_true,y_pred, total_weight=total_weight_loss,
+                    epsilon=1e-6,rescale=True):
+            return poisson_multinomial(y_true, y_pred, total_weight,epsilon,rescale=True)
     elif loss_type == 'poisson':
         loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
     else:
@@ -131,8 +135,9 @@ def return_train_val_functions(model,
                         model.final_pointwise_conv.trainable_variables + \
                         model.final_dense_profile_atac.trainable_variables
 
-            output_heads = model.mlp_rna.trainable_variables + \
-                            model.final_dense_profile_rna.trainable_variables
+            output_heads = model.final_dense_profile_rna.trainable_variables
+            #model.mlp_rna.trainable_variables + \
+
 
             vars_all = conv_performer_vars + output_heads
             for var in vars_all:
@@ -179,7 +184,7 @@ def return_train_val_functions(model,
         target_atac = tf.gather(target_atac[:,:,0], mask_indices,axis=1)
         output_atac = tf.gather(output_atac[:,:,0], mask_indices,axis=1)
 
-        atac_loss = tf.reduce_mean(loss_fn(target_atac,output_atac)) *\
+        atac_loss = tf.reduce_mean(poisson_multinomial(target_atac,output_atac)) *\
                                                        (1.0/global_batch_size)
 
         rna_loss = tf.reduce_mean(loss_fn(target_rna[:,:,0], output_rna[:,:,0])) *\
@@ -782,7 +787,7 @@ def return_dataset(gcs_path, split, tss_bool, batch, input_length, output_length
     """
 
     if split == 'train':
-        wc = "*.tfr"
+        wc = "*_RAMPAGE_100.tfr"
         list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
                                                     split,
                                                     wc)))
@@ -808,7 +813,7 @@ def return_dataset(gcs_path, split, tss_bool, batch, input_length, output_length
 
 
     else:
-        wc = "*.tfr"
+        wc = "*_RAMPAGE_100.tfr"
         list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
                                                     split,
                                                     wc)))
@@ -1371,6 +1376,13 @@ def parse_args(parser):
                         type=str,
                         default="poisson_multinomial",
                         help= 'loss_type')
+    parser.add_argument('--total_weight_loss',
+                        dest='total_weight_loss',
+                        type=str,
+                        default="0.15",
+                        help= 'total_weight_loss')
+
+
 
     args = parser.parse_args()
     return parser

@@ -259,11 +259,11 @@ class aformer(tf.keras.Model):
                                 bias_initializer='lecun_normal',
                                 use_bias=True)
 
-        self.final_dense_profile_rna = [kl.Dense(1, ## atac is the first, cage/RNA is the second dim
+        self.final_dense_profile_rna = kl.Dense(1, ## atac is the first, cage/RNA is the second dim
                                             activation='softplus',
                                             kernel_initializer='lecun_normal',
                                             bias_initializer='lecun_normal',
-                                            use_bias=True) for head in self.output_heads_rna]
+                                            use_bias=True)# for head in self.output_heads_rna]
         #self.assay_type_fc = tf.keras.layers.Embedding(8, 2, input_length=1)
 
         self.dropout = kl.Dropout(rate=self.pointwise_dropout_rate,
@@ -318,20 +318,20 @@ class aformer(tf.keras.Model):
         out_atac = self.final_dense_profile_atac(out, training=training)
 
 
-        out = self.dropout(out,training=training)
-        out = self.gelu(out)
-        out = self.mlp_rna(out,training=training)
-        out_list = tf.unstack(out,axis=0)
-        out_assay_list = tf.unstack(assay_type,axis=0)
+        #out = self.dropout(out,training=training)
+        #out = self.gelu(out)
+        #out = self.mlp_rna(out,training=training)
+        #out_list = tf.unstack(out,axis=0)
+        #out_assay_list = tf.unstack(assay_type,axis=0)
 
-        def apply_based_on_index(x_tensor, y_tensor, layers_list):
+        #def apply_based_on_index(x_tensor, y_tensor, layers_list):
             # Define the branches for the switch_case operation
-            branches = {i: lambda: layers_list[i](x_tensor) for i in range(len(layers_list))}
+        #    branches = {i: lambda: layers_list[i](x_tensor) for i in range(len(layers_list))}
             # Use switch_case to apply the correct layer based on y_tensor's value
-            return tf.switch_case(y_tensor, branches)
+        #    return tf.switch_case(y_tensor, branches)
 
-        out_rna = [apply_based_on_index(x_tensor, y_tensor,self.final_dense_profile_rna) for x_tensor, y_tensor \
-                        in zip(out_list, out_assay_list)]
+        out_rna = self.final_dense_profile_rna(out,training=training)#[apply_based_on_index(x_tensor, y_tensor,self.final_dense_profile_rna) for x_tensor, y_tensor \
+                #        in zip(out_list, out_assay_list)]
         ### rna prediction
 
         #assay_type_t = self.assay_type_fc(assay_type)
@@ -341,7 +341,7 @@ class aformer(tf.keras.Model):
         #print(out_rna_dict)
         #out_rna = out_rna_dict[assay_type]
         #print(out_rna)
-        out_rna_stack = tf.stack(out_rna,axis=0)
+        #out_rna_stack = tf.stack(out_rna,axis=0)
         return tf.cast(out_atac,dtype=tf.float32), tf.cast(out_rna_stack,dtype=tf.float32)
 
 
