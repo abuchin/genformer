@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 python3 train_model_atac_rna.py \
-            --tpu_name="pod2" \
+            --tpu_name="pod1" \
             --tpu_zone="us-east1-d" \
             --wandb_project="paired_rna_atac" \
             --wandb_user="njaved" \
@@ -16,7 +16,7 @@ python3 train_model_atac_rna.py \
             --max_shift=10 \
             --batch_size=4 \
             --num_epochs=60 \
-            --train_examples=150000 \
+            --train_examples=40000 \
             --val_examples=19917  \
             --BN_momentum=0.90 \
             --warmup_frac=0.0005 \
@@ -24,11 +24,11 @@ python3 train_model_atac_rna.py \
             --output_res=128 \
             --min_delta=0.000005 \
             --model_save_dir="gs://picard-testing-176520/paired_rna_atac/models" \
-            --model_save_basename="aformer_baseline" \
+            --model_save_basename="paired_rna_atac" \
             --lr_base1="7.5e-05" \
             --lr_base2="1.0e-04" \
             --decay_frac="0.005" \
-            --gradient_clip="5.0" \
+            --gradient_clip="1.0" \
             --epsilon=1.0e-8 \
             --num_transformer_layers="7" \
             --dropout_rate="0.20" \

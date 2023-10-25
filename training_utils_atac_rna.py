@@ -395,18 +395,12 @@ def deserialize_tr(serialized_example, g, use_tf_activity, input_length = 196608
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
 
-    rna_lookup = {0:5.0, 1:5.0,2:5.0, 3: 5.0, 4:15.0,5:15.0,6:15.0,7:15.0}
-    keys_tensor = tf.constant(list(rna_lookup.keys()))
-    vals_tensor = tf.constant(list(rna_lookup.values()))
-    table = tf.lookup.StaticHashTable(tf.lookup.KeyValueTensorInitializer(keys_tensor, vals_tensor), default_value=1.0)
-    weighting_factor=table.lookup(tf.expand_dims(rna_assay_type,axis=0))
-
     rna_out = tf.slice(rna,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
-    rna_out = tf.math.pow(rna_out * weighting_factor,0.50)
-    diff = tf.math.sqrt(tf.nn.relu(rna_out - 2500.0 * tf.ones(rna_out.shape)))
-    rna_out = tf.clip_by_value(rna_out, clip_value_min=0.0, clip_value_max=2500.0) + diff
+    rna_out = tf.math.pow(rna_out,0.50)
+    diff = tf.math.sqrt(tf.nn.relu(rna_out - 400.0 * tf.ones(rna_out.shape)))
+    rna_out = tf.clip_by_value(rna_out, clip_value_min=0.0, clip_value_max=400.0) + diff
 
     peaks_gathered = tf.reduce_max(tf.reshape(peaks_crop, [(output_length-2*crop_size) // 4, -1]),
                                    axis=1,keepdims=True)
@@ -570,18 +564,12 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
 
-    rna_lookup = {0:5.0, 1:5.0,2:5.0, 3: 5.0, 4:15.0,5:15.0,6:15.0,7:15.0}
-    keys_tensor = tf.constant(list(rna_lookup.keys()))
-    vals_tensor = tf.constant(list(rna_lookup.values()))
-    table = tf.lookup.StaticHashTable(tf.lookup.KeyValueTensorInitializer(keys_tensor, vals_tensor), default_value=1.0)
-    weighting_factor=table.lookup(tf.expand_dims(rna_assay_type,axis=0))
-
     rna_out = tf.slice(rna,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
-    rna_out = tf.math.pow(rna_out * weighting_factor,0.50)
-    diff = tf.math.sqrt(tf.nn.relu(rna_out - 2500.0 * tf.ones(rna_out.shape)))
-    rna_out = tf.clip_by_value(rna_out, clip_value_min=0.0, clip_value_max=2500.0) + diff
+    rna_out = tf.math.pow(rna_out,0.50)
+    diff = tf.math.sqrt(tf.nn.relu(rna_out - 400.0 * tf.ones(rna_out.shape)))
+    rna_out = tf.clip_by_value(rna_out, clip_value_min=0.0, clip_value_max=400.0) + diff
 
     peaks_gathered = tf.reduce_max(tf.reshape(peaks_crop, [(output_length-2*crop_size) // 4, -1]),
                                    axis=1,keepdims=True)
