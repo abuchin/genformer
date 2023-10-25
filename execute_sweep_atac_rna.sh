@@ -40,7 +40,7 @@ python3 train_model_atac_rna.py \
             --load_init_FT="True" \
             --load_init_FULL="False" \
             --rectify="True" \
-            --checkpoint_path="gs://picard-testing-176520/genformer_atac_pretrain/models/aformer_524k_load-True_LR-6.059e-05_T-7_TF-True_2023-10-20_14:03:59/iteration_25" \
+            --checkpoint_path="gs://picard-testing-176520/genformer_atac_pretrain/models/aformer_524k_load-True_LR-5e-06_T-7_TF-True_2023-10-24_14:38:50/iteration_3" \
             --filter_list_seq="768,896,1024,1152,1280,1536" \
             --atac_scale="0.001" \
             --atac_mask_dropout=0.05 \
