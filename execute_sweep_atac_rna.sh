@@ -28,7 +28,7 @@ python3 train_model_atac_rna.py \
             --lr_base1="7.5e-05" \
             --lr_base2="1.0e-04" \
             --decay_frac="0.005" \
-            --gradient_clip="1.0" \
+            --gradient_clip="5.0" \
             --epsilon=1.0e-8 \
             --num_transformer_layers="7" \
             --dropout_rate="0.20" \

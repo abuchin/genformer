@@ -72,102 +72,40 @@ def main():
                 'goal': 'minimize'
             },
             'parameters': {
-                'input_length': {
-                    'values': [args.input_length]
-                },
-                'output_length': {
-                    'values': [args.output_length]
-                },
-                'output_length_ATAC': {
-                    'values': [args.output_length_ATAC]
-                },
-                'final_output_length': {
-                    'values': [args.final_output_length]
-                },
-                'output_res': {
-                    'values': [args.output_res]
-                },
-                'dropout_rate': {
-                    'values': [float(x) for x in args.dropout_rate.split(',')]
-                },
-                'pointwise_dropout_rate': {
-                    'values': [float(x) for x in args.pointwise_dropout_rate.split(',')]
-                },
-                'lr_base': {
-                    'values':[float(x) for x in args.lr_base.split(',')]
-                },
-                'gradient_clip': {
-                    'values': [float(x) for x in args.gradient_clip.split(',')]
-                },
-                'decay_frac': {
-                    'values': [float(x) for x in args.decay_frac.split(',')]
-                },
-                'num_transformer_layers':{
-                    'values': [int(x) for x in args.num_transformer_layers.split(',')]
-                },
-                'num_heads':{
-                    'values': [int(x) for x in args.num_heads.split(',')]
-                },
-                'num_random_features': {
-                    'values':[int(x) for x in args.num_random_features.split(',')]
-                },
-                'kernel_transformation': {
-                    'values':[args.kernel_transformation]
-                },
-                'epsilon': {
-                    'values':[args.epsilon]
-                },
-                'load_init': {
-                    'values':[parse_bool_str(x) for x in args.load_init.split(',')]
-                },
-                'filter_list_seq': {
-                    'values': [[int(x) for x in args.filter_list_seq.split(',')]]
-                },
-                'filter_list_atac': {
-                    'values': [[int(x) for x in args.filter_list_atac.split(',')]]
-                },
-                'BN_momentum': {
-                    'values': [args.BN_momentum]
-                },
-                'atac_mask_dropout': {
-                    'values': [args.atac_mask_dropout]
-                },
-                'rectify': {
-                    'values':[parse_bool_str(x) for x in args.rectify.split(',')]
-                },
-                'log_atac': {
-                    'values':[parse_bool_str(x) for x in args.log_atac.split(',')]
-                },
-                'use_atac': {
-                    'values':[parse_bool_str(x) for x in args.use_atac.split(',')]
-                },
-                'use_seq': {
-                    'values':[parse_bool_str(x) for x in args.use_seq.split(',')]
-                },
-                'random_mask_size': {
-                    'values':[int(x) for x in args.random_mask_size.split(',')]
-                },
-                'final_point_scale': {
-                    'values':[int(x) for x in args.final_point_scale.split(',')]
-                },
-                'seed': {
-                    'values':[args.seed]
-                },
-                'atac_corrupt_rate': {
-                    'values': [int(x) for x in args.atac_corrupt_rate.split(',')]
-                },
-                'seq_corrupt_rate': {
-                    'values': [int(x) for x in args.seq_corrupt_rate.split(',')]
-                },
-                'use_tf_activity': {
-                    'values': [parse_bool_str(x) for x in args.use_tf_activity.split(',')]
-                },
-                'num_epochs_to_start': {
-                    'values': [int(x) for x in args.num_epochs_to_start.split(',')]
-                },
+                'input_length': {'values': [args.input_length]},
+                'output_length': {'values': [args.output_length]},
+                'output_length_ATAC': {'values': [args.output_length_ATAC]},
+                'final_output_length': {'values': [args.final_output_length]},
+                'output_res': {'values': [args.output_res]},
+                'dropout_rate': {'values': [float(x) for x in args.dropout_rate.split(',')]},
+                'pointwise_dropout_rate': {'values': [float(x) for x in args.pointwise_dropout_rate.split(',')]},
+                'lr_base': {'values':[float(x) for x in args.lr_base.split(',')]},
+                'gradient_clip': {'values': [float(x) for x in args.gradient_clip.split(',')]},
+                'decay_frac': {'values': [float(x) for x in args.decay_frac.split(',')]},
+                'num_transformer_layers': {'values': [int(x) for x in args.num_transformer_layers.split(',')]},
+                'num_heads': {'values': [int(x) for x in args.num_heads.split(',')]},
+                'num_random_features': {'values':[int(x) for x in args.num_random_features.split(',')]},
+                'kernel_transformation': {'values':[args.kernel_transformation]},
+                'epsilon': {'values':[args.epsilon]},
+                'load_init': {'values':[parse_bool_str(x) for x in args.load_init.split(',')]},
+                'filter_list_seq': {'values': [[int(x) for x in args.filter_list_seq.split(',')]]},
+                'filter_list_atac': {'values': [[int(x) for x in args.filter_list_atac.split(',')]]},
+                'BN_momentum': {'values': [args.BN_momentum]},
+                'atac_mask_dropout': {'values': [args.atac_mask_dropout]},
+                'rectify': {'values':[parse_bool_str(x) for x in args.rectify.split(',')]},
+                'log_atac': {'values':[parse_bool_str(x) for x in args.log_atac.split(',')]},
+                'use_atac': {'values':[parse_bool_str(x) for x in args.use_atac.split(',')]},
+                'use_seq': {'values':[parse_bool_str(x) for x in args.use_seq.split(',')]},
+                'random_mask_size': {'values':[int(x) for x in args.random_mask_size.split(',')]},
+                'final_point_scale': {'values':[int(x) for x in args.final_point_scale.split(',')]},
+                'seed': {'values':[args.seed]},
+                'atac_corrupt_rate': {'values': [int(x) for x in args.atac_corrupt_rate.split(',')]},
+                'seq_corrupt_rate': {'values': [int(x) for x in args.seq_corrupt_rate.split(',')]},
+                'use_tf_activity': {'values': [parse_bool_str(x) for x in args.use_tf_activity.split(',')]},
+                'num_epochs_to_start': {'values': [int(x) for x in args.num_epochs_to_start.split(',')]},
                 'loss_type': {'values': [str(x) for x in args.loss_type.split(',')]},
                 'total_weight_loss': {'values': [float(x) for x in args.total_weight_loss.split(',')]}
-            }
+                }
     }
 
 

@@ -135,7 +135,8 @@ def return_train_val_functions(model,
                         model.final_pointwise_conv.trainable_variables + \
                         model.final_dense_profile_atac.trainable_variables
 
-            output_heads = model.final_dense_profile_rna.trainable_variables
+            output_heads = model.mlp_rna.trainable_variables + \
+                            model.final_dense_profile_rna.trainable_variables
             #model.mlp_rna.trainable_variables + \
 
             vars_all = conv_performer_vars + output_heads

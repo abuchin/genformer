@@ -254,10 +254,10 @@ class aformer(tf.keras.Model):
                                             bias_initializer=self.inits['final_dense_b'] if self.load_init_FT else 'lecun_normal',
                                             use_bias=True)
 
-        #self.mlp_rna = kl.Dense(self.filter_list_seq[-1] // (self.final_point_scale*4),
-        #                        kernel_initializer='lecun_normal',
-        #                        bias_initializer='lecun_normal',
-        #                        use_bias=True)
+        self.mlp_rna = kl.Dense(self.filter_list_seq[-1] // (self.final_point_scale*4),
+                                kernel_initializer='lecun_normal',
+                                bias_initializer='lecun_normal',
+                                use_bias=True)
 
         self.final_dense_profile_rna = kl.Dense(1, ## atac is the first, cage/RNA is the second dim
                                                 activation='softplus',
@@ -317,10 +317,9 @@ class aformer(tf.keras.Model):
         ### atac prediction
         out_atac = self.final_dense_profile_atac(out, training=training)
 
-
-        #out = self.dropout(out,training=training)
-        #out = self.gelu(out)
-        #out = self.mlp_rna(out,training=training)
+        out = self.mlp_rna(out,training=training)
+        out = self.dropout(out,training=training)
+        out = self.gelu(out)
         #out_list = tf.unstack(out,axis=0)
         #out_assay_list = tf.unstack(assay_type,axis=0)
 
