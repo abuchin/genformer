@@ -279,6 +279,7 @@ def deserialize_tr(serialized_example, g, use_tf_activity, input_length = 196608
                                               out_type=tf.float32),
                            [1629])
     tf_activity = tf.expand_dims(tf_activity,axis=0)
+    tf_activity = tf.round(tf_activity*100.0)/100.0
     if not use_tf_activity:
         print('not using tf activity')
         tf_activity = tf.zeros_like(tf_activity)
@@ -475,6 +476,7 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
                                               out_type=tf.float32),
                            [1629])
     tf_activity = tf.expand_dims(tf_activity,axis=0)
+    tf_activity = tf.round(tf_activity*100.0)/100.0
     if not use_tf_activity:
         print('not using tf activity')
         tf_activity = tf.zeros_like(tf_activity)

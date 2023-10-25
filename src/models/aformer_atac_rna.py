@@ -214,9 +214,6 @@ class aformer(tf.keras.Model):
                                         bias_initializer=self.inits['tf_activity_fc_b'] if (self.load_init_FT) else 'lecun_normal',
                                         use_bias=True)
 
-
-
-
         self.performer = Performer_Encoder(num_layers=self.num_transformer_layers,
                                                     num_heads=self.num_heads,
                                                     dim = self.dim,
@@ -258,6 +255,8 @@ class aformer(tf.keras.Model):
                                             use_bias=True)
 
         self.mlp_rna = kl.Dense(self.filter_list_seq[-1] // (self.final_point_scale*4),
+                                kernel_initializer='lecun_normal',
+                                bias_initializer='lecun_normal',
                                 use_bias=True)
 
         self.final_dense_profile_rna = [kl.Dense(1, ## atac is the first, cage/RNA is the second dim
