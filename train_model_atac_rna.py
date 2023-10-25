@@ -340,14 +340,12 @@ def main():
 
                 assay_list_concat = tf.concat(assay_list,0).numpy().astype(int)
 
-                print(assay_list_concat.shape)
-
                 rampage_100_idx = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 2]
 
                 trues = tf.concat([true_list[i] for i in rampage_100_idx],0)
-                print(tf.shape(trues))
+                #print(tf.shape(trues))
                 preds = tf.concat([pred_list[i] for i in rampage_100_idx],0)
-                print(tf.shape(preds))
+                #print(tf.shape(preds))
                 rampage100_r,_ = pearsonr(trues,preds)
 
                 val_pearsons.append(rampage100_r)

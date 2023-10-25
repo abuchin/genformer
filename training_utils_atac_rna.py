@@ -138,7 +138,6 @@ def return_train_val_functions(model,
             output_heads = model.final_dense_profile_rna.trainable_variables
             #model.mlp_rna.trainable_variables + \
 
-
             vars_all = conv_performer_vars + output_heads
             for var in vars_all:
                 tape.watch(var)
@@ -149,7 +148,6 @@ def return_train_val_functions(model,
 
             target_atac = tf.gather(target_atac, mask_indices,axis=1)
             output_atac = tf.gather(output_atac, mask_indices,axis=1)
-
 
             atac_loss = tf.reduce_mean(loss_fn(target_atac,output_atac)) *\
                                                            (1.0/global_batch_size)
@@ -184,7 +182,7 @@ def return_train_val_functions(model,
         target_atac = tf.gather(target_atac, mask_indices,axis=1)
         output_atac = tf.gather(output_atac, mask_indices,axis=1)
 
-        atac_loss = tf.reduce_mean(poisson_multinomial(target_atac,output_atac)) *\
+        atac_loss = tf.reduce_mean(loss_fn(target_atac,output_atac)) *\
                                                        (1.0/global_batch_size)
 
         rna_loss = tf.reduce_mean(loss_fn(target_rna, output_rna)) *\

@@ -52,7 +52,7 @@ tf.keras.backend.set_floatx('float32')
 
 def return_train_val_functions(model, train_steps, optimizer,
                                strategy, metric_dict, global_batch_size,
-                               gradient_clip):
+                               gradient_clip,loss_type,total_weight):
     metric_dict["train_loss"] = tf.keras.metrics.Mean("train_loss",
                                                  dtype=tf.float32)
     metric_dict["val_loss"] = tf.keras.metrics.Mean("val_loss",
@@ -63,6 +63,15 @@ def return_train_val_functions(model, train_steps, optimizer,
 
     metric_dict['ATAC_PearsonR'] = metrics.MetricDict({'PearsonR': metrics.PearsonR(reduce_axis=(0,1))})
     metric_dict['ATAC_R2'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
+
+    if loss_type == 'poisson_multinomial':
+        def loss_fn(y_true,y_pred, total_weight=total_weight_loss,
+                    epsilon=1e-6,rescale=True):
+            return poisson_multinomial(y_true, y_pred, total_weight,epsilon,rescale=True)
+    elif loss_type == 'poisson':
+        loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
+    else:
+        raise ValueError('loss_type not implemented')
 
     @tf.function(reduce_retracing=True)
     def dist_train_step(inputs):
@@ -80,13 +89,11 @@ def return_train_val_functions(model, train_steps, optimizer,
 
             mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
 
-            target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
-            output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
+            target_atac = tf.gather(target, mask_indices,axis=1)
+            output_atac = tf.gather(output_profile, mask_indices,axis=1)
 
-            loss = tf.reduce_mean(poisson_multinomial(target_atac,
-                                                      output_atac,
-                                                      total_weight=0.15,
-                                                      rescale=True)) *\
+            loss = tf.reduce_mean(loss_fn(target_atac,
+                                          output_atac)) *\
                         (1.0/global_batch_size)
 
         gradients = tape.gradient(loss, model.trainable_variables)
@@ -115,12 +122,10 @@ def return_train_val_functions(model, train_steps, optimizer,
 
         mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
 
-        target_atac = tf.gather(target[:,:,0], mask_indices,axis=1)
-        output_atac = tf.gather(output_profile[:,:,0], mask_indices,axis=1)
-        loss = tf.reduce_mean(poisson_multinomial(target_atac,
-                                                  output_atac,
-                                                  total_weight=0.15,
-                                                  rescale=True)) *\
+        target_atac = tf.gather(target, mask_indices,axis=1)
+        output_atac = tf.gather(output_profile, mask_indices,axis=1)
+        loss = tf.reduce_mean(loss_fn(target_atac,
+                                                  output_atac)) *\
                     (1.0/global_batch_size)
         metric_dict['ATAC_PearsonR'].update_state(target_atac,
                                                   output_atac)
@@ -876,6 +881,16 @@ def parse_args(parser):
                         type=str,
                         default="0",
                         help= 'num_epochs_to_start')
+    parser.add_argument('--loss_type',
+                        dest='loss_type',
+                        type=str,
+                        default="poisson_multinomial",
+                        help= 'loss_type')
+    parser.add_argument('--total_weight_loss',
+                        dest='total_weight_loss',
+                        type=str,
+                        default="0.15",
+                        help= 'total_weight_loss')
     args = parser.parse_args()
     return parser
 

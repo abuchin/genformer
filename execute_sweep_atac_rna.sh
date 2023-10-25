@@ -55,4 +55,4 @@ python3 train_model_atac_rna.py \
             --use_seq="True" \
             --freeze_conv_layers="False" \
             --loss_type="poisson" \
-            --total_weight_loss="0.05"
+            --total_weight_loss="0.20"

@@ -164,7 +164,9 @@ def main():
                 },
                 'num_epochs_to_start': {
                     'values': [int(x) for x in args.num_epochs_to_start.split(',')]
-                }
+                },
+                'loss_type': {'values': [str(x) for x in args.loss_type.split(',')]},
+                'total_weight_loss': {'values': [float(x) for x in args.total_weight_loss.split(',')]}
             }
     }
 
@@ -286,7 +288,9 @@ def main():
                                                                                     strategy,
                                                                                     metric_dict,
                                                                                     GLOBAL_BATCH_SIZE,
-                                                                                    wandb.config.gradient_clip)
+                                                                                    wandb.config.gradient_clip,
+                                                                                    wandb.config.loss_type,
+                                                                                    wandb.config.total_weight_loss)
 
 
             global_step = 0
