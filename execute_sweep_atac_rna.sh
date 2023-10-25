@@ -7,8 +7,8 @@ python3 train_model_atac_rna.py \
             --wandb_user="njaved" \
             --wandb_sweep_name="paired_rna_atac" \
             --gcs_project="picard-testing-176520" \
-            --gcs_path="gs://picard-testing-176520/paired_rna_atac/524k/paired_atac_rna_global_acc_fpm" \
-            --gcs_path_holdout="gs://picard-testing-176520/paired_rna_atac/524k/paired_atac_rna_global_acc_fpm_holdout" \
+            --gcs_path="gs://picard-testing-176520/paired_rna_atac/524k_scaled/paired_atac_rna_global_acc_fpm" \
+            --gcs_path_holdout="gs://picard-testing-176520/paired_rna_atac/524k_scaled/paired_atac_rna_global_acc_fpm_holdout" \
             --input_length=524288 \
             --output_length=4096 \
             --output_length_ATAC=131072 \
