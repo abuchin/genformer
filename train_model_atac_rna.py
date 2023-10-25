@@ -267,7 +267,8 @@ def main():
                                                                                             GLOBAL_BATCH_SIZE,
                                                                                             wandb.config.gradient_clip,
                                                                                             wandb.config.atac_scale,
-                                                                                            wandb.config.loss_type)
+                                                                                            wandb.config.loss_type,
+                                                                                            wandb.config.total_weight_loss)
 
             global_step = 0
             val_losses = []
