@@ -25,8 +25,8 @@ python3 train_model_atac_rna.py \
             --min_delta=0.000005 \
             --model_save_dir="gs://picard-testing-176520/paired_rna_atac/models" \
             --model_save_basename="paired_rna_atac" \
-            --lr_base1="7.5e-05" \
-            --lr_base2="1.0e-04" \
+            --lr_base1="1.0e-04" \
+            --lr_base2="2.0e-04" \
             --decay_frac="0.005" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-8 \
@@ -42,7 +42,7 @@ python3 train_model_atac_rna.py \
             --rectify="True" \
             --checkpoint_path="gs://picard-testing-176520/genformer_atac_pretrain/models/aformer_524k_load-True_LR1-6e-05_LR2-6e-05_T-7_TF-False_2023-10-05_18:58:19/iteration_26" \
             --filter_list_seq="768,896,1024,1152,1280,1536" \
-            --atac_scale="0.001" \
+            --atac_scale="0.01" \
             --atac_mask_dropout=0.05 \
             --random_mask_size="512" \
             --log_atac="False" \
