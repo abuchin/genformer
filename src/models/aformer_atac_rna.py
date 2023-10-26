@@ -254,15 +254,11 @@ class aformer(tf.keras.Model):
                                             bias_initializer=self.inits['final_dense_b'] if self.load_init_FT else 'lecun_normal',
                                             use_bias=True)
 
-        self.mlp_rna_1 = kl.Dense(self.filter_list_seq[-1] // (self.final_point_scale*4),
-                                kernel_initializer='lecun_normal',
-                                bias_initializer='lecun_normal',
-                                use_bias=True)
 
-        self.mlp_rna_2 = kl.Dense(self.filter_list_seq[-1] // (self.final_point_scale*8),
-                                kernel_initializer='lecun_normal',
-                                bias_initializer='lecun_normal',
-                                use_bias=True)
+        self.final_pointwise_conv_rna = enf_conv_block(filters=self.filter_list_seq[-1] // self.final_point_scale,
+                                                  **kwargs,
+                                                  name = 'final_pointwise_rna')
+
 
         self.final_dense_profile_rna = kl.Dense(1, ## atac is the first, cage/RNA is the second dim
                                                 activation='softplus',
@@ -313,27 +309,26 @@ class aformer(tf.keras.Model):
                                           training=training)
         out = out[:, :-1, :]
         out = self.crop_final(out)
-        out = self.final_pointwise_conv(out,
+        out_atac = self.final_pointwise_conv(out,
                                        training=training)
-        out = self.dropout(out,
+        out_atac = self.dropout(out_atac,
                         training=training)
-        out = self.gelu(out)
+        out_atac = self.gelu(out_atac)
         ### atac prediction
-        out_atac = self.final_dense_profile_atac(out, training=training)
+        out_atac = self.final_dense_profile_atac(out_atac, training=training)
 
         assay_type_t = self.assay_type_fc(assay_type)
         assay_type_t = tf.expand_dims(assay_type_t, axis=1)
         assay_type_t = tf.tile(assay_type_t, [1, self.final_output_length, 1])
-        out = tf.concat([out,assay_type_t],axis=2)
+        out_rna = tf.concat([out,assay_type_t],axis=2)
 
-        out = self.mlp_rna_1(out,training=training)
-        out = self.dropout(out,training=training)
-        out = self.gelu(out)
-        out = self.mlp_rna_2(out,training=training)
-        out = self.dropout(out,training=training)
-        out = self.gelu(out)
+        out_rna = self.final_pointwise_conv_rna(out_rna,
+                                       training=training)
+        out_rna = self.dropout(out_rna,
+                        training=training)
+        out_rna = self.gelu(out_rna)
 
-        out_rna = self.final_dense_profile_rna(out,training=training)#[apply_based_on_index(x_tensor, y_tensor,self.final_dense_profile_rna) for x_tensor, y_tensor \
+        out_rna = self.final_dense_profile_rna(out_rna,training=training)#[apply_based_on_index(x_tensor, y_tensor,self.final_dense_profile_rna) for x_tensor, y_tensor \
 
         return tf.cast(out_atac,dtype=tf.float32), tf.cast(out_rna,dtype=tf.float32)
 
