@@ -275,7 +275,6 @@ class aformer(tf.keras.Model):
                                   **kwargs)
         self.gelu = tfa.layers.GELU()
 
-
     def call(self, inputs, training:bool=True):
 
         sequence,atac,rna,tf_activity,assay_type = inputs
@@ -323,7 +322,7 @@ class aformer(tf.keras.Model):
         out_atac = self.final_dense_profile_atac(out, training=training)
 
         assay_type_t = self.assay_type_fc(assay_type)
-        assay_type = tf.tile(assay_type_t, [1, self.final_output_length,1])
+        assay_type = tf.tile(assay_type_t, [1, self.final_output_length, 1])
         out = tf.concat([out,assay_type],axis=2)
 
         out = self.mlp_rna_1(out,training=training)
