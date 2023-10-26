@@ -135,7 +135,8 @@ def return_train_val_functions(model,
                         model.final_pointwise_conv.trainable_variables + \
                         model.final_dense_profile_atac.trainable_variables
 
-            output_heads = model.mlp_rna_1.trainable_variables + \
+            output_heads = model.assay_type_fc.trainable_variables + \
+                            model.mlp_rna_1.trainable_variables + \
                             model.mlp_rna_2.trainable_variables + \
                                 model.final_dense_profile_rna.trainable_variables
 
@@ -273,6 +274,7 @@ def deserialize_tr(serialized_example, g, use_tf_activity, input_length = 196608
     rna_assay_type = tf.ensure_shape(tf.io.parse_tensor(data['rna_assay_type'],
                                               out_type=tf.int32),
                                  [])
+    rna_assay_type = tf.expand_dims(rna_assay_type,axis=0)
     peaks = tf.ensure_shape(tf.io.parse_tensor(data['peaks'],
                                               out_type=tf.int32),
                            [output_length])
@@ -425,10 +427,8 @@ def deserialize_tr(serialized_example, g, use_tf_activity, input_length = 196608
                 tf.cast(tf.ensure_shape(peaks_gathered, [(output_length-2*crop_size) // 4,1]),dtype=tf.int32), \
                 tf.cast(tf.ensure_shape(atac_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
                 tf.cast(tf.ensure_shape(rna_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
-                tf.cast(rna_assay_type,dtype=tf.int32), \
+                tf.cast(tf.ensure_shape(rna_assay_type,[1]),dtype=tf.bfloat16), \
                 tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.bfloat16)
-
-
 
 def deserialize_val(serialized_example, g, use_tf_activity, input_length = 196608,
                    max_shift = 10, output_length_ATAC = 49152, output_length = 1536,
@@ -464,6 +464,7 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
     rna_assay_type = tf.ensure_shape(tf.io.parse_tensor(data['rna_assay_type'],
                                               out_type=tf.int32),
                                  [])
+    rna_assay_type = tf.expand_dims(rna_assay_type,axis=0)
     peaks = tf.ensure_shape(tf.io.parse_tensor(data['peaks'],
                                               out_type=tf.int32),
                            [output_length])
@@ -592,7 +593,7 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
                 tf.cast(tf.ensure_shape(peaks_gathered, [(output_length-2*crop_size) // 4,1]),dtype=tf.int32), \
                 tf.cast(tf.ensure_shape(atac_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
                 tf.cast(tf.ensure_shape(rna_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
-                tf.cast(rna_assay_type,dtype=tf.int32), \
+                tf.cast(tf.ensure_shape(rna_assay_type,[1]),dtype=tf.bfloat16), \
                 tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.bfloat16)
 
 def deserialize_val_TSS(serialized_example, g, use_tf_activity, input_length = 196608,
@@ -774,7 +775,7 @@ def return_dataset(gcs_path, split, tss_bool, batch, input_length, output_length
     """
 
     if split == 'train':
-        wc = "*_RAMPAGE_100.tfr"
+        wc = "*.tfr"
         list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
                                                     split,
                                                     wc)))
@@ -800,7 +801,7 @@ def return_dataset(gcs_path, split, tss_bool, batch, input_length, output_length
 
 
     else:
-        wc = "*_RAMPAGE_100.tfr"
+        wc = "*.tfr"
         list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
                                                     split,
                                                     wc)))

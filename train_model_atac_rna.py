@@ -340,22 +340,48 @@ def main():
 
                 assay_list_concat = tf.concat(assay_list,0).numpy().astype(int)
 
-                rampage_100_idx = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 2]
+                cage_36_idx = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 0]
+                trues = tf.concat([true_list[i] for i in cage_36_idx],0)
+                preds = tf.concat([pred_list[i] for i in cage_36_idx],0)
+                cage36_r,_ = pearsonr(trues,preds)
 
+                rampage_100_idx = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 2]
                 trues = tf.concat([true_list[i] for i in rampage_100_idx],0)
-                #print(tf.shape(trues))
                 preds = tf.concat([pred_list[i] for i in rampage_100_idx],0)
-                #print(tf.shape(preds))
                 rampage100_r,_ = pearsonr(trues,preds)
+
+                polyA_rev_100 = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 4]
+                trues = tf.concat([true_list[i] for i in polyA_rev_100],0)
+                preds = tf.concat([pred_list[i] for i in polyA_rev_100],0)
+                polyA100_r,_ = pearsonr(trues,preds)
+
+                total_rev_100 = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 6]
+                trues = tf.concat([true_list[i] for i in total_rev_100],0)
+                preds = tf.concat([pred_list[i] for i in total_rev_100],0)
+                total100_r,_ = pearsonr(trues,preds)
+
+                total_revSE_100 = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 7]
+                trues = tf.concat([true_list[i] for i in total_revSE_100],0)
+                preds = tf.concat([pred_list[i] for i in total_revSE_100],0)
+                total100SE_r,_ = pearsonr(trues,preds)
 
                 val_pearsons.append(rampage100_r)
 
                 print('ATAC_pearsons: ' + str(metric_dict['ATAC_PearsonR'].result()['PearsonR'].numpy()))
                 print('ATAC_R2: ' + str(metric_dict['ATAC_R2'].result()['R2'].numpy()))
                 print('RAMPAGE: ' + str(rampage100_r))
+                print('CAGE: ' + str(cage36_r))
+                print('polyA_RNA: ' + str(polyA100_r))
+                print('total_RNA: ' + str(total100_r))
+                print('total_RNA_SE: ' + str(total100SE_r))
+
                 wandb.log({'ATAC_pearsons': metric_dict['ATAC_PearsonR'].result()['PearsonR'].numpy(),
                            'ATAC_R2': metric_dict['ATAC_R2'].result()['R2'].numpy(),
-                           'RAMPAGE_pearsons': rampage100_r},
+                           'RAMPAGE_pearsons': rampage100_r,
+                           'CAGE': cage36_r,
+                           'polyA_RNA': polyA100_r,
+                           'total_RNA': total100_r,
+                           'total_RNA_SE': total100SE_r},
                           step=step_num)
 
                 end = time.time()
