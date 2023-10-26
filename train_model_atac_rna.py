@@ -40,6 +40,7 @@ from scipy.stats.stats import spearmanr
 from scipy import stats
 
 import src.load_weights_atac_rna as load_weights_atac_rna
+from src.losses import poisson_multinomial
 
 def parse_bool_str(input_str):
     if input_str == 'False':
@@ -278,6 +279,15 @@ def main():
             stop_criteria = False
             best_epoch = 0
 
+            if wandb.config.loss_type == 'poisson_multinomial':
+                def loss_fn(y_true,y_pred, total_weight=total_weight_loss,
+                            epsilon=1e-6,rescale=True):
+                    return poisson_multinomial(y_true, y_pred, total_weight,epsilon,rescale=True)
+            elif wandb.config.loss_type == 'poisson':
+                loss_fn = tf.keras.losses.Poisson(reduction=tf.keras.losses.Reduction.NONE)
+            else:
+                raise ValueError('loss_type not implemented')
+
             for epoch_i in range(1, wandb.config.num_epochs+1):
                 step_num = epoch_i * wandb.config.train_steps * GLOBAL_BATCH_SIZE
                 if epoch_i == 1:
@@ -344,26 +354,41 @@ def main():
                 trues = tf.concat([true_list[i] for i in cage_36_idx],0)
                 preds = tf.concat([pred_list[i] for i in cage_36_idx],0)
                 cage36_r,_ = pearsonr(trues,preds)
+                cage_loss = tf.reduce_mean(loss_fn(tf.expand_dims(tf.expand_dims(trues,axis=0),axis=1),
+                                    tf.expand_dims(tf.expand_dims(preds,axis=0),axis=1)))
+                print('cage loss:' + str(cage_loss))
 
                 rampage_100_idx = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 2]
                 trues = tf.concat([true_list[i] for i in rampage_100_idx],0)
                 preds = tf.concat([pred_list[i] for i in rampage_100_idx],0)
                 rampage100_r,_ = pearsonr(trues,preds)
+                rampage_loss = tf.reduce_mean(loss_fn(tf.expand_dims(tf.expand_dims(trues,axis=0),axis=1),
+                                    tf.expand_dims(tf.expand_dims(preds,axis=0),axis=1)))
+                print('rampage loss:' + str(rampage_loss))
 
                 polyA_rev_100 = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 4]
                 trues = tf.concat([true_list[i] for i in polyA_rev_100],0)
                 preds = tf.concat([pred_list[i] for i in polyA_rev_100],0)
                 polyA100_r,_ = pearsonr(trues,preds)
+                polyA_loss = tf.reduce_mean(loss_fn(tf.expand_dims(tf.expand_dims(trues,axis=0),axis=1),
+                                    tf.expand_dims(tf.expand_dims(preds,axis=0),axis=1)))
+                print('polyA loss:' + str(polyA_loss))
 
                 total_rev_100 = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 6]
                 trues = tf.concat([true_list[i] for i in total_rev_100],0)
                 preds = tf.concat([pred_list[i] for i in total_rev_100],0)
                 total100_r,_ = pearsonr(trues,preds)
+                total_rev_loss = tf.reduce_mean(loss_fn(tf.expand_dims(tf.expand_dims(trues,axis=0),axis=1),
+                                    tf.expand_dims(tf.expand_dims(preds,axis=0),axis=1)))
+                print('total rev loss:' + str(total_rev_loss))
 
                 total_revSE_100 = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 7]
                 trues = tf.concat([true_list[i] for i in total_revSE_100],0)
                 preds = tf.concat([pred_list[i] for i in total_revSE_100],0)
                 total100SE_r,_ = pearsonr(trues,preds)
+                totalSE = tf.reduce_mean(loss_fn(tf.expand_dims(tf.expand_dims(trues,axis=0),axis=1),
+                                    tf.expand_dims(tf.expand_dims(preds,axis=0),axis=1)))
+                print('totalSE loss:' + str(totalSE))
 
                 val_pearsons.append(rampage100_r)
 
