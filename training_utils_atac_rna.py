@@ -154,8 +154,6 @@ def return_train_val_functions(model,
             atac_loss = tf.reduce_mean(loss_fn(target_atac,output_atac)) *\
                                                            (1.0/global_batch_size)
 
-            print(loss_fn(target_rna, output_rna))
-            print(weight)
             rna_loss = tf.reduce_mean(loss_fn(target_rna, output_rna) * weight) *\
                                                           (1.0/global_batch_size)
             loss = (atac_loss * atac_scale + rna_loss) / (1.0+atac_scale)
