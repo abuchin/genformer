@@ -428,6 +428,7 @@ def deserialize_tr(serialized_example, g, use_tf_activity, input_length = 196608
     vals_tensor = tf.constant(list(rna_lookup.values()))
     table = tf.lookup.StaticHashTable(tf.lookup.KeyValueTensorInitializer(keys_tensor, vals_tensor), default_value=1.0)
     weighting_factor=table.lookup(rna_assay_type)
+    weighting_factor=tf.expand_dims(weighting_factor,axis=0)
 
     return tf.cast(tf.ensure_shape(masked_seq,[input_length,4]),dtype=tf.bfloat16), \
                 tf.cast(tf.ensure_shape(masked_atac, [output_length_ATAC,1]),dtype=tf.bfloat16), \
@@ -437,7 +438,7 @@ def deserialize_tr(serialized_example, g, use_tf_activity, input_length = 196608
                 tf.cast(tf.ensure_shape(atac_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
                 tf.cast(tf.ensure_shape(rna_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
                 tf.cast(tf.ensure_shape(rna_assay_type,[]),dtype=tf.int32), \
-                tf.cast(tf.ensure_shape(weighting_factor,[]),dtype=tf.float32), \
+                tf.cast(tf.ensure_shape(weighting_factor,1),dtype=tf.float32), \
                 tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.bfloat16)
 
 def deserialize_val(serialized_example, g, use_tf_activity, input_length = 196608,
@@ -601,6 +602,7 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
     vals_tensor = tf.constant(list(rna_lookup.values()))
     table = tf.lookup.StaticHashTable(tf.lookup.KeyValueTensorInitializer(keys_tensor, vals_tensor), default_value=1.0)
     weighting_factor=table.lookup(rna_assay_type)
+    weighting_factor=tf.expand_dims(weighting_factor,axis=0)
 
     return tf.cast(tf.ensure_shape(sequence,[input_length,4]),dtype=tf.bfloat16), \
                 tf.cast(tf.ensure_shape(masked_atac, [output_length_ATAC,1]),dtype=tf.bfloat16), \
@@ -610,7 +612,7 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
                 tf.cast(tf.ensure_shape(atac_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
                 tf.cast(tf.ensure_shape(rna_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
                 tf.cast(tf.ensure_shape(rna_assay_type,[]),dtype=tf.int32), \
-                tf.cast(tf.ensure_shape(weighting_factor,[]),dtype=tf.float32), \
+                tf.cast(tf.ensure_shape(weighting_factor,[1]),dtype=tf.float32), \
                 tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.bfloat16)
 
 def deserialize_val_TSS(serialized_example, g, use_tf_activity, input_length = 196608,
