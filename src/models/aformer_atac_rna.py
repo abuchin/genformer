@@ -322,6 +322,7 @@ class aformer(tf.keras.Model):
         out_atac = self.final_dense_profile_atac(out, training=training)
 
         assay_type_t = self.assay_type_fc(assay_type)
+        assay_type_t = tf.expand_dims(assay_type_t,axis=1)
         assay_type = tf.tile(assay_type_t, [1, self.final_output_length, 1])
         out = tf.concat([out,assay_type],axis=2)
 
