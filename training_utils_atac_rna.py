@@ -148,8 +148,8 @@ def return_train_val_functions(model,
                                            training=True)
             mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
 
-            target_atac = tf.gather(target_atac, mask_indices,axis=1)
-            output_atac = tf.gather(output_atac, mask_indices,axis=1)
+            target_atac = tf.gather(target_atac, mask_indices,axis=1)/100.0
+            output_atac = tf.gather(output_atac, mask_indices,axis=1)/100.0
 
             atac_loss = tf.reduce_mean(loss_fn(target_atac,output_atac)) *\
                                                            (1.0/global_batch_size)
@@ -181,8 +181,8 @@ def return_train_val_functions(model,
 
         mask_indices = tf.where(mask[0,:,0] == 1)[:,0]
 
-        target_atac = tf.gather(target_atac, mask_indices,axis=1)
-        output_atac = tf.gather(output_atac, mask_indices,axis=1)
+        target_atac = tf.gather(target_atac, mask_indices,axis=1)/100.0
+        output_atac = tf.gather(output_atac, mask_indices,axis=1)/100.0
 
         atac_loss = tf.reduce_mean(loss_fn(target_atac,output_atac)) *\
                                                        (1.0/global_batch_size)

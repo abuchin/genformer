@@ -354,41 +354,46 @@ def main():
                 trues = tf.concat([true_list[i] for i in cage_36_idx],0)
                 preds = tf.concat([pred_list[i] for i in cage_36_idx],0)
                 cage36_r,_ = pearsonr(trues,preds)
-                cage_loss = tf.reduce_mean(loss_fn(tf.expand_dims(tf.expand_dims(trues,axis=0),axis=2),
-                                    tf.expand_dims(tf.expand_dims(preds,axis=0),axis=2)))
+                trues = tf.concat([tf.expand_dims(tf.expand_dims(true_list[i],axis=0),axis=2) for i in cage_36_idx],2)
+                preds = tf.concat([tf.expand_dims(tf.expand_dims(pred_list[i],axis=0),axis=2) for i in cage_36_idx],2)
+                cage_loss = tf.reduce_mean(loss_fn(trues,preds))
                 print('cage loss:' + str(cage_loss))
 
                 rampage_100_idx = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 2]
                 trues = tf.concat([true_list[i] for i in rampage_100_idx],0)
                 preds = tf.concat([pred_list[i] for i in rampage_100_idx],0)
                 rampage100_r,_ = pearsonr(trues,preds)
-                rampage_loss = tf.reduce_mean(loss_fn(tf.expand_dims(tf.expand_dims(trues,axis=0),axis=2),
-                                    tf.expand_dims(tf.expand_dims(preds,axis=0),axis=2)))
-                print('rampage loss:' + str(rampage_loss))
+                trues = tf.concat([tf.expand_dims(tf.expand_dims(true_list[i],axis=0),axis=2) for i in rampage_100_idx],2)
+                preds = tf.concat([tf.expand_dims(tf.expand_dims(pred_list[i],axis=0),axis=2) for i in rampage_100_idx],2)
+                loss = tf.reduce_mean(loss_fn(trues,preds))
+                print('rampage loss:' + str(loss))
 
                 polyA_rev_100 = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 4]
                 trues = tf.concat([true_list[i] for i in polyA_rev_100],0)
                 preds = tf.concat([pred_list[i] for i in polyA_rev_100],0)
                 polyA100_r,_ = pearsonr(trues,preds)
-                polyA_loss = tf.reduce_mean(loss_fn(tf.expand_dims(tf.expand_dims(trues,axis=0),axis=2),
-                                    tf.expand_dims(tf.expand_dims(preds,axis=0),axis=2)))
-                print('polyA loss:' + str(polyA_loss))
+                trues = tf.concat([tf.expand_dims(tf.expand_dims(true_list[i],axis=0),axis=2) for i in polyA_rev_100],2)
+                preds = tf.concat([tf.expand_dims(tf.expand_dims(pred_list[i],axis=0),axis=2) for i in polyA_rev_100],2)
+                loss = tf.reduce_mean(loss_fn(trues,preds))
+                print('polyA loss:' + str(loss))
 
                 total_rev_100 = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 6]
                 trues = tf.concat([true_list[i] for i in total_rev_100],0)
                 preds = tf.concat([pred_list[i] for i in total_rev_100],0)
                 total100_r,_ = pearsonr(trues,preds)
-                total_rev_loss = tf.reduce_mean(loss_fn(tf.expand_dims(tf.expand_dims(trues,axis=0),axis=2),
-                                    tf.expand_dims(tf.expand_dims(preds,axis=0),axis=2)))
-                print('total rev loss:' + str(total_rev_loss))
+                trues = tf.concat([tf.expand_dims(tf.expand_dims(true_list[i],axis=0),axis=2) for i in total_rev_100],2)
+                preds = tf.concat([tf.expand_dims(tf.expand_dims(pred_list[i],axis=0),axis=2) for i in total_rev_100],2)
+                loss = tf.reduce_mean(loss_fn(trues,preds))
+                print('totalRNA loss:' + str(loss))
 
                 total_revSE_100 = [i for i, val in enumerate(tf.concat(assay_list,0)) if val == 7]
                 trues = tf.concat([true_list[i] for i in total_revSE_100],0)
                 preds = tf.concat([pred_list[i] for i in total_revSE_100],0)
                 total100SE_r,_ = pearsonr(trues,preds)
-                totalSE = tf.reduce_mean(loss_fn(tf.expand_dims(tf.expand_dims(trues,axis=0),axis=2),
-                                    tf.expand_dims(tf.expand_dims(preds,axis=0),axis=2)))
-                print('totalSE loss:' + str(totalSE))
+                trues = tf.concat([tf.expand_dims(tf.expand_dims(true_list[i],axis=0),axis=2) for i in total_revSE_100],2)
+                preds = tf.concat([tf.expand_dims(tf.expand_dims(pred_list[i],axis=0),axis=2) for i in total_revSE_100],2)
+                loss = tf.reduce_mean(loss_fn(trues,preds))
+                print('total100SE loss:' + str(loss))
 
                 val_pearsons.append(rampage100_r)
 
