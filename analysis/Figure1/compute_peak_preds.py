@@ -2,21 +2,20 @@ import time
 import os
 import subprocess
 import sys
-sys.path.insert(1, '/home/jupyter/datasets/genformer')
+sys.path.insert(1, '/home/javed/genformer')
 import re
 import argparse
 import collections
 import gzip
 import math
 import shutil
-import matplotlib.pyplot as plt
+
 import numpy as np
 import time
 from datetime import datetime
 import random
 
-import seaborn as sns
-%matplotlib inline
+
 import logging
 os.environ['TPU_LOAD_LIBRARY']='0'
 os.environ['TF_ENABLE_EAGER_CLIENT_STREAMING_ENQUEUE']='False'
@@ -38,7 +37,7 @@ import src.schedulers as schedulers
 import training_utils_atac as training_utils
 
 from scipy import stats
-import kipoiseq
+
 
 import analysis.scripts.test_set_analysis_ATAC as utils
 

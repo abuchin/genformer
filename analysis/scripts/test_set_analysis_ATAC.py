@@ -9,14 +9,14 @@ import collections
 import gzip
 import math
 import shutil
-import matplotlib.pyplot as plt
+
 import numpy as np
 import time
 from datetime import datetime
 import random
 
 import seaborn as sns
-%matplotlib inline
+
 import logging
 os.environ['TPU_LOAD_LIBRARY']='0'
 os.environ['TF_ENABLE_EAGER_CLIENT_STREAMING_ENQUEUE']='False'
@@ -38,9 +38,6 @@ import src.schedulers as schedulers
 import training_utils_atac as training_utils
 
 from scipy import stats
-import kipoiseq
-
-import analysis.scripts.interval_and_plotting_utilities as utils
 
 def return_all_inputs(interval, atac_dataset, SEQUENCE_LENGTH,
                       num_bins, resolution,tf_arr,crop_size,output_length,
@@ -92,7 +89,7 @@ def return_all_inputs(interval, atac_dataset, SEQUENCE_LENGTH,
 
 def deserialize_test(serialized_example, g, use_tf_activity, input_length = 196608,
                    max_shift = 10, output_length_ATAC = 49152, output_length = 1536,
-                   crop_size = 320, output_res = 128, mask_indices,
+                   crop_size = 320, output_res = 128, mask_indices=[448,449],
                    mask_size = 896, log_atac = True, use_atac = True, use_seq = True):
     """Deserialize bytes stored in TFRecordFile."""
     ## parse out feature map
@@ -250,7 +247,6 @@ def return_dataset(gcs_path, batch, input_length, output_length_ATAC,
 
 
     list_files = (tf.io.gfile.glob(os.path.join(gcs_path,
-                                                    split,
                                                     wc)))
 
         #random.shuffle(list_files)
