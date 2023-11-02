@@ -65,7 +65,7 @@ def return_train_val_functions(model, train_steps, optimizer,
     metric_dict['ATAC_R2'] = metrics.MetricDict({'R2': metrics.R2(reduce_axis=(0,1))})
 
     if loss_type == 'poisson_multinomial':
-        def loss_fn(y_true,y_pred, total_weight=total_weight_loss,
+        def loss_fn(y_true,y_pred, total_weight=total_weight,
                     epsilon=1e-6,rescale=True):
             return poisson_multinomial(y_true, y_pred, total_weight,epsilon,rescale=True)
     elif loss_type == 'poisson':
