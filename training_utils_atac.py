@@ -561,7 +561,8 @@ def return_distributed_iterators(gcs_path, gcs_path_ho, global_batch_size,
                                  input_length, max_shift, output_length_ATAC,
                                  output_length, crop_size, output_res,
                                  num_parallel_calls, num_epoch, strategy,
-                                 options, atac_mask_dropout, random_mask_size,
+                                 options, atac_mask_dropout, atac_mask_dropout_val,
+                                 random_mask_size,
                                  log_atac, use_atac, use_seq, seed,
                                  seq_corrupt_rate, atac_corrupt_rate,
                                  validation_steps, use_tf_activity, g):
@@ -576,7 +577,7 @@ def return_distributed_iterators(gcs_path, gcs_path_ho, global_batch_size,
     val_data_ho = return_dataset(gcs_path_ho, "valid", global_batch_size, input_length,
                                  output_length_ATAC, output_length, crop_size,
                                  output_res, max_shift, options, num_parallel_calls, num_epoch,
-                                 atac_mask_dropout, random_mask_size, log_atac,
+                                 atac_mask_dropout_val, random_mask_size, log_atac,
                                  use_atac, use_seq, seed, seq_corrupt_rate, atac_corrupt_rate,
                                  validation_steps, use_tf_activity, g)
 
@@ -821,6 +822,11 @@ def parse_args(parser):
                         type=float,
                         default=0.05,
                         help= 'atac_mask_dropout')
+    parser.add_argument('--atac_mask_dropout_val',
+                        dest='atac_mask_dropout_val',
+                        type=float,
+                        default=0.05,
+                        help= 'atac_mask_dropout_val')
     parser.add_argument('--final_point_scale',
                         dest='final_point_scale',
                         type=str,

@@ -40,7 +40,8 @@ python3 train_model_atac.py \
             --rectify="True" \
             --filter_list_seq="768,896,1024,1152,1280,1536" \
             --filter_list_atac="32,64" \
-            --atac_mask_dropout=0.10 \
+            --atac_mask_dropout=0.15 \
+            --atac_mask_dropout_val=0.10 \
             --log_atac="False" \
             --random_mask_size="1792" \
             --use_atac="True" \
