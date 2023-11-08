@@ -290,8 +290,8 @@ def deserialize_tr(serialized_example, g, use_tf_activity,
     if log_atac:
         masked_atac = tf.math.log1p(masked_atac)
 
-    diff = tf.math.sqrt(tf.nn.relu(masked_atac - 50.0 * tf.ones(masked_atac.shape)))
-    masked_atac = tf.clip_by_value(masked_atac, clip_value_min=0.0, clip_value_max=50.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(masked_atac - 100.0 * tf.ones(masked_atac.shape)))
+    masked_atac = tf.clip_by_value(masked_atac, clip_value_min=0.0, clip_value_max=100.0) + diff
 
     ''' here set up the random sequence masking '''
     if ((seq_mask_int == 0) and (atac_mask_int != 0)):
@@ -317,8 +317,8 @@ def deserialize_tr(serialized_example, g, use_tf_activity,
 
 
     atac_out = tf.reduce_sum(tf.reshape(atac_target, [-1,tiling_req]),axis=1,keepdims=True)
-    diff = tf.math.sqrt(tf.nn.relu(atac_out - 1500.0 * tf.ones(atac_out.shape)))
-    atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=1500.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(atac_out - 5000.0 * tf.ones(atac_out.shape)))
+    atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=5000.0) + diff
     atac_out = tf.slice(atac_out,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
@@ -464,12 +464,12 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
     if log_atac:
         masked_atac = tf.math.log1p(masked_atac)
 
-    diff = tf.math.sqrt(tf.nn.relu(masked_atac - 50.0 * tf.ones(masked_atac.shape)))
-    masked_atac = tf.clip_by_value(masked_atac, clip_value_min=0.0, clip_value_max=50.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(masked_atac - 100.0 * tf.ones(masked_atac.shape)))
+    masked_atac = tf.clip_by_value(masked_atac, clip_value_min=0.0, clip_value_max=100.0) + diff
 
     atac_out = tf.reduce_sum(tf.reshape(atac_target, [-1,tiling_req]),axis=1,keepdims=True)
-    diff = tf.math.sqrt(tf.nn.relu(atac_out - 1500.0 * tf.ones(atac_out.shape)))
-    atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=1500.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(atac_out - 5000.0 * tf.ones(atac_out.shape)))
+    atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=5000.0) + diff
     atac_out = tf.slice(atac_out,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
