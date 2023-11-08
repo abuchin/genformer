@@ -2,21 +2,20 @@ import time
 import os
 import subprocess
 import sys
-sys.path.insert(1, '/home/jupyter/datasets/genformer')
+sys.path.insert(1, '/home/javed/genformer')
 import re
 import argparse
 import collections
 import gzip
 import math
 import shutil
-import matplotlib.pyplot as plt
+
 import numpy as np
 import time
 from datetime import datetime
 import random
 
-import seaborn as sns
-%matplotlib inline
+
 import logging
 os.environ['TPU_LOAD_LIBRARY']='0'
 os.environ['TF_ENABLE_EAGER_CLIENT_STREAMING_ENQUEUE']='False'
@@ -39,6 +38,8 @@ import training_utils_atac as training_utils
 
 from scipy import stats
 
+import pandas as pd
+
 import analysis.scripts.test_set_analysis_ATAC as utils
 
 resolver = tf.distribute.cluster_resolver.TPUClusterResolver(tpu=sys.argv[1])
@@ -59,13 +60,13 @@ with strategy.scope():
     BATCH_SIZE_PER_REPLICA = 4 # batch size 24, use LR ~ 2.5 e -04
     NUM_REPLICAS = strategy.num_replicas_in_sync
     GLOBAL_BATCH_SIZE = BATCH_SIZE_PER_REPLICA * NUM_REPLICAS
-    mask_indices = list(range(2042,2054))
+    mask_indices = list(range(2041,2055))
     
     test_data_it = utils.return_distributed_iterators(sys.argv[2],GLOBAL_BATCH_SIZE, 524288,
                                                        5, 131072, 4096, 1600,
-                                                       128, 8, strategy, options, 
-                                                       mask_indices, "False", "False", "False", 
-                                                       5, "True", g)
+                                                       128, 8, strategy, options, 1792, 
+                                                       mask_indices, "False", "True", "True", 
+                                                       5, "False", g)
     
     model = aformer.aformer(kernel_transformation='relu_kernel_transformation',
                                 dropout_rate=0.20,
@@ -88,21 +89,54 @@ with strategy.scope():
                                 num_tfs=1629,
                                 tf_dropout_rate=0.01)
     
-    test_step = utils.return_test_build(model,strategy)
+    test_step,build_step = utils.return_test_build(model,strategy)
     build_step(test_data_it)
-    
+    model.load_weights("gs://" + sys.argv[3] + "/saved_model")
+    print('built model') 
     pred_list = []
     true_list = []
     id_list = []
-    for k in range(994):
-        true, pred,interval_id = strategy.run(val_step, args=(next(data_val_ho),))
+    cell_type_list = []
+
+    pred_sum_list = []
+    true_sum_list = []
+    id_single_list = []
+    cell_type_single_list = []
+    for k in range(5000):
+        true, pred,interval_id,cell_type,true_sum,pred_sum,interval_id_single,cell_type_single = strategy.run(test_step, args=(next(test_data_it),))
+        
         for x in strategy.experimental_local_results(true):
             true_list.append(tf.reshape(x, [-1]))
         for x in strategy.experimental_local_results(pred):
             pred_list.append(tf.reshape(x, [-1]))
         for x in strategy.experimental_local_results(interval_id):
             id_list.append(tf.reshape(x, [-1]))
+        for x in strategy.experimental_local_results(cell_type):
+            cell_type_list.append(tf.reshape(x, [-1]))
+
+        for x in strategy.experimental_local_results(true_sum):
+            true_sum_list.append(tf.reshape(x, [-1]))
+        for x in strategy.experimental_local_results(pred_sum):
+            pred_sum_list.append(tf.reshape(x, [-1]))
+        for x in strategy.experimental_local_results(interval_id_single):
+            id_single_list.append(tf.reshape(x, [-1]))
+        for x in strategy.experimental_local_results(cell_type_single):
+            cell_type_single_list.append(tf.reshape(x, [-1]))
     
 
-    df = pd.DataFrame(list(zip(pred_list, true_list, id_list)), 
-                        columns=['pred_list', 'true_list', 'id_list'])
+    df = pd.DataFrame(list(zip(tf.concat(pred_list,axis=0).numpy(),
+                                tf.concat(true_list,axis=0).numpy(),
+                                    tf.concat(id_list,axis=0).numpy(),
+                                    tf.concat(cell_type_list,axis=0).numpy())), 
+                        columns=['pred_list', 'true_list', 'id_list','cell_type_list'])
+    print(df['pred_list'].corr(df['true_list']))
+    df.to_csv('test_set_peak_predictions.tsv',sep='\t',index=False,header=True)
+
+
+    df_sum = pd.DataFrame(list(zip(tf.concat(pred_sum_list,axis=0).numpy(),
+                                tf.concat(true_sum_list,axis=0).numpy(),
+                                    tf.concat(id_single_list,axis=0).numpy(),
+                                        tf.concat(cell_type_single_list,axis=0).numpy())),
+                        columns=['pred_list', 'true_list', 'id_list','cell_type_list'])
+    print(df_sum['pred_list'].corr(df_sum['true_list']))
+    df_sum.to_csv('test_set_peak_sum_predictions.tsv',sep='\t',index=False,header=True)
