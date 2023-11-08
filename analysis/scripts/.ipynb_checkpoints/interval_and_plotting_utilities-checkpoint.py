@@ -258,7 +258,6 @@ class model:
             prediction_mask = tf.reduce_sum(gradient_mask *
                                             prediction) / gradient_mask_mass
 
-
         input_grads = input_grad_tape.gradient(prediction_mask, model_inputs)
 
         input_grads_seq = input_grads[0] 
