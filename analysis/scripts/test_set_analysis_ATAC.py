@@ -99,7 +99,8 @@ def deserialize_test(serialized_example, g, use_tf_activity, input_length = 1966
         'peaks': tf.io.FixedLenFeature([], tf.string),
         'peaks_center': tf.io.FixedLenFeature([], tf.string),
         'tf_activity': tf.io.FixedLenFeature([], tf.string),
-        'interval': tf.io.FixedLenFeature([], tf.string)
+        'interval': tf.io.FixedLenFeature([], tf.string),
+        'cell_type':tf.io.FixedLenFeature([],tf.string)
     }
     ### stochastic sequence shift and gaussian noise
     seq_shift=5
@@ -131,7 +132,11 @@ def deserialize_test(serialized_example, g, use_tf_activity, input_length = 1966
                                                dtype=tf.float32))
     
     interval_id = tf.ensure_shape(tf.io.parse_tensor(data['interval'],
-                                              out_type=tf.float16),
+                                              out_type=tf.int32),
+                           [])
+
+    cell_type = tf.ensure_shape(tf.io.parse_tensor(data['cell_type'],
+                                              out_type=tf.int32),
                            [])
 
     peaks_sum = tf.reduce_sum(peaks_center)
@@ -160,7 +165,7 @@ def deserialize_test(serialized_example, g, use_tf_activity, input_length = 1966
 
     
     st=tf.SparseTensor(
-        indices=mask_indices,
+        indices=tf.cast(tf.expand_dims(mask_indices,axis=1),dtype=tf.int64),
         values=[1.0]*len(mask_indices),
         dense_shape=[output_length])
     dense_peak_mask=tf.sparse.to_dense(st)
@@ -170,9 +175,9 @@ def deserialize_test(serialized_example, g, use_tf_activity, input_length = 1966
 
     out_length_cropped = output_length-2*crop_size
     edge_append = tf.ones((crop_size,1),dtype=tf.float32)
-    atac_mask = tf.ones(out_length_cropped // num_mask_bins,dtype=tf.float32)
+    atac_mask = tf.ones(out_length_cropped // tf.shape(mask_indices)[0],dtype=tf.float32)
     atac_mask = tf.expand_dims(atac_mask,axis=1)
-    atac_mask = tf.tile(atac_mask, [1,num_mask_bins])
+    atac_mask = tf.tile(atac_mask, [1,tf.shape(mask_indices)[0]])
     atac_mask = tf.reshape(atac_mask, [-1])
     atac_mask = tf.expand_dims(atac_mask,axis=1)
     atac_mask_store = 1.0 - atac_mask
@@ -231,8 +236,8 @@ def deserialize_test(serialized_example, g, use_tf_activity, input_length = 1966
                 tf.cast(tf.ensure_shape(atac_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
                 tf.cast(tf.ensure_shape(atac_out_rev,[output_length-crop_size*2,1]),dtype=tf.float32), \
                 tf.cast(tf.ensure_shape(tf_activity, [1,1629]),dtype=tf.bfloat16), \
-                tf.cast(interval_id,dtype=tf.int32)
-
+                tf.cast(interval_id,dtype=tf.int32),\
+                tf.cast(cell_type,dtype=tf.int32)
 
 
 def return_dataset(gcs_path, batch, input_length, output_length_ATAC,
@@ -259,7 +264,7 @@ def return_dataset(gcs_path, batch, input_length, output_length_ATAC,
                                                              input_length, max_shift,
                                                              output_length_ATAC, output_length,
                                                              crop_size, output_res,mask_indices,
-                                                             atac_mask_dropout, random_mask_size,
+                                                             random_mask_size,
                                                              log_atac, use_atac, use_seq),
                       deterministic=True,
                       num_parallel_calls=num_parallel)
@@ -292,7 +297,7 @@ def return_test_build(model,strategy):
 
     @tf.function(reduce_retracing=True)
     def dist_test_step(inputs):
-        sequence,rev_seq,atac,rev_atac,mask,mask_rev,mask_gathered,peaks,target,target_rev,tf_activity,interval_id=inputs
+        sequence,rev_seq,atac,rev_atac,mask,mask_rev,mask_gathered,peaks,target,target_rev,tf_activity,interval_id,cell_type=inputs
 
         input_tuple = sequence,atac,tf_activity
 
@@ -304,29 +309,35 @@ def return_test_build(model,strategy):
         output_atac = tf.gather(output_profile, mask_indices,axis=1)
         
         input_tuple_rev = rev_seq,rev_atac,tf_activity
-        output_profile = model(input_tuple,
+        output_profile_rev = model(input_tuple_rev,
                                training=False)
-        output_profile = tf.cast(output_profile,dtype=tf.float32) # ensure cast to float32
-        mask_indices = tf.where(mask_rev[0,:,0] == 1)[:,0]
-        target_atac_rev = tf.gather(target_rev, mask_indices,axis=1)
-        output_atac_rev = tf.gather(output_profile, mask_indices,axis=1)
+        output_profile_rev = tf.cast(output_profile_rev,dtype=tf.float32) # ensure cast to float32
+        mask_indices_rev = tf.where(mask_rev[0,:,0] == 1)[:,0]
+        target_atac_rev = tf.gather(target_rev, mask_indices_rev,axis=1)
+        output_atac_rev = tf.gather(output_profile_rev, mask_indices_rev,axis=1)
 
         
         target_atac_mean = (target_atac + target_atac_rev) / 2.0
         output_atac_mean = (output_atac + output_atac_rev) / 2.0
-        
-        interval_id = interval_id + tf.constant([2042, 2043, 2044, 2045, 2046, 2047, 
-                                                 2048, 2049, 2050, 2051, 2052, 2053],
-                                                dtype=tf.int32)
-        
-        
-        return target_atac_mean, output_atac_mean, interval_id
+       
+        target_atac_mean_sum = tf.squeeze(tf.reduce_sum(target_atac_mean,axis=1))
+        output_atac_mean_sum = tf.squeeze(tf.reduce_sum(output_atac_mean,axis=1)) 
+
+
+        interval_id_single = interval_id
+        interval_id = tf.tile(tf.expand_dims(tf.expand_dims(interval_id,axis=1),axis=2),
+                                [1,14,1])
+        cell_type_single = cell_type
+        cell_type = tf.tile(tf.expand_dims(tf.expand_dims(cell_type,axis=1),axis=2),
+                                [1,14,1])
+                                 
+        return target_atac_mean, output_atac_mean, interval_id,cell_type,target_atac_mean_sum,output_atac_mean_sum,interval_id_single,cell_type_single
 
 
     def build_step(iterator): #input_batch, model, optimizer, organism, gradient_clip):
         @tf.function(reduce_retracing=True)
         def val_step(inputs):
-            sequence,rev_seq,atac,rev_atac,mask,mask_rev,mask_gathered,peaks,target,target_rev,tf_activity,interval_id=inputs
+            sequence,rev_seq,atac,rev_atac,mask,mask_rev,mask_gathered,peaks,target,target_rev,tf_activity,interval_id,cell_type=inputs
 
             input_tuple = sequence,atac,tf_activity
 
@@ -337,3 +348,23 @@ def return_test_build(model,strategy):
         strategy.run(val_step, args=(next(iterator),))
 
     return dist_test_step, build_step
+
+
+def one_hot(sequence):
+    '''
+    convert input string tensor to one hot encoded
+    will replace all N character with 0 0 0 0
+    '''
+    vocabulary = tf.constant(['A', 'C', 'G', 'T'])
+    mapping = tf.constant([0, 1, 2, 3])
+
+    init = tf.lookup.KeyValueTensorInitializer(keys=vocabulary,
+                                               values=mapping)
+    table = tf.lookup.StaticHashTable(init, default_value=0)
+
+    input_characters = tfs.upper(tfs.unicode_split(sequence, 'UTF-8'))
+
+    out = tf.one_hot(table.lookup(input_characters),
+                      depth = 4,
+                      dtype=tf.float32)
+    return out
