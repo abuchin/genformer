@@ -69,7 +69,7 @@ class aformer(tf.keras.Model):
         self.final_point_scale=final_point_scale
         self.num_tfs=num_tfs
         self.tf_dropout_rate=tf_dropout_rate
-        self.atac_block_dropout=atac_block_dropout_rate
+        self.atac_block_dropout_rate=atac_block_dropout_rate
 
         self.hidden_size=self.filter_list_seq[-1] + self.filter_list_atac[-1] #+ self.global_acc_size
         self.d_model = self.filter_list_seq[-1] + self.filter_list_atac[-1] #+ self.global_acc_size
@@ -138,7 +138,7 @@ class aformer(tf.keras.Model):
 
         self.stem_res_conv_atac =Residual(enf_conv_block(32,
                                                          1,
-                                                         atac_block_dropout=self.atac_block_dropout,
+                                                         atac_block_dropout=self.atac_block_dropout_rate,
                                                          name='pointwise_conv_block_atac'))
         self.stem_pool_atac = tf.keras.layers.MaxPool1D(pool_size=2)
 
@@ -162,7 +162,7 @@ class aformer(tf.keras.Model):
                                width=5,
                                dilation_rate=1,
                                stride=1,
-                               atac_block_dropout=self.atac_block_dropout,
+                               atac_block_dropout=self.atac_block_dropout_rate,
                                padding='same'),
                 tf.keras.layers.MaxPool1D(pool_size=4)],
                        name=f'conv_tower_block_atac_{i}')

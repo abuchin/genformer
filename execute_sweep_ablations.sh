@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 python3 train_model_atac.py \
-            --tpu_name="pod1" \
+            --tpu_name="pod11" \
             --tpu_zone="us-east1-d" \
             --wandb_project="atac_pretraining" \
             --wandb_user="njaved" \

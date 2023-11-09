@@ -105,7 +105,8 @@ def main():
                 'use_tf_activity': {'values': [parse_bool_str(x) for x in args.use_tf_activity.split(',')]},
                 'num_epochs_to_start': {'values': [int(x) for x in args.num_epochs_to_start.split(',')]},
                 'loss_type': {'values': [str(x) for x in args.loss_type.split(',')]},
-                'total_weight_loss': {'values': [float(x) for x in args.total_weight_loss.split(',')]}
+                'total_weight_loss': {'values': [float(x) for x in args.total_weight_loss.split(',')]},
+                'atac_block_dropout_rate': {'values': [float(x) for x in args.atac_block_dropout_rate.split(',')]}
                 }
     }
 
@@ -206,6 +207,7 @@ def main():
                                     num_transformer_layers=wandb.config.num_transformer_layers,
                                     final_point_scale=wandb.config.final_point_scale,
                                     filter_list_seq=wandb.config.filter_list_seq,
+                                    atac_block_dropout_rate=wandb.config.atac_block_dropout_rate,
                                     filter_list_atac=wandb.config.filter_list_atac)
 
             print('initialized model')
