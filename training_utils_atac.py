@@ -903,6 +903,11 @@ def parse_args(parser):
                         type=str,
                         default="0.25",
                         help= 'atac_block_dropout_rate')
+    parser.add_argument('--use_rot_emb',
+                        dest='use_rot_emb',
+                        type=str,
+                        default="True",
+                        help= 'use_rot_emb')
     args = parser.parse_args()
     return parser
 
