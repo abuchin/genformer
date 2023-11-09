@@ -486,6 +486,7 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
                                stddev=1.0,
                                dtype=tf.float32))
     if not use_seq:
+        print('not using sequence')
         sequence = tf.random.experimental.stateless_shuffle(sequence,
                                                             seed=[1,randomish_seed+12])
 
@@ -897,6 +898,11 @@ def parse_args(parser):
                         type=str,
                         default="0.15",
                         help= 'total_weight_loss')
+    parser.add_argument('--atac_block_dropout_rate',
+                        dest='atac_block_dropout_rate',
+                        type=str,
+                        default="0.25",
+                        help= 'atac_block_dropout_rate')
     args = parser.parse_args()
     return parser
 

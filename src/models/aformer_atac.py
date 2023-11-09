@@ -37,6 +37,7 @@ class aformer(tf.keras.Model):
                  final_point_scale=6,
                  num_tfs=1629,
                  tf_dropout_rate=0.01,
+                 atac_block_dropout_rate=0.25,
                  name: str = 'aformer',
                  **kwargs):
         """ 'aformer' model based on Enformer for predicting RNA-seq from atac + sequence
@@ -68,6 +69,7 @@ class aformer(tf.keras.Model):
         self.final_point_scale=final_point_scale
         self.num_tfs=num_tfs
         self.tf_dropout_rate=tf_dropout_rate
+        self.atac_block_dropout=atac_block_dropout_rate
 
         self.hidden_size=self.filter_list_seq[-1] + self.filter_list_atac[-1] #+ self.global_acc_size
         self.d_model = self.filter_list_seq[-1] + self.filter_list_atac[-1] #+ self.global_acc_size
@@ -87,6 +89,7 @@ class aformer(tf.keras.Model):
                            kernel_init=None,
                            bias_init=None,
                            dilation_rate=1,
+                           atac_block_dropout=0.0,
                            stride=1,
                            **kwargs):
 
@@ -102,6 +105,8 @@ class aformer(tf.keras.Model):
                                                      moving_mean_initializer="zeros",
                                                      moving_variance_initializer="ones",
                                                      **kwargs),
+                kl.Dropout(rate=atac_block_dropout,
+                                    **kwargs),
                 tfa.layers.GELU(),
                 tf.keras.layers.Conv1D(filters,
                                      width,
@@ -133,6 +138,7 @@ class aformer(tf.keras.Model):
 
         self.stem_res_conv_atac =Residual(enf_conv_block(32,
                                                          1,
+                                                         atac_block_dropout=self.atac_block_dropout,
                                                          name='pointwise_conv_block_atac'))
         self.stem_pool_atac = tf.keras.layers.MaxPool1D(pool_size=2)
 
@@ -156,6 +162,7 @@ class aformer(tf.keras.Model):
                                width=5,
                                dilation_rate=1,
                                stride=1,
+                               atac_block_dropout=self.atac_block_dropout,
                                padding='same'),
                 tf.keras.layers.MaxPool1D(pool_size=4)],
                        name=f'conv_tower_block_atac_{i}')
@@ -233,7 +240,6 @@ class aformer(tf.keras.Model):
                                      training=training)
 
         atac_x = self.conv_tower_atac(atac_x,training=training)
-
 
         transformer_input = tf.concat([x,atac_x],
                                       axis=2)
