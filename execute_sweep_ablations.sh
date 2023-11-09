@@ -11,7 +11,7 @@ python3 train_model_atac.py \
             --gcs_path_holdout="gs://picard-testing-176520/genformer_atac_pretrain/196k/genformer_atac_pretrain_globalacc_conv_fpm_valid" \
             --input_length=196608 \
             --output_length=1536 \
-            --output_length_ATAC=65536 \
+            --output_length_ATAC=49152 \
             --final_output_length=896 \
             --max_shift=10 \
             --batch_size=4 \
@@ -53,4 +53,5 @@ python3 train_model_atac.py \
             --use_tf_activity="True" \
             --num_epochs_to_start="0" \
             --total_weight_loss="0.15" \
-            --atac_block_dropout_rate="0.20"
+            --atac_block_dropout_rate="0.20" \
+            --use_rot_emb="True"

@@ -52,4 +52,6 @@ python3 train_model_atac.py \
             --atac_corrupt_rate="20" \
             --use_tf_activity="True" \
             --num_epochs_to_start="0" \
-            --total_weight_loss="0.15"
+            --total_weight_loss="0.15" \
+            --atac_block_dropout_rate="0.25" \
+            --use_rot_emb="True"
