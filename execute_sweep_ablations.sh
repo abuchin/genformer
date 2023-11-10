@@ -40,10 +40,10 @@ python3 train_model_atac.py \
             --rectify="True" \
             --filter_list_seq="512,640,768,896,1152,1280" \
             --filter_list_atac="32,64" \
-            --atac_mask_dropout=0.15 \
-            --atac_mask_dropout_val=0.10 \
+            --atac_mask_dropout=0.20 \
+            --atac_mask_dropout_val=0.20 \
             --log_atac="False" \
-            --random_mask_size="2048" \
+            --random_mask_size="1792" \
             --use_atac="True" \
             --final_point_scale="6" \
             --use_seq="True" \
@@ -53,5 +53,4 @@ python3 train_model_atac.py \
             --use_tf_activity="True" \
             --num_epochs_to_start="0" \
             --total_weight_loss="0.15" \
-            --atac_block_dropout_rate="0.20" \
             --use_rot_emb="True"
