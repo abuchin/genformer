@@ -286,7 +286,9 @@ def deserialize_tr(serialized_example, g, use_tf_activity,
     full_comb_mask_store = 1.0 - full_comb_mask
 
     full_comb_mask_full_store = full_comb_mask_store
-    full_comb_mask_store = full_comb_mask_store[crop_size:-crop_size,:] # store the cropped mask
+    if crop_size > 0:
+        full_comb_mask_store = full_comb_mask_store[crop_size:-crop_size,:] # store the cropped mask
+
     tiling_req = output_length_ATAC // output_length ### how much do we need to tile the atac signal to desired length
     full_comb_mask = tf.expand_dims(tf.reshape(tf.tile(full_comb_mask, [1,tiling_req]),[-1]),axis=1)
 
@@ -462,7 +464,8 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
     full_atac_mask = tf.concat([edge_append,atac_mask,edge_append],axis=0)
     full_comb_mask = tf.math.floor((dense_peak_mask + full_atac_mask)/2)
     full_comb_mask_store = 1.0 - full_comb_mask
-    full_comb_mask_store = full_comb_mask_store[crop_size:-crop_size,:]
+    if crop_size > 0:
+        full_comb_mask_store = full_comb_mask_store[crop_size:-crop_size,:] # store the cropped mask
     tiling_req = output_length_ATAC // output_length
     full_comb_mask = tf.expand_dims(tf.reshape(tf.tile(full_comb_mask, [1,tiling_req]),[-1]),axis=1)
     masked_atac = atac * full_comb_mask
