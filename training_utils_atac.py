@@ -237,6 +237,11 @@ def deserialize_tr(serialized_example, g, use_tf_activity,
     here set up masking of one of the peaks. If there are no peaks, then mask the middle of the input sequence window
     '''
     atac_target = atac ## store the target ATAC
+    # add some small amount of gaussian noise to the input
+    atac = atac + tf.math.abs(g.normal(atac.shape,
+                                                     mean=0.0,
+                                                     stddev=0.10,
+                                                     dtype=tf.float32))
 
     ### here set up the ATAC masking
     num_mask_bins = mask_size // output_res ## calculate the number of adjacent bins that will be masked in each region
@@ -291,12 +296,8 @@ def deserialize_tr(serialized_example, g, use_tf_activity,
     corrupted_atac =  tf.random.experimental.stateless_shuffle(atac,
                                                                 seed=[1,randomish_seed+13])
 
+
     masked_atac = (1.0 - full_comb_mask) * corrupted_atac + masked_atac
-    ## add some random positive gaussian noise for good measure
-    masked_atac = masked_atac + tf.math.abs(g.normal(atac.shape,
-                                                     mean=0.0,
-                                                     stddev=0.10,
-                                                     dtype=tf.float32))
 
     if log_atac:
         masked_atac = tf.math.log1p(masked_atac)
@@ -424,7 +425,11 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
                      [output_length-2*crop_size,-1])
 
     atac_target = atac ## store the target
-
+    # add some small amount of gaussian noise to the input
+    atac = atac + tf.math.abs(g.normal(atac.shape,
+                                                     mean=0.0,
+                                                     stddev=0.10,
+                                                     dtype=tf.float32))
     ### here set up the ATAC masking
     num_mask_bins = mask_size // output_res # the number of adjacent bins to mask
     center = (output_length-2*crop_size)//2 # the center of the window
@@ -464,7 +469,7 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
 
     ## now in the masked region, add randomly corrupted signal(shuffed from the input atac)
     corrupted_atac =  tf.random.experimental.stateless_shuffle(atac,
-                                                                seed=[1,randomish_seed+29])
+                                                                seed=[1,randomish_seed+13])
 
     masked_atac = (1.0 - full_comb_mask) * corrupted_atac + masked_atac
     ## add some random positive gaussian noise for good measure
@@ -899,11 +904,6 @@ def parse_args(parser):
                         type=str,
                         default="0.15",
                         help= 'total_weight_loss')
-    parser.add_argument('--atac_block_dropout_rate',
-                        dest='atac_block_dropout_rate',
-                        type=str,
-                        default="0.25",
-                        help= 'atac_block_dropout_rate')
     parser.add_argument('--use_rot_emb',
                         dest='use_rot_emb',
                         type=str,
