@@ -15,7 +15,7 @@ python3 train_model_atac.py \
             --final_output_length=896 \
             --max_shift=10 \
             --batch_size=4 \
-            --num_epochs=40 \
+            --num_epochs=30 \
             --train_examples=1000000 \
             --val_examples_ho=15337 \
             --BN_momentum=0.90 \
@@ -26,7 +26,7 @@ python3 train_model_atac.py \
             --model_save_dir="gs://picard-testing-176520/genformer_atac_pretrain/models" \
             --model_save_basename="aformer" \
             --lr_base="1.0e-04" \
-            --decay_frac="0.005" \
+            --decay_frac="1.0" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-8 \
             --num_transformer_layers="3" \
@@ -38,7 +38,7 @@ python3 train_model_atac.py \
             --savefreq=40 \
             --load_init="False" \
             --rectify="True" \
-            --filter_list_seq="512,640,768,896,1152,1280" \
+            --filter_list_seq="256,384,512,640,768,896" \
             --filter_list_atac="32,64" \
             --atac_mask_dropout=0.20 \
             --atac_mask_dropout_val=0.20 \
