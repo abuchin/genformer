@@ -12,7 +12,7 @@ python3 train_model_atac.py \
             --input_length=524288 \
             --output_length=4096 \
             --output_length_ATAC=131072 \
-            --final_output_length=4096 \
+            --final_output_length=3840 \
             --max_shift=10 \
             --batch_size=4 \
             --num_epochs=30 \
@@ -29,7 +29,7 @@ python3 train_model_atac.py \
             --decay_frac="1.0" \
             --gradient_clip="5.0" \
             --epsilon=1.0e-8 \
-            --num_transformer_layers="7" \
+            --num_transformer_layers="8" \
             --dropout_rate="0.20" \
             --pointwise_dropout_rate="0.10" \
             --num_heads="4" \
@@ -38,12 +38,12 @@ python3 train_model_atac.py \
             --savefreq=1 \
             --load_init="False" \
             --rectify="True" \
-            --filter_list_seq="512,768,896,1024,1152,1280" \
+            --filter_list_seq="512,640,768,896,1024,1152" \
             --filter_list_atac="32,64" \
             --atac_mask_dropout=0.20 \
             --atac_mask_dropout_val=0.05 \
             --log_atac="False" \
-            --random_mask_size="1792" \
+            --random_mask_size="1536" \
             --use_atac="True" \
             --final_point_scale="6" \
             --use_seq="True" \
