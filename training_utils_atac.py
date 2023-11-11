@@ -246,8 +246,6 @@ def deserialize_tr(serialized_example, g, use_tf_activity,
     ### here set up the ATAC masking
     num_mask_bins = mask_size // output_res ## calculate the number of adjacent bins that will be masked in each region
 
-    crop_size = max(num_mask_bins, crop_size)
-
     center = (output_length-2*crop_size)//2
     ### here set up masking of one of the peaks
     mask_indices_temp = tf.where(peaks_c_crop[:,0] > 0)[:,0]
@@ -435,7 +433,7 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
                                                      dtype=tf.float32))
     ### here set up the ATAC masking
     num_mask_bins = mask_size // output_res # the number of adjacent bins to mask
-    crop_size = max(num_mask_bins, crop_size)
+
     center = (output_length-2*crop_size)//2 # the center of the window
     ### here set up masking of one of the peaks
     mask_indices_temp = tf.where(peaks_c_crop[:,0] > 0)[:,0]
