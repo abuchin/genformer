@@ -158,8 +158,14 @@ def main():
 
             options = tf.data.Options()
             options.experimental_distribute.auto_shard_policy=\
-                tf.data.experimental.AutoShardPolicy.DATA
+                tf.data.experimental.AutoShardPolicy.FILE
             options.deterministic=False
+
+            options_val = tf.data.Options()
+            options_val.experimental_distribute.auto_shard_policy=\
+                tf.data.experimental.AutoShardPolicy.DATA
+            options_val.deterministic=False
+
             mixed_precision.set_global_policy('mixed_bfloat16')
 
             NUM_REPLICAS = strategy.num_replicas_in_sync
@@ -181,7 +187,7 @@ def main():
                                                                 wandb.config.max_shift, wandb.config.output_length_ATAC,
                                                                 wandb.config.output_length, wandb.config.crop_size,
                                                                 wandb.config.output_res, args.num_parallel, args.num_epochs,
-                                                                strategy, options, wandb.config.atac_mask_dropout,
+                                                                strategy, options,options_val, wandb.config.atac_mask_dropout,
                                                                 wandb.config.atac_mask_dropout_val,
                                                                 wandb.config.random_mask_size, wandb.config.log_atac,
                                                                 wandb.config.use_atac, wandb.config.use_seq, wandb.config.seed,
