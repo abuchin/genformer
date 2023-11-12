@@ -251,11 +251,16 @@ def deserialize_tr(serialized_example, g, use_tf_activity,
     mask_indices_temp = tf.where(peaks_c_crop[:,0] > 0)[:,0]
     ridx = tf.concat([tf.random.experimental.stateless_shuffle(mask_indices_temp,seed=[4+randomish_seed,5]),
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
-    mask_indices = [[ridx[0]+x+crop_size] for x in range(-num_mask_bins//2,1+(num_mask_bins//2))]
+    start_index = ridx[0] - num_mask_bins // 2 + crop_size
+    end_index = ridx[0] + 1 + num_mask_bins // 2 + crop_size
+    indices = tf.range(start_index, end_index)
+    mask = (indices >= 0) & (indices < output_length)
+    filtered_indices = tf.boolean_mask(indices, mask)
+    mask_indices = tf.cast(tf.reshape(filtered_indices, [-1, 1]), dtype=tf.int64)
 
     st=tf.SparseTensor(
         indices=mask_indices,
-        values=[1.0]*len(mask_indices),
+        values=tf.ones([tf.shape(mask_indices)[0]], dtype=tf.float32),
         dense_shape=[output_length])
     dense_peak_mask=tf.sparse.to_dense(st)
     dense_peak_mask_store = dense_peak_mask
@@ -439,11 +444,16 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
     mask_indices_temp = tf.where(peaks_c_crop[:,0] > 0)[:,0]
     ridx = tf.concat([tf.random.experimental.stateless_shuffle(mask_indices_temp,seed=[4+randomish_seed,5]),
                       tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
-    mask_indices = [[ridx[0]+x+crop_size] for x in range(-num_mask_bins//2,1+(num_mask_bins//2))]
+    start_index = ridx[0] - num_mask_bins // 2 + crop_size
+    end_index = ridx[0] + 1 + num_mask_bins // 2 + crop_size
+    indices = tf.range(start_index, end_index)
+    mask = (indices >= 0) & (indices < output_length)
+    filtered_indices = tf.boolean_mask(indices, mask)
+    mask_indices = tf.cast(tf.reshape(filtered_indices, [-1, 1]), dtype=tf.int64)
 
     st=tf.SparseTensor(
         indices=mask_indices,
-        values=[1.0]*len(mask_indices),
+        values=tf.ones([tf.shape(mask_indices)[0]], dtype=tf.float32),
         dense_shape=[output_length])
     dense_peak_mask=tf.sparse.to_dense(st)
     dense_peak_mask_store = dense_peak_mask
