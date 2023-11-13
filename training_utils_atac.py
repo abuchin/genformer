@@ -360,18 +360,18 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
 
     ## now parse out the actual data
     data = tf.io.parse_example(serialized_example, feature_map)
-    sequence = one_hot(tf.strings.substr(data['sequence'],
-                                 seq_shift,input_length))
-    atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
-                                              out_type=tf.float16),
-                           [output_length_ATAC,1])
-    atac = tf.cast(atac,dtype=tf.float32)
     peaks = tf.ensure_shape(tf.io.parse_tensor(data['peaks'],
                                               out_type=tf.int32),
                            [output_length])
     peaks_center = tf.ensure_shape(tf.io.parse_tensor(data['peaks_center'],
                                               out_type=tf.int32),
                            [output_length])
+    peaks_sum = tf.reduce_sum(peaks_center)
+
+    atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
+                                              out_type=tf.float16),
+                           [output_length_ATAC,1])
+    atac = tf.cast(atac,dtype=tf.float32)
     tf_activity = tf.ensure_shape(tf.io.parse_tensor(data['tf_activity'],
                                               out_type=tf.float16),
                            [1629])
@@ -384,15 +384,12 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
                                                mean=0.0,
                                                stddev=0.001,
                                                dtype=tf.float32))
-    '''scale'''
-    #percentile99 = (tfp.stats.percentile(tf_activity, q=99.0, axis=1) + 1.0e-04)
-    #tf_activity = tf_activity / percentile99
 
-    peaks_sum = tf.reduce_sum(peaks_center)
+
     seq_seed = tf.reduce_sum(sequence[:,0])
     # set up a semi-random seem based on the number of
     # peaks and adenosines in the window
-    randomish_seed = peaks_sum + tf.cast(seq_seed,dtype=tf.int32)
+    randomish_seed = peaks_sum + tf.cast(atac,dtype=tf.int32)
 
     rev_comp = tf.random.stateless_uniform(shape=[], minval=0,
                                             maxval=2,
@@ -410,6 +407,9 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
             seq_shift = k
         else:
             seq_shift=0
+
+    sequence = one_hot(tf.strings.substr(data['sequence'],
+                                 seq_shift,input_length))
 
     ## here we set up the target variable peaks
     ## to make calculating loss easier, adjust it
