@@ -366,7 +366,7 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
     peaks_center = tf.ensure_shape(tf.io.parse_tensor(data['peaks_center'],
                                               out_type=tf.int32),
                            [output_length])
-    peaks_sum = tf.reduce_sum(peaks_center)
+
 
     atac = tf.ensure_shape(tf.io.parse_tensor(data['atac'],
                                               out_type=tf.float16),
@@ -385,10 +385,9 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
                                                stddev=0.001,
                                                dtype=tf.float32))
 
-
-    seq_seed = tf.reduce_sum(sequence[:,0])
     # set up a semi-random seem based on the number of
-    # peaks and adenosines in the window
+    # peaks and atac signal in the window
+    peaks_sum = tf.reduce_sum(peaks_center)
     randomish_seed = peaks_sum + tf.cast(atac,dtype=tf.int32)
 
     rev_comp = tf.random.stateless_uniform(shape=[], minval=0,
