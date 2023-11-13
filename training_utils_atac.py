@@ -388,7 +388,7 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
     # set up a semi-random seem based on the number of
     # peaks and atac signal in the window
     peaks_sum = tf.reduce_sum(peaks_center)
-    randomish_seed = peaks_sum + tf.cast(atac,dtype=tf.int32)
+    randomish_seed = peaks_sum + tf.cast(tf.reduce_sum(atac),dtype=tf.int32)
 
     rev_comp = tf.random.stateless_uniform(shape=[], minval=0,
                                             maxval=2,
