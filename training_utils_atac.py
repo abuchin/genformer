@@ -392,13 +392,13 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
 
     rev_comp = tf.random.stateless_uniform(shape=[], minval=0,
                                             maxval=2,
-                                            seed=[randomish_seed+5,seq_seed+6],
+                                            seed=[randomish_seed+5,randomish_seed+6],
                                             dtype=tf.int32)
 
     shift = tf.random.stateless_uniform.uniform(shape=(),
                       minval=0,
                       maxval=max_shift,
-                      seed=[randomish_seed+1,seq_seed+2],
+                      seed=[randomish_seed+1,randomish_seed+2],
                       dtype=tf.int32)
     for k in range(max_shift):
         if k == shift:
