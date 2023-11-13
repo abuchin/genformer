@@ -101,7 +101,6 @@ def main():
                 'final_point_scale': {'values':[int(x) for x in args.final_point_scale.split(',')]},
                 'seed': {'values':[args.seed]},
                 'atac_corrupt_rate': {'values': [int(x) for x in args.atac_corrupt_rate.split(',')]},
-                'seq_corrupt_rate': {'values': [int(x) for x in args.seq_corrupt_rate.split(',')]},
                 'use_tf_activity': {'values': [parse_bool_str(x) for x in args.use_tf_activity.split(',')]},
                 'num_epochs_to_start': {'values': [int(x) for x in args.num_epochs_to_start.split(',')]},
                 'loss_type': {'values': [str(x) for x in args.loss_type.split(',')]},
@@ -158,7 +157,7 @@ def main():
 
             options = tf.data.Options()
             options.experimental_distribute.auto_shard_policy=\
-                tf.data.experimental.AutoShardPolicy.FILE
+                tf.data.experimental.AutoShardPolicy.DATA
             options.deterministic=False
 
             options_val = tf.data.Options()
@@ -191,7 +190,7 @@ def main():
                                                                 wandb.config.atac_mask_dropout_val,
                                                                 wandb.config.random_mask_size, wandb.config.log_atac,
                                                                 wandb.config.use_atac, wandb.config.use_seq, wandb.config.seed,
-                                                                wandb.config.seq_corrupt_rate, wandb.config.atac_corrupt_rate,
+                                                                wandb.config.atac_corrupt_rate,
                                                                 wandb.config.val_steps_ho, wandb.config.use_tf_activity, g)
 
             train_human, data_val_ho = out_iterators

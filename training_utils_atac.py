@@ -169,8 +169,6 @@ def deserialize_tr(serialized_example, g, use_tf_activity,
     '''
     generate random numbers for data augmentation
       rev_comp: whether or not to reverse/complement sequence + signal
-      seq_mask_int: whether we will randomly also mask the sequence underlying
-                    masked ATAC regions
       randomish_seed: hacky workaround to previous issue with random atac masking
     '''
     rev_comp = tf.math.round(g.uniform([], 0, 1)) #switch for random reverse complementation
@@ -334,7 +332,7 @@ def deserialize_tr(serialized_example, g, use_tf_activity,
 
     if not use_seq:
         print('not using sequence')
-        masked_seq = tf.random.experimental.stateless_shuffle(masked_seq,
+        sequence = tf.random.experimental.stateless_shuffle(sequence,
                                                               seed=[randomish_seed+1,randomish_seed+3])
 
     return tf.cast(tf.ensure_shape(sequence,[input_length,4]),dtype=tf.bfloat16), \
@@ -469,9 +467,6 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
     edge_append = tf.ones((crop_size,1),dtype=tf.float32)
     atac_mask = tf.ones(out_length_cropped // num_mask_bins,dtype=tf.float32)
 
-    if ((atac_mask_int == 0)):
-        atac_mask_dropout = 3 * atac_mask_dropout
-
     atac_mask=tf.nn.experimental.stateless_dropout(atac_mask,
                                               rate=(atac_mask_dropout),
                                               seed=[randomish_seed+1,randomish_seed+10]) / (1. / (1.0-(atac_mask_dropout)))
@@ -529,7 +524,7 @@ def return_dataset(gcs_path, split, batch, input_length, output_length_ATAC,
                    output_length, crop_size, output_res, max_shift, options,
                    num_parallel, num_epoch, atac_mask_dropout,
                    random_mask_size, log_atac, use_atac, use_seq, seed,
-                   seq_corrupt_rate, atac_corrupt_rate, validation_steps,
+                   atac_corrupt_rate, validation_steps,
                    use_tf_activity, g):
     """
     return a tf dataset object for given gcs path
@@ -594,7 +589,7 @@ def return_distributed_iterators(gcs_path, gcs_path_ho, global_batch_size,
                                  atac_mask_dropout, atac_mask_dropout_val,
                                  random_mask_size,
                                  log_atac, use_atac, use_seq, seed,
-                                 seq_corrupt_rate, atac_corrupt_rate,
+                                 atac_corrupt_rate,
                                  validation_steps, use_tf_activity, g):
 
 
@@ -603,14 +598,14 @@ def return_distributed_iterators(gcs_path, gcs_path_ho, global_batch_size,
                              output_length_ATAC, output_length, crop_size,
                              output_res, max_shift, options, num_parallel_calls,
                              num_epoch, atac_mask_dropout, random_mask_size,
-                             log_atac, use_atac, use_seq, seed, seq_corrupt_rate,
+                             log_atac, use_atac, use_seq, seed,
                              atac_corrupt_rate, validation_steps, use_tf_activity, g)
 
     val_data_ho = return_dataset(gcs_path_ho, "valid", global_batch_size, input_length,
                                  output_length_ATAC, output_length, crop_size,
                                  output_res, max_shift, options_val, num_parallel_calls, num_epoch,
                                  atac_mask_dropout_val, random_mask_size, log_atac,
-                                 use_atac, use_seq, seed, seq_corrupt_rate, atac_corrupt_rate,
+                                 use_atac, use_seq, seed, atac_corrupt_rate,
                                  validation_steps, use_tf_activity, g)
 
     val_dist_ho=strategy.experimental_distribute_dataset(val_data_ho)
@@ -899,11 +894,6 @@ def parse_args(parser):
                         type=int,
                         default=42,
                         help= 'seed')
-    parser.add_argument('--seq_corrupt_rate',
-                        dest='seq_corrupt_rate',
-                        type=str,
-                        default="20",
-                        help= 'seq_corrupt_rate')
     parser.add_argument('--atac_corrupt_rate',
                         dest='atac_corrupt_rate',
                         type=str,
