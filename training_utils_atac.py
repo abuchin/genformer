@@ -395,7 +395,7 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
                                             seed=[randomish_seed+5,randomish_seed+6],
                                             dtype=tf.int32)
 
-    shift = tf.random.stateless_uniform.uniform(shape=(),
+    shift = tf.random.stateless_uniform.(shape=(),
                       minval=0,
                       maxval=max_shift,
                       seed=[randomish_seed+1,randomish_seed+2],
