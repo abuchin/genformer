@@ -174,13 +174,10 @@ def deserialize_tr(serialized_example, g, use_tf_activity,
                     masked ATAC regions
       randomish_seed: hacky workaround to previous issue with random atac masking
     '''
-    total_len = (output_length-2*crop_size)
     rev_comp = tf.math.round(g.uniform([], 0, 1)) #switch for random reverse complementation
     seq_mask_int = g.uniform([], 0, seq_corrupt_rate, dtype=tf.int32) ## sequence corruption rate
     atac_mask_int = g.uniform([], 0, atac_corrupt_rate, dtype=tf.int32) ## atac increased corruption rate
     randomish_seed = g.uniform([], 0, 100000000,dtype=tf.int32) # hacky work-around to ensure randomish stateless operations
-    random_mask_idx = g.uniform([], 0, total_len, dtype=tf.int32) ## atac increased corruption rate
-    random_mask_idx2 = g.uniform([], 0, total_len, dtype=tf.int32) ## atac increased corruption rate
 
     shift = g.uniform(shape=(),
                       minval=0,
@@ -249,8 +246,8 @@ def deserialize_tr(serialized_example, g, use_tf_activity,
     ### here set up masking of one of the peaks
     mask_indices_temp = tf.where(peaks_c_crop[:,0] > 0)[:,0]
     ridx = tf.concat([tf.random.experimental.stateless_shuffle(mask_indices_temp,seed=[4+randomish_seed,5]),
-                      tf.constant([random_mask_idx],dtype=tf.int64),
-                      tf.constant([random_mask_idx2],dtype=tf.int64)
+                      tf.constant([center],dtype=tf.int64),
+                      tf.constant([center//2],dtype=tf.int64)
                      ],axis=0)   ### concatenate the middle in case theres no peaks
     start_index = ridx[0] - num_mask_bins // 2 + crop_size
     end_index = ridx[0] + 1 + num_mask_bins // 2 + crop_size
