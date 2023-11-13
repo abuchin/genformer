@@ -174,10 +174,14 @@ def deserialize_tr(serialized_example, g, use_tf_activity,
                     masked ATAC regions
       randomish_seed: hacky workaround to previous issue with random atac masking
     '''
+    total_len = (output_length-2*crop_size)
     rev_comp = tf.math.round(g.uniform([], 0, 1)) #switch for random reverse complementation
     seq_mask_int = g.uniform([], 0, seq_corrupt_rate, dtype=tf.int32) ## sequence corruption rate
     atac_mask_int = g.uniform([], 0, atac_corrupt_rate, dtype=tf.int32) ## atac increased corruption rate
     randomish_seed = g.uniform([], 0, 100000000,dtype=tf.int32) # hacky work-around to ensure randomish stateless operations
+    random_mask_idx = g.uniform([], 0, total_len, dtype=tf.int32) ## atac increased corruption rate
+    random_mask_idx2 = g.uniform([], 0, total_len, dtype=tf.int32) ## atac increased corruption rate
+
     shift = g.uniform(shape=(),
                       minval=0,
                       maxval=max_shift,
@@ -237,11 +241,6 @@ def deserialize_tr(serialized_example, g, use_tf_activity,
     here set up masking of one of the peaks. If there are no peaks, then mask the middle of the input sequence window
     '''
     atac_target = atac ## store the target ATAC
-    # add some small amount of gaussian noise to the input
-    atac = atac + tf.math.abs(g.normal(atac.shape,
-                                                     mean=0.0,
-                                                     stddev=0.10,
-                                                     dtype=tf.float32))
 
     ### here set up the ATAC masking
     num_mask_bins = mask_size // output_res ## calculate the number of adjacent bins that will be masked in each region
@@ -250,13 +249,24 @@ def deserialize_tr(serialized_example, g, use_tf_activity,
     ### here set up masking of one of the peaks
     mask_indices_temp = tf.where(peaks_c_crop[:,0] > 0)[:,0]
     ridx = tf.concat([tf.random.experimental.stateless_shuffle(mask_indices_temp,seed=[4+randomish_seed,5]),
-                      tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
+                      tf.constant([random_mask_idx],dtype=tf.int64),
+                      tf.constant([random_mask_idx2],dtype=tf.int64)
+                     ],axis=0)   ### concatenate the middle in case theres no peaks
     start_index = ridx[0] - num_mask_bins // 2 + crop_size
     end_index = ridx[0] + 1 + num_mask_bins // 2 + crop_size
     indices = tf.range(start_index, end_index)
     mask = (indices >= 0) & (indices < output_length)
     filtered_indices = tf.boolean_mask(indices, mask)
-    mask_indices = tf.cast(tf.reshape(filtered_indices, [-1, 1]), dtype=tf.int64)
+    start_index_2 = ridx[1] - num_mask_bins // 2 + crop_size
+    end_index_2 = ridx[1] + 1 + num_mask_bins // 2 + crop_size
+    indices_2 = tf.range(start_index_2, end_index_2)
+    mask_2 = (indices_2 >= 0) & (indices_2 < output_length)
+    filtered_indices_2 = tf.boolean_mask(indices_2, mask_2)
+
+    combined_indices = tf.concat([filtered_indices, filtered_indices_2], axis=0)
+    unique_indices, _ = tf.unique(combined_indices)
+    sorted_unique_indices = tf.sort(unique_indices)
+    mask_indices = tf.cast(tf.reshape(sorted_unique_indices, [-1, 1]), dtype=tf.int64)
 
     st=tf.SparseTensor(
         indices=mask_indices,
@@ -298,13 +308,6 @@ def deserialize_tr(serialized_example, g, use_tf_activity,
 
     masked_atac = atac * full_comb_mask
 
-    ## now in the masked region, add randomly corrupted signal(shuffed from the input atac)
-    corrupted_atac =  tf.random.experimental.stateless_shuffle(atac,
-                                                                seed=[1,randomish_seed+13])
-
-
-    masked_atac = (1.0 - full_comb_mask) * corrupted_atac + masked_atac
-
     if log_atac:
         masked_atac = tf.math.log1p(masked_atac)
 
@@ -335,8 +338,8 @@ def deserialize_tr(serialized_example, g, use_tf_activity,
 
 
     atac_out = tf.reduce_sum(tf.reshape(atac_target, [-1,tiling_req]),axis=1,keepdims=True)
-    diff = tf.math.sqrt(tf.nn.relu(atac_out - 5000.0 * tf.ones(atac_out.shape)))
-    atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=5000.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(atac_out - 2000.0 * tf.ones(atac_out.shape)))
+    atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=2000.0) + diff
     atac_out = tf.slice(atac_out,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
@@ -432,10 +435,7 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
 
     atac_target = atac ## store the target
     # add some small amount of gaussian noise to the input
-    atac = atac + tf.math.abs(g.normal(atac.shape,
-                                                     mean=0.0,
-                                                     stddev=0.10,
-                                                     dtype=tf.float32))
+
     ### here set up the ATAC masking
     num_mask_bins = mask_size // output_res # the number of adjacent bins to mask
 
@@ -443,13 +443,23 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
     ### here set up masking of one of the peaks
     mask_indices_temp = tf.where(peaks_c_crop[:,0] > 0)[:,0]
     ridx = tf.concat([tf.random.experimental.stateless_shuffle(mask_indices_temp,seed=[4+randomish_seed,5]),
-                      tf.constant([center],dtype=tf.int64)],axis=0)   ### concatenate the middle in case theres no peaks
+                      tf.constant([center],dtype=tf.int64),
+                      tf.constant([center//2],dtype=tf.int64)
+                     ],axis=0)   ### concatenate the middle in case theres no peaks
     start_index = ridx[0] - num_mask_bins // 2 + crop_size
     end_index = ridx[0] + 1 + num_mask_bins // 2 + crop_size
     indices = tf.range(start_index, end_index)
     mask = (indices >= 0) & (indices < output_length)
     filtered_indices = tf.boolean_mask(indices, mask)
-    mask_indices = tf.cast(tf.reshape(filtered_indices, [-1, 1]), dtype=tf.int64)
+    start_index_2 = ridx[1] - num_mask_bins // 2 + crop_size
+    end_index_2 = ridx[1] + 1 + num_mask_bins // 2 + crop_size
+    indices_2 = tf.range(start_index_2, end_index_2)
+    mask_2 = (indices_2 >= 0) & (indices_2 < output_length)
+    filtered_indices_2 = tf.boolean_mask(indices_2, mask_2)
+    combined_indices = tf.concat([filtered_indices, filtered_indices_2], axis=0)
+    unique_indices, _ = tf.unique(combined_indices)
+    sorted_unique_indices = tf.sort(unique_indices)
+    mask_indices = tf.cast(tf.reshape(sorted_unique_indices, [-1, 1]), dtype=tf.int64)
 
     st=tf.SparseTensor(
         indices=mask_indices,
@@ -480,13 +490,6 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
     full_comb_mask = tf.expand_dims(tf.reshape(tf.tile(full_comb_mask, [1,tiling_req]),[-1]),axis=1)
     masked_atac = atac * full_comb_mask
 
-    ## now in the masked region, add randomly corrupted signal(shuffed from the input atac)
-    corrupted_atac =  tf.random.experimental.stateless_shuffle(atac,
-                                                                seed=[1,randomish_seed+13])
-
-    masked_atac = (1.0 - full_comb_mask) * corrupted_atac + masked_atac
-    ## add some random positive gaussian noise for good measure
-
     if log_atac:
         masked_atac = tf.math.log1p(masked_atac)
 
@@ -494,8 +497,8 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
     masked_atac = tf.clip_by_value(masked_atac, clip_value_min=0.0, clip_value_max=150.0) + diff
 
     atac_out = tf.reduce_sum(tf.reshape(atac_target, [-1,tiling_req]),axis=1,keepdims=True)
-    diff = tf.math.sqrt(tf.nn.relu(atac_out - 5000.0 * tf.ones(atac_out.shape)))
-    atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=5000.0) + diff
+    diff = tf.math.sqrt(tf.nn.relu(atac_out - 2000.0 * tf.ones(atac_out.shape)))
+    atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=2000.0) + diff
     atac_out = tf.slice(atac_out,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
