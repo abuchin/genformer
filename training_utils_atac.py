@@ -156,8 +156,7 @@ def deserialize_tr(serialized_example, g, use_tf_activity,
                    input_length = 196608, max_shift = 10, output_length_ATAC = 49152,
                    output_length = 1536, crop_size = 320, output_res = 128,
                    atac_mask_dropout = 0.15, mask_size = 896, log_atac = True,
-                   use_atac = True, use_seq = True, seq_corrupt_rate = 20,
-                   atac_corrupt_rate = 20):
+                   use_atac = True, use_seq = True, atac_corrupt_rate = 20):
     """Deserialize bytes stored in TFRecordFile."""
     ## parse out feature map
     feature_map = {
@@ -175,7 +174,6 @@ def deserialize_tr(serialized_example, g, use_tf_activity,
       randomish_seed: hacky workaround to previous issue with random atac masking
     '''
     rev_comp = tf.math.round(g.uniform([], 0, 1)) #switch for random reverse complementation
-    seq_mask_int = g.uniform([], 0, seq_corrupt_rate, dtype=tf.int32) ## sequence corruption rate
     atac_mask_int = g.uniform([], 0, atac_corrupt_rate, dtype=tf.int32) ## atac increased corruption rate
     randomish_seed = g.uniform([], 0, 100000000,dtype=tf.int32) # hacky work-around to ensure randomish stateless operations
 
@@ -311,23 +309,10 @@ def deserialize_tr(serialized_example, g, use_tf_activity,
     diff = tf.math.sqrt(tf.nn.relu(masked_atac - 150.0 * tf.ones(masked_atac.shape)))
     masked_atac = tf.clip_by_value(masked_atac, clip_value_min=0.0, clip_value_max=150.0) + diff
 
-    ''' here set up the random sequence masking '''
-    if ((seq_mask_int == 0) and (atac_mask_int != 0)):
-        seq_mask = 1.0 - full_comb_mask_full_store
-        tiling_req_seq = input_length // output_length
-        seq_mask = tf.expand_dims(tf.reshape(tf.tile(seq_mask, [1,tiling_req_seq]),[-1]),axis=1)
-        masked_seq = sequence * seq_mask + tf.random.experimental.stateless_shuffle(sequence,
-                                                                                    seed=[randomish_seed+30,randomish_seed])*(1.0-seq_mask)
-    else:
-        seq_mask = 1.0 - full_comb_mask_full_store
-        tiling_req_seq = input_length // output_length
-        seq_mask = tf.expand_dims(tf.reshape(tf.tile(seq_mask, [1,tiling_req_seq]),[-1]),axis=1)
-        masked_seq = sequence
-
     ''' randomly reverse complement the sequence, and reverse targets + peaks + mask'''
     if rev_comp == 1:
-        masked_seq = tf.gather(masked_seq, [3, 2, 1, 0], axis=-1)
-        masked_seq = tf.reverse(masked_seq, axis=[0])
+        sequence = tf.gather(sequence, [3, 2, 1, 0], axis=-1)
+        sequence = tf.reverse(sequence, axis=[0])
         atac_target = tf.reverse(atac_target,axis=[0])
         masked_atac = tf.reverse(masked_atac,axis=[0])
         peaks_crop=tf.reverse(peaks_crop,axis=[0])
@@ -345,15 +330,14 @@ def deserialize_tr(serialized_example, g, use_tf_activity,
     ''' in case we want to run ablation without these inputs'''
     if not use_atac:
         print('not using atac')
-        masked_atac = tf.random.experimental.stateless_shuffle(atac,
-                                                               seed=[1,randomish_seed+25])
+        masked_atac = tf.zeros_like(masked_atac)
 
     if not use_seq:
         print('not using sequence')
         masked_seq = tf.random.experimental.stateless_shuffle(masked_seq,
                                                               seed=[randomish_seed+1,randomish_seed+3])
 
-    return tf.cast(tf.ensure_shape(masked_seq,[input_length,4]),dtype=tf.bfloat16), \
+    return tf.cast(tf.ensure_shape(sequence,[input_length,4]),dtype=tf.bfloat16), \
                 tf.cast(tf.ensure_shape(masked_atac, [output_length_ATAC,1]),dtype=tf.bfloat16), \
                 tf.cast(tf.ensure_shape(full_comb_mask_store, [output_length-crop_size*2,1]),dtype=tf.int32), \
                 tf.cast(tf.ensure_shape(atac_out,[output_length-crop_size*2,1]),dtype=tf.float32), \
@@ -373,8 +357,6 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
         'peaks_center': tf.io.FixedLenFeature([], tf.string),
         'tf_activity': tf.io.FixedLenFeature([], tf.string)
     }
-    ### stochastic sequence shift and gaussian noise
-    seq_shift=5
 
     input_seq_length = input_length + max_shift
 
@@ -414,6 +396,23 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
     # peaks and adenosines in the window
     randomish_seed = peaks_sum + tf.cast(seq_seed,dtype=tf.int32)
 
+    rev_comp = tf.random.stateless_uniform(shape=[], minval=0,
+                                            maxval=2,
+                                            seed=[randomish_seed+5,seq_seed+6],
+                                            dtype=tf.int32)
+
+    shift = tf.random.stateless_uniform.uniform(shape=(),
+                      minval=0,
+                      maxval=max_shift,
+                      seed=[randomish_seed+1,seq_seed+2],
+                      dtype=tf.int32)
+    for k in range(max_shift):
+        if k == shift:
+            interval_end = input_length + k
+            seq_shift = k
+        else:
+            seq_shift=0
+
     ## here we set up the target variable peaks
     ## to make calculating loss easier, adjust it
     ## here to the cropped window size
@@ -421,7 +420,6 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
     peaks_crop = tf.slice(peaks,
                      [crop_size,0],
                      [output_length-2*crop_size,-1])
-
 
     ## here we set up the center of the peaks
     ## use the center of the peaks to set up the region for masking
@@ -470,6 +468,10 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
     out_length_cropped = output_length-2*crop_size
     edge_append = tf.ones((crop_size,1),dtype=tf.float32)
     atac_mask = tf.ones(out_length_cropped // num_mask_bins,dtype=tf.float32)
+
+    if ((atac_mask_int == 0)):
+        atac_mask_dropout = 3 * atac_mask_dropout
+
     atac_mask=tf.nn.experimental.stateless_dropout(atac_mask,
                                               rate=(atac_mask_dropout),
                                               seed=[randomish_seed+1,randomish_seed+10]) / (1. / (1.0-(atac_mask_dropout)))
@@ -493,21 +495,28 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
     diff = tf.math.sqrt(tf.nn.relu(masked_atac - 150.0 * tf.ones(masked_atac.shape)))
     masked_atac = tf.clip_by_value(masked_atac, clip_value_min=0.0, clip_value_max=150.0) + diff
 
+
+    if not use_atac:
+        print('not using atac')
+        masked_atac = tf.zeros_like(masked_atac)
+    if not use_seq:
+        print('not using sequence')
+        sequence = tf.random.experimental.stateless_shuffle(sequence,
+                                                            seed=[1,randomish_seed+12])
+    if rev_comp == 1:
+        sequence = tf.gather(sequence, [3, 2, 1, 0], axis=-1)
+        sequence = tf.reverse(sequence, axis=[0])
+        atac_target = tf.reverse(atac_target,axis=[0])
+        masked_atac = tf.reverse(masked_atac,axis=[0])
+        peaks_crop=tf.reverse(peaks_crop,axis=[0])
+        full_comb_mask_store=tf.reverse(full_comb_mask_store,axis=[0])
+
     atac_out = tf.reduce_sum(tf.reshape(atac_target, [-1,tiling_req]),axis=1,keepdims=True)
     diff = tf.math.sqrt(tf.nn.relu(atac_out - 2000.0 * tf.ones(atac_out.shape)))
     atac_out = tf.clip_by_value(atac_out, clip_value_min=0.0, clip_value_max=2000.0) + diff
     atac_out = tf.slice(atac_out,
                         [crop_size,0],
                         [output_length-2*crop_size,-1])
-
-    if not use_atac:
-        print('not using atac')
-        masked_atac = tf.random.experimental.stateless_shuffle(atac,
-                                                               seed=[1,randomish_seed+2])
-    if not use_seq:
-        print('not using sequence')
-        sequence = tf.random.experimental.stateless_shuffle(sequence,
-                                                            seed=[1,randomish_seed+12])
 
     return tf.cast(tf.ensure_shape(sequence,[input_length,4]),dtype=tf.bfloat16), \
                 tf.cast(tf.ensure_shape(masked_atac, [output_length_ATAC,1]),dtype=tf.bfloat16), \
@@ -546,7 +555,7 @@ def return_dataset(gcs_path, split, batch, input_length, output_length_ATAC,
                                                             crop_size, output_res,
                                                             atac_mask_dropout, random_mask_size,
                                                             log_atac, use_atac, use_seq,
-                                                            seq_corrupt_rate, atac_corrupt_rate),
+                                                            atac_corrupt_rate),
 
 
                               deterministic=False,
