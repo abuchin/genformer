@@ -241,33 +241,24 @@ def deserialize_tr(serialized_example, g, use_tf_activity,
     center = (output_length-2*crop_size)//2
     ### here set up masking of one of the peaks
     mask_indices_temp = tf.where(peaks_c_crop[:,0] > 0)[:,0]
-    ridx = tf.concat([tf.random.experimental.stateless_shuffle(mask_indices_temp,seed=[4+randomish_seed,5]),
-                      tf.constant([center],dtype=tf.int64),
-                      tf.constant([center//2],dtype=tf.int64)
-                     ],axis=0)   ### concatenate the middle in case theres no peaks
-    start_index = ridx[0] - num_mask_bins // 2 + crop_size
-    end_index = ridx[0] + 1 + num_mask_bins // 2 + crop_size
-    indices = tf.range(start_index, end_index)
-    mask = (indices >= 0) & (indices < output_length)
-    filtered_indices = tf.boolean_mask(indices, mask)
-    start_index_2 = ridx[1] - num_mask_bins // 2 + crop_size
-    end_index_2 = ridx[1] + 1 + num_mask_bins // 2 + crop_size
-    indices_2 = tf.range(start_index_2, end_index_2)
-    mask_2 = (indices_2 >= 0) & (indices_2 < output_length)
-    filtered_indices_2 = tf.boolean_mask(indices_2, mask_2)
-
-    combined_indices = tf.concat([filtered_indices, filtered_indices_2], axis=0)
-    unique_indices, _ = tf.unique(combined_indices)
-    sorted_unique_indices = tf.sort(unique_indices)
-    mask_indices = tf.cast(tf.reshape(sorted_unique_indices, [-1, 1]), dtype=tf.int64)
-
-    st=tf.SparseTensor(
-        indices=mask_indices,
-        values=tf.ones([tf.shape(mask_indices)[0]], dtype=tf.float32),
-        dense_shape=[output_length])
-    dense_peak_mask=tf.sparse.to_dense(st)
-    dense_peak_mask_store = dense_peak_mask
-    dense_peak_mask=1.0-dense_peak_mask ### masking regions here are set to 1. so invert the mask to actually use
+    mask_indices_temp = tf.random.experimental.stateless_shuffle(mask_indices_temp,seed=[4+randomish_seed,5])
+    if tf.size(mask_indices_temp) > 0:
+        ridx = tf.concat([mask_indices_temp],axis=0)   ### concatenate the middle in case theres no peaks
+        start_index = ridx[0] - num_mask_bins // 2 + crop_size
+        end_index = ridx[0] + 1 + num_mask_bins // 2 + crop_size
+        indices = tf.range(start_index, end_index)
+        mask = (indices >= 0) & (indices < output_length)
+        filtered_indices = tf.boolean_mask(indices, mask)
+        mask_indices = tf.cast(tf.reshape(filtered_indices, [-1, 1]), dtype=tf.int64)
+        st=tf.SparseTensor(
+            indices=mask_indices,
+            values=tf.ones([tf.shape(mask_indices)[0]], dtype=tf.float32),
+            dense_shape=[output_length])
+        dense_peak_mask=tf.sparse.to_dense(st)
+        dense_peak_mask_store = dense_peak_mask
+        dense_peak_mask=1.0-dense_peak_mask ### masking regions here are set to 1. so invert the mask to actually use
+    else:
+        dense_peak_mask = tf.ones([output_length],dtype=tf.float32)
     dense_peak_mask = tf.expand_dims(dense_peak_mask,axis=1)
 
     out_length_cropped = output_length-2*crop_size
@@ -434,32 +425,24 @@ def deserialize_val(serialized_example, g, use_tf_activity, input_length = 19660
     center = (output_length-2*crop_size)//2 # the center of the window
     ### here set up masking of one of the peaks
     mask_indices_temp = tf.where(peaks_c_crop[:,0] > 0)[:,0]
-    ridx = tf.concat([tf.random.experimental.stateless_shuffle(mask_indices_temp,seed=[4+randomish_seed,5]),
-                      tf.constant([center],dtype=tf.int64),
-                      tf.constant([center//2],dtype=tf.int64)
-                     ],axis=0)   ### concatenate the middle in case theres no peaks
-    start_index = ridx[0] - num_mask_bins // 2 + crop_size
-    end_index = ridx[0] + 1 + num_mask_bins // 2 + crop_size
-    indices = tf.range(start_index, end_index)
-    mask = (indices >= 0) & (indices < output_length)
-    filtered_indices = tf.boolean_mask(indices, mask)
-    start_index_2 = ridx[1] - num_mask_bins // 2 + crop_size
-    end_index_2 = ridx[1] + 1 + num_mask_bins // 2 + crop_size
-    indices_2 = tf.range(start_index_2, end_index_2)
-    mask_2 = (indices_2 >= 0) & (indices_2 < output_length)
-    filtered_indices_2 = tf.boolean_mask(indices_2, mask_2)
-    combined_indices = tf.concat([filtered_indices, filtered_indices_2], axis=0)
-    unique_indices, _ = tf.unique(combined_indices)
-    sorted_unique_indices = tf.sort(unique_indices)
-    mask_indices = tf.cast(tf.reshape(sorted_unique_indices, [-1, 1]), dtype=tf.int64)
-
-    st=tf.SparseTensor(
-        indices=mask_indices,
-        values=tf.ones([tf.shape(mask_indices)[0]], dtype=tf.float32),
-        dense_shape=[output_length])
-    dense_peak_mask=tf.sparse.to_dense(st)
-    dense_peak_mask_store = dense_peak_mask
-    dense_peak_mask=1.0-dense_peak_mask ### masking regions here are set to 1. so invert the mask to actually use
+    mask_indices_temp = tf.random.experimental.stateless_shuffle(mask_indices_temp,seed=[1+randomish_seed,5])
+    if tf.size(mask_indices_temp) > 0:
+        ridx = tf.concat([mask_indices_temp],axis=0)   ### concatenate the middle in case theres no peaks
+        start_index = ridx[0] - num_mask_bins // 2 + crop_size
+        end_index = ridx[0] + 1 + num_mask_bins // 2 + crop_size
+        indices = tf.range(start_index, end_index)
+        mask = (indices >= 0) & (indices < output_length)
+        filtered_indices = tf.boolean_mask(indices, mask)
+        mask_indices = tf.cast(tf.reshape(filtered_indices, [-1, 1]), dtype=tf.int64)
+        st=tf.SparseTensor(
+            indices=mask_indices,
+            values=tf.ones([tf.shape(mask_indices)[0]], dtype=tf.float32),
+            dense_shape=[output_length])
+        dense_peak_mask=tf.sparse.to_dense(st)
+        dense_peak_mask_store = dense_peak_mask
+        dense_peak_mask=1.0-dense_peak_mask ### masking regions here are set to 1. so invert the mask to actually use
+    else:
+        dense_peak_mask = tf.ones([output_length],dtype=tf.float32)
     dense_peak_mask = tf.expand_dims(dense_peak_mask,axis=1)
 
     out_length_cropped = output_length-2*crop_size

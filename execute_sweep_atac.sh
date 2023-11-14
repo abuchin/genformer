@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 python3 train_model_atac.py \
-            --tpu_name="pod1" \
+            --tpu_name="pod11" \
             --tpu_zone="us-east1-d" \
             --wandb_project="atac_pretraining" \
             --wandb_user="njaved" \
@@ -38,17 +38,16 @@ python3 train_model_atac.py \
             --savefreq=1 \
             --load_init="False" \
             --rectify="True" \
-            --filter_list_seq="768,896,1024,1024,1152,1280" \
+            --filter_list_seq="768,896,1024,1024,1152,1152" \
             --filter_list_atac="32,64" \
             --atac_mask_dropout=0.15 \
-            --atac_mask_dropout_val=0.15 \
+            --atac_mask_dropout_val=0.05 \
             --log_atac="False" \
             --random_mask_size="1280" \
             --use_atac="True" \
             --final_point_scale="6" \
             --use_seq="True" \
             --seed=25 \
-            --seq_corrupt_rate="20" \
             --atac_corrupt_rate="10" \
             --use_tf_activity="True" \
             --num_epochs_to_start="0" \
