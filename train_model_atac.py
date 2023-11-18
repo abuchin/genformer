@@ -100,12 +100,14 @@ def main():
                 'random_mask_size': {'values':[int(x) for x in args.random_mask_size.split(',')]},
                 'final_point_scale': {'values':[int(x) for x in args.final_point_scale.split(',')]},
                 'seed': {'values':[args.seed]},
+                'val_seed': {'values':[args.val_data_seed]},
                 'atac_corrupt_rate': {'values': [int(x) for x in args.atac_corrupt_rate.split(',')]},
                 'use_tf_activity': {'values': [parse_bool_str(x) for x in args.use_tf_activity.split(',')]},
                 'num_epochs_to_start': {'values': [int(x) for x in args.num_epochs_to_start.split(',')]},
                 'loss_type': {'values': [str(x) for x in args.loss_type.split(',')]},
                 'total_weight_loss': {'values': [float(x) for x in args.total_weight_loss.split(',')]},
-                'use_rot_emb': {'values':[parse_bool_str(x) for x in args.use_rot_emb.split(',')]}
+                'use_rot_emb': {'values':[parse_bool_str(x) for x in args.use_rot_emb.split(',')]},
+                'best_val_loss': {'values':[float(args.best_val_loss)]}
                 }
     }
 
@@ -115,7 +117,7 @@ def main():
         strategy = training_utils.tf_tpu_initialize(args.tpu_name,args.tpu_zone)
         mixed_precision.set_global_policy('mixed_bfloat16')
         g = tf.random.Generator.from_seed(args.seed)
-
+        g_val = tf.random.Generator.from_seed(args.val_seed)
         with strategy.scope(): ## rest must be w/in strategy scope
             config_defaults = {"lr_base": 0.01 }### will be overwritten
             ### log training parameters
@@ -190,8 +192,9 @@ def main():
                                                                 wandb.config.atac_mask_dropout_val,
                                                                 wandb.config.random_mask_size, wandb.config.log_atac,
                                                                 wandb.config.use_atac, wandb.config.use_seq, wandb.config.seed,
-                                                                wandb.config.atac_corrupt_rate,
-                                                                wandb.config.val_steps_ho, wandb.config.use_tf_activity, g)
+                                                                wandb.config.val_seed, wandb.config.atac_corrupt_rate,
+                                                                wandb.config.val_steps_ho, wandb.config.use_tf_activity, g,
+                                                                g_val)
 
             train_human, data_val_ho = out_iterators
             print('created dataset iterators')
@@ -242,6 +245,8 @@ def main():
 
             global_step = 0
             val_losses = []
+            if wandb.config.load_init:
+                val_lossses.append(wandb.config.best_val_loss)
             val_pearsons = []
             val_R2 = []
             patience_counter = 0

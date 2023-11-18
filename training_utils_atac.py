@@ -570,9 +570,9 @@ def return_distributed_iterators(gcs_path, gcs_path_ho, global_batch_size,
                                  options, options_val,
                                  atac_mask_dropout, atac_mask_dropout_val,
                                  random_mask_size,
-                                 log_atac, use_atac, use_seq, seed,
+                                 log_atac, use_atac, use_seq, seed,seed_val,
                                  atac_corrupt_rate,
-                                 validation_steps, use_tf_activity, g):
+                                 validation_steps, use_tf_activity, g,g_val):
 
 
 
@@ -587,8 +587,8 @@ def return_distributed_iterators(gcs_path, gcs_path_ho, global_batch_size,
                                  output_length_ATAC, output_length, crop_size,
                                  output_res, max_shift, options_val, num_parallel_calls, num_epoch,
                                  atac_mask_dropout_val, random_mask_size, log_atac,
-                                 use_atac, use_seq, seed, atac_corrupt_rate,
-                                 validation_steps, use_tf_activity, g)
+                                 use_atac, use_seq, seed_val, atac_corrupt_rate,
+                                 validation_steps, use_tf_activity, g_val)
 
     val_dist_ho=strategy.experimental_distribute_dataset(val_data_ho)
     val_data_ho_it = iter(val_dist_ho)
@@ -876,6 +876,11 @@ def parse_args(parser):
                         type=int,
                         default=42,
                         help= 'seed')
+    parser.add_argument('--val_data_seed',
+                        dest='val_data_seed',
+                        type=int,
+                        default=25,
+                        help= 'val_data_seed')
     parser.add_argument('--atac_corrupt_rate',
                         dest='atac_corrupt_rate',
                         type=str,
@@ -906,6 +911,10 @@ def parse_args(parser):
                         type=str,
                         default="True",
                         help= 'use_rot_emb')
+    parser.add_argument('--best_val_loss',
+                        dest='best_val_loss',
+                        type=float,
+                        default=0.09113)
     args = parser.parse_args()
     return parser
 

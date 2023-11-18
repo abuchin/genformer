@@ -48,8 +48,10 @@ python3 train_model_atac.py \
             --final_point_scale="6" \
             --use_seq="True" \
             --seed=25 \
+            --val_data_seed=25 \
             --atac_corrupt_rate="10" \
             --use_tf_activity="True" \
             --num_epochs_to_start="0" \
             --total_weight_loss="0.15" \
-            --use_rot_emb="True"
+            --use_rot_emb="True" \
+            --best_val_loss=0.09113
