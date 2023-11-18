@@ -246,7 +246,7 @@ def main():
             global_step = 0
             val_losses = []
             if wandb.config.load_init:
-                val_lossses.append(wandb.config.best_val_loss)
+                val_losses.append(wandb.config.best_val_loss)
             val_pearsons = []
             val_R2 = []
             patience_counter = 0
