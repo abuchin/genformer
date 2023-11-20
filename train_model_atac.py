@@ -325,7 +325,7 @@ def main():
                 duration = (time.time() - start) / 60.
                 print('completed epoch ' + str(epoch_i) + ' validation - duration(mins): ' + str(duration))
 
-                if (epoch_i > 2):
+                if (epoch_i > 0):
                     stop_criteria,patience_counter,best_epoch = \
                         training_utils.early_stopping(current_val_loss=val_losses[-1],
                                                         logged_val_losses=val_losses,
